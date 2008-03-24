@@ -1,0 +1,135 @@
+HACKING Devel::NYTProf
+======================
+
+The New York Times and I encourage hacking Devel::NYTProf!
+
+OBTAINING THE CURRENT RELEASE
+-----------------------------
+The current offial release can be obtained by two methods.
+
+The CPAN Page (Preferred):
+http://search.cpan.org/~akaplan/Devel-NYTProf/
+
+The Google Code page:
+http://code.google.com/p/perl-devel-nytprof/downloads/list
+
+OBTAINING THE LATEST DEVELOPMENT CODE
+-------------------------------------
+You can grab the head of the latest trunk code from the Google Code repository:
+http://code.google.com/p/perl-devel-nytprof/source/checkout
+
+or directly via SVN:
+
+svn checkout http://perl-devel-nytprof.googlecode.com/svn/trunk/ perl-devel-nytprof-read-only
+
+CONTRIBUTING
+------------
+Small patches are accepted via email (akaplan@nytimes.com) or Google Group post.
+
+Larger changes will need SVN write-access.  You can obtain this by emailing
+Adam (akaplan@nytimes.com).  You'll need to have a Google account first, so go
+make one first.  Include the username in your request for access.  After access
+is obtained, you can use this command:
+
+svn checkout https://perl-devel-nytprof.googlecode.com/svn/trunk/ perl-devel-nytprof --username YOUR_USERNAME
+
+COMPILING
+---------
+When developing, use 'make' and ensure that NO warnings are output except
+for those occuring in perl "XS_blah_blah" functions.
+
+Change line 37 of Makefile from:
+
+CCCDLFLAGS = -fPIC
+
+to:
+
+CCCDLFLAGS = -fPIC -pedantic -Wall -ansi
+
+TESTING
+-------
+You MUST write test cases for you changes. All tests that are dropped into the
+"t" folder and added to MANIFEST will be executed.  The testing system is
+customized for this module becuse debuggers are not that easy to test.  The
+system still uses Test::Harness and Test::More, so it should behave just like
+any other perl modules 'make test'.
+
+Writing tests is easy!
+
+1) design a perl script that will trigger the new behavior/feature that you
+   want to test. Name the file 't/test##.p'
+
+2) create the 'control' file for the debugger output.  This file contains a
+   perl fragment that is eval'd.  See any t/*.v file for an example, but
+   basically it should be a hash of: line_number => [ times_executed ].
+   Time data and statistics are stripped out. They aren't reliable metrics
+   across systems.  If you are testing an eval, then you'll need to make an
+   anonymous hash that hash the lines IN the eval that were executed. The format
+   is the same. Examples are in t/test13.v, but it looks like this:
+
+	 $expected = {
+			'test00.p' => {
+				4 => [ 3 ],
+				19 => [ 1, { 1 => [ 1 ] } ],
+				20 => [ 2, { 1 => [ 1 ], 2 => [ 100 ] } ],
+			}
+	 };
+
+	 This hash is for the files "t/test00.p"
+	 Line 4 is executed 3 times
+	 Line 19 is executed 1 time and is an eval
+	      The first line of the eval is executed 1 time
+	 Line 20 is executed 1 time and is also eval
+	      The first line of the eval is executed 1 time
+	      The second line of the eval is executed 100 times
+	
+	 Evals in the debugger are strange, and you may need to do some exploring if
+	 you manage to create a strange eval.  If code in an eval fails during test,
+	 subsequent lines INSIDE the eval are reported as having NEVER executed!
+
+3) Create a corresponding CSV output file.  This is EASY! The file will be
+	 compared against the output of bin/nytprofcsv on your test file.  It tests
+	 the output generator code.  Everything except number of calls should be set
+	 to 0.  Times are ignored, but there is a way to override that. Look through
+	 the test files to find some examples of that. Files are named t/test00.x
+
+	 Note: This is a very easy step! Just run "make test".  The scripts will fail
+	 when trying to verify the csv file, but the file that it generated can be
+	 copy-pasted from t/profiler/blah.p.csv.  You'll need to verify it of course!
+
+4) Test! run 'make test' and your new paried .p,.x & .v files will be tested
+
+Note:  While writing a test, it is helpful to be able to run it directly, 
+			without the test harness.  This allows you to view more output stdout and 
+			stderr.  Fortunately, its easy to do:
+
+			PERL5LIB=blib/lib:blib/arch perl -d:NYTProf t/test01.p
+
+			The output will be in ./nytprof. You can then also run
+			the csv manually:
+
+			PERL5LIB=blib/lib:blib/arch perl bin/nytprofcsv
+
+			The final file will be in ./profiler/test01.p.csv
+
+Remember, testing is VERY VERY important!  Within a day or two of releasing
+code, the CPAN testers will test the release on pretty much every major platform
+you can think of.  A failed test report is much easier to fix than a runtime
+error like "bash: segmentation fault: core dumped"
+
+GENERATING DISTRIBUTIONS
+------------------------
+Releases are generated with 'make metafile', and then fed through tar+gz.
+You shouldn't ever check-in the distribution directory, any temporary files
+(including Makefile.old) or change the $VERSION numbers. We'll do this for you.
+
+RESOURCES
+---------
+Google Code:
+http://code.google.com/p/perl-devel-nytprof/
+
+Google Devel Group (must subscribe here):
+http://groups.google.com/group/develnytprof-dev
+
+NYTimes Open Code Blog:
+http://open.nytimes.com/

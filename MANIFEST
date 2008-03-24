@@ -1,6 +1,8 @@
 bin/nytprofhtml
 bin/nytprofcsv
 Changes
+HACKING
+INSTALL
 lib/Devel/NYTProf.pm
 lib/Devel/NYTProf/Reader.pm
 Makefile.PL
