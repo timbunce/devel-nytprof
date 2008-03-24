@@ -1,0 +1,43 @@
+Devel-NYTProf version 0.01
+==========================
+
+The Devel::NYTProf bundle is a full featured perl line-by-line profiler and
+profile report generator for Perl.  Devel::NYTProf provides an XS profiler.
+The included Devel::NYTProf::Reader provides a flexible XS report generator 
+for the profiler output.  Two scripts are also included which implement the
+functionality of Devel::NYTProf::Reader.  The first is nytprof_csv, which
+creates a comma-seperated value formatted report file.  It is simple and
+intended to provide a jumping point into creating your own custom reports.
+The second script is nytprof_html, which creates pretty multipage HTML 
+reports.  Both scripts will be installed into your <perl-path>/bin
+directory, so add that to your $PATH if you want.
+
+Devel::NYTProf was written and tested on both Linux and Solaris.  Please 
+report any problems you encounter on other platforms.  (...except Windows. 
+I won't fix major Windows problems, but you're welcome to make a patch!)
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+		Getopt::Long
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2008 Adam J. Kaplan, NYTimes.com, akaplan aat nytimes dotcom
+Copyright (C) 2008 The New York Times Company
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.8.8 or,
+at your option, any later version of Perl 5 you may have available.
+
+

@@ -1,0 +1,489 @@
+#!/usr/bin/env perl
+##########################################################
+## This script is part of the Devel::NYTProf distribution
+##
+## Copyright, contact and other information can be found
+## at the bottom of this file, or by going to:
+## http://search.cpan.org/~akaplan/Devel-NYTProf
+##
+###########################################################
+use warnings;
+use strict;
+use Carp;
+use Getopt::Long;
+use Devel::NYTProf::Reader;
+
+our $VERSION = 0.01;
+
+# These control the limits for what the script will consider ok to severe times
+# specified in standard deviations from the mean time
+use constant SEVERITY_SEVERE			=> 2.0; # above this deviation, a bottleneck
+use constant SEVERITY_BAD					=> 1.0;
+use constant SEVERITY_GOOD				=> 0.5; # within this deviation, okay
+
+use constant NUMERIC_PRECISION    => 5;
+
+my %opt;
+GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h/);
+
+if (defined($opt{help})) {
+	&usage;
+	exit;
+}
+
+# handle file selection option
+if (! defined($opt{file})) {
+	$opt{file} = 'nytprof.out';
+}
+if (! -r $opt{file}) {
+	die "Unable to access $opt{file}\n";
+}
+
+# handle handle output location
+if (! defined($opt{out})) {
+	$opt{out} = './profiler';
+} 
+if (! -r $opt{file}) {
+	die "Unable to access output directory $opt{file}\n";
+}
+
+# handle deleting old db's
+if (defined($opt{'delete'})) {
+	_delete();
+}
+
+print "Generating report...\n";
+my $reporter = new Devel::NYTProf::Reader($opt{file});
+
+# place to store this crap
+$reporter->outputDir($opt{out});
+
+# set formatting for html
+$reporter->setParam('header', get_header("Profile: !~FILENAME~!").
+"<body> <h1>File Profile</h1> <table><tr>
+<td class='h' align='right'>File</td><td align=\"left\">!~FILENAME~!</td></tr>
+<td class='h' align='right'>Total Calls</td><td align=\"left\">!~TOTAL_CALLS~!
+</td></tr>\n
+<td class='h' align='right'>Total Time</td><td align=\"left\">!~TOTAL_TIME~!
+seconds</td>\n</tr></table><br/>");
+
+$reporter->setParam('taintmsg', 
+"<div class='warn_title'>WARNING!</div>\n
+<div class='warn'>The source file used to generate this report was modified
+after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n");
+
+$reporter->setParam('datastart', "<table border=1 cellpadding=0>
+<tr><th>Line</th><th>Calls</th><th>Time</th><th>Times/Call</th><th>Code</th>
+</tr>\n");
+
+$reporter->setParam('footer', '</table></body></html>');
+
+$reporter->setParam('linestart',
+	{start => '<tr><td class="h">', value=> 'line', end => '</td>'});
+
+#$reporter->setParam('column1', 
+#	{start => '<td>', value => 'calls', end => '</td>', default => ''});
+#$reporter->setParam('column2', 
+#	{start => '<td>', value => 'time', end => '</td>', default => ''});
+#$reporter->setParam('column3', 
+#	{start => '<td>', value => 'time/call', end => '</td>', default => ''});
+$reporter->setParam('column4', 
+	{start => '<td class=\'s\'>', value => 'source', end => '</td>', 
+		default => ''});
+
+#$reporter->setParam('linestart', {func => \&myfunc});
+$reporter->setParam('column1', 
+										{value => 'calls', func => \&determine_severity});
+$reporter->setParam('column2', 
+										{value => 'time', func => \&determine_severity});
+$reporter->setParam('column3', 
+										{value => 'time/call', func => \&determine_severity});
+#$reporter->setParam('column4', {func => \&myfunc});
+
+$reporter->setParam('lineend', {start => "</tr>\n"});
+
+# set output options
+$reporter->setParam('suffix', '.html');
+$reporter->addRegexp(' ', '&nbsp;');
+$reporter->addRegexp('\t', '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
+$reporter->addRegexp('<', '&lt;');
+$reporter->addRegexp('>', '&gt;');
+
+# generate the files
+$reporter->report();
+
+# output a css file too (optional, but good for pretty pages)
+my @css = <DATA>;
+$reporter->_output_additional('style.css', \@css);
+
+output_indexpage($reporter, 'index.html');
+
+#
+# SUBROUTINES
+#
+
+# output an html indexing page with some information to help navigate potential
+# large numbers of profiled files. Optional, recommended
+sub output_indexpage {
+	my ($r, $filename) = @_;
+	
+	# Calculate the mean and deviation using a good generic formula.
+  # Note: Using Median Absolute Deviation because it is fairly resistant to 
+  # the extreme values likely to be found in code and therefore provides better
+  # resolution
+	my $stats = $r->getFileStats();
+
+	my @values;
+	map(push (@values, $_->{'time'}), values %$stats);
+
+	# Use Median Absolute Deviation Formula
+	my ($amdev_t, $mean_t) = 
+			@{Devel::NYTProf::Reader::calculate_median_absolute_deviation(\@values)};
+  # Use Standard Deviation Formula
+	#my ($amdev_t, $mean_t) = Devel::NYTProf::Reader::calculate_sd(\@values);
+	undef @values;
+
+	map ($stats->{$_}->{'time/call'} = 
+				($stats->{$_}->{'time'} / $stats->{$_}->{calls}), keys %$stats);
+
+	map(push (@values, $_->{'time/call'}), values %$stats);
+
+	# Use Median Absolute Deviation Formula
+	my ($amdev_tc, $mean_tc) = 
+			@{Devel::NYTProf::Reader::calculate_median_absolute_deviation(\@values)};
+  # Use Standard Deviation Formula
+	#my ($amdev_tc, $mean_tc) = Devel::NYTProf::Reader::calculate_sd(\@values);
+	undef @values;
+
+	###
+
+	open (OUT, '>', "$opt{out}/$filename")
+		or confess "Unable to open file $opt{out}/$filename\n";
+
+	print OUT get_header();
+	print OUT "<body> <h1>Profile Analysis Index</h1><br/>"
+						."Jump to a file: &nbsp;<select>";
+
+	# generate select options for namespace groupings
+	foreach (sort keys %$stats) {
+		my $safe = $stats->{$_}->{html_safe};
+		print OUT "<option onClick=location.href=('#$safe');>$_</option>\n";
+	}
+	print OUT "</select><br/><br/>\n";
+
+	# generate sections for modules grouped by namespace
+	print OUT "<table border=1 cellspacing=0>";
+	print OUT "<tr class='index'><th>File</th><th>Calls</th><th>Time</th>"
+						."<th>Avg Time/Call</th></tr>";
+
+	my $allTimes; # for stats table at the bottom only
+	my $allCalls; # for stats table at the bottom only
+
+	foreach (sort keys %$stats) {
+		my $safe = $stats->{$_}->{html_safe};
+		print OUT  "<tr class='index'><td><a name='$safe' href='$safe.html'>"
+							."$_</a></td>";
+
+		my $html_time = determine_severity('time',
+											$stats->{$_}->{'time'}, [$amdev_t, $mean_t]);
+		my $html_calltime = determine_severity('time/call', 
+											$stats->{$_}->{'time/call'}, [$amdev_tc, $mean_tc]);
+
+		print OUT "<td class='index'>$stats->{$_}->{calls}</td>"
+							."$html_time"
+							."$html_calltime</tr>\n";
+
+		# stats collection
+		$allTimes += $stats->{$_}->{'time'}; 
+		$allCalls += $stats->{$_}->{calls};
+	}
+	print OUT '</table><br/><br/>';
+
+	print OUT '<table cellspacing=0 align=left>'
+			.'<tr><th>Field</th><th>Count</th><th>Median</th><th>Deviation</th></tr>'
+			.'<tr><td>Time</td><td>'.scalar(keys %$stats)."</td><td>$mean_t</td>"
+						."<td>$amdev_t</td></tr>"
+			.'<tr><td>Avg Time Per Call</td><td>'.scalar(keys %$stats)
+						."</td><td>$mean_tc</td><td>$amdev_tc</td></tr>"
+			.'</table>';
+
+	
+
+	printf OUT '<table cellspacing=0 align=left>'
+							.'<tr><th>Total Execution Time</th><th>Total Lines Executed</th>'
+							."</tr><tr><td>$allTimes</td><td>$allCalls</td></tr></table>";
+	print OUT "</body></html>";
+	close OUT;
+}
+
+# calculates how good or bad the time is for a file based on the others
+sub determine_severity {
+	my ($column, $val, $stats) = @_; # @_[3] is like arrayref (deviation, mean)
+	return "<td></td>" unless defined $val;
+	return "<td>$val</td>" unless defined $stats;
+
+	my $devs = ($val - $stats->[1]); #stats->[1] is the mean.
+	$devs /= $stats->[0] if $stats->[0]; # no divide by zero when all values equal
+
+	# normalize the width/precision so that the tables look good.
+	# don't do this for 'calls' because the number is always an integer
+	if (defined $column and $column ne 'calls') {
+		if ($val < 0.00001 and $val > 0) {
+			$val = sprintf(" %.0e", $val);
+		} else {
+			$val = sprintf(" %.".NUMERIC_PRECISION."f", $val);
+		}
+	}
+
+	my $class;
+	if ($devs < 0) { # fast
+		$class = 'c3';
+	} elsif ($devs < SEVERITY_GOOD) {
+		$class = 'c3';
+	} elsif ($devs < SEVERITY_BAD) {
+		$class = 'c2';
+	} elsif ($devs < SEVERITY_SEVERE) {
+		$class = 'c1';
+	} else {
+		$class = 'c0';
+	}
+	return "<td class='$class'>$val</td>";
+}
+
+# Delete the previous database/directory if it exists
+sub _delete {
+	if (-d $opt{out}) {
+		print "Deleting $opt{out}\n";
+		unlink glob($opt{out}."/*");
+		unlink glob($opt{out}."/.*");
+		rmdir $opt{out} or confess "Delete of $opt{out} failed: $!\n";
+	}
+}
+
+sub usage {
+	print <<END
+usage: [perl] nytprofhtml [opts]
+ --file <file>, -f <file>  Use the specified file as Devel::NYTProf database
+                            file. [default: ./nytprof.out]
+ --out <dir>,   -o <dir>   Place generated files here [default: ./profiler]
+ --delete,      -d         Delete the old nytprofhtml output [uses --out]
+ --help,        -h         Print this message
+
+This script of part of the Devel::NYTProf::Reader package by Adam J Kaplan.
+Copyright 2008 Adam J Kaplan, http://search.cpan.org/~akaplan, Released under
+the same terms as Perl itself.
+END
+}
+
+# returns the generic header string.  Here only to make the code more readable.
+sub get_header {
+	my $title = shift || "Profile Index";
+	return <<EOD
+<!DOCTYPE html
+     PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<!--
+This file was generated by Devel::NYTProf::Reader HTML Version $VERSION
+using Devel::NYTProf Version $Devel::NYTProf::Reader::VERSION
+Devel::NYTProf, Devel::NYTProf::Reader and nytprofhtml are copyright 
+2008, Adam Kaplan, akaplan at cpan dot org, search.cpan.org/~akaplan
+These modules are free. They are licensed under the same terms as Perl itself.
+-->
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"></meta>
+    <meta http-equiv="Content-Language" content="en-us"></meta>
+		<link rel="stylesheet" type="text/css" href="style.css"></link>
+    <title>$title</title>
+</head>
+EOD
+}
+
+# The data handle contains the entire CSS file.
+__DATA__
+/* Stylesheet for Devel::NYTProf::Reader HTML reports */
+
+/* You may modify this file to alter the appearance of your coverage
+ * reports. If you do, you should probably flag it read-only to prevent
+ * future runs from overwriting it.
+ */
+
+/* Note: default values use the color-safe web palette. */
+
+body { font-family: sans-serif; }
+
+h1, h3 {
+	background-color: #3399ff;
+	border: solid 1px #999999;
+	padding: 0.2em;
+	-moz-border-radius: 10px;
+}
+
+a { color: #000000; }
+a:visited { color: #333333; }
+
+table { 
+	border-collapse: collapse; 
+	border-spacing: 0px; 
+}
+tr { 
+	text-align : center;
+	vertical-align: top; 
+}
+
+th,.h {
+	background-color: #cccccc;
+	border: solid 1px #333333;
+	padding: 0em 0.2em;
+}
+td { 
+	border: solid 1px #cccccc; 
+	padding: 4px 8px;
+}
+
+.index { text-align: left; }
+
+/* source code */
+pre,.s {
+	text-align: left;
+	font-family: monospace;
+	white-space: pre;
+	padding: 0em 0.5em 0em 0.5em;
+}
+
+/* Classes for color-coding profiling information:
+ *   c0  : code not hit
+ *   c1  : coverage >= 75%
+ *   c2  : coverage >= 90%
+ *   c3  : path covered or coverage = 100%
+ */
+.c0, .c1, .c2, .c3 { text-align: right; }
+.c0 {
+	background-color: #ff9999;
+	border: solid 1px #cc0000;
+}
+.c1 {
+	background-color: #ffcc99;
+	border: solid 1px #ff9933;
+}
+.c2 {
+	background-color: #ffff99;
+	border: solid 1px #cccc66;
+}
+.c3 {
+	background-color: #99ff99;
+	border: solid 1px #009900;
+}
+
+/* warnings */
+.warn {
+	background-color: #FFFFAA;
+	border: 0;
+	width: 96%;
+	text-align: center;
+	padding: 5px 0;
+}
+
+.warn_title {
+	background-color: #FFFFAA;
+	border: 0;
+	color: red;
+	width: 96%;
+	font-size: 2em;
+	text-align: center;
+	padding: 5px 0;
+}
+__END__
+
+=head1 NAME
+
+nytprofhtml - L<Devel::NYTProf::Reader> HTML format implementation
+
+=head1 SYNOPSIS
+
+ $ nytprofhtml [-h] [-d] [-o <output directory>] [-f <input file>]
+
+ perl -d:NYTProf some_perl_app.pl
+ nytprofhtml
+ Generating HTML Output...
+
+=head1 HISTORY
+
+A bit of history and a shameless plug...
+
+NYTProf stands for 'New York Times Profiler'. Indeed, this module was developed
+by The New York Times Co. to help our developers quickly identify bottlenecks in
+large Perl applications.  The Times loves Perl and we hope the community will 
+benefit from our work as much as we have from theirs.
+
+Please visit L<http://open.nytimes.com>, our open source blog to see what we are up to, L<http://code.nytimes.com> to see some of our open projects and then 
+check out L<htt://nytimes.com> for the latest news!
+
+=head1 DESCRIPTION
+
+C<nytprofhtml> is a script that utilizes L<Devel::NYTProf::Reader> to
+create colorful HTMl formatted reports from L<Devel::NYTProf> output.
+
+The reports include dynamic runtime analysis wherein each line and each file
+is analyzed based on the preformance of the other lines and files.  As a
+result, you can quickly find the slowest module and the slowest line in a 
+module.  Slowness is measured in three ways: total calls, total time and
+average time per call.  Analysis is based on absolute deviations from the 
+median.
+
+That might sound complicated, but in reality you can just run the command and
+enjoy your report!
+
+Note: You'll need to run your app through L<Devel::NYTProf> debugger first 
+
+=head1 COMMAND-LINE OPTIONS
+
+These are the command line options understood by C<nytprofhtml>
+
+=over 4
+
+=item -f, --file <filename>
+
+Specifies the location of the input file. Default: nytprof.out
+
+=item -o, --out <dir>
+
+Where to place the generated report. Default: ./profiler/
+
+=item -d, --delete
+
+Purge any existing database located at whatever -o (above) is set to
+
+=item -h, --help
+
+Print the help message
+
+=back
+
+=head1 SAMPLE OUTPUT
+
+=over 4
+
+=item L<http://adkap.com/images/Screenshot-XML-LibXML.pm.png>
+
+=item L<http://adkap.com/images/Screenshot-Profile-Index.png>
+
+=back
+
+=head1 SEE ALSO
+
+L<Devel::NYTProf>
+L<Devel::NYTProf::Reader>
+L<nytprofcsv>
+
+=head1 AUTHOR
+
+Adam Kaplan, akaplan at nytimes dotcom
+
+=head1 COPYRIGHT AND LICENSE
+
+This program is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.8.8 or,
+at your option, any later version of Perl 5 you may have available.
+
+=cut

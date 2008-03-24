@@ -1,0 +1,10 @@
+--- #YAML:1.0
+name:                Devel-NYTProf
+version:             0.01
+version_from:        lib/Devel/NYTProf.pm
+abstract:            Perl line profiler with advanced reporting
+license:             perl
+generated_by:        ExtUtils::MakeMaker version 6.17
+distribution_type:   module
+requires:     
+    Getopt::Long:         0

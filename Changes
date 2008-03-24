@@ -1,0 +1,11 @@
+Revision history for Perl extension Devel::NYTProf.
+
+0.02  Wed Mar 5 14:20:00 2008
+	- fixed a bunch of minor problems with the distribution that caused cpan
+		warnings and also cause the exe scripts to not be installed
+	- now a working cpan distro
+
+0.01  Tue Feb 12 10:34:03 2008
+	- original version; created by h2xs 1.23 with options
+		-A -n Devel::NYTProf
+
