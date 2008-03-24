@@ -14,7 +14,7 @@ use Carp;
 use vars qw/$VERSION/;
 
 BEGIN {
-	our $VERSION = '1.11'; # must match NYTProf.pm b/c dumb MakeMaker
+	our $VERSION = '1.12'; # must match NYTProf.pm b/c dumb MakeMaker
 
 	require XSLoader;
 	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::Reader::VERSION);
@@ -620,6 +620,10 @@ series of nested hash refs and array refs containing the parsed data.
 
 =back
 
+=head1 BUGS
+
+Windows support. I have no idea if it will work, but the profiler will NOT.
+
 =head1 EXPORT
 
 None by default. Object Oriented.
@@ -627,6 +631,8 @@ None by default. Object Oriented.
 =head1 SEE ALSO
 
 Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
+
+Public SVN Repository and hacking instructions at L<http://code.google.com/p/perl-devel-nytprof/>
 
 Take a look at the scripts which implement this module, L<nytprofhtml> and
 L<nytprofcsv>.  They are probably all that you will need and provide an

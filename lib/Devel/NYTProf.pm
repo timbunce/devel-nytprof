@@ -9,7 +9,7 @@
 package Devel::NYTProf;
 
 BEGIN {
-	our $VERSION = '1.11'; # increment with XS changes too
+	our $VERSION = '1.12'; # increment with XS changes too
 }
 
 package DB;
@@ -130,33 +130,22 @@ Tells the profiler to write output to STDOUT. [default: ./nytprof.out]
 The Makefile.PL script will automatically try to determine some information
 about your system.  This module is mostly XS (which is C, not Perl) and takes
 advantage of some less universal GNU C functions. It should work on any GNU C
-system, but has been verified to work on the following:
-
-=over 4
-
-=item 1.
-Solaris 8, (SunOS 5.8)
-
-=item 2.
-Solaris 9, (SunOS 5.9)
-
-=item 3.
-Ubuntu Linux 7.10 - Gutsy Gibbon
-
-=item 4.
-OpenBSD 4.1
-
-=back
-
-With Perl 5.8.6, 5.8.7 and 5.8.8
+system. If you encounter a problem, make sure INCLUDE has the path to stdio.h
+and ext_stdio.h (if present).  See the CPAN Testers results on the distribution 
+page.
 
 =head1 BUGS
 
 No Windows support.  I didn't test on Windows and it probably won't work.
 
+Some eval tests may fail on perl 5.6.x. It is safe for 'force install' and
+ignore this.
+
 =head1 SEE ALSO
 
 Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
+
+Public SVN Repository and hacking instructions at L<http://code.google.com/p/perl-devel-nytprof/>
 
 L<nytprofhtml> is a script included that produces html reports.
 
