@@ -2,16 +2,12 @@
 # Version
 # Author: Adam Kaplan. More information at http://search.cpan.org/~akaplan
 # Format: time,calls,time/call,code
-0,0,0,sub foo {
-0,2,0,eval "1;
-0,0,0,2;
-0,0,0,bar();";
+0,0,0,BEGIN {
+0,0,0,use AutoSplit;
+0,0,0,mkdir('./auto');
+0,0,0,autosplit('test14', './auto', 1, 0, 0);
 0,0,0,}
 0,0,0,
-0,0,0,sub bar {
-0,3,0,eval "3;";
-0,0,0,}
-0,0,0,
-0,1,0,foo();
-0,1,0,foo();
-0,1,0,bar();
+0,0,0,use test14;
+0,1,0,test14::foo();
+0,1,0,test14::bar();

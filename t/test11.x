@@ -2,4 +2,9 @@
 # Version
 # Author: Adam Kaplan. More information at http://search.cpan.org/~akaplan
 # Format: time,calls,time/call,code
-0,1,0,print "only one line\n";
+0,0,0,use vars qw/$b/;
+0,0,0,BEGIN {
+0,1,0,$b = eval "sub {1}";
+0,0,0,}
+0,1,0,&$b;
+0,1,0,&$b;

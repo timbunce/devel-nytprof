@@ -1,0 +1,34 @@
+Devel::NYTProf Installation Notes
+=================================
+
+For the most part, users on Unix-like operating system can do:
+
+perl Makefile.PL
+make
+make test
+make install
+
+The module library tried to speed thing up when running in forkmode by using
+fpruge() to delete potential duplicated buffers.  Unfortunately, althrough
+fpurge() *is* in the GNU manual, operating systems largely implement it very
+differently.  The Makefile.PL does some magic to find out where your particular
+version of fpurge is.  Usually it can be found in stdio.h or stdio_ext.h, so
+make sure those are in your INCLUDE path.  It is also sometimes named fpurge
+_fpurge or __fpurge.
+
+WINDOWS
+
+Windows users are currently out of luck.  The module will not compile properly
+due to file locking headers, and some other POSIX/GNU code being absent.  It
+should be possible to port the module, but this has not yet been done.  Feel
+free to do it.  Also, file paths throughout the module are assumed to use "/"
+instead of Windows "\", and assumed that "/...." will start at the file system
+root.  These things can also be pathed if you feel the urge.
+
+COMPILE NOTES
+
+The module was written to compile silently with -Wall -pedantic -ansi.  Some
+warnings might be generated from methods like XS_blah.  These are in Perl
+generated code and cannot be fixed by me.
+
+If 'make test' fails on perl 5.6, it should be safe to force install it.

@@ -1,28 +1,45 @@
+# tests loops.  noop is used to prevent a bug in perl>5.6 where
+# the closing "}" of a loop counts as being executed if loop is empty.
+# we don't test this because it doesn't matter, but be aware.  It is a perl bug
+
+my $_z;
+sub noop { 
+  $_z++;
+}
+
 sub foo {
-  my $x;
-  my $y;
   print "in sub foo\n";
-  for( $x = 1; $x < 100; ++$x ){
-    bar();
-    for( $y = 1; $y < 100; ++$y ){
+  foreach (1 .. 10) {
+    noop();
+    foreach (1 .. 10) {
+      noop();
     }
   }
 }
 
 sub bar {
-  my $x;
   print "in sub bar\n";
-  for( $x = 1; $x < 100; ++$x ){
+  my ($x, $y);
+  while (10 > $x++) {
+    $y = 0;
+    while (10 > $y++) {
+      noop();
+    }
   }
-  die "bar exiting";
 }
 
 sub baz {
   print "in sub baz\n";
-  eval { bar(); };
-  eval { foo(); };
+  my ($x, $y) = (1);
+  do {
+    $y = 1;
+    do {
+      noop();
+      noop();
+    } while(10 > $y++);
+  } while(10 > $x++);
 }
 
-eval { bar(); };
+foo();
+bar();
 baz();
-eval { foo(); };

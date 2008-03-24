@@ -13,7 +13,7 @@ use Carp;
 use Getopt::Long;
 use Devel::NYTProf::Reader;
 
-our $VERSION = 0.01;
+our $VERSION = 1.00;
 
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
@@ -413,8 +413,7 @@ A bit of history and a shameless plug...
 
 NYTProf stands for 'New York Times Profiler'. Indeed, this module was developed
 by The New York Times Co. to help our developers quickly identify bottlenecks in
-large Perl applications.  The Times loves Perl and we hope the community will 
-benefit from our work as much as we have from theirs.
+large Perl applications.  The NY Times loves Perl and we hope the community will benefit from our work as much as we have from theirs.
 
 Please visit L<http://open.nytimes.com>, our open source blog to see what we are up to, L<http://code.nytimes.com> to see some of our open projects and then 
 check out L<htt://nytimes.com> for the latest news!
@@ -471,6 +470,8 @@ Print the help message
 =back
 
 =head1 SEE ALSO
+
+Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
 
 L<Devel::NYTProf>
 L<Devel::NYTProf::Reader>

@@ -2,4 +2,15 @@
 # Version
 # Author: Adam Kaplan. More information at http://search.cpan.org/~akaplan
 # Format: time,calls,time/call,code
-0,1,0,print "only one line\n";
+0,0,0,package test14;
+0,0,0,use AutoLoader 'AUTOLOAD';
+0,0,0,
+0,0,0,1;
+0,0,0,__END__
+0,0,0,sub foo {
+0,1,0,1;
+0,0,0,}
+0,0,0,
+0,0,0,sub bar {
+0,2,0,eval 2;
+0,0,0,}

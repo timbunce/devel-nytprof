@@ -1,4 +1,4 @@
-Devel-NYTProf version 0.01
+Devel-NYTProf version 1.11
 ==========================
 
 The Devel::NYTProf bundle is a full featured perl line-by-line profiler and
@@ -15,6 +15,10 @@ directory, so add that to your $PATH if you want.
 Devel::NYTProf was written and tested on both Linux and Solaris.  Please 
 report any problems you encounter on other platforms.  (...except Windows. 
 I won't fix major Windows problems, but you're welcome to make a patch!)
+
+PUBLIC SVN
+
+At: http://code.google.com/p/perl-devel-nytprof/
 
 INSTALLATION
 

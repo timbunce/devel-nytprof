@@ -2,4 +2,4 @@
 # Version
 # Author: Adam Kaplan. More information at http://search.cpan.org/~akaplan
 # Format: time,calls,time/call,code
-0,1,0,print "only one line\n";
+0,1,0,do 'test12.pl';

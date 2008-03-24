@@ -9,12 +9,14 @@
 package Devel::NYTProf;
 
 BEGIN {
-	our $VERSION = '0.01';
+	our $VERSION = '1.11'; # increment with XS changes too
 }
 
 package DB;
 
 BEGIN {
+	# load debug symbols
+	$^P=0x1;
 	# disable debugging
 	$^P=0x0;
 
@@ -27,7 +29,6 @@ BEGIN {
 		*DB = sub { goto &_DB }
 	}
 
-	# Preloaded methods go here.
 	init();
 
 	# enable debugging
@@ -68,8 +69,7 @@ A bit of history and a shameless plug...
 
 NYTProf stands for 'New York Times Profiler'. Indeed, this module was developed
 by The New York Times Co. to help our developers quickly identify bottlenecks in
-large Perl applications.  The Times loves Perl and we hope the community will 
-benefit from our work as much as we have from theirs.
+large Perl applications.  The NY Times loves Perl and we hope the community will benefit from our work as much as we have from theirs.
 
 Please visit L<http://open.nytimes.com>, our open source blog to see what we are up to, L<http://code.nytimes.com> to see some of our open projects and then 
 check out L<htt://nytimes.com> for the latest news!
@@ -155,6 +155,8 @@ With Perl 5.8.6, 5.8.7 and 5.8.8
 No Windows support.  I didn't test on Windows and it probably won't work.
 
 =head1 SEE ALSO
+
+Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
 
 L<nytprofhtml> is a script included that produces html reports.
 

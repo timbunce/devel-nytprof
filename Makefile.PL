@@ -6,11 +6,18 @@
 ## http://search.cpan.org/~akaplan/Devel-NYTProf
 ##
 ###########################################################
-use 5.008001;
+use 5.006000;
 use warnings;
 use strict;
 use ExtUtils::MakeMaker;
 use Config;
+
+# --- Bail out on Windows
+if ($^O eq 'MSWin32') {
+	print "This module does not support Windows because of NYTProf.xs.\n"
+				."Feel free to port it and submit a patch to akaplan\@cpan.org\n";
+	die "No support for OS";
+}
 
 # --- Discover how much of stdio is implemented
 
@@ -39,10 +46,16 @@ sub search_paths {
 	}
 }
 
+my $cpp =  $Config{cpp};
+if (!defined $cpp || 0 == length($cpp)) {
+	print "Warning: cpp not found in your perl config.  Falling back to `cat'";
+	$cpp = 'cat';
+}
+
 my $fpurge;
 sub search_files {
 	if (defined $stdio_dir) {
-		open(STDIOH, "$stdio_dir/stdio.h");
+		open(STDIOH, "$cpp $stdio_dir/stdio.h |");
 		while (<STDIOH>) {
 			if (m/(_{0,2}fpurge)\s*\(/go) {
 				$fpurge = $1;
@@ -56,7 +69,7 @@ sub search_files {
 	return if (defined $fpurge);
 
 	if (defined $stdio_ext_dir) {
-		open(STDIOEH, "$stdio_ext_dir/stdio_ext.h");
+		open(STDIOEH, "$cpp $stdio_ext_dir/stdio_ext.h |");
 		while (<STDIOEH>) {
 			if (m/(_{0,2}fpurge)\s*\(/go) {
 				$fpurge = $1;
@@ -127,12 +140,13 @@ if ($Config::Config{d_gettimeod}) {
 WriteMakefile(
     NAME              => 'Devel::NYTProf',
     VERSION_FROM      => 'lib/Devel/NYTProf.pm', # finds $VERSION
+    LICENSE						=> 'perl',
     PREREQ_PM         => {
     	  'Getopt::Long'    => 0,
     	}, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/Devel/NYTProf.pm', # retrieve abstract from module
-       AUTHOR         => 'Adam Kaplan <akaplan@>') : ()),
+       AUTHOR         => 'Adam Kaplan <akaplan@cpan.org>') : ()),
     LIBS              => [''], # e.g., '-lm'
     EXE_FILES					=> [ 'bin/nytprofhtml', 'bin/nytprofcsv' ],
     MAN1PODS					=> { 'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
@@ -140,7 +154,9 @@ WriteMakefile(
     DEFINE            => $DEFINE, # e.g., '-DHAVE_SOMETHING'
     												# e.g., '-I. -I/usr/include/other'
     INC               => "-I. -I$INCLUDE", # e.g., '-I. -I/usr/include/other'
-		clean							=> { FILES	=> "nytprof.out profiler t/nytprof.out t/profiler" },
+		clean							=> { 
+									FILES	=> "nytprof.out profiler t/nytprof.out t/profiler "
+														."t/auto" },
 		test							=> { TESTS => 'test.pl' },
 	# Un-comment this if you add C files to link with later:
     # OBJECT            => '$(O_FILES)', # link all the C files too

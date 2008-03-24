@@ -13,7 +13,7 @@ use ExtUtils::testlib;
 use Benchmark;
 use Getopt::Long;
 use Config;
-use Test::More tests => 25;
+use Test::More tests => 34;
 use_ok('Devel::NYTProf::Reader');
 
 my %opts;
@@ -125,8 +125,16 @@ sub verify_report {
 
 
 	# parse/check
-	$test =~ /^(\w+)\.x$/;
-	open(IN, "profiler/$1.p.csv") or die "Unable to open temp file: $1.p.csv";
+  my $infile;
+  { local ($1, $2);
+	$test =~ /^(\w+\.(\w+\.)?)x$/;
+  $infile = $1;
+  if (defined $2) {
+  } else {
+    $infile .= "p.";
+  }
+  }
+	open(IN, "profiler/${infile}csv") or die "Can't open test file: ${infile}csv";
 	my @got = <IN>;
 	close IN;
 
@@ -142,8 +150,23 @@ sub verify_report {
 		print "\n";
 	}
 
-	foreach my $index (0 .. scalar(@got)-1) {
+	my $index = 0;
+	foreach (@expected) {
+    if ($expected[$index++] =~ m/^# Version/) {
+    	splice @expected, $index-1, 1;
+    }
+  }
+ 
+	$index = 0;
+	my $limit = scalar(@got)-1;
+	while ($index < $limit) {
 		$_ = shift @got;
+
+    if (m/^# Version/) {
+			next;
+    }
+
+    # Ignore version numbers
 		s/^([0-9.]+),([0-9.]+),([0-9.]+),(.*)$/0,$2,0,$4/o;
 		my $t0 = $1;
 		my $c0 = $2;
@@ -157,6 +180,7 @@ sub verify_report {
 		}
 
 		push @got, $_;
+		$index++;
 	}
 
 	if ($opts{v}) {
