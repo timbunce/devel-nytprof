@@ -13,8 +13,14 @@ use ExtUtils::testlib;
 use Benchmark;
 use Getopt::Long;
 use Config;
-use Test::More tests => 34;
+use Test::More tests => 36;
 use_ok('Devel::NYTProf::Reader');
+
+# skip these tests when the provided condition is true
+my %SKIP_TESTS = (
+	'test06' => ($] < 5.008) ? 1 : 0,
+	'test15' => ($] >= 5.008) ? 1 : 0,
+);
 
 my %opts;
 GetOptions(\%opts, qw/p=s I=s v/);
@@ -55,14 +61,23 @@ can_ok('Devel::NYTProf::Reader', 'process');
 $|=1;
 foreach my $test (@tests) {
 	#print $test . '.'x (20 - length $test);
-	$test =~ /\.(\w)$/;
-	if ($1 eq 'p') {
-		profile($test);
-	} elsif($1 eq 'v') {
-		verify_result($test);
-	} elsif($1 eq 'x') {
-		verify_report($test);
-	}
+	$test =~ /(\w+)\.(\w)$/;
+	
+		if ($2 eq 'p') {
+			profile($test);
+		} elsif($2 eq 'v') {
+			SKIP: {
+        skip "Tests incompatible with your perl version", 1, 
+              if (defined($SKIP_TESTS{$1}) and $SKIP_TESTS{$1});
+        verify_result($test);
+      }
+		} elsif($2 eq 'x') {
+			SKIP: {
+        skip "Tests incompatible with your perl version", 1, 
+              if (defined($SKIP_TESTS{$1}) and $SKIP_TESTS{$1});
+        verify_report($test);
+		  }
+		}
 }
 
 sub profile {

@@ -4,17 +4,19 @@
 # Format: time,calls,time/call,code
 0,0,0,# tests loops.  noop is a hack for perl>5.6 where
 0,0,0,# the closing "}" of a loop counts as being executed if loop is empty.
+0,0,0,# NOTE: this is like test06.p, but a 5.6.x version!
 0,0,0,
 0,1,0,my $_z;
 0,0,0,sub noop { 
 0,410,0,$_z++;
 0,0,0,}
 0,0,0,
+0,0,0,
 0,0,0,sub foo {
 0,1,0,print "in sub foo\n";
-0,1,0,foreach (1 .. 10) {
+0,11,0,foreach (1 .. 10) {
 0,10,0,noop();
-0,10,0,foreach (1 .. 10) {
+0,110,0,foreach (1 .. 10) {
 0,100,0,noop();
 0,0,0,}
 0,0,0,}
@@ -23,9 +25,9 @@
 0,0,0,sub bar {
 0,1,0,print "in sub bar\n";
 0,1,0,my ($x, $y);
-0,1,0,while (10 > $x++) {
+0,11,0,while (10 > $x++) {
 0,10,0,$y = 0;
-0,10,0,while (10 > $y++) {
+0,110,0,while (10 > $y++) {
 0,100,0,noop();
 0,0,0,}
 0,0,0,}

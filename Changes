@@ -1,5 +1,10 @@
 Revision history for Perl extension Devel::NYTProf.
 
+1.12  Tue Mar 25 11:05:00 2008
+	- Fixed YET ANOTHER test failure caused by trivial differences between v5.6.x
+			and v5.8.x.  Added test15 that only executes on <5.8 and test06 now only
+			runs on >5.8.0
+
 1.11  Mon Mar 24 11:26:00 2008
 	- Rewrote test06 and test 13 only. No functionality changes. There is a Perl
 	   debugger bug. In perl >5.6 closing "}" in empty loops get execution

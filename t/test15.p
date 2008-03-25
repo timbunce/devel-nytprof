@@ -1,10 +1,12 @@
 # tests loops.  noop is a hack for perl>5.6 where
 # the closing "}" of a loop counts as being executed if loop is empty.
+# NOTE: this is like test06.p, but a 5.6.x version!
 
 my $_z;
 sub noop { 
   $_z++;
 }
+
 
 sub foo {
   print "in sub foo\n";
