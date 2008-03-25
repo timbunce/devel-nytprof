@@ -8,10 +8,6 @@
 ###########################################################
 package Devel::NYTProf;
 
-BEGIN {
-	our $VERSION = '1.12'; # increment with XS changes too
-}
-
 package DB;
 
 BEGIN {
@@ -20,8 +16,9 @@ BEGIN {
 	# disable debugging
 	$^P=0x0;
 
+	require Devel::NYTProf::ModuleVersion;
 	require XSLoader;
-	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::VERSION);
+	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::ModuleVersion::VERSION);
 
 	if ($] < 5.008008) {
 		local $^W = 0;
