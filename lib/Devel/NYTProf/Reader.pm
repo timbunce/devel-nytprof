@@ -103,8 +103,9 @@ sub new {
 sub process {
 	my $data = load_profile_data_from_file(@_);
 	# convert into old-style data structure
-	#require Data::Dumper;
-	#warn Data::Dumper::Dumper($data);
+	my $dump = 0;
+	require Data::Dumper if $dump;
+	warn Data::Dumper::Dumper($data) if $dump;
 	my $fid_filename  = $data->{fid_filename};
 	my $fid_line_time = $data->{fid_line_time};
 	my $oldstyle = {};
@@ -114,8 +115,7 @@ sub process {
 				or warn "No filename for fid $fid";
 		next if ref $filename; # skip synthetic fids for evals
 
-		my $lines_array = $fid_line_time->[$fid]
-				or next;
+		my $lines_array = $fid_line_time->[$fid];
 
 		# convert any embedded eval line time arrays to hashes
 		for (@$lines_array) {
@@ -123,11 +123,9 @@ sub process {
 		}
 
 		my $lines_hash = _line_array_to_line_hash( $lines_array );
-		if (%$lines_hash) {
-			$oldstyle->{ $filename } = $lines_hash;
-		}
+		$oldstyle->{ $filename } = $lines_hash;
 	}
-	#warn Data::Dumper::Dumper($oldstyle);
+	warn Data::Dumper::Dumper($oldstyle) if $dump;
 	return $oldstyle;
 }
 

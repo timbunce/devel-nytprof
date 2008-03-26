@@ -83,10 +83,23 @@ foreach my $test (@tests) {
 		}
 }
 
+exit 0;
+
+sub run_command {
+  my ($cmd) = @_;
+  local $ENV{PERL5LIB} = $perl5lib;
+  open(RV, "$cmd |") or die "Can't execute $cmd: $!\n";
+  my @results = <RV>;
+  close RV or warn "Error status $? from $cmd\n";
+  if ($opts{v}) {
+    print @results;
+    print "\n";
+  }
+  return @results;
+}
+
 sub profile {
 	my $test = shift;
-	my @results;
-	local $ENV{PERL5LIB} = $perl5lib;
 	
 	if ($test eq "test04.p") {
 		$ENV{NYTPROF} = "allowfork";	
@@ -95,15 +108,9 @@ sub profile {
 	}
 
 	my $t_start = new Benchmark;
-	open(RV, "$perl -d:NYTProf $test |") or warn "$- can't run $!\n";
-	@results = <RV>;
-	close RV;
+	my @results = run_command("$perl -d:NYTProf $test");
 	my $t_total = timediff( new Benchmark, $t_start );
 
-	if ( $opts{v} ) {
-		print "\n";
-		print @results;
-	}
 	#print timestr( $t_total, 'nop' ), "\n";
 }
 
@@ -132,15 +139,7 @@ sub verify_result {
 sub verify_report {
 	my $test = shift;
 
-	local $ENV{PERL5LIB} = $perl5lib;
-	open(RV, "$perl $fprofcsv |") or die "fprofcvs can't run $!\n";
-	my $results = <RV>;
-	close RV;
-	if ($opts{v}) {
-		print <RV>;
-		print "\n";
-	}
-
+	my @results = run_command("$perl $fprofcsv");
 
 	# parse/check
   my $infile;
