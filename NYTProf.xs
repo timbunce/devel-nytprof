@@ -65,7 +65,7 @@ static unsigned int bufsiz = BUFSIZ;
 static char* out_buffer;
 static bool forkok = 0;
 static bool usecputime = 0;
-static bool profile_blocks = 0;
+static bool profile_blocks = 1;
 
 /* options and overrides */
 static char PROF_output_file[255];
@@ -239,9 +239,6 @@ get_file_id(char* file_name, STRLEN file_name_len) {
 
 	Hash_entry entry, *found;
 
-	if (trace_level >= 3)
-		warn("get_file_id(%.*s, %d)\n", file_name_len, file_name, file_name_len);
-
   /* AutoLoader adds some information to Perl's internal file name that we have
      to remove or else the file path will be borked */
 	if (')' == file_name[file_name_len - 1]) {
@@ -288,7 +285,7 @@ get_file_id(char* file_name, STRLEN file_name_len) {
 		if (trace_level)
 		  warn("New fid %d: %.*s\n", found->id, found->key_len, found->key);
 	}
-	else if (trace_level >= 3)
+	else if (trace_level >= 4)
 		warn("fid %d: %.*s\n", found->id, found->key_len, found->key);
 
 	return found->id;
@@ -360,65 +357,64 @@ dopopcx_at(pTHX_ PERL_CONTEXT *cxstk, I32 startingblock, UV stop_at)
 
 static COP *
 start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
-    OP *o = NULL;
+    OP *start_op, *o;
     int type;
-    if (trace_level)
-        warn("start_cop_of_context: looking for start of %s\n", PL_block_type[CxTYPE(cx)]);
+
     switch (CxTYPE(cx)) {
     case CXt_EVAL:
-        o = (OP*)cx->blk_oldcop;
+        start_op = (OP*)cx->blk_oldcop;
         break;
     case CXt_FORMAT:
-        o = CvSTART(cx->blk_sub.cv);
+        start_op = CvSTART(cx->blk_sub.cv);
         break;
     case CXt_SUB:
-        o = CvSTART(cx->blk_sub.cv);
+        start_op = CvSTART(cx->blk_sub.cv);
         break;
     case CXt_LOOP:
         /* blk_loop.next_op takes us closer to the origin of the loop
          * but it's not a cop (OP_NEXTSTATE, OP_SETSTATE, OP_DBSTATE)
          * so doesn't have a line number */
-        o = cx->blk_loop.redo_op;
+        start_op = cx->blk_loop.redo_op;
         break;
     case CXt_BLOCK:
-        o = (OP*)cx->blk_oldcop;
+				/* this will be NULL for the top-level 'main' block */
+        start_op = (OP*)cx->blk_oldcop;
         break;
     case CXt_SUBST:
-        o = NULL;    /* XXX */
+        start_op = NULL;    /* XXX */
         break;
     }
-    if (!o) {
+    if (!start_op) {
         if (trace_level)
-            warn("start_cop_of_context: can't find start of %s\n", PL_block_type[CxTYPE(cx)]);
+            warn("\tstart_cop_of_context: can't find start of %s\n", PL_block_type[CxTYPE(cx)]);
         return NULL;
     }
-    if (trace_level) {
-        warn("start_cop_of_context for %s is %s (op_type %d)\n",
-            PL_block_type[CxTYPE(cx)], OP_NAME(o), o->op_type);
-        if (trace_level >= 2)
-            do_op_dump(1, PerlIO_stderr(), o);
-    }
     /* find next cop from OP */
+		o = start_op;
     while ( o && (type = (o->op_type) ? o->op_type : o->op_targ) ) {
-        if (trace_level)
-            warn("start_cop_of_context: op_type %d\n", type);
-        if (type == OP_NEXTSTATE || type == OP_SETSTATE || type == OP_DBSTATE)
-            return (COP*)o;
+        if (type == OP_NEXTSTATE || type == OP_SETSTATE || type == OP_DBSTATE) {
+				  if (trace_level >= 4)
+						warn("\tstart_cop_of_context %s is %s line %d of %s\n",
+							PL_block_type[CxTYPE(cx)], OP_NAME(o), CopLINE((COP*)o), OutCopFILE((COP*)o));
+					return (COP*)o;
+				}
         /* should never get here? */
-        if (trace_level)
-            warn("%s isn't a cop", OP_NAME(o));
-        if (trace_level >= 2)
+        if (1 || trace_level)
+            warn("\tstart_cop_of_context %s op '%s' isn't a cop", PL_block_type[CxTYPE(cx)], OP_NAME(o));
+        if (trace_level >= 4)
             do_op_dump(1, PerlIO_stderr(), o);
         o = o->op_next;
     }
-    if (trace_level && type != 0)
-        warn("start_cop_of_context: can't find next op for %s line %d\n",
+    if (1 || trace_level) {
+        warn("\tstart_cop_of_context: can't find next cop for %s line %d\n",
             PL_block_type[CxTYPE(cx)], CopLINE(PL_curcop));
+            do_op_dump(1, PerlIO_stderr(), start_op);
+						}
     return NULL;
 }
 
 static PERL_CONTEXT *
-nearest_interesting_context(pTHX_ UV stop_at, int (*callback)(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)) {
+visit_contexts(pTHX_ UV stop_at, int (*callback)(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)) {
     dSP;
     /* modelled on pp_caller() in pp_ctl.c */
     register I32 cxix = cxstack_ix;
@@ -426,41 +422,34 @@ nearest_interesting_context(pTHX_ UV stop_at, int (*callback)(pTHX_ PERL_CONTEXT
     register PERL_CONTEXT *ccstack = cxstack;
     PERL_SI *top_si = PL_curstackinfo;
 
-    if (trace_level >= 2)
-        warn("nearest_interesting_context: \n");
+    if (trace_level >= 4)
+        warn("visit_contexts: \n");
 
     for (;;) {
         /* we may be in a higher stacklevel, so dig down deeper */
+				/* XXX so we'll miss code in sort blocks and signals?		*/
+				/* callback should perhaps be moved to dopopcx_at */
         while (cxix < 0 && top_si->si_type != PERLSI_MAIN) {
-            if (trace_level)
-                warn("not on main stack (type %d) so digging top_si %p->%p, ccstack %p->%p\n",
+            if (trace_level >= 3)
+							warn("not on main stack (type %d) so digging top_si %p->%p, ccstack %p->%p\n",
                 top_si, top_si->si_prev, ccstack, top_si->si_cxstack);
             top_si  = top_si->si_prev;
             ccstack = top_si->si_cxstack;
             cxix = dopopcx_at(aTHX_ ccstack, top_si->si_cxix, stop_at);
         }
-        if (cxix < 0) {
-            if (trace_level)
-                warn("cxix < 0\n");
-            return NULL;
+        if (cxix < 0 || (cxix == 0 && !top_si->si_prev)) {
+						/* cxix==0 && !top_si->si_prev => top-level BLOCK */
+						if (trace_level >= 4)
+								warn("visit_contexts: reached top of context stack\n");
+						return NULL;
         }
         cx = &ccstack[cxix];
-        if (trace_level) {
-            warn("considering: %s %p %p %s\n",
-                PL_block_type[CxTYPE(cx)], 0, 0, "");
-            if (trace_level >= 2) {
-                switch (CxTYPE(cx)) {
-                case CXt_SUB:
-                    sv_dump((SV*)cx->blk_sub.cv);
-                    break;
-                }
-            }
-        }
+        if (trace_level >= 4)
+					warn("visit_context: %s cxix %d (si_prev %p)\n",
+							PL_block_type[CxTYPE(cx)], cxix, top_si->si_prev);
 				if (callback(aTHX_ cx, &stop_at))
 					return cx;
         /* no joy, look further */
-        if (trace_level)
-            warn("looking further, ccstack %p, cxix %d\n", ccstack, cxix);
         cxix = dopopcx_at(aTHX_ ccstack, cxix - 1, stop_at);
     }
     return NULL; /* not reached */
@@ -470,36 +459,54 @@ int
 _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
 {
 		COP *near_cop;
-    if (trace_level)
-        warn("_check_context: %s\n", PL_block_type[CxTYPE(cx)]);
+
 		if (CxTYPE(cx) == CXt_SUB) {
 				if (PL_debstash && CvSTASH(cx->blk_sub.cv) == PL_debstash)
-						return 0; /* skip subs in DB package */
+					return 0; /* skip subs in DB package */
+				if (trace_level >= 4) {
+					GV *sv = CvGV(cx->blk_sub.cv);
+					warn("\t%s %s\n", PL_block_type[CxTYPE(cx)], (sv) ? GvNAME(sv) : "");
+					if (trace_level >= 9)
+						sv_dump((SV*)cx->blk_sub.cv);
+				}
 				near_cop = start_cop_of_context(aTHX_ cx);
+				/* don't use the cop if it's in a different file */
+				if (OutCopFILE(near_cop) != OutCopFILE(PL_curcop)) {
+					if (trace_level >= 0) /* can't happen? change to >=3 if it does! */
+						warn("%s in different file (%s, %s)", PL_block_type[CxTYPE(cx)], OutCopFILE(near_cop), OutCopFILE(PL_curcop));
+					return 1; /* stop looking */
+				}
+
 				last_sub_line = CopLINE(near_cop);
-				if (OutCopFILE(near_cop) != OutCopFILE(PL_curcop))
-						warn("outside file %s", PL_block_type[CxTYPE(cx)]);
+				/* treat sub as a block if we've not found a block yet */
 				if (!last_block_line)
 						last_block_line = last_sub_line;
-				return 1;
+				return 1;		/* stop looking */
 		}
-		if (last_block_line)
-				return 0; /* only looking for SUB context now */
-    /* must be NULL, EVAL, LOOP, SUBST, BLOCK context */
-		near_cop = start_cop_of_context(aTHX_ cx);
-		last_block_line = CopLINE(near_cop);
-		if (OutCopFILE(near_cop) != OutCopFILE(PL_curcop))
-				warn("outside file %s", PL_block_type[CxTYPE(cx)]);
-    return 1;
-}
 
-void
-find_block_sub_lines(pTHX_)
-{
-		/* set to zero to start, set non-zero if we find the line numbers */
-		last_block_line = 0;
-		last_sub_line = 0;
-		nearest_interesting_context(aTHX_ ~0, &_check_context);
+	/* NULL, EVAL, LOOP, SUBST, BLOCK context */
+	if (trace_level >= 4)
+		warn("\t%s\n", PL_block_type[CxTYPE(cx)]);
+	/* if we've got a block line, skip this context and keep looking for a sub */
+	if (last_block_line)
+		return 0;
+	/* if we can't get a line number for this context, skip it */
+	if ((near_cop = start_cop_of_context(aTHX_ cx)) == NULL)
+		return 0;
+	/* if this context is in a different file... */
+	if (OutCopFILE(near_cop) != OutCopFILE(PL_curcop)) {
+		/* if we started in a string eval ... */
+		if ('(' == *OutCopFILE(PL_curcop)) {
+			last_block_line = last_sub_line = 1;
+			return 1;
+		}
+		/* shouldn't happen! */
+		if (trace_level >= 3)
+			warn("%s in different file (%s, %s)", PL_block_type[CxTYPE(cx)], OutCopFILE(near_cop), OutCopFILE(PL_curcop));
+		return 1; /* stop looking */
+	}
+	last_block_line = CopLINE(near_cop);
+	return 0;
 }
 
 /**
@@ -554,7 +561,8 @@ DB(pTHX) {
 			output_int(last_sub_line);
 		}
 		if (trace_level >= 3)
-			warn("Wrote %d:%-4d %2u ticks\n", last_executed_file, last_executed_line, elapsed);
+			warn("Wrote %d:%-4d %2u ticks (%u, %u)\n",
+				last_executed_file, last_executed_line, elapsed, last_block_line, last_sub_line);
 
 		if (forkok) {
 			unlock_file();
@@ -568,8 +576,16 @@ DB(pTHX) {
 	last_executed_file = get_file_id(file, strlen(file));
 	last_executed_line = CopLINE(cop);
 
-  if (profile_blocks)
-    find_block_sub_lines();
+  if (profile_blocks) {
+		if (trace_level >= 4)
+			warn("\tlooking for block and sub lines for %u:%u\n", last_executed_file, last_executed_line);
+		last_block_line = 0;
+		last_sub_line   = 0;
+		visit_contexts(aTHX_ ~0, &_check_context);
+		/* if we didn't find block or sub scopes then use current line */
+		if (!last_block_line) last_block_line = last_executed_line;
+		if (!last_sub_line)   last_sub_line   = last_executed_line;
+	}
 
 	if (usecputime) {
 		times(&start_ctime);
@@ -1071,12 +1087,14 @@ load_profile_data_from_file(char *file) {
 	unsigned long input_line = 0L;
 	unsigned int file_num;
 	unsigned int line_num;
-	unsigned int elapsed;
+	unsigned int ticks;
 	char text[MAXPATHLEN*2];
 	char c; /* for while loop */
 	HV *profile_hv;
-	AV* fid_filename_av = newAV();
-	AV* fid_line_time_av   = newAV();
+	AV* fid_filename_av   = newAV();
+	AV* fid_line_time_av  = newAV();
+	AV* fid_block_time_av = newAV();
+	AV* fid_sub_time_av   = newAV();
 
 	if (! init_reader(file)) {
 		Perl_croak(aTHX_ "Failed to open input file\n");
@@ -1088,13 +1106,16 @@ load_profile_data_from_file(char *file) {
 		input_line++;
 
 		switch (c) {
+			case '*':			/*FALLTHRU*/
 			case '+':
 			{
 				SV *filename_sv;
+				double seconds;
 				unsigned int eval_file_num = 0;
 				unsigned int eval_line_num = 0;
 
-				elapsed  = read_int();
+				ticks    = read_int();
+				seconds  = (double)ticks / ticks_per_sec;
 				file_num = read_int();
 				line_num = read_int();
 
@@ -1112,12 +1133,24 @@ load_profile_data_from_file(char *file) {
 					file_num = eval_file_num;
 				}
 
-				add_entry(aTHX_ fid_line_time_av, file_num, line_num,
-						(double)elapsed / ticks_per_sec, eval_file_num, eval_line_num);
 
+				add_entry(aTHX_ fid_line_time_av, file_num, line_num,
+						seconds, eval_file_num, eval_line_num);
 				if (trace_level >= 3)
-				    warn("Read %u:%u as %u ticks\n", 
-								file_num, line_num, elapsed);
+				    warn("Read %u:%u as %u ticks\n", file_num, line_num, ticks);
+
+				if (c == '*') {
+					unsigned int block_line_num = read_int();
+					unsigned int sub_line_num   = read_int();
+
+					add_entry(aTHX_ fid_block_time_av, file_num, block_line_num,
+							seconds, eval_file_num, eval_line_num);
+					add_entry(aTHX_ fid_sub_time_av, file_num, sub_line_num,
+							seconds, eval_file_num, eval_line_num);
+					if (trace_level >= 3)
+							warn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
+				}
+
 				break;
 			}
 			case '@':
@@ -1176,8 +1209,10 @@ load_profile_data_from_file(char *file) {
 	    DEBUG_print_stats(aTHX);
 
 	profile_hv = newHV();
-	hv_store(profile_hv, "fid_filename",  12, newRV_noinc((SV*)fid_filename_av), 0);
-	hv_store(profile_hv, "fid_line_time", 13, newRV_noinc((SV*)fid_line_time_av), 0);
+	hv_store(profile_hv, "fid_filename",   12, newRV_noinc((SV*)fid_filename_av), 0);
+	hv_store(profile_hv, "fid_line_time",  13, newRV_noinc((SV*)fid_line_time_av), 0);
+	hv_store(profile_hv, "fid_block_time", 14, newRV_noinc((SV*)fid_block_time_av), 0);
+	hv_store(profile_hv, "fid_sub_time",   12, newRV_noinc((SV*)fid_sub_time_av), 0);
 	return profile_hv;
 }
 
@@ -1222,8 +1257,8 @@ _finish(...)
 	PPCODE:
 	if (trace_level)
 		warn("_finish pid %d\n", getpid());
-	DB(aTHX_);
 	sv_setiv(PL_DBsingle, 0);
+	DB(aTHX_);
 	if (out)
 		fflush(out);
 
