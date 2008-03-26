@@ -346,10 +346,9 @@ sub report {
 					} elsif ($hash->{value} eq 'line') {
 						print OUT $LINE;
 					} elsif (exists $self->{data}->{$filestr}->{$LINE}) {
-						print OUT 
-								sprintf("%0.".$self->{numeric_precision}->{$hash->{value}}
-												."l".$FLOAT_FORMAT,
-												$totalsByLine{$LINE}->{$hash->{value}});
+						printf(OUT "%0.".$self->{numeric_precision}->{$hash->{value}}
+										."l".$FLOAT_FORMAT,
+										$totalsByLine{$LINE}->{$hash->{value}});
 					} else {
 						print OUT $hash->{default};
 					}
