@@ -380,12 +380,14 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
 				/* this will be NULL for the top-level 'main' block */
         start_op = (OP*)cx->blk_oldcop;
         break;
-    case CXt_SUBST:
-        start_op = NULL;    /* XXX */
+    case CXt_SUBST:			/* FALLTHRU */
+    case CXt_NULL:			/* FALLTHRU */
+		default:
+        start_op = NULL;
         break;
     }
     if (!start_op) {
-        if (trace_level)
+        if (trace_level >= 4)
             warn("\tstart_cop_of_context: can't find start of %s\n", PL_block_type[CxTYPE(cx)]);
         return NULL;
     }
@@ -405,11 +407,11 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
             do_op_dump(1, PerlIO_stderr(), o);
         o = o->op_next;
     }
-    if (1 || trace_level) {
-        warn("\tstart_cop_of_context: can't find next cop for %s line %d\n",
-            PL_block_type[CxTYPE(cx)], CopLINE(PL_curcop));
-            do_op_dump(1, PerlIO_stderr(), start_op);
-						}
+    if (trace_level >= 3) {
+			warn("\tstart_cop_of_context: can't find next cop for %s line %d\n",
+					PL_block_type[CxTYPE(cx)], CopLINE(PL_curcop));
+			do_op_dump(1, PerlIO_stderr(), start_op);
+		}
     return NULL;
 }
 
@@ -472,9 +474,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
 				near_cop = start_cop_of_context(aTHX_ cx);
 				/* don't use the cop if it's in a different file */
 				if (OutCopFILE(near_cop) != OutCopFILE(PL_curcop)) {
-					if (trace_level >= 0) /* can't happen? change to >=3 if it does! */
-						warn("%s in different file (%s, %s)", PL_block_type[CxTYPE(cx)], OutCopFILE(near_cop), OutCopFILE(PL_curcop));
-					return 1; /* stop looking */
+					return 1; /* stop looking, leave last_sub_line unset */
 				}
 
 				last_sub_line = CopLINE(near_cop);
