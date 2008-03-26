@@ -107,7 +107,9 @@ sub process {
 	require Data::Dumper if $dump;
 	warn Data::Dumper::Dumper($data) if $dump;
 	my $fid_filename  = $data->{fid_filename};
-	my $fid_line_time = $data->{fid_line_time};
+	my $dataset_name = $ENV{NYTPROF_DATASET} || 'fid_line_time'; # temp hack
+	my $fid_line_time = $data->{$dataset_name}
+		or die "No $dataset_name data set in profile data\n";
 	my $oldstyle = {};
 	for my $fid (1..@$fid_filename-1) {
 
