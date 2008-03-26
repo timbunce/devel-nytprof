@@ -43,8 +43,8 @@ if (! -r $opt{file}) {
 if (! defined($opt{out})) {
 	$opt{out} = './profiler';
 } 
-if (! -r $opt{file}) {
-	die "Unable to access output directory $opt{file}\n";
+if (! -r $opt{out}) {
+	die "Unable to access output directory $opt{out}\n";
 }
 
 # handle deleting old db's
@@ -338,7 +338,7 @@ th,.h {
 }
 td { 
 	border: solid 1px #cccccc; 
-	padding: 4px 8px;
+	padding: 0em 0.5em 0em 0.5em;
 }
 
 .index { text-align: left; }
@@ -348,7 +348,6 @@ pre,.s {
 	text-align: left;
 	font-family: monospace;
 	white-space: pre;
-	padding: 0em 0.5em 0em 0.5em;
 }
 
 /* Classes for color-coding profiling information:
@@ -490,3 +489,5 @@ it under the same terms as Perl itself, either Perl version 5.8.8 or,
 at your option, any later version of Perl 5 you may have available.
 
 =cut
+
+# vim:ts=2:sw=2
