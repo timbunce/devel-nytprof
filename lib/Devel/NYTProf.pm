@@ -1,3 +1,4 @@
+# vim: ts=2 sw=2 sts=0 noexpandtab:
 ##########################################################
 ## This script is part of the Devel::NYTProf distribution
 ##
@@ -5,6 +6,8 @@
 ## at the bottom of this file, or by going to:
 ## http://search.cpan.org/~akaplan/Devel-NYTProf
 ##
+###########################################################
+## $Id$
 ###########################################################
 package Devel::NYTProf;
 

@@ -1,3 +1,13 @@
+/* vim: ts=2 sw=2 sts=0 noexpandtab:
+ * ************************************************************************
+ * This file is part of the Devel::NYTProf package.
+ * Copyright 2008 Adam J. Kaplan, The New York Times Company.
+ * Released under the same terms as Perl 5.8
+ * See http://search.cpan.org/~akaplan/Devel-NYTProf for more information
+ * ************************************************************************
+ * $Id$
+ * ************************************************************************
+ */
 #define PERL_NO_GET_CONTEXT		/* we want efficiency */
 
 #include "EXTERN.h"

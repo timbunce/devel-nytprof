@@ -1,3 +1,4 @@
+# vim: ts=2 sw=2 sts=0 noexpandtab:
 ##########################################################
 ## This script is part of the Devel::NYTProf distribution
 ##
@@ -22,6 +23,8 @@
 # Additionally, if the two $VERSIONs ever do NOT match,
 # the distribution will fail at runtime (at the XS Loader)
 #
+###########################################################
+## $Id$
 ###########################################################
 package Devel::NYTProf::ModuleVersion;
 

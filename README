@@ -1,6 +1,8 @@
+# vim: ts=2 sw=2 sts=0 noexpandtab:
+# $Id$
+
 Devel-NYTProf version 1.12
 ==========================
-# $Id$
 
 The Devel::NYTProf bundle is a full featured perl line-by-line profiler and
 profile report generator for Perl.  Devel::NYTProf provides an XS profiler.
