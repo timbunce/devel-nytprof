@@ -17,7 +17,10 @@ our $VERSION = 1.00;
 
 use constant NUMERIC_PRECISION    => 5;
 
-my %opt;
+my %opt = (
+    file    => 'nytprof.out',
+    out	    => 'profiler',
+);
 GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h/);
 
 if (defined($opt{help})) {
@@ -26,19 +29,13 @@ if (defined($opt{help})) {
 }
 
 # handle file selection option
-if (! defined($opt{file})) {
-  $opt{file} = 'nytprof.out';
-}
 if (! -r $opt{file}) {
   die "Unable to access $opt{file}\n";
 }
 
 # handle handle output location
-if (! defined($opt{out})) {
-  $opt{out} = './profiler';
-} 
-if (! -r $opt{file}) {
-  die "Unable to access output directory $opt{file}\n";
+if (! -r $opt{out}) {
+  die "Unable to access output directory $opt{out}\n";
 }
 
 # handle deleting old db's
