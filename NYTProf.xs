@@ -107,7 +107,8 @@ bool init_reader(const char*);
 void DEBUG_print_stats(pTHX);
 IV   getTicksPerSec();
 HV *load_profile_data_from_file(char*);
-AV *store_profile_line_entry(SV *rvav, unsigned int line_num, double time, int count);
+AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num, 
+															double time, int count);
 
 /***********************************
  * Devel::NYTProf Functions        *
@@ -188,7 +189,8 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
 	Hash_entry* found = hashtable.table[h];
 	while(NULL != found) {
 
-		if (found->key_len == entry.key_len && 0 == strncmp(found->key, entry.key, entry.key_len)) {
+		if (found->key_len == entry.key_len && 
+				0 == strncmp(found->key, entry.key, entry.key_len)) {
 			*retval = found;
 			return 0;
 		}
@@ -259,7 +261,10 @@ get_file_id(char* file_name, STRLEN file_name_len) {
 		if ('(' == file_name[0] && ']' == file_name[file_name_len-1]) {
 			char *start = strchr(file_name, '[');
 			char *colon = ":";
-			char *end   = rninstr(file_name, file_name+file_name_len-1, colon, colon+1);
+			//char *end   = rninstr(file_name, file_name+file_name_len-1, colon, 
+			//											colon+1);
+			char* end = strchr(file_name + file_name_len, ':');
+
 			if (!start || !end || start > end) {
 				warn("Unsupported filename syntax '%s'", file_name);
 				return 0;
@@ -562,7 +567,8 @@ DB(pTHX) {
 		}
 		if (trace_level >= 3)
 			warn("Wrote %d:%-4d %2u ticks (%u, %u)\n",
-				last_executed_file, last_executed_line, elapsed, last_block_line, last_sub_line);
+				last_executed_file, last_executed_line, elapsed, last_block_line, 
+				last_sub_line);
 
 		if (forkok) {
 			unlock_file();
@@ -952,31 +958,37 @@ addline(pTHX_ unsigned int line, float time, const char* _file) {
 
 
 void
-add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num, double time, unsigned int eval_file_num, unsigned int eval_line_num) {
-
+add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num,			
+					double time, unsigned int eval_file_num, unsigned int eval_line_num) 
+{
 	bool eval_mode = eval_file_num;
 
   /* get ref to array of per-line data */
-	SV *line_time_rvav = *av_fetch(dest_av, (eval_line_num) ? eval_file_num : file_num, 1);
+	SV *line_time_rvav = *av_fetch(dest_av, 
+													(eval_line_num) ? eval_file_num : file_num, 1);
+
 	if (!SvROK(line_time_rvav))		/* autoviv */
 			sv_setsv(line_time_rvav, newRV_noinc((SV*)newAV()));
 
   /* times for string evals are accumulated within the line the eval is on */
   if (!eval_line_num) {
-		store_profile_line_entry(line_time_rvav, line_num, time, 1);
+		store_profile_line_entry(aTHX_ line_time_rvav, line_num, time, 1);
 	}
 	else {
-		AV *av = store_profile_line_entry(line_time_rvav, eval_line_num, 0, 0);
+		AV *av = store_profile_line_entry(aTHX_ line_time_rvav, eval_line_num,
+																			0, 0);
 		SV *eval_line_time_rvav = *av_fetch(av, 2, 1);
 		if (!SvROK(eval_line_time_rvav))		/* autoviv */
 				sv_setsv(eval_line_time_rvav, newRV_noinc((SV*)newAV()));
-		store_profile_line_entry(eval_line_time_rvav, line_num, time, 1);
+
+		store_profile_line_entry(aTHX_ eval_line_time_rvav, line_num, time, 1);
 	}
 }
 
 
 AV *
-store_profile_line_entry(SV *rvav, unsigned int line_num, double time, int count)
+store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num, double time, 
+													int count)
 {
 	SV *time_rvav = *av_fetch((AV*)SvRV(rvav), line_num, 1);
 	AV *line_av;
@@ -1229,7 +1241,7 @@ PROTOTYPES: DISABLE
 void
 DB(...)
 	CODE:
-		DB(aTHX_);
+		DB(aTHX);
 
 void
 init()
@@ -1258,7 +1270,7 @@ _finish(...)
 	if (trace_level)
 		warn("_finish pid %d\n", getpid());
 	sv_setiv(PL_DBsingle, 0);
-	DB(aTHX_);
+	DB(aTHX);
 	if (out)
 		fflush(out);
 
