@@ -1,3 +1,6 @@
+/* NYTProf.xs
+ * vim:ts=2:sw=2
+ */
 #define PERL_NO_GET_CONTEXT		/* we want efficiency */
 
 #include "EXTERN.h"
@@ -63,6 +66,7 @@ static char PROF_output_file[255];
 static char READER_input_file[255];
 static bool PROF_use_stdout = 0;
 static bool READER_use_stdin = 0;
+static int trace = 0;
 
 /* time tracking */
 static struct tms start_ctime, end_ctime;
@@ -116,9 +120,7 @@ lock_file() {
  */
 void
 unlock_file() {
-#ifndef FPURGE
 	fflush(out);
-#endif
 	static struct flock locku = { F_UNLCK, SEEK_SET, 0, 0 };
 	fcntl(fileno(out), F_SETLK, 	&locku);
 }
@@ -184,11 +186,11 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
 			if (insert) {
 				int sn;
 
-				Hash_entry* e = (Hash_entry*)malloc(sizeof(Hash_entry));
+				Hash_entry* e = (Hash_entry*)safemalloc(sizeof(Hash_entry));
 				e->id = next_fid++;
 				e->next_entry = NULL;
 				sn = strlen(entry.key);
-				e->key = (char*)malloc(sizeof(char) * sn + 1);
+				e->key = (char*)safemalloc(sizeof(char) * sn + 1);
 				e->key[sn] = '\0';
 				strncpy(e->key, entry.key, sn);
 
@@ -205,11 +207,11 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
 	if (insert) {
 		int sn;
 
-		Hash_entry* e = (Hash_entry*)malloc(sizeof(Hash_entry));
+		Hash_entry* e = (Hash_entry*)safemalloc(sizeof(Hash_entry));
 		e->id = next_fid++;
 		e->next_entry = NULL;
 		sn = strlen(entry.key);
-		e->key = (char*)malloc(sizeof(char) * sn + 1);
+		e->key = (char*)safemalloc(sizeof(char) * sn + 1);
 		e->key[sn] = '\0';
 		strncpy(e->key, entry.key, sn);
 
@@ -374,25 +376,25 @@ DB(pTHX) {
 void
 set_option(const char* option) {
 	if(0 == strncmp(option, "use_stdout", 10)) {
-		printf("# Using standard out for output.\n");
+		if (trace) warn("# Using standard out for output.\n");
 		PROF_use_stdout = 1;
 	} else if(0 == strncmp(option, "in=", 3)) {
 		strncpy(READER_input_file, &option[3], 500);
-		printf("# Using  %s for input.\n", READER_input_file);
+		if (trace) warn("# Using  %s for input.\n", READER_input_file);
 	} else if(0 == strncmp(option, "out=", 4)) {
 		strncpy(PROF_output_file, &option[4], 500);
-		printf("# Using %s for output.\n", PROF_output_file);
+		if (trace) warn("# Using %s for output.\n", PROF_output_file);
 	} else if(0 == strncmp(option, "use_stdin", 9)) {
-		printf("# Using stanard in for input.\n");
+		if (trace) warn("# Using stanard in for input.\n");
 		READER_use_stdin = 1;
 	} else if(0 == strncmp(option, "allowfork", 9)) {
-		printf("# Fork mode: ENABLED.\n");
+		if (trace) warn("# Fork mode: ENABLED.\n");
 		forkok = 1;
 	} else if(0 == strncmp(option, "usecputime", 10)) {
-		printf("# Using cpu time.\n");
+		if (trace) warn("# Using cpu time.\n");
 		usecputime = 1;
 	} else {
-		fprintf(stderr, "Unknown option: %s\n", option);
+		warn("Unknown option: %s\n", option);
 	}
 }
 
@@ -483,7 +485,7 @@ init(pTHX) {
 	}
 
 	/* create file id mapping hash */
-	hashtable.table = (Hash_entry**)malloc(sizeof(Hash_entry*) * hashtable.size);
+	hashtable.table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * hashtable.size);
 	memset(hashtable.table, 0, sizeof(Hash_entry*) * hashtable.size);
 	
 	init_runtime(NULL);
@@ -498,7 +500,7 @@ init(pTHX) {
  	if (0 == fstat(fileno(out), &outstat)) {
 		bufsiz = outstat.st_blksize;
 	}
-	out_buffer = (char *)malloc(sizeof(char)*bufsiz);
+	out_buffer = (char *)safemalloc(sizeof(char)*bufsiz);
 	setvbuf(out, out_buffer, _IOFBF, bufsiz);
 	/*printf("stat block size: %d; os block size %d\n", bufsiz, BUFSIZ);*/
 	print_header();
@@ -653,8 +655,9 @@ addline(pTHX_ unsigned int line, float time, const char* _file) {
 		/* execution time for the file line will be added seperately later */
 		time = 0;	
 
-		/*printf("File: %s, line: %d, time: %f, eval line: %d, eval time: %f\n",
-						file, line, time, eline, etime); */
+		if (trace)
+			printf("File: %s, line: %d, time: %f, eval line: %d, eval time: %f\n",
+						file, line, time, eline, etime);
 	}
 
 	/* AutoLoader adds some information to Perl's internal file name that we have
@@ -815,7 +818,7 @@ process(char *file) {
 	unsigned int file_num;
 	unsigned int line_num;
 	unsigned int elapsed;
-	char text[1024];
+	char text[MAXPATHLEN*2];
 	char c; /* for while loop */
 	AV* file_id_array = newAV();
 
@@ -833,24 +836,27 @@ process(char *file) {
 			case '+':
 			{
 				SV** file_name_sv;
+				char *file_name;
 
 				file_num = read_int();
 				line_num = read_int();
 				elapsed = read_int();
 
 				file_name_sv = av_fetch(file_id_array, file_num, 0);
-				if (NULL == file_name_sv) {
-					sprintf(error, "File id %d not defined in file '%s'", file_num, 
-									file);
-					Perl_croak(aTHX_ error);
+				if (file_name_sv) {
+					file_name = SvPVX(*file_name_sv);
+				}
+				else {
+					warn("File id %d not defined in file '%s'", file_num, file);
+					file_name = "UNKNOWN"; /* do the best we can */
 				}
 
 				addline(aTHX_ line_num, (float)elapsed / ticks_per_sec, 
-								SvPVX(*file_name_sv));
+								file_name);
 
-				/* printf("Profiled line %u in file %u as %us: %s\n", 
+				if (trace)
+					printf("Profiled line %u in file %u as %us: %s\n", 
 								line_num, file_num,  elapsed, SvPVX(*file_name_sv));
-				*/
 				break;
 			}
 			case '@':
@@ -860,7 +866,7 @@ process(char *file) {
 
 				file_num = read_int();
 
-				if (NULL == fgets(text, 1024, in)) {
+				if (NULL == fgets(text, sizeof(text)-1, in)) {
 					sprintf(error, "File format error: '%s' in file declaration'", file);
 					Perl_croak(aTHX_ error);
 				}
@@ -875,7 +881,8 @@ process(char *file) {
 				text[--len] = '\0';
 				text_sv = newSVpv(text, len);
 				av_store(file_id_array, file_num, text_sv);
-				/* printf("Found file %s as id %u\n", text, file_num); */
+				if (trace)
+				    printf("Found file %s as id %u\n", text, file_num);
 				break;
 			}
 			case '#':
@@ -890,7 +897,8 @@ process(char *file) {
 					ticks_per_sec = strtoul(&text[9], &end, 10);
 				}
 
-				/* printf ("comment found and ignored: '%s'\n", text); */
+				if (trace)
+				    printf("comment found and ignored: '%s'\n", text);
 				break;
 
 			default:
@@ -899,7 +907,8 @@ process(char *file) {
 		}
 	}
 	fclose(in);
-	/* DEBUG_print_stats(aTHX); */
+	if (trace)
+	    DEBUG_print_stats(aTHX);
 	return profile;
 }
 
@@ -924,7 +933,23 @@ init()
 		init(aTHX);
 
 void
-_finish()
+enable_profile(...)
+    PPCODE:
+        IV prev_DBsingle = SvIV(PL_DBsingle);
+        sv_setiv(PL_DBsingle, 1);
+        XSRETURN_IV(prev_DBsingle);
+
+void
+disable_profile(...)
+    PPCODE:
+        IV prev_DBsingle = SvIV(PL_DBsingle);
+        sv_setiv(PL_DBsingle, 0);
+	if (out)
+	    fflush(out);
+        XSRETURN_IV(prev_DBsingle);
+
+void
+_finish(...)
 	PPCODE:
 		{
 			if (out) {
