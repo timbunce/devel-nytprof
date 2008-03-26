@@ -10,7 +10,9 @@
 #include "ppport.h"
 
 #if (PERL_VERSION < 8) || ((PERL_VERSION == 8) && (PERL_SUBVERSION < 8))
+#ifndef PL_curcop
 #define PL_curcop ((cxstack + cxstack_ix)->blk_oldcop)
+#endif
 #endif
 
 #if !defined(OutCopFILE)
@@ -376,10 +378,11 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
         start_op = CvSTART(cx->blk_sub.cv);
         break;
     case CXt_LOOP:
-        /* blk_loop.next_op takes us closer to the origin of the loop
-         * but it's not a cop (OP_NEXTSTATE, OP_SETSTATE, OP_DBSTATE)
-         * so doesn't have a line number */
+#if (PERL_VERSION < 10)
         start_op = cx->blk_loop.redo_op;
+#else
+        start_op = cx->blk_loop.my_op->op_redoop;
+#endif
         break;
     case CXt_BLOCK:
 				/* this will be NULL for the top-level 'main' block */
