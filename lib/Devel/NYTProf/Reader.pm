@@ -18,7 +18,7 @@ BEGIN {
 	require XSLoader;
 	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::ModuleVersion::VERSION);
 
-	# Provides Devel::NYTProf::Reader::process(); XXX
+	# Provides Devel::NYTProf::Reader::process();
 }
 
 # These control the limits for what the script will consider ok to severe times
@@ -98,49 +98,6 @@ sub new {
 	$self->{profile_db_time} = getDatabaseTime();
 	return $self;
 }
-
-
-sub process {
-	my $data = load_profile_data_from_file(@_);
-	# convert into old-style data structure
-	my $dump = 0;
-	require Data::Dumper if $dump;
-	warn Data::Dumper::Dumper($data) if $dump;
-	my $fid_filename  = $data->{fid_filename};
-	my $dataset_name = $ENV{NYTPROF_DATASET} || 'fid_line_time'; # temp hack
-	my $fid_line_time = $data->{$dataset_name}
-		or die "No $dataset_name data set in profile data\n";
-	my $oldstyle = {};
-	for my $fid (1..@$fid_filename-1) {
-
-		my $filename = $fid_filename->[$fid]
-				or warn "No filename for fid $fid";
-		next if ref $filename; # skip synthetic fids for evals
-
-		my $lines_array = $fid_line_time->[$fid];
-
-		# convert any embedded eval line time arrays to hashes
-		for (@$lines_array) {
-			$_->[2] = _line_array_to_line_hash( $_->[2] ) if $_ && $_->[2];
-		}
-
-		my $lines_hash = _line_array_to_line_hash( $lines_array );
-		$oldstyle->{ $filename } = $lines_hash;
-	}
-	warn Data::Dumper::Dumper($oldstyle) if $dump;
-	return $oldstyle;
-}
-
-sub _line_array_to_line_hash {
-	my ($array) = @_;
-	my $hash = {};
-	for my $line (0..@$array) {
-		$hash->{ $line } = $array->[ $line ]
-			if defined $array->[ $line ];
-	};
-	return $hash;
-}
-
 
 ##
 sub setParam {
@@ -620,7 +577,7 @@ Advanced Parameters Defaults:
 
 =back
 
-=head1 METHODS
+=head1 SUBROUTINES
 
 =over
 
@@ -659,6 +616,13 @@ subroutine.  It is currently used to dump the CSS file into the html output
 Implemented in XS.  This function returns the time that the NYTProf database 
 was created. You should not need to use this.
 
+=item $reporter->process( $file );
+
+Implemented in XS. This function tell does the actual parsing of the database.
+It's fairly complicated and you're better off letting 
+L<<Devel::NYTProf::Reader->new()>> invoke it for you. The return value is a
+series of nested hash refs and array refs containing the parsed data.
+
 =back
 
 =head1 BUGS
@@ -695,5 +659,3 @@ it under the same terms as Perl itself, either Perl version 5.8.8 or,
 at your option, any later version of Perl 5 you may have available.
 
 =cut
-
-# vim:ts=2:sw=2

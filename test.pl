@@ -27,11 +27,8 @@ GetOptions(\%opts, qw/p=s I=s v/);
 
 my $opt_perl = $opts{p};
 my $opt_include = $opts{I};
-my $outdir = 'profiler';
 
 chdir( 't' ) if -d 't';
-mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
-
 my @tests = @ARGV ? @ARGV : sort <*.p *.v *.x>;  # glob-sort, for OS/2
 
 my $path_sep = $Config{path_sep} || ':';
@@ -83,23 +80,10 @@ foreach my $test (@tests) {
 		}
 }
 
-exit 0;
-
-sub run_command {
-  my ($cmd) = @_;
-  local $ENV{PERL5LIB} = $perl5lib;
-  open(RV, "$cmd |") or die "Can't execute $cmd: $!\n";
-  my @results = <RV>;
-  close RV or warn "Error status $? from $cmd\n";
-  if ($opts{v}) {
-    print @results;
-    print "\n";
-  }
-  return @results;
-}
-
 sub profile {
 	my $test = shift;
+	my @results;
+	local $ENV{PERL5LIB} = $perl5lib;
 	
 	if ($test eq "test04.p") {
 		$ENV{NYTPROF} = "allowfork";	
@@ -108,9 +92,15 @@ sub profile {
 	}
 
 	my $t_start = new Benchmark;
-	my @results = run_command("$perl -d:NYTProf $test");
+	open(RV, "$perl -d:NYTProf $test |") or warn "$- can't run $!\n";
+	@results = <RV>;
+	close RV;
 	my $t_total = timediff( new Benchmark, $t_start );
 
+	if ( $opts{v} ) {
+		print "\n";
+		print @results;
+	}
 	#print timestr( $t_total, 'nop' ), "\n";
 }
 
@@ -139,7 +129,15 @@ sub verify_result {
 sub verify_report {
 	my $test = shift;
 
-	my @results = run_command("$perl $fprofcsv");
+	local $ENV{PERL5LIB} = $perl5lib;
+	open(RV, "$perl $fprofcsv |") or die "fprofcvs can't run $!\n";
+	my $results = <RV>;
+	close RV;
+	if ($opts{v}) {
+		print <RV>;
+		print "\n";
+	}
+
 
 	# parse/check
   my $infile;
@@ -151,7 +149,7 @@ sub verify_report {
     $infile .= "p.";
   }
   }
-	open(IN, "$outdir/${infile}csv") or die "Can't open test file: $outdir/${infile}csv";
+	open(IN, "profiler/${infile}csv") or die "Can't open test file: ${infile}csv";
 	my @got = <IN>;
 	close IN;
 
@@ -217,5 +215,3 @@ sub pop_times {
 		pop_times($hash->{$key}->[1]);
 	}
 }
-
-# vim:ts=2:sw=2

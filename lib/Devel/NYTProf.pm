@@ -11,17 +11,16 @@ package Devel::NYTProf;
 package DB;
 
 BEGIN {
-	# setting $^P non-zero automatically initializes perl debugging internals
-	# (mg.c calls init_debugger) if $DB::single is false. This is handy for
-	# situations like mod_perl where perl wasn't started with -d flag.
-	$^P=0x1;    # on
-	$^P=0x0;    # then back off again for now, see below
+	# load debug symbols
+	$^P=0x1;
+	# disable debugging
+	$^P=0x0;
 
 	require Devel::NYTProf::ModuleVersion;
 	require XSLoader;
 	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::ModuleVersion::VERSION);
 
-	if ($] < 5.008008) {	# workaround bug in old perl versions (slow)
+	if ($] < 5.008008) {
 		local $^W = 0;
 		*_DB = \&DB;
 		*DB = sub { goto &_DB }
@@ -29,38 +28,10 @@ BEGIN {
 
 	init();
 
-	# enable debugging - see perlvar docs
-	$^P=  0x002 # Line-by-line debugging (call DB::DB() per statement)
-	    | 0x010 # record line range of sub definition
-	    | 0x020 # start (after BEGINs) with single-step on
-	    | 0x100 # informative "file" names for evals
-	    | 0x200;# informative names for anonymous subroutines
+	# enable debugging
+	$^P= 0x332;
 	# put nothing here
-    }
-
-=for comment from perlvar
-
-  $^P   The internal variable for debugging support.  The meanings of
-	the various bits are subject to change, but currently indicate:
-
-	0x01  Debug subroutine enter/exit.
-	0x02  Line-by-line debugging.
-	0x04  Switch off optimizations.
-	0x08  Preserve more data for future interactive inspections.
-	0x10  Keep info about source lines on which a subroutine is defined.
-	0x20  Start with single-step on.
-	0x40  Use subroutine address instead of name when reporting.
-	0x80  Report "goto &subroutine" as well.
-	0x100 Provide informative "file" names for evals based on the
-		place they were compiled.
-	0x200 Provide informative names to anonymous subroutines based
-		on the place they were compiled.
-	0x400 Debug assertion subroutines enter/exit.
-
-	Some bits may be relevant at compile-time only, some at run-
-	time only.  This is a new mechanism and the details may change.
-=cut
-
+}
 
 END {
 	# cleanup
@@ -137,21 +108,13 @@ a few environment variables.
 
 =over 4
 
-=item trace=N
-
-Set trace level to N. 0 is off (the default). Higher values cause more detailed trace output.
-
 =item allowfork
 
 Enables fork detection and file locking and disables output buffering.  This will have a severe effect on performance, so use only with code that can fork. You B<MUST> use this with code that forks! [default: off]
 
-=item usecputime
+=item useclocktime
 
-Measure user + system CPU time instead of the real elapsed 'wall clock' time (which is the default).
-
-Measuring CPU time has the advantage of making the measurements independant of
-time spent blocked waiting for the cpu or network i/o etc. But it also has the
-disadvantage of having I<far> less accurate timings on most systems.
+Uses real wall clock time instead of CPU time.  With this setting, the profiler will measure time in units of actual microseconds.  The problem with this is that it includes time that your program was 'running' but not actually executing in the CPU (maybe it was waiting for its turn to run in the cpu, or maybe it was suspended).  If you don't know anything about process scheduling, then don't worry about this setting. [default: off]
 
 =item use_stdout
 
