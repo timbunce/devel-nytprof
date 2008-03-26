@@ -11,6 +11,7 @@ package Devel::NYTProf::Reader;
 use warnings;
 use strict;
 use Carp;
+use Config;
 
 BEGIN {
 	require Devel::NYTProf::ModuleVersion;
@@ -26,6 +27,11 @@ use constant SEVERITY_SEVERE			=> 2.0; # above this deviation, a bottleneck
 use constant SEVERITY_BAD					=> 1.0;
 use constant SEVERITY_GOOD				=> 0.5; # within this deviation, okay
 
+# Static class variables
+our $FLOAT_FORMAT = $Config{nvfformat};
+$FLOAT_FORMAT =~ s/"//g;
+
+# Class methods
 sub new {
 	my $class = shift;
 	my $self = {
@@ -338,7 +344,8 @@ sub report {
 						print OUT $LINE;
 					} elsif (exists $self->{data}->{$filestr}->{$LINE}) {
 						print OUT 
-								sprintf("%0.".$self->{numeric_precision}->{$hash->{value}}."lf",
+								sprintf("%0.".$self->{numeric_precision}->{$hash->{value}}
+												."l".$FLOAT_FORMAT,
 												$totalsByLine{$LINE}->{$hash->{value}});
 					} else {
 						print OUT $hash->{default};

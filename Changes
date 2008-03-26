@@ -1,5 +1,12 @@
 Revision history for Perl extension Devel::NYTProf.
 
+1.13  Wed Mar 26 9:35:00 2008
+	- Fixed RedHat EL bug - %f isn't the C format for floating-point for RHEL
+	- Changed Reader.pm to warn-and-continue instead of dieing when a source file
+			cannot be found. (the file will be skipped). Feature by request.
+	- Makefile.PL changes by tim.bunce - fix warning on LICENSE key when 
+			installed by older versions of MakeMaker. Added vim modeline.
+
 1.12  Tue Mar 25 11:05:00 2008
 	- Fixed YET ANOTHER test failure caused by trivial differences between v5.6.x
 			and v5.8.x.  Added test15 that only executes on <5.8 and test06 now only
