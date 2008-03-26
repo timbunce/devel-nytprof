@@ -27,8 +27,11 @@ GetOptions(\%opts, qw/p=s I=s v/);
 
 my $opt_perl = $opts{p};
 my $opt_include = $opts{I};
+my $outdir = 'profiler';
 
 chdir( 't' ) if -d 't';
+mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
+
 my @tests = @ARGV ? @ARGV : sort <*.p *.v *.x>;  # glob-sort, for OS/2
 
 my $path_sep = $Config{path_sep} || ':';
@@ -149,7 +152,7 @@ sub verify_report {
     $infile .= "p.";
   }
   }
-	open(IN, "profiler/${infile}csv") or die "Can't open test file: ${infile}csv";
+	open(IN, "$outdir/${infile}csv") or die "Can't open test file: $outdir/${infile}csv";
 	my @got = <IN>;
 	close IN;
 
@@ -215,3 +218,5 @@ sub pop_times {
 		pop_times($hash->{$key}->[1]);
 	}
 }
+
+# vim:ts=2:sw=2
