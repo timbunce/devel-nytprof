@@ -1,14 +1,11 @@
 #!/usr/bin/env perl
-# vim: ts=2 sw=2 sts=0 noexpandtab:
 ##########################################################
-## This script is part of the Devel::NYTProf distribution
-##
-## Copyright, contact and other information can be found
-## at the bottom of this file, or by going to:
-## http://search.cpan.org/~akaplan/Devel-NYTProf
-##
-##########################################################
-## $Id$
+# This script is part of the Devel::NYTProf distribution
+#
+# Copyright, contact and other information can be found
+# at the bottom of this file, or by going to:
+# http://search.cpan.org/~akaplan/Devel-NYTProf
+#
 ##########################################################
 use warnings;
 use strict;
@@ -16,11 +13,14 @@ use Carp;
 use Getopt::Long;
 use Devel::NYTProf::Reader;
 
-our $VERSION = 1.00;
+our $VERSION = 1.01;
 
 use constant NUMERIC_PRECISION    => 5;
 
-my %opt;
+my %opt = (
+    file    => 'nytprof.out',
+    out	    => 'profiler',
+);
 GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h/);
 
 if (defined($opt{help})) {
@@ -29,19 +29,17 @@ if (defined($opt{help})) {
 }
 
 # handle file selection option
-if (! defined($opt{file})) {
-  $opt{file} = 'nytprof.out';
-}
 if (! -r $opt{file}) {
   die "Unable to access $opt{file}\n";
 }
 
 # handle handle output location
-if (! defined($opt{out})) {
-  $opt{out} = './profiler';
-} 
-if (! -r $opt{file}) {
-  die "Unable to access output directory $opt{file}\n";
+if (!-e $opt{out}) {
+	# will be created
+} elsif (!-d $opt{out}) {
+  die "Specified output directory `$opt{out}' is a file. whoops!\n";
+} elsif (!-w $opt{out}) {
+  die "Unable to write to output directory `$opt{out}'\n";
 }
 
 # handle deleting old db's

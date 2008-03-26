@@ -1,5 +1,4 @@
 #!/usr/bin/env perl
-# vim: ts=2 sw=2 sts=0 noexpandtab:
 ##########################################################
 ## This script is part of the Devel::NYTProf distribution
 ##
@@ -8,15 +7,13 @@
 ## http://search.cpan.org/~akaplan/Devel-NYTProf
 ##
 ###########################################################
-## $Id$
-###########################################################
 use warnings;
 use strict;
 use Carp;
 use Getopt::Long;
 use Devel::NYTProf::Reader;
 
-our $VERSION = 1.00;
+our $VERSION = 1.01;
 
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
@@ -26,7 +23,10 @@ use constant SEVERITY_GOOD				=> 0.5; # within this deviation, okay
 
 use constant NUMERIC_PRECISION    => 5;
 
-my %opt;
+my %opt = (
+    file    => 'nytprof.out',
+    out	    => 'profiler',
+);
 GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h/);
 
 if (defined($opt{help})) {
@@ -35,19 +35,17 @@ if (defined($opt{help})) {
 }
 
 # handle file selection option
-if (! defined($opt{file})) {
-	$opt{file} = 'nytprof.out';
-}
 if (! -r $opt{file}) {
-	die "Unable to access $opt{file}\n";
+  die "Unable to access $opt{file}\n";
 }
 
 # handle handle output location
-if (! defined($opt{out})) {
-	$opt{out} = './profiler';
-} 
-if (! -r $opt{file}) {
-	die "Unable to access output directory $opt{file}\n";
+if (!-e $opt{out}) {
+	# will be created
+} elsif (!-d $opt{out}) {
+  die "Specified output directory `$opt{out}' is a file. whoops!\n";
+} elsif (!-w $opt{out}) {
+  die "Unable to write to output directory `$opt{out}'\n";
 }
 
 # handle deleting old db's
@@ -341,7 +339,7 @@ th,.h {
 }
 td { 
 	border: solid 1px #cccccc; 
-	padding: 4px 8px;
+	padding: 0em 0.5em 0em 0.5em;
 }
 
 .index { text-align: left; }
@@ -351,7 +349,6 @@ pre,.s {
 	text-align: left;
 	font-family: monospace;
 	white-space: pre;
-	padding: 0em 0.5em 0em 0.5em;
 }
 
 /* Classes for color-coding profiling information:
@@ -493,3 +490,5 @@ it under the same terms as Perl itself, either Perl version 5.8.8 or,
 at your option, any later version of Perl 5 you may have available.
 
 =cut
+
+# vim:ts=2:sw=2
