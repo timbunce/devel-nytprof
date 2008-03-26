@@ -39,6 +39,7 @@ typedef struct hash_entry {
 	unsigned int id;
 	void* next_entry;
 	char* key;
+	unsigned int key_len;
 } Hash_entry;
 
 typedef struct hash_table {
@@ -155,13 +156,12 @@ print_header() {
  * An implementation of the djb2 hash function by Dan Bernstein.
  */
 unsigned long
-hash (char* _str) {
+hash (char* _str, unsigned int len) {
 	char* str = _str;
 	unsigned long hash = 5381;
-	int c;
 
-	while ((c = *str++)) {
-		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+	while (len--) {
+		hash = ((hash << 5) + hash) + *str++; /* hash * 33 + c */
 	}
 	return hash;
 }
@@ -176,27 +176,26 @@ hash (char* _str) {
 char
 hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
 	static int next_fid = 0;
-	unsigned long h = hash(entry.key) % hashtable.size;
+	unsigned long h = hash(entry.key, entry.key_len) % hashtable.size;
 
 	Hash_entry* found = hashtable.table[h];
 	while(NULL != found) {
 
-		if (0 == strcmp(found->key, entry.key)) {
+		if (found->key_len == entry.key_len && 0 == strcmp(found->key, entry.key)) {
 			*retval = found;
 			return 0;
 		}
 
 		if(NULL == (Hash_entry*)found->next_entry) {
 			if (insert) {
-				int sn;
 
 				Hash_entry* e = (Hash_entry*)safemalloc(sizeof(Hash_entry));
 				e->id = next_fid++;
 				e->next_entry = NULL;
-				sn = strlen(entry.key);
-				e->key = (char*)safemalloc(sizeof(char) * sn + 1);
-				e->key[sn] = '\0';
-				strncpy(e->key, entry.key, sn);
+				e->key_len = strlen(entry.key);
+				e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
+				e->key[e->key_len] = '\0';
+				strncpy(e->key, entry.key, e->key_len);
 
 				*retval = found->next_entry = e;
 				return 1;
@@ -214,10 +213,10 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
 		Hash_entry* e = (Hash_entry*)safemalloc(sizeof(Hash_entry));
 		e->id = next_fid++;
 		e->next_entry = NULL;
-		sn = strlen(entry.key);
-		e->key = (char*)safemalloc(sizeof(char) * sn + 1);
-		e->key[sn] = '\0';
-		strncpy(e->key, entry.key, sn);
+		e->key_len = strlen(entry.key);
+		e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
+		e->key[e->key_len] = '\0';
+		strncpy(e->key, entry.key, e->key_len);
 
 		*retval =	hashtable.table[h] = e;
 		return 1;
@@ -235,6 +234,7 @@ get_file_id(char* file_name) {
 
 	Hash_entry entry, *found;
 	entry.key = file_name;
+	entry.key_len = strlen(entry.key);
 
 	if(1 == hash_op(entry, &found, 1)) {
 		if (forkok)
