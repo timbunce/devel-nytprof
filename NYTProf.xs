@@ -89,7 +89,7 @@ static unsigned int ticks_per_sec = 1;
 void lock_file();
 void unlock_file();
 void print_header();
-unsigned int get_file_id(char*);
+unsigned int get_file_id(char*, STRLEN);
 void output_int(unsigned int);
 void DB(pTHX);
 void set_option(const char*);
@@ -99,8 +99,8 @@ void init(pTHX);
 bool init_reader(const char*);
 void DEBUG_print_stats(pTHX);
 IV   getTicksPerSec();
-void addline(pTHX_ unsigned int, float, const char*);
-HV* process(char*);
+HV *load_profile_data_from_file(char*);
+AV *store_profile_line_entry(SV *rvav, unsigned int line_num, double time, int count);
 
 /***********************************
  * Devel::NYTProf Functions        *
@@ -175,13 +175,13 @@ hash (char* _str, unsigned int len) {
  */
 char
 hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
-	static int next_fid = 0;
+	static int next_fid = 1;	/* 0 is reserved */
 	unsigned long h = hash(entry.key, entry.key_len) % hashtable.size;
 
 	Hash_entry* found = hashtable.table[h];
 	while(NULL != found) {
 
-		if (found->key_len == entry.key_len && 0 == strcmp(found->key, entry.key)) {
+		if (found->key_len == entry.key_len && 0 == strncmp(found->key, entry.key, entry.key_len)) {
 			*retval = found;
 			return 0;
 		}
@@ -192,7 +192,7 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
 				Hash_entry* e = (Hash_entry*)safemalloc(sizeof(Hash_entry));
 				e->id = next_fid++;
 				e->next_entry = NULL;
-				e->key_len = strlen(entry.key);
+				e->key_len = entry.key_len;
 				e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
 				e->key[e->key_len] = '\0';
 				strncpy(e->key, entry.key, e->key_len);
@@ -208,12 +208,10 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
 	}
 
 	if (insert) {
-		int sn;
-
 		Hash_entry* e = (Hash_entry*)safemalloc(sizeof(Hash_entry));
 		e->id = next_fid++;
 		e->next_entry = NULL;
-		e->key_len = strlen(entry.key);
+		e->key_len = entry.key_len;
 		e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
 		e->key[e->key_len] = '\0';
 		strncpy(e->key, entry.key, e->key_len);
@@ -230,28 +228,61 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
  * Return a unique id number for this file.  Persists across calls.
  */
 unsigned int
-get_file_id(char* file_name) {
+get_file_id(char* file_name, STRLEN file_name_len) {
 
 	Hash_entry entry, *found;
-	entry.key = file_name;
-	entry.key_len = strlen(entry.key);
 
-	if(1 == hash_op(entry, &found, 1)) {
+	if (trace_level >= 3)
+		warn("get_file_id(%.*s, %d)\n", file_name_len, file_name, file_name_len);
+
+  /* AutoLoader adds some information to Perl's internal file name that we have
+     to remove or else the file path will be borked */
+	if (')' == file_name[file_name_len - 1]) {
+		char* new_end = strstr(file_name, " (autosplit ");
+		if (new_end)
+			file_name_len = new_end - file_name;
+	}
+	entry.key = file_name;
+	entry.key_len = file_name_len;
+
+	if(1 == hash_op(entry, &found, 1)) {	/* inserted new entry */
+	  /* if this is a synthetic filename for an 'eval'
+		 * ie "(eval 42)[/some/filename.pl:line]"
+		 * then ensure we've already generated an id for the underlying filename
+		 */
+		unsigned int eval_fid = 0;
+		unsigned int eval_line_num = 0;
+		if ('(' == file_name[0] && ']' == file_name[file_name_len-1]) {
+			char *start = strchr(file_name, '[');
+			char *colon = ":";
+			char *end   = rninstr(file_name, file_name+file_name_len-1, colon, colon+1);
+			if (!start || !end || start > end) {
+				warn("Unsupported filename syntax '%s'", file_name);
+				return 0;
+			}
+			++start; /* move past [ */
+			eval_fid = get_file_id(start, end - start);	/* recurse */
+			eval_line_num = atoi(end+1);
+		}
+
 		if (forkok)
 			lock_file();
 
 		fputc('@', out);
 		output_int(found->id);
-		fputs(file_name, out);
+		output_int(eval_fid);
+		output_int(eval_line_num);
+		while (file_name_len--)
+			fputc(*file_name++, out);
 		fputc('\n', out);
 
 		if (forkok)
 			unlock_file();
+		if (trace_level)
+		  warn("New fid %d: %.*s\n", found->id, found->key_len, found->key);
 	}
-	/*else if (
-		fprintf(stderr, "Hash access error!\n");
-		return 0;
-	}*/
+	else if (trace_level >= 3)
+		warn("fid %d: %.*s\n", found->id, found->key_len, found->key);
 
 	return found->id;
 }
@@ -349,7 +380,8 @@ DB(pTHX) {
 		output_int(last_executed_file);
 		output_int(last_executed_line);
 		output_int(elapsed);
-		/* printf("Profiled line %d in '%s' as %u ticks\n", line, file, elapsed); */
+		if (trace_level >= 3)
+			warn("Wrote %d:%-4d %2u ticks\n", last_executed_file, last_executed_line, elapsed);
 
 		if (forkok) {
 			unlock_file();
@@ -359,7 +391,7 @@ DB(pTHX) {
 		firstrun = 0;
 	}
 
-	last_executed_file = get_file_id(file);
+	last_executed_file = get_file_id(file, strlen(file));
 	last_executed_line = line;
 
 	if (usecputime) {
@@ -412,29 +444,23 @@ set_option(const char* option) {
 void
 open_file(bool forked) {
 
+  char *filename;
+	char *mode = (forked) ? "ab" : "wb";
+	int fd;
 	if (PROF_use_stdout) {										/* output to stdout */
-		int fd = dup(STDOUT_FILENO);
-		if (-1 == fd) {
+		fd = dup(STDOUT_FILENO);
+		if (-1 == fd)
 			perror("Unable to dup stdout");
-		}
-		if (forked) { 
-			out = fdopen(fd, "wa");
-		} else {
-			out = fdopen(fd, "w");
-		}
-	} else if (0 != strlen(PROF_output_file)) {	/* output to user provided file */
-		if (forked) { 
-			out = fopen(PROF_output_file, "wba");
-		} else {
-			out = fopen(PROF_output_file, "wb");
-		}
-	} else {																	/* output to default output file */
-		if (forked) { 
-			out = fopen(default_file, "wab");
-		} else {
-			out = fopen(default_file, "wb");
-		}
+		filename = NULL;
 	}
+	else if (0 != strlen(PROF_output_file)) {	/* output to user provided file */
+		filename = PROF_output_file;
+	} else {																	/* output to default output file */
+		filename = default_file;
+	}
+	if (trace_level)
+			warn("Opening %s (%s)\n", (filename) ? filename : "STDOUT", mode);
+	out = (filename) ? fopen(filename, mode) : fdopen(fd, mode);
 }
 
 /************************************
@@ -466,7 +492,7 @@ init_runtime(const char* file) {
 		}
 	}
 
-	/* a file name passed to process(...) has the highest priority */
+	/* a file name passed to load_profile_data_from_file(...) has the highest priority */
 	if (NULL != file) {
 		READER_use_stdin = 0;
 		PROF_use_stdout = 0;
@@ -498,17 +524,6 @@ init(pTHX) {
 	open_file(0);
 	if (out == NULL) {
 		Perl_croak(aTHX_ "Failed to open output file\n");
-	}
-
-	/* set ideal block size for buffering */
-	/* XXX should not be needed as that's default stdio behaviour because out is not a tty */
-	if (0) {
-		struct stat outstat;
-		if (0 == fstat(fileno(out), &outstat)) {
-			bufsiz = outstat.st_blksize;
-		}
-		out_buffer = (char *)safemalloc(sizeof(char)*bufsiz);
-		setvbuf(out, out_buffer, _IOFBF, bufsiz);
 	}
 
 	/*printf("stat block size: %d; os block size %d\n", bufsiz, BUFSIZ);*/
@@ -647,25 +662,19 @@ addline(pTHX_ unsigned int line, float time, const char* _file) {
 			warn("Ignoring invalid filename syntax '%s'\n", _file);
 			return;
 		}
-
 		eval_mode = 1;
 		file = ++start;
 		file_len = end - start;
-
 		/* line number in eval block */
 		eline = line;
-
 		/* line number in _file_ */
 		line = atoi(end + sizeof(char));
-
 		/* time for this line in the eval block */
 		etime = time;
-
 		/* execution time for the file line will be added seperately later */
 		time = 0;	
-
 		if (trace_level)
-			printf("File: %s, line: %d, time: %f, eval line: %d, eval time: %f\n",
+				warn("File: %s, line: %d, time: %f, eval line: %d, eval time: %f\n",
 						file, line, time, eline, etime);
 	}
 
@@ -745,6 +754,54 @@ addline(pTHX_ unsigned int line, float time, const char* _file) {
 	}
 }
 
+
+void
+add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num, double time, unsigned int eval_file_num, unsigned int eval_line_num) {
+
+	bool eval_mode = eval_file_num;
+
+  /* get ref to array of per-line data */
+	SV *line_time_rvav = *av_fetch(dest_av, (eval_line_num) ? eval_file_num : file_num, 1);
+	if (!SvROK(line_time_rvav))		/* autoviv */
+			sv_setsv(line_time_rvav, newRV_noinc((SV*)newAV()));
+
+  /* times for string evals are accumulated within the line the eval is on */
+  if (!eval_line_num) {
+		store_profile_line_entry(line_time_rvav, line_num, time, 1);
+	}
+	else {
+		AV *av = store_profile_line_entry(line_time_rvav, eval_line_num, 0, 0);
+		SV *eval_line_time_rvav = *av_fetch(av, 2, 1);
+		if (!SvROK(eval_line_time_rvav))		/* autoviv */
+				sv_setsv(eval_line_time_rvav, newRV_noinc((SV*)newAV()));
+		store_profile_line_entry(eval_line_time_rvav, line_num, time, 1);
+	}
+}
+
+
+AV *
+store_profile_line_entry(SV *rvav, unsigned int line_num, double time, int count)
+{
+	SV *time_rvav = *av_fetch((AV*)SvRV(rvav), line_num, 1);
+	AV *line_av;
+	if (!SvROK(time_rvav)) {		  /* autoviv */
+		line_av = newAV();
+		sv_setsv(time_rvav, newRV_noinc((SV*)line_av));
+		av_store(line_av, 0, newSVnv(time));
+		av_store(line_av, 1, newSViv(count));
+	}
+  else {
+		line_av = (AV*)SvRV(time_rvav);
+		SV *time_sv = *av_fetch(line_av, 0, 1);
+		sv_setnv(time_sv, time + SvNV(time_sv));
+		if (count) {
+		  SV *sv = *av_fetch(line_av, 1, 1);
+			(count == 1) ? sv_inc(sv) : sv_setiv(sv, time + SvIV(sv));
+		}
+	}
+	return line_av;
+}
+
 /**
  * Returns the time that the database was generated.
  * TODO Implement this properly. It was borked due to time constraints
@@ -817,10 +874,18 @@ read_int() {
 
 /**
  * Process a profile output file and return the results in a hash like
- * { filename => { line_number => [total_calls, total_time], ... }, ... }
+ * { fid_filename  => [ filename, filename, ... ], # index by [fid]
+ *   fid_line_time  => [ [...],[...],..  ] # index by [fid][line]
+ * }
+ * The value of each [fid][line] is an array ref containing:
+ * [ number of calls, total time spent ]
+ * lines containing string evals also get an extra element
+ * [ number of calls, total time spent, [...] ]
+ * which is an reference to an array containing the [calls,time]
+ * data for each line of the string eval.
  */
 HV*
-process(char *file) {
+load_profile_data_from_file(char *file) {
 	dTHX; 
 
 	unsigned long input_line = 0L;
@@ -829,76 +894,90 @@ process(char *file) {
 	unsigned int elapsed;
 	char text[MAXPATHLEN*2];
 	char c; /* for while loop */
-	AV* file_id_array = newAV();
+	HV *profile_hv;
+	AV* fid_filename_av = newAV();
+	AV* fid_line_time_av   = newAV();
 
 	if (! init_reader(file)) {
 		Perl_croak(aTHX_ "Failed to open input file\n");
 	}
 
-	av_extend(file_id_array, 64);  /* grow it up front. */
-	profile = newHV(); /* init new profile hash */
+	av_extend(fid_filename_av, 64);  /* grow it up front. */
 
 	while(EOF != (c = fgetc(in))) {
 		input_line++;
+		if (trace_level >= 3 )
+				warn("Profile item '%c'\n", c);
 
 		switch (c) {
 			case '+':
 			{
-				SV** file_name_sv;
-				char *file_name;
+				SV *filename_sv;
+				unsigned int eval_file_num = 0;
+				unsigned int eval_line_num = 0;
 
 				file_num = read_int();
 				line_num = read_int();
-				elapsed = read_int();
+				elapsed  = read_int();
 
-				file_name_sv = av_fetch(file_id_array, file_num, 0);
-				if (file_name_sv) {
-					file_name = SvPVX(*file_name_sv);
+				filename_sv = *av_fetch(fid_filename_av, file_num, 1);
+				if (!SvOK(filename_sv)) {
+				  warn("File id %d not defined in file '%s'", file_num, file);
+					/* do the best we can */
+					sv_setpv(filename_sv, "UNKNOWN");
+				  file_num = 0;
 				}
-				else {
-					warn("File id %d not defined in file '%s'", file_num, file);
-					file_name = "UNKNOWN"; /* do the best we can */
+				else if (SvROK(filename_sv)) {	/* is an eval */
+					AV *av = (AV*)SvRV(filename_sv);
+					eval_file_num = SvUV(*av_fetch(av,1,1));
+					eval_line_num = SvUV(*av_fetch(av,2,1));
+					file_num = eval_file_num;
 				}
 
-				addline(aTHX_ line_num, (float)elapsed / ticks_per_sec, 
-								file_name);
+				add_entry(aTHX_ fid_line_time_av, file_num, line_num,
+						(double)elapsed / ticks_per_sec, eval_file_num, eval_line_num);
 
-				if (trace_level)
-					printf("Profiled line %u in file %u as %us: %s\n", 
-								line_num, file_num,  elapsed, SvPVX(*file_name_sv));
+				if (trace_level >= 3)
+				    warn("Read %u:%u as %u ticks\n", 
+								file_num, line_num, elapsed);
 				break;
 			}
 			case '@':
 			{
-				int len;
-				SV* text_sv;
+				SV *fid_info_sv;
+				unsigned int eval_file_num;
+				unsigned int eval_line_num;
 
 				file_num = read_int();
+				eval_file_num = read_int();
+				eval_line_num = read_int();
 
-				if (NULL == fgets(text, sizeof(text)-1, in)) {
-					sprintf(error, "File format error: '%s' in file declaration'", file);
-					Perl_croak(aTHX_ error);
-				}
-
-				if (av_exists(file_id_array, file_num)) {
-					sprintf(error, "File id %d redefined", file_num);
-					Perl_croak(aTHX_ error);
-				}
-
-				/* trim newline as per file format */
-				len = strlen(text);
-				text[--len] = '\0';
-				text_sv = newSVpv(text, len);
-				av_store(file_id_array, file_num, text_sv);
+				if (NULL == fgets(text, sizeof(text)-1, in))
+					croak("File format error: '%s' in file declaration'", file);
 				if (trace_level)
-				    printf("Found file %s as id %u\n", text, file_num);
+				    warn("Read new file %s as fid %u (eval fid %u line %u)\n",
+								text, file_num, eval_file_num, eval_line_num);
+
+				if (av_exists(fid_filename_av, file_num))
+					warn("File id %d redefined from %s to %s", file_num,
+								SvPV_nolen(AvARRAY(fid_filename_av)[file_num]), text);
+
+				fid_info_sv = newSVpvn(text, strlen(text)-1); /* drop newline */
+				if (eval_line_num) {
+					/* change fid_info_sv to ref to array of [ name, eval_file_num, eval_line_num ] */
+					AV *av = newAV();
+					av_store(av, 0, fid_info_sv);
+					av_store(av, 1, newSVuv(eval_file_num));
+					av_store(av, 2, newSVuv(eval_line_num));
+				  fid_info_sv = newRV_noinc((SV*)av);
+				}
+
+				av_store(fid_filename_av, file_num, fid_info_sv);
 				break;
 			}
 			case '#':
-				if (NULL == fgets(text, 1024, in)) {
-					sprintf(error, "Error reading '%s' at line %lu", file, input_line);
-					Perl_croak(aTHX_ error);
-				}
+				if (NULL == fgets(text, 1024, in))
+					croak("Error reading '%s' at line %lu", file, input_line);
 
 				if (0 == strncmp(text, " CLOCKS: ", 9)) {
 					char* end = &text[strlen(text) - 2];
@@ -906,19 +985,22 @@ process(char *file) {
 					ticks_per_sec = strtoul(&text[9], &end, 10);
 				}
 
-				if (trace_level)
-				    printf("comment found and ignored: '%s'\n", text);
+				if (trace_level >= 2)
+				    warn("# %s", text); /* includes \n */
 				break;
 
 			default:
-				sprintf(error, "File format error: '%s', line %lu", file, input_line);
-				Perl_croak(aTHX_ error);
+				croak("File format error: '%s', line %lu", file, input_line);
 		}
 	}
 	fclose(in);
-	if (trace_level)
+	if ( 0 && trace_level)
 	    DEBUG_print_stats(aTHX);
-	return profile;
+
+	profile_hv = newHV();
+	hv_store(profile_hv, "fid_filename",  12, newRV_noinc((SV*)fid_filename_av), 0);
+	hv_store(profile_hv, "fid_line_time", 13, newRV_noinc((SV*)fid_line_time_av), 0);
+	return profile_hv;
 }
 
 /***********************************
@@ -960,6 +1042,8 @@ disable_profile(...)
 void
 _finish(...)
 	PPCODE:
+	if (trace_level)
+		warn("_finish\n");
 	DB(aTHX_);
 	sv_setiv(PL_DBsingle, 0);
 	if (out)
@@ -970,7 +1054,7 @@ MODULE = Devel::NYTProf		PACKAGE = Devel::NYTProf::Reader
 PROTOTYPES: DISABLE 
 
 HV*
-process(file=NULL)
+load_profile_data_from_file(file=NULL)
 	char *file;
 
 IV

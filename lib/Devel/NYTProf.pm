@@ -11,16 +11,17 @@ package Devel::NYTProf;
 package DB;
 
 BEGIN {
-	# load debug symbols
-	$^P=0x1;
-	# disable debugging
-	$^P=0x0;
+	# setting $^P non-zero automatically initializes perl debugging internals
+	# (mg.c calls init_debugger) if $DB::single is false. This is handy for
+	# situations like mod_perl where perl wasn't started with -d flag.
+	$^P=0x1;    # on
+	$^P=0x0;    # then back off again for now, see below
 
 	require Devel::NYTProf::ModuleVersion;
 	require XSLoader;
 	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::ModuleVersion::VERSION);
 
-	if ($] < 5.008008) {
+	if ($] < 5.008008) {	# workaround bug in old perl versions (slow)
 		local $^W = 0;
 		*_DB = \&DB;
 		*DB = sub { goto &_DB }

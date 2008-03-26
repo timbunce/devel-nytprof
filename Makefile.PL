@@ -139,6 +139,7 @@ if ($Config::Config{d_gettimeod}) {
 # the contents of the Makefile that is written.
 my %mm_opts;
 $mm_opts{LICENSE} = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
+#$mm_opts{OPTIMIZE} = '-g' if -d '.svn';
 
 WriteMakefile(
     NAME              => 'Devel::NYTProf',
