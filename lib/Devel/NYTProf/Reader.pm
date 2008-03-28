@@ -347,7 +347,7 @@ sub report {
 						print OUT $LINE;
 					} elsif (exists $self->{data}->{$filestr}->{$LINE}) {
 						printf(OUT "%0.".$self->{numeric_precision}->{$hash->{value}}
-										."l".$FLOAT_FORMAT,
+										.$FLOAT_FORMAT,
 										$totalsByLine{$LINE}->{$hash->{value}});
 					} else {
 						print OUT $hash->{default};
