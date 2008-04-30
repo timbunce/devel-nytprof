@@ -28,7 +28,7 @@ my %opt = (
     file    => 'nytprof.out',
     out	    => 'profiler',
 );
-GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h/);
+GetOptions(\%opt, qw/file|f=s delete|d out|o=s lib|l=s help|h/);
 
 if (defined($opt{help})) {
 	&usage;
@@ -52,6 +52,15 @@ if (!-e $opt{out}) {
 # handle deleting old db's
 if (defined($opt{'delete'})) {
 	_delete();
+}
+
+# handle custom lib path
+if (defined($opt{lib})) {
+    if (-d $opt{lib}) {
+        unshift(@INC, $opt{lib});
+    } else {
+        die "Specified lib directory `$opt{lib}' does not exist.\n";
+    }
 }
 
 print "Generating report...\n";
@@ -133,7 +142,7 @@ sub output_indexpage {
   # Note: Using Median Absolute Deviation because it is fairly resistant to 
   # the extreme values likely to be found in code and therefore provides better
   # resolution
-	my $stats = $r->getFileStats();
+	my $stats = $r->get_file_stats();
 
 	my @values;
 	map(push (@values, $_->{'time'}), values %$stats);
@@ -146,7 +155,8 @@ sub output_indexpage {
 	undef @values;
 
 	map ($stats->{$_}->{'time/call'} = 
-				($stats->{$_}->{'time'} / $stats->{$_}->{calls}), keys %$stats);
+				($stats->{$_}->{calls} > 0 ? 
+				    $stats->{$_}->{'time'} / $stats->{$_}->{calls} : 0), keys %$stats);
 
 	map(push (@values, $_->{'time/call'}), values %$stats);
 
@@ -269,6 +279,7 @@ usage: [perl] nytprofhtml [opts]
                             file. [default: ./nytprof.out]
  --out <dir>,   -o <dir>   Place generated files here [default: ./profiler]
  --delete,      -d         Delete the old nytprofhtml output [uses --out]
+ --lib,         -l         Add a path to the beginning of \@INC
  --help,        -h         Print this message
 
 This script of part of the Devel::NYTProf::Reader package by Adam J Kaplan.
@@ -453,6 +464,10 @@ Where to place the generated report. Default: ./profiler/
 =item -d, --delete
 
 Purge any existing database located at whatever -o (above) is set to
+
+=item -l, --lib <dir>
+
+Add a path to the beginning of @INC
 
 =item -h, --help
 
