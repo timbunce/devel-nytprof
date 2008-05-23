@@ -20,6 +20,7 @@ BEGIN {
 	$^P=0x0;
 
 	require Devel::NYTProf::ModuleVersion;
+	our $VERSION = 1.13;  # needed, above doesn't work with CPAN/MM/PAUSE yet
 	require XSLoader;
 	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::ModuleVersion::VERSION);
 

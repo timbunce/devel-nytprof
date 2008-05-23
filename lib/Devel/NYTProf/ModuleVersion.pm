@@ -27,6 +27,8 @@
 ## $Id$
 ###########################################################
 package Devel::NYTProf::ModuleVersion;
+use warnings;
+use strict;
 
 BEGIN {
 	our $VERSION = '1.14'; # increment with XS changes too
