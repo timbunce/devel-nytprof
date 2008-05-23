@@ -298,9 +298,11 @@ sub report {
 		print OUT $datastart;
 
 		if (! open (IN, $filestr)) {
-			confess "Unable to open $filestr for reading: $!\n"
+			# the report will not be complete, but this doesn't need to be fatal
+			warn "Unable to open $filestr for reading: $!\n"
 			.'Try running again in the same directory as you ran Devel::NYTProf,'
 			."or ensure \@INC is correct.\n";
+			next;
 		}
 
 		my $LINE = 1;	# actual line number. PATTERN variable, DO NOT CHANGE
