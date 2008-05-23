@@ -29,7 +29,7 @@
 package Devel::NYTProf::ModuleVersion;
 
 BEGIN {
-	our $VERSION = '1.13'; # increment with XS changes too
+	our $VERSION = '1.14'; # increment with XS changes too
 }
 
 1;
