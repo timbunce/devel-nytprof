@@ -31,7 +31,7 @@ use warnings;
 use strict;
 
 BEGIN {
-	our $VERSION = '1.14'; # increment with XS changes too
+	our $VERSION = '1.16'; # increment with XS changes too
 }
 
 1;

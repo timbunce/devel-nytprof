@@ -2,7 +2,13 @@
 # $Id$
 Revision history for Perl extension Devel::NYTProf.
 
-1.13	Wed Mar 26 9:35:00 2008
+1.15	Sat May 24 9:35:00 2008
+	- Added $VERSION to each module because the PAUSE indexer doesn't actually evaluation that
+			variable when using it for indexing
+	- Tim added a newline to the "package DB" line in NYTProf.xs as a hack for the PAUSE indexer
+	- Fixed missing file in 1.14 distro -- ModuleVersion.xs
+
+1.13	Fri May 23 9:35:00 2008
 	- Fixed RedHat EL bug - %f isn't the C format for floating-point for RHEL
 			Changed Reader.pm to warn-and-continue instead of dying when a source 
 			file cannot be found. (the file will be skipped). Feature by request.

@@ -18,7 +18,7 @@ use Config;
 
 BEGIN {
 	require Devel::NYTProf::ModuleVersion;
-	our $VERSION = 1.13; # needed, above doesn't work with MM/CPAN/PAUSE yet..
+	our $VERSION = '1.16'; # needed, above doesn't work with MM/CPAN/PAUSE yet..
 	require XSLoader;
 	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::ModuleVersion::VERSION);
 

@@ -11,7 +11,8 @@
 ###########################################################
 package Devel::NYTProf;
 
-package DB;
+package 
+				DB; # fix for PAUSE indexer
 
 BEGIN {
 	# load debug symbols
@@ -20,7 +21,7 @@ BEGIN {
 	$^P=0x0;
 
 	require Devel::NYTProf::ModuleVersion;
-	our $VERSION = 1.13;  # needed, above doesn't work with CPAN/MM/PAUSE yet
+	our $VERSION = '1.16';  # needed, above doesn't work with CPAN/MM/PAUSE yet
 	require XSLoader;
 	XSLoader::load('Devel::NYTProf', $Devel::NYTProf::ModuleVersion::VERSION);
 

@@ -5,6 +5,7 @@ HACKING
 INSTALL
 lib/Devel/NYTProf.pm
 lib/Devel/NYTProf/Reader.pm
+lib/Devel/NYTProf/ModuleVersion.pm
 Makefile.PL
 MANIFEST
 NYTProf.xs
