@@ -8,99 +8,52 @@ The New York Times and I encourage hacking Devel::NYTProf!
 
 OBTAINING THE CURRENT RELEASE
 -----------------------------
-The current offial release can be obtained by two methods.
-
-The CPAN Page (Preferred):
-http://search.cpan.org/~akaplan/Devel-NYTProf/
-
-The Google Code page:
-http://code.google.com/p/perl-devel-nytprof/downloads/list
+The current offial release can be obtained from CPAN
+http://search.cpan.org/dist/Devel-NYTProf/
 
 OBTAINING THE LATEST DEVELOPMENT CODE
 -------------------------------------
-You can grab the head of the latest trunk code from the Google Code repository:
+You can grab the head of the latest trunk code from the Google Code repository, see
 http://code.google.com/p/perl-devel-nytprof/source/checkout
-
-or directly via SVN:
-
-svn checkout http://perl-devel-nytprof.googlecode.com/svn/trunk/ perl-devel-nytprof-read-only
 
 CONTRIBUTING
 ------------
-Small patches are accepted via email (akaplan@nytimes.com) or Google Group post.
+Please work with the latest code from the repository - see above.
 
-Larger changes will need SVN write-access.  You can obtain this by emailing
-Adam (akaplan@nytimes.com).  You'll need to have a Google account first, so go
-make one first.  Include the username in your request for access.  After access
-is obtained, you can use this command:
+Small patches can be uploaded via the issue tracker at
+http://code.google.com/p/perl-devel-nytprof/issues/list
 
-svn checkout https://perl-devel-nytprof.googlecode.com/svn/trunk/ perl-devel-nytprof --username YOUR_USERNAME
+For larger changes please talk to us first via the mailing list at
+http://code.google.com/p/perl-devel-nytprof/source/checkout
 
-COMPILING
----------
-When developing, use 'make' and ensure that NO warnings are output except
-for those occuring in perl "XS_blah_blah" functions.
-
-Change line 37 of Makefile from:
-
-CCCDLFLAGS = -fPIC
-
-to:
-
-CCCDLFLAGS = -fPIC -pedantic -Wall -ansi
+When developing, please ensure that no new compiler warnings are output.
 
 TESTING
 -------
 You MUST write test cases for you changes. All tests that are dropped into the
 "t" folder and added to MANIFEST will be executed.  The testing system is
-customized for this module becuse debuggers are not that easy to test.  The
-system still uses Test::Harness and Test::More, so it should behave just like
-any other perl modules 'make test'.
+customized for this module because profilers are not that easy to test.
+The system still uses Test::Harness and Test::More, so it should behave just
+like any other perl modules 'make test'.
 
 Writing tests is easy!
 
-1) design a perl script that will trigger the new behavior/feature that you
-   want to test. Name the file 't/test##.p'
+1) Design a perl script that will trigger the new behavior/feature that you
+   want to test. Name the file 't/test##-description.p'
 
-2) create the 'control' file for the debugger output.  This file contains a
-   perl fragment that is eval'd.  See any t/*.v file for an example, but
-   basically it should be a hash of: line_number => [ times_executed ].
-   Time data and statistics are stripped out. They aren't reliable metrics
-   across systems.  If you are testing an eval, then you'll need to make an
-   anonymous hash that hash the lines IN the eval that were executed. The format
-   is the same. Examples are in t/test13.v, but it looks like this:
+2) Create an empty 'reference' file for the test.
+   Name the file 't/test##-description.rdt'
+   When the test is run you'll get an error and a diff and you'll
+   find a t/test##-description.rdt.new file waiting for you.
+   If, and only if, the contents of that file are correct, then rename
+   it to t/test##-description.rdt and you're done!
+   Of course working out if the contents are correct can be
+   non-trivial, but at least you don't have to write the file :)
 
-	 $expected = {
-			'test00.p' => {
-				4 => [ 3 ],
-				19 => [ 1, { 1 => [ 1 ] } ],
-				20 => [ 2, { 1 => [ 1 ], 2 => [ 100 ] } ],
-			}
-	 };
-
-	 This hash is for the files "t/test00.p"
-	 Line 4 is executed 3 times
-	 Line 19 is executed 1 time and is an eval
-	      The first line of the eval is executed 1 time
-	 Line 20 is executed 1 time and is also eval
-	      The first line of the eval is executed 1 time
-	      The second line of the eval is executed 100 times
-	
-	 Evals in the debugger are strange, and you may need to do some exploring if
-	 you manage to create a strange eval.  If code in an eval fails during test,
-	 subsequent lines INSIDE the eval are reported as having NEVER executed!
-
-3) Create a corresponding CSV output file.  This is EASY! The file will be
-	 compared against the output of bin/nytprofcsv on your test file.  It tests
-	 the output generator code.  Everything except number of calls should be set
-	 to 0.  Times are ignored, but there is a way to override that. Look through
-	 the test files to find some examples of that. Files are named t/test00.x
-
-	 Note: This is a very easy step! Just run "make test".  The scripts will fail
-	 when trying to verify the csv file, but the file that it generated can be
-	 copy-pasted from t/profiler/blah.p.csv.  You'll need to verify it of course!
-
-4) Test! run 'make test' and your new paried .p,.x & .v files will be tested
+3) Create a corresponding CSV output file if appropriate.
+   You can use the same trick of creating an empty file, but this
+   time with a .x suffix: t/test##-description.x
+	 You still need to verify the .x.new file of course!
 
 Note:  While writing a test, it is helpful to be able to run it directly, 
 			without the test harness.  This allows you to view more output stdout and 
@@ -137,7 +90,7 @@ http://groups.google.com/group/develnytprof-dev
 NYTimes Open Code Blog:
 http://open.nytimes.com/
 
-TODO
+TODO (unsorted)
 ----
 
 Fix Reader

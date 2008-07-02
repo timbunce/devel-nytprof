@@ -17,6 +17,8 @@ use ExtUtils::MakeMaker;
 use Getopt::Long;
 use Config;
 
+my $is_developer = (-d '.svn');
+
 # --- Bail out on Windows
 if ($^O eq 'MSWin32') {
 	print "This module does not support Windows because of NYTProf.xs.\n"
@@ -156,10 +158,6 @@ $INCLUDE = $stdio_dir if defined $stdio_dir;
 $INCLUDE = $stdio_ext_dir if defined $stdio_ext_dir;
 my $include_string = "-I.";
 $include_string .= $INCLUDE if defined $INCLUDE;
-my $DEFINE;
-$DEFINE .= '-DHAS'.uc($fpurge) if defined($fpurge);
-$DEFINE .= ' -DHAS'.uc($clock_gettime) if $clock_gettime;
-$DEFINE .= ' -DHAS_STDIO_EXT_H' if defined $stdio_ext_dir;
 
 my @LIBS = ();
 push @LIBS, "-lrt" if $clock_gettime;
@@ -167,9 +165,28 @@ push @LIBS, "-lrt" if $clock_gettime;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 my %mm_opts;
+
+$mm_opts{DEFINE} .= '-DHAS'.uc($fpurge) if defined($fpurge);
+$mm_opts{DEFINE} .= ' -DHAS'.uc($clock_gettime) if $clock_gettime;
+$mm_opts{DEFINE} .= ' -DHAS_STDIO_EXT_H' if defined $stdio_ext_dir;
+
 $mm_opts{LICENSE} = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
 $mm_opts{OPTIMIZE} = '-g'  if $opt_g;
 $mm_opts{CCFLAGS}  = "-pg" if $opt_pg;
+
+if (my $gccversion = $Config{gccversion}) {     # ask gcc to be more pedantic
+    print "Your perl was compiled with gcc (version $Config{gccversion}), okay.\n";
+    $gccversion =~ s/[^\d\.]//g; # just a number please
+    $mm_opts{DEFINE} .= ' -W -Wall -Wpointer-arith -Wbad-function-cast';
+    $mm_opts{DEFINE} .= ' -Wno-comment -Wno-sign-compare -Wno-cast-qual';
+    $mm_opts{DEFINE} .= ' -Wmissing-noreturn -Wno-unused-parameter' if $gccversion ge "3.0";
+    if ($is_developer && $opt_g) {
+        $mm_opts{DEFINE} .= ' -DPERL_GCC_PEDANTIC -ansi -pedantic' if $gccversion ge "3.0";
+        $mm_opts{DEFINE} .= ' -Wdisabled-optimization -Wformat'    if $gccversion ge "3.0";
+        $mm_opts{DEFINE} .= ' -Wmissing-prototypes';
+    }
+}
+
 
 WriteMakefile(
     NAME              => 'Devel::NYTProf',
@@ -183,8 +200,6 @@ WriteMakefile(
     EXE_FILES					=> [ 'bin/nytprofhtml', 'bin/nytprofcsv' ],
     MAN1PODS					=> { 'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
 													'bin/nytprofcsv' => '$(INST_MAN1DIR)/nytprofcsv.1' },
-    DEFINE            => $DEFINE, # e.g., '-DHAVE_SOMETHING'
-    												# e.g., '-I. -I/usr/include/other'
     INC               => $include_string, # e.g., '-I. -I/usr/include/other'
 		clean							=> { 
 			FILES	=> "nytprof.out profiler t/nytprof.out t/profiler t/test*.*.new t/auto"
