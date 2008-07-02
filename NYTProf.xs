@@ -496,7 +496,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
         if (type == OP_NEXTSTATE || type == OP_SETSTATE || type == OP_DBSTATE) {
 				  if (trace_level >= 4)
 						warn("\tstart_cop_of_context %s is %s line %d of %s\n",
-							block_type[CxTYPE(cx)], OP_NAME(o), CopLINE((COP*)o), 
+							block_type[CxTYPE(cx)], OP_NAME(o), (int)CopLINE((COP*)o), 
 							OutCopFILE((COP*)o));
 					return (COP*)o;
 				}
@@ -509,8 +509,8 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
         o = o->op_next;
     }
     if (trace_level >= 3) {
-			warn("\tstart_cop_of_context: can't find next cop for %s line %d\n",
-					block_type[CxTYPE(cx)], CopLINE(PL_curcop));
+			warn("\tstart_cop_of_context: can't find next cop for %s line %ld\n",
+					block_type[CxTYPE(cx)], (long)CopLINE(PL_curcop));
 			do_op_dump(1, PerlIO_stderr(), start_op);
 		}
     return NULL;
@@ -536,7 +536,7 @@ visit_contexts(pTHX_ UV stop_at, int (*callback)(pTHX_ PERL_CONTEXT *cx,
         while (cxix < 0 && top_si->si_type != PERLSI_MAIN) {
             if (trace_level >= 3)
 							warn("Not on main stack (type %d); digging top_si %p->%p, ccstack %p->%p\n",
-										top_si, top_si->si_prev, ccstack, top_si->si_cxstack);
+										(int)top_si->si_type, top_si, top_si->si_prev, ccstack, top_si->si_cxstack);
             top_si  = top_si->si_prev;
             ccstack = top_si->si_cxstack;
             cxix = dopopcx_at(aTHX_ ccstack, top_si->si_cxix, stop_at);
@@ -550,7 +550,7 @@ visit_contexts(pTHX_ UV stop_at, int (*callback)(pTHX_ PERL_CONTEXT *cx,
         cx = &ccstack[cxix];
         if (trace_level >= 4)
 					warn("visit_context: %s cxix %d (si_prev %p)\n",
-							block_type[CxTYPE(cx)], cxix, top_si->si_prev);
+							block_type[CxTYPE(cx)], (int)cxix, top_si->si_prev);
 				if (callback(aTHX_ cx, &stop_at))
 					return cx;
         /* no joy, look further */
@@ -564,11 +564,13 @@ static int
 _cop_in_same_file(COP *a, COP *b)
 {
   int same = 0;
-	if (OutCopFILE(a) == OutCopFILE(b))
+  char *a_file = OutCopFILE(a);
+  char *b_file = OutCopFILE(b);
+	if (a_file == b_file)
 		same = 1;
 	else
 	/* fallback to strEQ, surprisingly common (check why) XXX expensive */
-  if (strEQ(OutCopFILE(a), OutCopFILE(b)))
+  if (strEQ(a_file, b_file))
 		same = 1;
   return same;
 }
@@ -736,8 +738,8 @@ DB(pTHX) {
 	file = OutCopFILE(cop);
 	if (!last_executed_fid) {	/* first time */
 		if (trace_level >= 1) {
-			warn("NYTProf pid %d: first statement line %d of %s",
-				getpid(), CopLINE(cop), OutCopFILE(cop));
+			warn("NYTProf pid %ld: first statement line %d of %s",
+				(long)getpid(), (int)CopLINE(cop), OutCopFILE(cop));
 		}
 	}
 	if (file != last_executed_fileptr) {
@@ -1161,8 +1163,8 @@ write_sub_line_ranges(pTHX_ int fids_only) {
 			continue;
 
 		if (trace_level >= 2)
-			warn("Sub %s fid %u lines %u..%u\n", sub_name, fid, first_line, 
-																					last_line);
+			warn("Sub %s fid %u lines %lu..%lu\n",
+				sub_name, fid, (unsigned long)first_line, (unsigned long)last_line);
 
 		fputc('s', out);
 		output_int(fid);
@@ -1198,7 +1200,7 @@ write_sub_callers(pTHX) {
 		while (NULL != (sv = hv_iternextsv(fid_lines_hv, &fid_line_string,
 										&fid_line_len))) 
 		{
-			IV count = SvIV(sv);
+			unsigned int count = SvUV(sv);
 			unsigned int fid = 0;
 			unsigned int line = 0;
 			sscanf(fid_line_string, "%u:%u", &fid, &line);
@@ -1308,7 +1310,7 @@ load_profile_data_from_stream() {
 	while (EOF != (c = fgetc(in))) {
 		input_line++;
 		if (trace_level >= 4)
-			warn("Token %lu is %d ('%c') at %ld\n", input_line, c, c, ftell(in)-1);
+			warn("Token %lu is %d ('%c') at %ld\n", input_line, c, c, (long)ftell(in)-1);
 
 		switch (c) {
 			case '*':			/*FALLTHRU*/
@@ -1378,10 +1380,10 @@ load_profile_data_from_stream() {
 				if (trace_level) {
 						if (eval_file_num)
 							warn("Fid %2u is %.*s (eval fid %u line %u)\n",
-									file_num, strlen(text)-1, text, eval_file_num, eval_line_num);
+									file_num, (int)strlen(text)-1, text, eval_file_num, eval_line_num);
 						else
 							warn("Fid %2u is %.*s\n",
-									file_num, strlen(text)-1, text);
+									file_num, (int)strlen(text)-1, text);
 				}
 
 				if (av_exists(fid_filename_av, file_num)
@@ -1419,7 +1421,7 @@ load_profile_data_from_stream() {
 					croak("Profile format error in sub line range"); /* probably EOF */
 				if (trace_level >= 3)
 				    warn("Sub %.*s fid %u lines %u..%u\n",
-							strlen(text)-1, text, fid, first_line, last_line);
+							(int)strlen(text)-1, text, fid, first_line, last_line);
 				if (!sub_fid_lines_hv)
 					sub_fid_lines_hv = newHV();
 				/* { 'pkg::sub' => [ fid, first_line, last_line ], ... } */
@@ -1445,7 +1447,7 @@ load_profile_data_from_stream() {
 
 				if (trace_level >= 3)
 				    warn("Sub %.*s called by fid %u line %u: count %d\n",
-							strlen(text)-1, text, fid, line, count);
+							(int)strlen(text)-1, text, fid, line, count);
 
 				if (!sub_callers_hv)
 					sub_callers_hv = newHV();
@@ -1473,7 +1475,7 @@ load_profile_data_from_stream() {
 				int len = my_snprintf(text, sizeof(text), "%d", pid);
 				hv_store(live_pids_hv, text, len, newSVuv(ppid), 0);
 				if (trace_level)
-					warn("Start of profile data for pid %s (ppid %d, %d pids live)\n",
+					warn("Start of profile data for pid %s (ppid %d, %ld pids live)\n",
 						text, ppid, HvKEYS(live_pids_hv));
 				break;
 			}
@@ -1486,7 +1488,7 @@ load_profile_data_from_stream() {
 					warn("Inconsistent pids in profile data (pid %d not introduced)", 
 								pid);
 				if (trace_level)
-					warn("End of profile data for pid %s, %d remaining\n", text, 
+					warn("End of profile data for pid %s, %ld remaining\n", text, 
 								HvKEYS(live_pids_hv));
 				break;
 			}
@@ -1526,7 +1528,7 @@ load_profile_data_from_stream() {
 	}
 
 	if (EOF == c && HvKEYS(live_pids_hv)) {
-		warn("profile data possibly truncated, no terminator for %d pids", 
+		warn("profile data possibly truncated, no terminator for %ld pids", 
 					HvKEYS(live_pids_hv));
 	}
 	sv_free((SV*)live_pids_hv);
