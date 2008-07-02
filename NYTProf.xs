@@ -69,6 +69,8 @@ typedef struct hash_entry {
 	unsigned int key_len;
 	unsigned int eval_fid;
 	unsigned int eval_line_num;
+	unsigned int file_size;
+	unsigned int file_mtime;
 	char *key_abs;
 	void* next_inserted; /* linked list in insertion order */
 } Hash_entry;
@@ -161,7 +163,7 @@ print_header(pTHX) {
 
 	assert(out != NULL);
 	/* File header with "magic" string, with file major and minor version */
-	fprintf(out, "NYTProf %d %d\n", 1, 0);
+	fprintf(out, "NYTProf %d %d\n", 1, 1);
 	/* Human readable comments and attributes follow
 	 * comments start with '#', end with '\n', and are discarded
 	 * attributes start with ':', a word, '=', then the value, then '\n'
@@ -281,6 +283,9 @@ emit_fid (Hash_entry *found) {
 	output_int(found->id);
 	output_int(found->eval_fid);
 	output_int(found->eval_line_num);
+	output_int(0); /* flags/future use */
+	output_int(found->file_size);
+	output_int(found->file_mtime);
 	while (file_name_len--)
 		fputc(*file_name++, out);
 	fputc('\n', out);
@@ -1364,15 +1369,23 @@ load_profile_data_from_stream() {
 				break;
 			}
 
-			case '@':
+			case '@':	/* file */
 			{
 				SV *fid_info_sv;
 				unsigned int eval_file_num;
 				unsigned int eval_line_num;
+				unsigned int fid_flags;
+				unsigned int file_size;
+				unsigned int file_mtime;
 
-				file_num = read_int();
+				file_num  = read_int();
 				eval_file_num = read_int();
 				eval_line_num = read_int();
+				if (file_major >= 1 && file_minor >= 1) {
+					fid_flags     = read_int();
+					file_size     = read_int();
+					file_mtime    = read_int();
+				}
 
 				if (NULL == fgets(text, sizeof(text), in))
 					/* probably EOF */

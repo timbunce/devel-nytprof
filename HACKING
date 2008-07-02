@@ -208,3 +208,5 @@ it only affects code that is *compiled* after it takes effect.
 
 Would be good if DB::DB sub wasn't defined when use_db_sub is false
 so the profiler could be used to profile debuggers etc.
+
+Add file format backwards compatibility tests.
