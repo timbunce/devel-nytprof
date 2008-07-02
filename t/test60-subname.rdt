@@ -1,0 +1,15 @@
+attribute	basetime	0
+attribute	perl_version	0
+attribute	ticks_per_sec	1000000
+attribute	xs_version	0
+fid_filename	1	test60-subname.p
+fid_line_time	1	5	[ 0 1 ]
+fid_line_time	1	9	[ 0 1 ]
+fid_line_time	1	12	[ 0 1 ]
+fid_line_time	1	15	[ 0 1 ]
+fid_line_time	1	16	[ 0 1 ]
+sub_caller	Socket::inet_aton	1	12	1
+sub_caller	Socket::inet_aton	1	16	1
+sub_caller	Socket::inet_aton	1	5	1
+sub_caller	Socket::inet_aton	1	9	1
+sub_fid_line	main::BEGIN	[ 1 2 2 ]

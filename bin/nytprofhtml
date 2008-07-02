@@ -6,15 +6,17 @@
 ## at the bottom of this file, or by going to:
 ## http://search.cpan.org/~akaplan/Devel-NYTProf
 ##
+##########################################################
+# $Id$
 ###########################################################
 use warnings;
 use strict;
 use Carp;
 use Getopt::Long;
 use Devel::NYTProf::Reader;
-use Devel::NYTProf::ModuleVersion;
+use Devel::NYTProf::Core;
 
-our $VERSION = 1.01;
+our $VERSION = 1.02;
 
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
@@ -26,27 +28,29 @@ use constant NUMERIC_PRECISION    => 5;
 
 my %opt = (
     file    => 'nytprof.out',
-    out	    => 'profiler',
+    out	    => 'nytprof',
 );
-GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h/);
+GetOptions(\%opt,
+  qw/file|f=s delete|d out|o=s lib|l=s help|h/
+) or exit 1;
 
 if (defined($opt{help})) {
 	&usage;
-	exit;
+	exit 1;
 }
 
 # handle file selection option
 if (! -r $opt{file}) {
-  die "Unable to access $opt{file}\n";
+  die "$0: Unable to access $opt{file}\n";
 }
 
 # handle handle output location
 if (!-e $opt{out}) {
 	# will be created
 } elsif (!-d $opt{out}) {
-  die "Specified output directory `$opt{out}' is a file. whoops!\n";
+  die "$0: Specified output directory `$opt{out}' is a file. whoops!\n";
 } elsif (!-w $opt{out}) {
-  die "Unable to write to output directory `$opt{out}'\n";
+  die "$0: Unable to write to output directory `$opt{out}'\n";
 }
 
 # handle deleting old db's
@@ -54,14 +58,24 @@ if (defined($opt{'delete'})) {
 	_delete();
 }
 
+# handle custom lib path
+if (defined($opt{lib})) {
+    if (-d $opt{lib}) {
+        unshift(@INC, $opt{lib});
+    } else {
+        die "$0: Specified lib directory `$opt{lib}' does not exist.\n";
+    }
+}
+
 print "Generating report...\n";
 my $reporter = new Devel::NYTProf::Reader($opt{file});
 
 # place to store this crap
-$reporter->outputDir($opt{out});
+$reporter->output_dir($opt{out});
+
 
 # set formatting for html
-$reporter->setParam('header', get_header("Profile: !~FILENAME~!").
+$reporter->set_param('header', get_header("Profile: !~FILENAME~!").
 "<body> <h1>File Profile</h1> <table><tr>
 <td class='h' align='right'>File</td><td align=\"left\">!~FILENAME~!</td></tr>
 <td class='h' align='right'>Total Calls</td><td align=\"left\">!~TOTAL_CALLS~!
@@ -69,47 +83,113 @@ $reporter->setParam('header', get_header("Profile: !~FILENAME~!").
 <td class='h' align='right'>Total Time</td><td align=\"left\">!~TOTAL_TIME~!
 seconds</td>\n</tr></table><br/>");
 
-$reporter->setParam('taintmsg', 
+$reporter->set_param('taintmsg', 
 "<div class='warn_title'>WARNING!</div>\n
 <div class='warn'>The source file used to generate this report was modified
 after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n");
 
-$reporter->setParam('datastart', "<table border=1 cellpadding=0>
-<tr><th>Line</th><th>Calls</th><th>Time</th><th>Times/Call</th><th>Code</th>
-</tr>\n");
+$reporter->set_param('datastart', sub {
+    my ($profile, $filestr) = @_;
+    my $subs_defined_hash = $profile->subs_defined_in_file( $filestr, 0 );
+    my @subs = sort {
+      $a->{first_line} <=> $b->{first_line}
+    } values %$subs_defined_hash;
 
-$reporter->setParam('footer', '</table></body></html>');
+    # XXX would be nice to color code these according to the overall time spent in the sub
+    my $sub_links = join "<br>\n", map {
+      sprintf qq{sub <a href="#%d">%s</a> lines %d&mdash;%d},
+        $_->{first_line}, $_->{subname}, $_->{first_line}, $_->{last_line};
+    } @subs;
 
-$reporter->setParam('linestart',
-	{start => '<tr><td class="h">', value=> 'line', end => '</td>'});
+    return qq{<div style="font-family: monospace">$sub_links</div><br>
+      <table border=1 cellpadding=0>
+      <tr><th>Line</th><th>Calls</th><th>Time</th><th>Times/Call</th><th>Code</th>
+      </tr>\n
+    };
+});
 
-#$reporter->setParam('column1', 
+$reporter->set_param('footer', '</table></body></html>');
+
+$reporter->set_param('linestart', {
+    func => sub { my ($value, $linenum, $linesrc) = @_;
+      sprintf qq{<tr><td class="h"><a name="%d"></a>%d</td>}, $linenum, $linenum;
+    },
+});
+
+#$reporter->set_param('column1', 
 #	{start => '<td>', value => 'calls', end => '</td>', default => ''});
-#$reporter->setParam('column2', 
+#$reporter->set_param('column2', 
 #	{start => '<td>', value => 'time', end => '</td>', default => ''});
-#$reporter->setParam('column3', 
+#$reporter->set_param('column3', 
 #	{start => '<td>', value => 'time/call', end => '</td>', default => ''});
-$reporter->setParam('column4', 
-	{start => '<td class=\'s\'>', value => 'source', end => '</td>', 
-		default => ''});
+$reporter->set_param('column4', {
+    func => sub {
+      my ($value, $linenum, $linesrc, $profile, $subs, $calls) = @_;
 
-#$reporter->setParam('linestart', {func => \&myfunc});
-$reporter->setParam('column1', 
+      my @prologue;
+      for my $sub_info (@$subs) {
+        my $callers = $sub_info->{callers};
+        next unless $callers && %$callers;
+        push @prologue, sprintf "# %s called:", $sub_info->{subname};
+        my @callers;
+        while ( my ($fid, $fid_line_info) = each %$callers ) {
+          push @callers, [ $fid, $_, $fid_line_info->{$_} ]
+            for keys %$fid_line_info;
+        }
+        # order by most frequent caller first
+        for my $caller (sort { $b->[2] <=> $a->[2] } @callers) {
+          my ($fid, $line, $count) = @$caller;
+
+          my @subnames = $profile->subname_at_file_line($fid, $line);
+          my $subname = (@subnames) ? " by ".join(" or ",@subnames) : "";
+
+          my $filename = $profile->fid_filename($fid);
+          my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
+          my $caller_filename = $profile->fid_filename($fid);
+
+          push @prologue, sprintf q{# %d times%s at <a href="%s#%d">line %d</a> of %s},
+                $count, $subname, "$href.html", $line, $line, $caller_filename;
+        }
+      }
+      my $prologue = join("\n",@prologue);
+      $prologue = sprintf qq{<div class="calls">%s</div>}, $prologue
+        if $prologue;
+
+      my $epilogue = '';
+      if (%$calls) {
+        my $ws = ($linesrc =~ m/^((?:&nbsp;)+)/) ? $1 : '';
+        my @counts;
+        $epilogue = join "\n", map {
+          push @counts, $calls->{$_};
+          sprintf qq{$ws# <a href="%s">%s</a> called %d times},
+            $reporter->href_for_sub($_),
+            $_, $calls->{$_}
+        } sort keys %$calls;
+        $epilogue = sprintf qq{<div class="calls">%s</div>}, $epilogue;
+      }
+
+      sprintf qq{<td class="s">%s%s%s</td>}, $prologue, $linesrc, $epilogue;
+    },
+});
+
+
+#$reporter->set_param('linestart', {func => \&myfunc});
+$reporter->set_param('column1', 
 										{value => 'calls', func => \&determine_severity});
-$reporter->setParam('column2', 
+$reporter->set_param('column2', 
 										{value => 'time', func => \&determine_severity});
-$reporter->setParam('column3', 
+$reporter->set_param('column3', 
 										{value => 'time/call', func => \&determine_severity});
-#$reporter->setParam('column4', {func => \&myfunc});
+#$reporter->set_param('column4', {func => \&myfunc});
 
-$reporter->setParam('lineend', {start => "</tr>\n"});
+$reporter->set_param('lineend', {start => "</tr>\n"});
 
 # set output options
-$reporter->setParam('suffix', '.html');
-$reporter->addRegexp(' ', '&nbsp;');
-$reporter->addRegexp('\t', '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
-$reporter->addRegexp('<', '&lt;');
-$reporter->addRegexp('>', '&gt;');
+$reporter->set_param('suffix', '.html');
+$reporter->add_regexp(' ', '&nbsp;');
+$reporter->add_regexp('\t', '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
+$reporter->add_regexp('<', '&lt;');
+$reporter->add_regexp('>', '&gt;');
 
 # generate the files
 $reporter->report();
@@ -133,28 +213,23 @@ sub output_indexpage {
   # Note: Using Median Absolute Deviation because it is fairly resistant to 
   # the extreme values likely to be found in code and therefore provides better
   # resolution
-	my $stats = $r->getFileStats();
+	my $stats = $r->get_file_stats();
 
-	my @values;
-	map(push (@values, $_->{'time'}), values %$stats);
-
+	my @values = map { $_->{'time'} } values %$stats;
 	# Use Median Absolute Deviation Formula
 	my ($amdev_t, $mean_t) = 
 			@{Devel::NYTProf::Reader::calculate_median_absolute_deviation(\@values)};
-  # Use Standard Deviation Formula
-	#my ($amdev_t, $mean_t) = Devel::NYTProf::Reader::calculate_sd(\@values);
 	undef @values;
 
-	map ($stats->{$_}->{'time/call'} = 
-				($stats->{$_}->{'time'} / $stats->{$_}->{calls}), keys %$stats);
+	for (values %$stats) {
+		next if not $_;
+		$_->{'time/call'} = ($_->{calls}) ?  $_->{'time'} / $_->{calls} : 0;
+	}
 
-	map(push (@values, $_->{'time/call'}), values %$stats);
-
+	@values = map { $_->{'time/call'} } values %$stats;
 	# Use Median Absolute Deviation Formula
 	my ($amdev_tc, $mean_tc) = 
 			@{Devel::NYTProf::Reader::calculate_median_absolute_deviation(\@values)};
-  # Use Standard Deviation Formula
-	#my ($amdev_tc, $mean_tc) = Devel::NYTProf::Reader::calculate_sd(\@values);
 	undef @values;
 
 	###
@@ -166,38 +241,39 @@ sub output_indexpage {
 	print OUT "<body> <h1>Profile Analysis Index</h1><br/>"
 						."Jump to a file: &nbsp;<select>";
 
-	# generate select options for namespace groupings
+	# generate name-sorted select options for namespace groupings
 	foreach (sort keys %$stats) {
 		my $safe = $stats->{$_}->{html_safe};
-		print OUT "<option onClick=location.href=('#$safe');>$_</option>\n";
+		print OUT "<option onClick=location.href=('#$safe');>$_</option>\n"
+				if $safe;
 	}
 	print OUT "</select><br/><br/>\n";
 
-	# generate sections for modules grouped by namespace
+	# generate time-sorted sections for files
 	print OUT "<table border=1 cellspacing=0>";
 	print OUT "<tr class='index'><th>File</th><th>Calls</th><th>Time</th>"
 						."<th>Avg Time/Call</th></tr>";
 
-	my $allTimes; # for stats table at the bottom only
-	my $allCalls; # for stats table at the bottom only
+	my $allTimes = 0; # for stats table at the bottom only
+	my $allCalls = 0; # for stats table at the bottom only
 
-	foreach (sort keys %$stats) {
-		my $safe = $stats->{$_}->{html_safe};
+	foreach (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
+		my $safe = $_->{html_safe};
 		print OUT  "<tr class='index'><td><a name='$safe' href='$safe.html'>"
-							."$_</a></td>";
+							."$_->{filename}</a></td>";
 
 		my $html_time = determine_severity('time',
-											$stats->{$_}->{'time'}, [$amdev_t, $mean_t]);
+											$_->{'time'}, [$amdev_t, $mean_t]);
 		my $html_calltime = determine_severity('time/call', 
-											$stats->{$_}->{'time/call'}, [$amdev_tc, $mean_tc]);
+											$_->{'time/call'}, [$amdev_tc, $mean_tc]);
 
-		print OUT "<td class='index'>$stats->{$_}->{calls}</td>"
+		print OUT "<td class='n'>$_->{calls}</td>"
 							."$html_time"
 							."$html_calltime</tr>\n";
 
 		# stats collection
-		$allTimes += $stats->{$_}->{'time'}; 
-		$allCalls += $stats->{$_}->{calls};
+		$allTimes += $_->{'time'}; 
+		$allCalls += $_->{calls};
 	}
 	print OUT '</table><br/><br/>';
 
@@ -205,14 +281,14 @@ sub output_indexpage {
 			.'<tr><th>Field</th><th>Count</th><th>Median</th><th>Deviation</th></tr>'
 			.'<tr><td>Time</td><td>'.scalar(keys %$stats)."</td><td>$mean_t</td>"
 						."<td>$amdev_t</td></tr>"
-			.'<tr><td>Avg Time Per Call</td><td>'.scalar(keys %$stats)
+			.'<tr><td>Avg Time Per Statement</td><td>'.scalar(keys %$stats)
 						."</td><td>$mean_tc</td><td>$amdev_tc</td></tr>"
 			.'</table>';
 
 	
 
 	printf OUT '<table cellspacing=0 align=left>'
-							.'<tr><th>Total Execution Time</th><th>Total Lines Executed</th>'
+							.'<tr><th>Total Execution Time</th><th>Total Statements Executed</th>'
 							."</tr><tr><td>$allTimes</td><td>$allCalls</td></tr></table>";
 	print OUT "</body></html>";
 	close OUT;
@@ -267,8 +343,9 @@ sub usage {
 usage: [perl] nytprofhtml [opts]
  --file <file>, -f <file>  Use the specified file as Devel::NYTProf database
                             file. [default: ./nytprof.out]
- --out <dir>,   -o <dir>   Place generated files here [default: ./profiler]
+ --out <dir>,   -o <dir>   Place generated files here [default: ./nytprof]
  --delete,      -d         Delete the old nytprofhtml output [uses --out]
+ --lib,         -l         Add a path to the beginning of \@INC
  --help,        -h         Print this message
 
 This script of part of the Devel::NYTProf::Reader package by Adam J Kaplan.
@@ -287,7 +364,7 @@ sub get_header {
 <html xmlns="http://www.w3.org/1999/xhtml">
 <!--
 This file was generated by Devel::NYTProf::Reader HTML Version $VERSION
-using Devel::NYTProf Version $Devel::NYTProf::ModuleVersion::VERSION
+using Devel::NYTProf Version $Devel::NYTProf::Core::VERSION
 Devel::NYTProf, Devel::NYTProf::Reader and nytprofhtml are copyright 
 2008, Adam Kaplan, akaplan at cpan dot org, search.cpan.org/~akaplan
 These modules are free. They are licensed under the same terms as Perl itself.
@@ -321,7 +398,7 @@ h1, h3 {
 	-moz-border-radius: 10px;
 }
 
-a { color: #000000; }
+a:hover { color: red; }
 a:visited { color: #333333; }
 
 table { 
@@ -351,6 +428,8 @@ pre,.s {
 	font-family: monospace;
 	white-space: pre;
 }
+/* plain number */
+.n { text-align: right }
 
 /* Classes for color-coding profiling information:
  *   c0  : code not hit
@@ -394,6 +473,22 @@ pre,.s {
 	text-align: center;
 	padding: 5px 0;
 }
+
+.calls {
+  display: block;
+	color: grey;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  text-decoration: none;
+}
+.calls:hover {
+	background-color: #e8e8e8;
+	color: black;
+}
+.calls       a       { color: grey;  text-decoration: none; }
+.calls:hover a       { color: black; text-decoration: underline; }
+.calls:hover a:hover { color: red; }
+
 __END__
 
 =head1 NAME
@@ -448,11 +543,15 @@ Specifies the location of the input file. Default: nytprof.out
 
 =item -o, --out <dir>
 
-Where to place the generated report. Default: ./profiler/
+Where to place the generated report. Default: ./nytprof/
 
 =item -d, --delete
 
 Purge any existing database located at whatever -o (above) is set to
+
+=item -l, --lib <dir>
+
+Add a path to the beginning of @INC
 
 =item -h, --help
 

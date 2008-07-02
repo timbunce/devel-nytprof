@@ -1,0 +1,43 @@
+attribute	basetime	0
+attribute	perl_version	0
+attribute	ticks_per_sec	1000000
+attribute	xs_version	0
+fid_filename	1	test14.p
+fid_filename	2	AutoLoader.pm
+fid_filename	3	test14.pm
+fid_filename	4	[ (eval 6)[test14.pm (autosplit into auto/test14/bar.al):11] 3 11 ]
+fid_line_time	1	17	[ 0 1 ]
+fid_line_time	1	18	[ 0 1 ]
+fid_line_time	2	22	[ 0 2 ]
+fid_line_time	2	23	[ 0 2 ]
+fid_line_time	2	39	[ 0 4 ]
+fid_line_time	2	40	[ 0 2 ]
+fid_line_time	2	41	[ 0 2 ]
+fid_line_time	2	42	[ 0 2 ]
+fid_line_time	2	46	[ 0 2 ]
+fid_line_time	2	55	[ 0 2 ]
+fid_line_time	2	56	[ 0 2 ]
+fid_line_time	2	57	[ 0 2 ]
+fid_line_time	2	84	[ 0 2 ]
+fid_line_time	2	90	[ 0 2 ]
+fid_line_time	2	91	[ 0 2 ]
+fid_line_time	2	92	[ 0 6 ]
+fid_line_time	2	93	[ 0 2 ]
+fid_line_time	2	115	[ 0 2 ]
+fid_line_time	2	116	[ 0 2 ]
+fid_line_time	3	7	[ 0 1 ]
+fid_line_time	3	11	0	0
+fid_line_time	3	11	1	2
+fid_line_time	3	11	2	1	[ 0 1 ]
+fid_line_time	3	14	[ 0 1 ]
+sub_caller	AutoLoader::AUTOLOAD	1	17	1
+sub_caller	AutoLoader::AUTOLOAD	1	18	1
+sub_fid_line	AutoLoader::AUTOLOAD	[ 2 21 117 ]
+sub_fid_line	AutoLoader::BEGIN	[ 2 173 173 ]
+sub_fid_line	AutoLoader::__ANON__[AutoLoader.pm:96]	[ 2 96 96 ]
+sub_fid_line	AutoLoader::import	[ 2 119 168 ]
+sub_fid_line	AutoLoader::unimport	[ 2 170 177 ]
+sub_fid_line	main::BEGIN	[ 1 16 16 ]
+sub_fid_line	test14::BEGIN	[ 3 2 2 ]
+sub_fid_line	test14::bar	[ 3 10 12 ]
+sub_fid_line	test14::foo	[ 3 6 8 ]

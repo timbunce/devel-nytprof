@@ -7,39 +7,43 @@
 # http://search.cpan.org/~akaplan/Devel-NYTProf
 #
 ##########################################################
+# $Id$
+##########################################################
 use warnings;
 use strict;
 use Carp;
 use Getopt::Long;
 use Devel::NYTProf::Reader;
 
-our $VERSION = 1.01;
+our $VERSION = 1.02;
 
 use constant NUMERIC_PRECISION    => 5;
 
 my %opt = (
     file    => 'nytprof.out',
-    out	    => 'profiler',
+    out	    => 'nytprof',
 );
-GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h/);
+GetOptions(\%opt,
+    qw/file|f=s delete|d out|o=s help|h/
+) or exit 1;
 
 if (defined($opt{help})) {
   &usage;
-  exit;
+  exit 1;
 }
 
 # handle file selection option
 if (! -r $opt{file}) {
-  die "Unable to access $opt{file}\n";
+  die "$0: Unable to access $opt{file}\n";
 }
 
 # handle handle output location
 if (!-e $opt{out}) {
 	# will be created
 } elsif (!-d $opt{out}) {
-  die "Specified output directory `$opt{out}' is a file. whoops!\n";
+  die "$0: Specified output directory `$opt{out}' is a file. whoops!\n";
 } elsif (!-w $opt{out}) {
-  die "Unable to write to output directory `$opt{out}'\n";
+  die "$0: Unable to write to output directory `$opt{out}'\n";
 }
 
 # handle deleting old db's
@@ -51,10 +55,10 @@ print "Generating CSV report...\n";
 my $reporter = new Devel::NYTProf::Reader($opt{file});
 
 # place to store this
-$reporter->outputDir($opt{out});
+$reporter->output_dir($opt{out});
 
 # set output options
-$reporter->addRegexp('^\s*', ''); # trim leading spaces
+$reporter->add_regexp('^\s*', ''); # trim leading spaces
 
 # generate the files
 $reporter->report();
@@ -74,7 +78,7 @@ sub usage {
 usage: [perl] nytprofcsv [opts]
  --file <file>, -f <file>  Use the specified file as Devel::NYTProf database
                             file. [default: ./nytprof.out]
- --out <dir>,   -o <dir>   Place generated files here [default: ./profiler]
+ --out <dir>,   -o <dir>   Place generated files here [default: ./nytprof]
  --delete,      -d         Delete the old fprofhtml output [uses --out]
  --help,        -h         Print this message
 
@@ -130,7 +134,7 @@ output of L<fprofpp>. Default: nytprof.out
 
 =item -o, --out <dir>
 
-Where to place the generated report. Default: ./profiler/
+Where to place the generated report. Default: ./nytprof/
 
 =item -d, --delete
 
@@ -150,7 +154,7 @@ Print the help message
  0,0,0,#--------------------------------------------------------------------
  0,0,0,# My New Source File!
  0,0,0,#--------------------------------------------------------------------
- 0,0,0,# $Id: MNSF.pm,v 1.25 2008/01/29 19:46:31 lfg Exp $
+ 0,0,0,# $Id$
  0,0,0,#--------------------------------------------------------------------
  0,0,0,
  0,0,0,package NYT::Feeds::Util;

@@ -22,3 +22,5 @@ fork;
 bar();
 baz();
 foo();
+
+wait;

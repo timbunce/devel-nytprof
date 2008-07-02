@@ -136,3 +136,122 @@ http://groups.google.com/group/develnytprof-dev
 
 NYTimes Open Code Blog:
 http://open.nytimes.com/
+
+TODO
+----
+
+Fix Reader
+- not document methods with a leading underscore
+- to have consistent_naming_style notMixedCamelCase (fixed?)
+- to be fully OO (ie not document non-OO interfaces)
+- to be subclassable
+- to provide a subclass to manage generating CSV
+- to provide a subclass to manage generating HTML
+Then rework bin/ntyprof* to use the new subclasses
+Ideally end up with a single nytprof command.
+
+Add (very) basic nytprofhtml test (ie it runs and produces output)
+
+Rework option parsing so options can be implemented in perl, accessed from
+perl, and stored in data file.
+
+Write tests for new functionality.
+
+Write up change notes
+
+Write, clean-up documentation
+
+Ability to run bin/nytprof* in perl -d (debugger mode)
+
+Currently the cost of calling the sub goes to the caller (good)
+but the cost of copying the result goes to the method (poor).
+Overriding pp_leavesub may allow more accurate measurements by avoiding return
+value processing overheads accumulating on last statement in sub.
+
+Similarly, the cost of retesting the loop condition is accounted
+for by the last statement executed each time round the loop.
+Overriding relevant ops may enable better accounting.
+
+Add way for program being profiled to switch output to a new profile file.
+Perhaps via enable_profile($optional_new_filename)
+See http://search.cpan.org/dist/Devel-Profile/ for use case.
+
+Add @INC to data file so reports can be made more readable by removing
+(possibly very long) library paths where appropriate.
+
+Add size and mtime of fid to data file.
+
+Intercept all opcodes that may fork and run perl code in the child
+	ie fork, open, entersub (ie xs), others?
+	and fflush before executing the op (so fpurge isn't strictly required)
+  and reinit_if_forked() afterwards
+	add option to force reinit_if_forked check per stmt just-in-case
+
+Add way to merge profile data. Merging could be done in perl.
+
+Add constants to Data.pm for the array indexes
+0=time_spent
+1=exe_count
+2=eval_line_data
+
+Add method to remove data (like sub_fid_lines) relating to specific files
+so that the .rdt tests aren't affected by variations between versions of library modules.
+
+Support profiling programs which use threads:
+	- move all relevant globals into a structure
+	- add lock around output to file
+
+Add functions to read & write strings to the profile data file that uses an
+integer length prefix.  Replace all current newline-terminated strings with the
+new code, so we're safe from embedded newlines and can also store multi-line strings.
+
+Support optionally generating a compressed data file (using popen("zip -c > $file"))
+
+Support optionally saving eval strings (from @{"_<$filename"}, see perldoc perldebguts)
+Should always save the first eval string at each distinct eval (fid:line)
+and require an option to save them all (which could make the data file very large).
+
+Add % of total time to index page
+Remove bottom stats.
+
+Use clock_gettime(CLOCK_MONOTONIC) if available, else clock_gettime(CLOCK_REALTIME).
+Those calls are cheaper than gettimeofday and can give nanosecond resolution.
+
+nytprofhtml: output list of subs as a table and include timings aggregated from
+the line ranges. (Won't be accurate for overlapping subs, such as anonymous
+subs, but those can be detetected and a note added.)
+
+The whole reporting framework needs a rewrite to use a single 'thin' command
+line and classes for the Model (lines, files, subs), View (html, csv etc),
+and Controller (composing views to form reports).
+
+Add timing to sub calls by using save stack to trigger end of timing measurement?
+
+Add resolution of __ANON__ sub names (eg imported 'constants') where possible.
+
+Trim leading @INC portion from filename in __ANON__[/very/long/path/...]
+in report output. (Keep full path in link/tooltip/title as it may be ambiguous when shortened).
+
+In "$sub called:\n" show total count of calls: "$sub called $count times:"
+
+Explain what's shown in html reports, ie say it's elapsed realtime.
+
+Use 'Statements' or 'Stmts' instead of Calls in reports.
+
+Only warn "No file line range data for sub' once per sub.
+Add hint that it may be XS.
+
+Rename Foo::BEGIN subs to Foo::BEGIN[file:line]
+(which matches the style used for Foo::__AUTO__[file:line])
+
+Refactor this HACKING file!
+
+Add docs for new options
+
+Add docs for use_db_sub and explain pros & cons. Especially that opcode
+redirection can't profile code that was loaded before NYTProf because
+it only affects code that is *compiled* after it takes effect.
+(Unless we want to traverse the existing compiled code and edit the ops in place :-)
+
+Would be good if DB::DB sub wasn't defined when use_db_sub is false
+so the profiler could be used to profile debuggers etc.
