@@ -236,8 +236,6 @@ sub verify_report {
 
 	# generate and parse/check csv report
 
-	my @results = run_command("$perl $nytprofcsv --file=$profile_datafile");
-
 	# determine the name of the generated csv file
 	my $csvfile = $test;
 	# fork tests will still report using the original script name
@@ -247,8 +245,12 @@ sub verify_report {
 	# foo.pm => foo.pm.csv is tested by foo.pm.x
 	$csvfile =~ s/\.x//;
 	$csvfile .= ".p" unless $csvfile =~ /\.p/;
+	$csvfile = "$outdir/${csvfile}.csv";
+	unlink $csvfile;
 
-	my @got      = slurp_file("$outdir/${csvfile}.csv");
+	run_command("$perl $nytprofcsv --file=$profile_datafile");
+
+	my @got      = slurp_file($csvfile);
 	my @expected = slurp_file($test);
 
 	if ($opts{d}) {

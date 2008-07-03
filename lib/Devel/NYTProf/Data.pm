@@ -199,8 +199,10 @@ sub _dump_elements {
 		# special case some common cases to be more compact:
 		#		fid_*_time   [fid][line] = [N,N]
 		#		sub_fid_line {subname} = [fid,startline,endline]
-		my $as_compact = (ref $value eq 'ARRAY' && @$value <= 3
-											&& !grep { ref or !defined } @$value);
+		# XXX should be checking path instead
+		my $as_compact = (ref $value eq 'ARRAY' && @$value <= 9
+		               && !grep { ref or !defined } @$value);
+
 
 		# print the value intro
 		print $fh "$padN$key$colon"

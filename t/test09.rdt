@@ -2,12 +2,12 @@ attribute	basetime	0
 attribute	perl_version	0
 attribute	ticks_per_sec	1000000
 attribute	xs_version	0
-fid_filename	1	test09.p
-fid_filename	2	[ (eval 0)[test09.p:2] 1 2 ]
-fid_filename	3	[ (eval 0)[test09.p:8] 1 8 ]
-fid_filename	4	[ (eval 0)[test09.p:2] 1 2 ]
-fid_filename	5	[ (eval 0)[test09.p:8] 1 8 ]
-fid_filename	6	[ (eval 0)[test09.p:8] 1 8 ]
+fid_filename	1	[ test09.p   1 0 0 0 ]
+fid_filename	2	[ (eval 0)[test09.p:2] 1 2 2 0 0 0 ]
+fid_filename	3	[ (eval 0)[test09.p:8] 1 8 3 0 0 0 ]
+fid_filename	4	[ (eval 0)[test09.p:2] 1 2 4 0 0 0 ]
+fid_filename	5	[ (eval 0)[test09.p:8] 1 8 5 0 0 0 ]
+fid_filename	6	[ (eval 0)[test09.p:8] 1 8 6 0 0 0 ]
 fid_line_time	1	2	0	0
 fid_line_time	1	2	1	2
 fid_line_time	1	2	2	1	[ 0 2 ]

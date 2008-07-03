@@ -1332,15 +1332,18 @@ load_profile_data_from_stream() {
 				line_num = read_int();
 
 				filename_sv = *av_fetch(fid_filename_av, file_num, 1);
-				if (!SvOK(filename_sv)) {
-				  warn("File id %u used but not defined", file_num);
-					sv_setsv(filename_sv, &PL_sv_no); /* defined but false, as marker */
+				if (!SvROK(filename_sv)) {
+					if (!SvOK(filename_sv)) { /* only warn once */
+						warn("File id %u used but not defined", file_num);
+						sv_setsv(filename_sv, &PL_sv_no);
+					}
 				}
-				else if (SvROK(filename_sv)) {	/* is an eval */
-					AV *av = (AV*)SvRV(filename_sv);
-					eval_file_num = SvUV(*av_fetch(av,1,1));
-					eval_line_num = SvUV(*av_fetch(av,2,1));
-					file_num = eval_file_num;
+				else {
+					AV *fid_av = (AV *)SvRV(filename_sv);
+					eval_file_num = SvUV(*av_fetch(fid_av,1,1));
+					eval_line_num = SvUV(*av_fetch(fid_av,2,1));
+					if (eval_file_num) /* fid is an eval */
+						file_num = eval_file_num;
 				}
 
 				add_entry(aTHX_ fid_line_time_av, file_num, line_num,
@@ -1371,12 +1374,12 @@ load_profile_data_from_stream() {
 
 			case '@':	/* file */
 			{
-				SV *fid_info_sv;
+				AV *av;
 				unsigned int eval_file_num;
 				unsigned int eval_line_num;
-				unsigned int fid_flags;
-				unsigned int file_size;
-				unsigned int file_mtime;
+				unsigned int fid_flags = 0;
+				unsigned int file_size = 0;
+				unsigned int file_mtime = 0;
 
 				file_num  = read_int();
 				eval_file_num = read_int();
@@ -1399,27 +1402,26 @@ load_profile_data_from_stream() {
 									file_num, (int)strlen(text)-1, text);
 				}
 
-				if (av_exists(fid_filename_av, file_num)
-						&& strnNE(SvPV_nolen(AvARRAY(fid_filename_av)[file_num]), text, 
-											strlen(text)-1)
-				) {
-					warn("File id %d redefined from %s to %s", file_num,
-								SvPV_nolen(AvARRAY(fid_filename_av)[file_num]), text);
+				if (av_exists(fid_filename_av, file_num)) {
+						av = (AV *)SvRV(*av_fetch(fid_filename_av,file_num,1));
+						if (strnNE(SvPV_nolen(*av_fetch(av, file_num, 0)), text, strlen(text)-1)) {
+							warn("File id %d redefined from %s to %s", file_num,
+										SvPV_nolen(AvARRAY(fid_filename_av)[file_num]), text);
+						}
 				}
 
-				fid_info_sv = newSVpvn(text, strlen(text)-1); /* drop newline */
-				if (eval_line_num) {
-					/* change fid_info_sv to ref to array of 
-					 * [ name, eval_file_num, eval_line_num ] 
-					 */
-					AV *av = newAV();
-					av_store(av, 0, fid_info_sv);
-					av_store(av, 1, newSVuv(eval_file_num));
-					av_store(av, 2, newSVuv(eval_line_num));
-				  fid_info_sv = newRV_noinc((SV*)av);
-				}
+				/* [ name, eval_file_num, eval_line_num, fid, flags, size, mtime, ... ] 
+					*/
+				av = newAV();
+				av_store(av, 0, newSVpvn(text, strlen(text)-1)); /* drop newline */
+				av_store(av, 1, (eval_file_num) ? newSVuv(eval_file_num) : &PL_sv_no);
+				av_store(av, 2, (eval_file_num) ? newSVuv(eval_line_num) : &PL_sv_no);
+				av_store(av, 3, newSVuv(file_num));
+				av_store(av, 4, newSVuv(fid_flags));
+				av_store(av, 5, newSVuv(file_size));
+				av_store(av, 6, newSVuv(file_mtime));
 
-				av_store(fid_filename_av, file_num, fid_info_sv);
+				av_store(fid_filename_av, file_num, newRV_noinc((SV*)av));
 				break;
 			}
 

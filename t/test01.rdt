@@ -2,7 +2,7 @@ attribute	basetime	0
 attribute	perl_version	0
 attribute	ticks_per_sec	1000000
 attribute	xs_version	0
-fid_filename	1	test01.p
+fid_filename	1	[ test01.p   1 0 0 0 ]
 fid_line_time	1	2	[ 0 2 ]
 fid_line_time	1	3	[ 0 2 ]
 fid_line_time	1	7	[ 0 4 ]

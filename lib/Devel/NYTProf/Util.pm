@@ -71,7 +71,14 @@ sub strip_prefix_from_paths {
 
 	# strip off prefix using regex, skip any empty/undef paths
 	if (ref $paths eq 'ARRAY') {
-		$_ and s{$inc_regex}{} for @$paths;
+		for my $path (@$paths) {
+			if (ref $path) { # recurse to process deeper data
+				strip_prefix_from_paths($inc_ref, $path, $anchor);
+			}
+			elsif ($path) {
+				$path =~ s{$inc_regex}{};
+			}
+		}
 	}
 	elsif (ref $paths eq 'HASH') {
 		for my $orig (keys %$paths) {

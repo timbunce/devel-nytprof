@@ -124,9 +124,11 @@ sub _map_new_to_old {
 	my $oldstyle = {};
 	for my $fid (1..@$fid_filename-1) {
 
-		my $filename = $fid_filename->[$fid]
+		# skip synthetic fids for evals
+		next if $fid_filename->[$fid][1];
+
+		my $filename = $fid_filename->[$fid][0]
 				or warn "No filename for fid $fid";
-		next if ref $filename; # skip synthetic fids for evals
 
 		my $lines_array = $fid_line_time->[$fid]
 			or next; # ignore fid's with no lines executed
