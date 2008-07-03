@@ -594,7 +594,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
 				near_cop = start_cop_of_context(aTHX_ cx);
 
 				/* only use the cop if it's in the same file */
-				if (_cop_in_same_file(near_cop, PL_curcop)) {
+				if (_cop_in_same_file(near_cop, PL_curcop_nytprof)) {
 					last_sub_line = CopLINE(near_cop);
 					/* treat sub as a block if we've not found a block yet */
 					if (!last_block_line)
