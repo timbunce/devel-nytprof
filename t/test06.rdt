@@ -1,0 +1,40 @@
+attribute	basetime	0
+attribute	perl_version	0
+attribute	ticks_per_sec	1000000
+attribute	xs_version	0
+fid_filename	1	test06.p
+fid_line_time	1	4	[ 0 1 ]
+fid_line_time	1	6	[ 0 410 ]
+fid_line_time	1	10	[ 0 1 ]
+fid_line_time	1	11	[ 0 1 ]
+fid_line_time	1	12	[ 0 10 ]
+fid_line_time	1	13	[ 0 10 ]
+fid_line_time	1	14	[ 0 100 ]
+fid_line_time	1	20	[ 0 1 ]
+fid_line_time	1	21	[ 0 1 ]
+fid_line_time	1	22	[ 0 1 ]
+fid_line_time	1	23	[ 0 10 ]
+fid_line_time	1	24	[ 0 10 ]
+fid_line_time	1	25	[ 0 100 ]
+fid_line_time	1	31	[ 0 1 ]
+fid_line_time	1	32	[ 0 1 ]
+fid_line_time	1	33	[ 0 1 ]
+fid_line_time	1	34	[ 0 10 ]
+fid_line_time	1	35	[ 0 10 ]
+fid_line_time	1	36	[ 0 100 ]
+fid_line_time	1	37	[ 0 100 ]
+fid_line_time	1	42	[ 0 1 ]
+fid_line_time	1	43	[ 0 1 ]
+fid_line_time	1	44	[ 0 1 ]
+sub_caller	main::bar	1	43	1
+sub_caller	main::baz	1	44	1
+sub_caller	main::foo	1	42	1
+sub_caller	main::noop	1	12	10
+sub_caller	main::noop	1	14	100
+sub_caller	main::noop	1	25	100
+sub_caller	main::noop	1	36	100
+sub_caller	main::noop	1	37	100
+sub_fid_line	main::bar	[ 1 19 28 ]
+sub_fid_line	main::baz	[ 1 30 40 ]
+sub_fid_line	main::foo	[ 1 9 17 ]
+sub_fid_line	main::noop	[ 1 5 7 ]
