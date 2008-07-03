@@ -188,8 +188,6 @@ Add resolution of __ANON__ sub names (eg imported 'constants') where possible.
 Trim leading @INC portion from filename in __ANON__[/very/long/path/...]
 in report output. (Keep full path in link/tooltip/title as it may be ambiguous when shortened).
 
-In "$sub called:\n" show total count of calls: "$sub called $count times:"
-
 Explain what's shown in html reports, ie say it's elapsed realtime.
 
 Use 'Statements' or 'Stmts' instead of Calls in reports.

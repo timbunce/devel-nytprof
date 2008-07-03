@@ -13,6 +13,7 @@ use warnings;
 use strict;
 use Carp;
 use Getopt::Long;
+use List::Util qw(sum);
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
 
@@ -76,9 +77,9 @@ $reporter->output_dir($opt{out});
 
 # set formatting for html
 $reporter->set_param('header', get_header("Profile: !~FILENAME~!").
-"<body> <h1>File Profile</h1> <table><tr>
+"<body> <h1>Performance Profile</h1> <table><tr>
 <td class='h' align='right'>File</td><td align=\"left\">!~FILENAME~!</td></tr>
-<td class='h' align='right'>Total Calls</td><td align=\"left\">!~TOTAL_CALLS~!
+<td class='h' align='right'>Total Calls</td><td align=\"left\">!~TOTAL_CALLS~! statements executed
 </td></tr>\n
 <td class='h' align='right'>Total Time</td><td align=\"left\">!~TOTAL_TIME~!
 seconds</td>\n</tr></table><br/>");
@@ -130,12 +131,14 @@ $reporter->set_param('column4', {
       for my $sub_info (@$subs) {
         my $callers = $sub_info->{callers};
         next unless $callers && %$callers;
-        push @prologue, sprintf "# %s called:", $sub_info->{subname};
         my @callers;
         while ( my ($fid, $fid_line_info) = each %$callers ) {
           push @callers, [ $fid, $_, $fid_line_info->{$_} ]
             for keys %$fid_line_info;
         }
+        my $total_calls = sum(map { $_->[2] } @callers);
+        push @prologue, sprintf "# %s called%s:", $sub_info->{subname},
+            ($total_calls > 1) ? " $total_calls times" : "";
         # order by most frequent caller first
         for my $caller (sort { $b->[2] <=> $a->[2] } @callers) {
           my ($fid, $line, $count) = @$caller;
@@ -440,19 +443,15 @@ pre,.s {
 .c0, .c1, .c2, .c3 { text-align: right; }
 .c0 {
 	background-color: #ff9999;
-	border: solid 1px #cc0000;
 }
 .c1 {
 	background-color: #ffcc99;
-	border: solid 1px #ff9933;
 }
 .c2 {
 	background-color: #ffff99;
-	border: solid 1px #cccc66;
 }
 .c3 {
 	background-color: #99ff99;
-	border: solid 1px #009900;
 }
 
 /* warnings */
