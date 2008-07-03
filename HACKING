@@ -196,6 +196,7 @@ Use 'Statements' or 'Stmts' instead of Calls in reports.
 
 Only warn "No file line range data for sub' once per sub.
 Add hint that it may be XS.
+Could also note fact that it is XS in pp_entersub_profiler
 
 Rename Foo::BEGIN subs to Foo::BEGIN[file:line]
 (which matches the style used for Foo::__AUTO__[file:line])

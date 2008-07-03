@@ -1272,7 +1272,7 @@ read_int() {
 
 /**
  * Process a profile output file and return the results in a hash like
- * { fid_filename  => [ filename, filename, ... ], # index by [fid]
+ * { fid_fileinfo  => [ [file, other...info ], ... ], # index by [fid]
  *   fid_line_time  => [ [...],[...],..  ] # index by [fid][line]
  * }
  * The value of each [fid][line] is an array ref containing:
@@ -1296,14 +1296,14 @@ load_profile_data_from_stream() {
 	HV *profile_hv;
 	HV *live_pids_hv = newHV();
 	HV *attr_hv = newHV();
-	AV* fid_filename_av = newAV();
+	AV* fid_fileinfo_av = newAV();
 	AV* fid_line_time_av = newAV();
 	AV* fid_block_time_av = NULL;
 	AV* fid_sub_time_av = NULL;
 	HV* sub_fid_lines_hv = NULL;
 	HV* sub_callers_hv = NULL;
 
-	av_extend(fid_filename_av, 64);  /* grow it up front. */
+	av_extend(fid_fileinfo_av, 64);  /* grow it up front. */
 	av_extend(fid_line_time_av, 64);
 
 	if (2 != fscanf(in, "NYTProf %d %d\n", &file_major, &file_minor)) {
@@ -1331,7 +1331,7 @@ load_profile_data_from_stream() {
 				file_num = read_int();
 				line_num = read_int();
 
-				filename_sv = *av_fetch(fid_filename_av, file_num, 1);
+				filename_sv = *av_fetch(fid_fileinfo_av, file_num, 1);
 				if (!SvROK(filename_sv)) {
 					if (!SvOK(filename_sv)) { /* only warn once */
 						warn("File id %u used but not defined", file_num);
@@ -1402,11 +1402,11 @@ load_profile_data_from_stream() {
 									file_num, (int)strlen(text)-1, text);
 				}
 
-				if (av_exists(fid_filename_av, file_num)) {
-						av = (AV *)SvRV(*av_fetch(fid_filename_av,file_num,1));
+				if (av_exists(fid_fileinfo_av, file_num)) {
+						av = (AV *)SvRV(*av_fetch(fid_fileinfo_av,file_num,1));
 						if (strnNE(SvPV_nolen(*av_fetch(av, file_num, 0)), text, strlen(text)-1)) {
 							warn("File id %d redefined from %s to %s", file_num,
-										SvPV_nolen(AvARRAY(fid_filename_av)[file_num]), text);
+										SvPV_nolen(AvARRAY(fid_fileinfo_av)[file_num]), text);
 						}
 				}
 
@@ -1421,7 +1421,7 @@ load_profile_data_from_stream() {
 				av_store(av, 5, newSVuv(file_size));
 				av_store(av, 6, newSVuv(file_mtime));
 
-				av_store(fid_filename_av, file_num, newRV_noinc((SV*)av));
+				av_store(fid_fileinfo_av, file_num, newRV_noinc((SV*)av));
 				break;
 			}
 
@@ -1550,7 +1550,7 @@ load_profile_data_from_stream() {
 
 	profile_hv = newHV();
 	hv_stores(profile_hv, "attribute",      newRV_noinc((SV*)attr_hv));
-	hv_stores(profile_hv, "fid_filename",   newRV_noinc((SV*)fid_filename_av));
+	hv_stores(profile_hv, "fid_fileinfo",   newRV_noinc((SV*)fid_fileinfo_av));
 	hv_stores(profile_hv, "fid_line_time",  newRV_noinc((SV*)fid_line_time_av)); 
 	if (fid_block_time_av)
 		hv_stores(profile_hv, "fid_block_time", newRV_noinc((SV*)fid_block_time_av)); 

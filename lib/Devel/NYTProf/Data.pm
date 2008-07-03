@@ -103,7 +103,7 @@ The types of data present can depend on the options used when profiling.
         ticks_per_sec => 1000000
         xs_version => 1.13
     }
-    fid_filename => [
+    fid_fileinfo => [
         1: test01.p
     ]
     fid_line_time => [
@@ -142,7 +142,7 @@ separarate the elements of the path.
   attribute	basetime	1207228260
   attribute	ticks_per_sec	1000000
   attribute	xs_version	1.13
-  fid_filename	1	test01.p
+  fid_fileinfo	1	test01.p
   fid_line_time	1	2	[ 4e-06 2 ]
   fid_line_time	1	3	[ 1.1e-05 2 ]
   fid_line_time	1	7	[ 4.4e-05 4 ]
@@ -272,7 +272,7 @@ sub normalize_variables {
 
 	# normalize eval numbers to 0
 	# XXX would be nicer to only do this for 'non-local' fids
-	for my $info (@{ $self->{fid_filename} }) {
+	for my $info (@{ $self->{fid_fileinfo} }) {
 		next unless $info && ref $info;
 		$info->[0] =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg;
 	}
@@ -284,7 +284,7 @@ sub normalize_variables {
 sub make_fid_filenames_relative {
 	my ($self, $roots) = @_;
 	$roots ||= [ '.' ]; # e.g. [ @INC, '.' ]
-	strip_prefix_from_paths($roots, $self->{fid_filename}, undef);
+	strip_prefix_from_paths($roots, $self->{fid_fileinfo}, undef);
 }
 
 
@@ -306,10 +306,10 @@ sub _zero_array_elem {
 sub _filename_to_fid {
 	my $self = shift;
 	return $self->{_filename_to_fid_cache} ||= do {
-		my $fid_filename = $self->{fid_filename} || [];
+		my $fid_fileinfo = $self->{fid_fileinfo} || [];
 		my $filename_to_fid = {};
-		for my $fid (1..@$fid_filename-1) {
-			my $filename = $fid_filename->[$fid];
+		for my $fid (1..@$fid_fileinfo-1) {
+			my $filename = $fid_fileinfo->[$fid];
 			$filename = $filename->[0] if ref $filename; # string eval
 			$filename_to_fid->{$filename} = $fid;
 		}
@@ -419,19 +419,20 @@ sub subname_at_file_line {
 sub fid_filename {
 	my ($self, $fid) = @_;
 
-	my $file = $self->{fid_filename}->[$fid];
+	my $fileinfo = $self->{fid_fileinfo}->[$fid]
+		or return undef;
 
-	while (ref $file eq 'ARRAY') {
+	while ($fileinfo->[1]) { # is an eval
 		# eg string eval
 		# eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
-		warn sprintf "fid_filename: fid %d -> %d for %s\n",
-			$fid, $file->[1], $file->[0] if $trace;
+		warn sprintf "fid_fileinfo: fid %d -> %d for %s\n",
+			$fid, $fileinfo->[1], $fileinfo->[0] if $trace;
 		# follow next link in chain
-		my $outer_fid = $file->[1];
-		$file = $self->{fid_filename}->[$outer_fid];
+		my $outer_fid = $fileinfo->[1];
+		$fileinfo = $self->{fid_fileinfo}->[$outer_fid];
 	}
 
-	return $file;
+	return $fileinfo->[0];
 }
 
 
@@ -461,19 +462,19 @@ sub file_line_range_of_sub {
 			or return; # no such sub
 	my ($fid, $first, $last) = @$sub_fid_line;
 
-	my $file = $self->{fid_filename}->[$fid];
-	while (ref $file eq 'ARRAY') {
+	my $fileinfo = $self->{fid_fileinfo}->[$fid];
+	while ($fileinfo->[1]) { # is an eval
 		# eg string eval
 		# eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
 		warn sprintf "%s: fid %d -> %d for %s\n",
-			$sub, $fid, $file->[1], $file->[0] if $trace;
-		$first = $last = $file->[2] if 1; # XXX control via param?
+			$sub, $fid, $fileinfo->[1], $fileinfo->[0] if $trace;
+		$first = $last = $fileinfo->[2] if 1; # XXX control via param?
 		# follow next link in chain
-		my $outer_fid = $file->[1];
-		$file = $self->{fid_filename}->[$outer_fid];
+		my $outer_fid = $fileinfo->[1];
+		$fileinfo = $self->{fid_fileinfo}->[$outer_fid];
 	}
 
-	return ($file, $fid, $first, $last);
+	return ($fileinfo->[0], $fid, $first, $last);
 }
 
 

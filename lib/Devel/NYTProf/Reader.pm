@@ -116,18 +116,18 @@ sub _map_new_to_old {
 	$data->dump_profile_data({filehandle => \*STDERR, separator => "\t"}) if $dump;
 	warn Data::Dumper::Dumper($data) if $dump;
 
-	my $fid_filename  = $data->{fid_filename};
+	my $fid_fileinfo  = $data->{fid_fileinfo};
 	my $dataset_name = $ENV{NYTPROF_DATASET} || 'fid_line_time'; # temp hack
 	my $fid_line_time = $data->{$dataset_name}
 		or die "No $dataset_name data set in profile data\n";
 
 	my $oldstyle = {};
-	for my $fid (1..@$fid_filename-1) {
+	for my $fid (1..@$fid_fileinfo-1) {
 
 		# skip synthetic fids for evals
-		next if $fid_filename->[$fid][1];
+		next if $fid_fileinfo->[$fid][1];
 
-		my $filename = $fid_filename->[$fid][0]
+		my $filename = $fid_fileinfo->[$fid][0]
 				or warn "No filename for fid $fid";
 
 		my $lines_array = $fid_line_time->[$fid]
