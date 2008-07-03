@@ -93,7 +93,7 @@ static FILE* in;
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static bool embed_fid_line = 0;
 static bool usecputime = 0;
-static bool profile_blocks = 0;
+static bool profile_blocks = 1;
 static int use_db_sub = 0;
 static int profile_begin = 0;
 static int trace_level = 0;
