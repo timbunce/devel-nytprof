@@ -515,7 +515,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
     }
     if (trace_level >= 3) {
 			warn("\tstart_cop_of_context: can't find next cop for %s line %ld\n",
-					block_type[CxTYPE(cx)], (long)CopLINE(PL_curcop));
+					block_type[CxTYPE(cx)], (long)CopLINE(PL_curcop_nytprof));
 			do_op_dump(1, PerlIO_stderr(), start_op);
 		}
     return NULL;
@@ -626,9 +626,9 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
 		return 0;
 
 	/* if this context is in a different file... */
-	if (!_cop_in_same_file(near_cop, PL_curcop)) {
+	if (!_cop_in_same_file(near_cop, PL_curcop_nytprof)) {
 		/* if we started in a string eval ... */
-		if ('(' == *OutCopFILE(PL_curcop)) {
+		if ('(' == *OutCopFILE(PL_curcop_nytprof)) {
 			/* give up XXX could do better here */
 			last_block_line = last_sub_line = last_executed_line;
 			return 1;
@@ -637,7 +637,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
 		if (trace_level >= 1)
 			warn("at %d: %s in different file (%s, %s)",
 						last_executed_line, block_type[CxTYPE(cx)], 
-						OutCopFILE(near_cop), OutCopFILE(PL_curcop));
+						OutCopFILE(near_cop), OutCopFILE(PL_curcop_nytprof));
 		return 1; /* stop looking */
 	}
 
@@ -1314,7 +1314,7 @@ load_profile_data_from_stream() {
 
 	while (EOF != (c = fgetc(in))) {
 		input_line++;
-		if (trace_level >= 4)
+		if (trace_level >= 6)
 			warn("Token %lu is %d ('%c') at %ld\n", input_line, c, c, (long)ftell(in)-1);
 
 		switch (c) {
