@@ -23,13 +23,12 @@ use Data::Dumper;
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 
-
 $|=1;
 
 # skip these tests when the provided condition is true
 my %SKIP_TESTS = (
-	'test06' => ($] < 5.008) ? 1 : 0,
-	'test15' => ($] >= 5.008) ? 1 : 0,
+	'test06' => ($] >= 5.008) ? 0 : "needs perl < 5.8",
+	'test15' => ($] <  5.008) ? 0 : "needs perl >= 5.8",
 );
 
 my %opts = (
@@ -40,13 +39,21 @@ GetOptions(\%opts,
 ) or exit 1;
 
 $opts{v} ||= $opts{d};
-$ENV{NYTPROF} = ''; # avoid external interference, but see NYTPROF_TEST below
-$| = 1;
 
 my $opt_perl = $opts{p};
 my $opt_include = $opts{I};
 my $outdir = 'nytprof';
-my $profile_datafile = 'nytprof_t.out';
+my $profile_datafile = 'nytprof_t.out'; # non-default to test override works
+
+if ($ENV{NYTPROF}) { # avoid external interference
+	warn "Existing NYTPROF env var value ($ENV{NYTPROF}) ignored for tests. Use NYTPROF_TEST env var if need be.\n";
+	$ENV{NYTPROF} = '';
+}
+my (%NYTPROF, %NYTPROF_TEST);
+# options the user wants to override when running tests
+%NYTPROF_TEST = map { split /=/, $_, 2 } split /:/, $ENV{NYTPROF_TEST}||'';
+# but we'll force a specific test data file
+$NYTPROF_TEST{file} = $profile_datafile;
 
 chdir( 't' ) if -d 't';
 mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
@@ -85,8 +92,10 @@ if($opts{v} ){
 ok(-x $nytprofcsv, "Where's nytprofcsv?");
 
 
-$|=1;
 foreach my $test (@tests) {
+	
+	my %env = (%NYTPROF, %NYTPROF_TEST);
+	local $ENV{NYTPROF} = join ":", map { "$_=$env{$_}" } sort keys %env;
 
 	#print $test . '.'x (20 - length $test);
 	$test =~ / (.+?) \. (?:(\d)\.)? (\w+) $/x or do {
@@ -96,7 +105,7 @@ foreach my $test (@tests) {
 	my ($basename, $fork_seqn, $type) = ($1, $2||0, $3);
 
 	SKIP: {
-		skip "Tests incompatible with your perl version", number_of_tests($test)
+		skip "$basename: $SKIP_TESTS{$basename}", number_of_tests($test)
 			if $SKIP_TESTS{$basename};
 
 		my $test_datafile = (profile_datafiles($profile_datafile))[ $fork_seqn ];
@@ -129,6 +138,7 @@ exit 0;
 
 sub run_command {
   my ($cmd) = @_;
+  print "NYTPROF=$ENV{NYTPROF}\n" if $opts{v} && $ENV{NYTPROF};
   local $ENV{PERL5LIB} = $perl5lib;
   open(RV, "$cmd |") or die "Can't execute $cmd: $!\n";
   my @results = <RV>;
@@ -144,12 +154,6 @@ sub run_command {
 
 sub profile {
 	my ($test, $profile_datafile) = @_;
-	
-	my @NYTPROF;
-	push @NYTPROF, $ENV{NYTPROF_TEST} if $ENV{NYTPROF_TEST};
-	push @NYTPROF, "file=$profile_datafile";
-	local $ENV{NYTPROF} = join ":", @NYTPROF;
-	print "NYTPROF=$ENV{NYTPROF}\n" if $opts{v} && $ENV{NYTPROF};
 
 	my @results = run_command("$perl $opts{profperlopts} $test");
 	pass($test); # mainly to show progress
