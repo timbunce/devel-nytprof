@@ -864,7 +864,7 @@ reinit_if_forked(pTHX) {
 OP *
 pp_entersub_profiler(pTHX) {
 	OP *op;
-	COP *prev_cop = PL_curcop_nytprof;
+	COP *prev_cop = PL_curcop; /* not PL_curcop_nytprof here */
 	OP *next_op = PL_op->op_next; /* op to execute after sub returns */
 	dSP;
 	SV *sub_sv = *SP;
@@ -1572,8 +1572,9 @@ MODULE = Devel::NYTProf		PACKAGE = DB
 PROTOTYPES: DISABLE 
 
 void
-DB(...)
+DB_profiler(...)
 	CODE:
+		/* this sub gets aliased as "DB::DB" by NYTProf.pm if use_db_sub is true */
 		PERL_UNUSED_VAR(items);
 		if (use_db_sub)
 			DB(aTHX);

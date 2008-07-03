@@ -22,17 +22,19 @@ package	# hide the package from the PAUSE indexer
 	    | 0x100 # informative "file" names for evals
 	    | 0x200;# informative names for anonymous subroutines
 
+	# XXX hack, need better option handling
+	my $use_db_sub = ($ENV{NYTPROF} && $ENV{NYTPROF} =~ m/\buse_db_sub=1\b/);
+
 	$^P |=0x002 # line-by-line profiling (if $DB::single true)
 	    | 0x020 # start (after BEGINs) with single-step on
-			# XXX hack, need better option handling
-			if $ENV{NYTPROF} && $ENV{NYTPROF} =~ m/\buse_db_sub=1\b/;
+			if $use_db_sub;
 
 	require Devel::NYTProf::Core; # loads XS
 
-	if ($] < 5.008008) {	# workaround bug in old perl versions (slow)
-		local $^W = 0;
-		*_DB = \&DB;
-		*DB = sub { goto &_DB }
+	if ($use_db_sub) {	# install DB::DB sub
+		*DB = ($] < 5.008008)
+			? sub { goto &DB_profiler } # workaround bug in old perl versions (slow)
+			: \&DB_profiler;
 	}
 
 	init_profiler(); # provides true return value for module
