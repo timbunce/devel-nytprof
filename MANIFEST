@@ -68,8 +68,10 @@ t/test15.p
 t/test15.v
 t/test15.x
 t/test30-fork.0.p
+t/test30-fork.0.rdt
 t/test30-fork.0.v
 t/test30-fork.0.x
+t/test30-fork.1.rdt
 t/test30-fork.1.v
 t/test30-fork.1.x
 t/test50-disable.p
