@@ -35,15 +35,17 @@ my %opts = (
 	profperlopts => '-d:NYTProf',
 );
 GetOptions(\%opts,
-	qw/p=s I=s v|verbose d|debug html profperlopts=s/
+	qw/p=s I=s v|verbose d|debug html open profperlopts=s/
 ) or exit 1;
 
 $opts{v} ||= $opts{d};
 
 my $opt_perl = $opts{p};
 my $opt_include = $opts{I};
-my $outdir = 'nytprof';
 my $profile_datafile = 'nytprof_t.out'; # non-default to test override works
+
+my $outdir = 'nytprof_o';	# this directory gets deleted by tests
+mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
 
 if ($ENV{NYTPROF}) { # avoid external interference
 	warn "Existing NYTPROF env var value ($ENV{NYTPROF}) ignored for tests. Use NYTPROF_TEST env var if need be.\n";
@@ -56,7 +58,6 @@ my %NYTPROF_TEST = map { split /=/, $_, 2 } split /:/, $ENV{NYTPROF_TEST}||'';
 $NYTPROF_TEST{file} = $profile_datafile;
 
 chdir( 't' ) if -d 't';
-mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
 
 my $tests_per_extn = { p => 1, v => 1, rdt => 1, x => 2 };
 
@@ -94,7 +95,7 @@ ok(-x $nytprofcsv, "Where's nytprofcsv?");
 # run all tests in various configurations
 for my $use_db_sub (0) {
 	run_all_tests( {
-		use_db_sub => $use_db_sub,
+			#use_db_sub => $use_db_sub,
 	} );
 }
 
@@ -133,10 +134,13 @@ sub run_test {
 			verify_data($test, $test_datafile);
 		}
 		elsif ($type eq 'x') {
-			verify_report($test, $test_datafile);
+			unlink <$outdir/*>;
+			verify_csv_report($test, $test_datafile);
 
 			if ($opts{html}) {
-				run_command("$perl $nytprofhtml --file=$profile_datafile");
+				run_command("$perl $nytprofhtml --file=$profile_datafile --out=$outdir");
+				run_command("open $outdir/*.html")
+					if $opts{open}; # possibly only useful on OS X
 			}
 		}
 		else {
@@ -247,7 +251,7 @@ sub diff_files {
 }
 
 
-sub verify_report {
+sub verify_csv_report {
 	my ($test, $profile_datafile) = @_;
 
 	# generate and parse/check csv report
@@ -264,7 +268,7 @@ sub verify_report {
 	$csvfile = "$outdir/${csvfile}.csv";
 	unlink $csvfile;
 
-	run_command("$perl $nytprofcsv --file=$profile_datafile");
+	run_command("$perl $nytprofcsv --file=$profile_datafile --out=$outdir");
 
 	my @got      = slurp_file($csvfile);
 	my @expected = slurp_file($test);
