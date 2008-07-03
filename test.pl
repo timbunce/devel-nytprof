@@ -49,9 +49,9 @@ if ($ENV{NYTPROF}) { # avoid external interference
 	warn "Existing NYTPROF env var value ($ENV{NYTPROF}) ignored for tests. Use NYTPROF_TEST env var if need be.\n";
 	$ENV{NYTPROF} = '';
 }
-my (%NYTPROF, %NYTPROF_TEST);
+
 # options the user wants to override when running tests
-%NYTPROF_TEST = map { split /=/, $_, 2 } split /:/, $ENV{NYTPROF_TEST}||'';
+my %NYTPROF_TEST = map { split /=/, $_, 2 } split /:/, $ENV{NYTPROF_TEST}||'';
 # but we'll force a specific test data file
 $NYTPROF_TEST{file} = $profile_datafile;
 
@@ -91,16 +91,28 @@ if($opts{v} ){
 
 ok(-x $nytprofcsv, "Where's nytprofcsv?");
 
+# run all tests in various configurations
+for my $use_db_sub (0) {
+	run_all_tests( {
+		use_db_sub => $use_db_sub,
+	} );
+}
 
-foreach my $test (@tests) {
+sub run_all_tests {
+	my ($env) = @_;
+	run_test($_, $env) for @tests;
+}
+
+sub run_test {
+	my ($test, $env) = @_;
 	
-	my %env = (%NYTPROF, %NYTPROF_TEST);
+	my %env = (%$env, %NYTPROF_TEST);
 	local $ENV{NYTPROF} = join ":", map { "$_=$env{$_}" } sort keys %env;
 
 	#print $test . '.'x (20 - length $test);
 	$test =~ / (.+?) \. (?:(\d)\.)? (\w+) $/x or do {
 		warn "Can't parse test filename '$test'";
-		next;
+		return;
 	};
 	my ($basename, $fork_seqn, $type) = ($1, $2||0, $3);
 
