@@ -196,8 +196,13 @@ Only warn "No file line range data for sub' once per sub.
 Add hint that it may be XS.
 Could also note fact that it is XS in pp_entersub_profiler
 
+Currently the line of only last BEGIN (or 'use') in the file are recorded.
 Rename Foo::BEGIN subs to Foo::BEGIN[file:line]
 (which matches the style used for Foo::__AUTO__[file:line])
+Probably need to record or output the line range when the BEGIN 'sub' is entered.
+
+Record $AUTOLOAD when AUTOLOAD() called
+Perhaps as ...::AUTOLOAD[$AUTOLOAD]
 
 Refactor this HACKING file!
 

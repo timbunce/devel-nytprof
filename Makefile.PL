@@ -194,6 +194,9 @@ WriteMakefile(
     ABSTRACT_FROM     => 'lib/Devel/NYTProf.pm', # retrieve abstract from module
     AUTHOR            => 'Adam Kaplan <akaplan@cpan.org>, Tim Bunce <timb@cpan.org>',
     PREREQ_PM         => {
+    	  'List::Util'      => 0,
+    	  'Test::More'      => 0,
+    	  'XSLoader'        => 0,
     	  'Getopt::Long'    => 0,
     	}, # e.g., Module::Name => 1.1
     LIBS              => \@LIBS,
