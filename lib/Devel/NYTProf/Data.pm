@@ -236,6 +236,7 @@ The data normalized is:
  - xs_version attribute: set to 0
  - perl_version attribute: set to 0
  - filenames: path prefixes matching absolute paths in @INC are removed
+ - filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
 
 =cut
 
@@ -247,12 +248,14 @@ sub normalize_variables {
 	$self->{attribute}{perl_version} = 0;
 
 	for (keys %$self) {
+
 		# fid_line_times => [fid][line][time,...]
 		next unless /^fid_\w+_time$/;
+
 		# iterate over the fids that have data
 		my $fid_lines = $self->{$_} || [];
 		for my $of_fid (@$fid_lines) {
-			_zero_times($of_fid) if $of_fid;
+			_zero_array_elem($of_fid, 0) if $of_fid;
 		}
 	}
 
@@ -264,6 +267,13 @@ sub normalize_variables {
 	#		AutoLoader::__ANON__[/lib/perl5/5.8.6/AutoLoader.pm:96]
 	strip_prefix_from_paths($inc, $self->{sub_caller},   '\[');
 	strip_prefix_from_paths($inc, $self->{sub_fid_line}, '\[');
+
+	# normalize eval numbers to 0
+	# XXX would be nicer to only do this for 'non-local' fids
+	for my $info (@{ $self->{fid_filename} }) {
+		next unless $info && ref $info;
+		$info->[0] =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg;
+	}
 
 	return;
 }
@@ -277,15 +287,15 @@ sub make_fid_filenames_relative {
 
 
 
-sub _zero_times {
-	my ($ary_of_line_data) = @_;
+sub _zero_array_elem {
+	my ($ary_of_line_data, $index) = @_;
 	for my $line_data (@$ary_of_line_data) {
 		next unless $line_data;
-		$line_data->[0] = 0; # set profile time to 0
+		$line_data->[$index] = 0;
 		# if line was a string eval
 		# then recurse to zero the times within the eval lines
 		if (my $eval_lines = $line_data->[2]) {
-			_zero_times($eval_lines); # recurse
+			_zero_array_elem($eval_lines, $index); # recurse
 		}
 	}
 }

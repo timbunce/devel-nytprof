@@ -3,7 +3,7 @@ attribute	perl_version	0
 attribute	ticks_per_sec	1000000
 attribute	xs_version	0
 fid_filename	1	test08.p
-fid_filename	2	[ (eval 1)[test08.p:1] 1 1 ]
+fid_filename	2	[ (eval 0)[test08.p:1] 1 1 ]
 fid_line_time	1	1	0	0
 fid_line_time	1	1	1	1
 fid_line_time	1	1	2	1	[ 0 1 ]

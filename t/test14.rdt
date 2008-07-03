@@ -5,7 +5,7 @@ attribute	xs_version	0
 fid_filename	1	test14.p
 fid_filename	2	AutoLoader.pm
 fid_filename	3	test14.pm
-fid_filename	4	[ (eval 6)[test14.pm (autosplit into auto/test14/bar.al):11] 3 11 ]
+fid_filename	4	[ (eval 0)[test14.pm (autosplit into auto/test14/bar.al):11] 3 11 ]
 fid_line_time	1	17	[ 0 1 ]
 fid_line_time	1	18	[ 0 1 ]
 fid_line_time	2	22	[ 0 2 ]

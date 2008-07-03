@@ -197,7 +197,8 @@ sub verify_data {
 	my @expected = slurp_file($test);
 
 	is_deeply(\@got, \@expected, $test)
-		or diff_files($test, "$test.new");
+		? unlink("$test.new")
+		: diff_files($test, "$test.new");
 }
 
 
