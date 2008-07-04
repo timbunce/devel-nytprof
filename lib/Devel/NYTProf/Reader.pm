@@ -80,6 +80,7 @@ sub new {
 				{pattern => '!~TOTAL_TIME~!', 
 					replace => "\$self->{filestats}->{\$filestr}->{'time'}"},
 			],
+			source_line_func => undef,
 			callsfunc => undef,
 			timefunc => undef,
 			'time/callsfunc' => undef,
@@ -407,9 +408,19 @@ sub report {
 			}
 
 			# begin output
+
+			# If a source_line_func reference is provided, it will control ALL output
+			if (my $func = $self->{source_line_func}) {
+				print OUT $func->(
+					$LINE, $line, $totalsByLine{$LINE},
+					\%statistics, $profile, $subs_defined, $makes_calls_to
+				);
+				next;
+			}
+
 			foreach my $hash (@{$self->{line}}) {
 
-				# If a function reference is provided, it will control ALL output.
+				# If a func reference is provided, it will control output for this column.
 				if (defined $hash->{func}) {
 					if ($hash->{value}) {
 						print OUT $hash->{func}($hash->{value}, 
@@ -438,6 +449,8 @@ sub report {
 				print OUT $hash->{end} if defined $hash->{end};
 			}
 
+		}
+		continue {
 			# Increment line number counters
 			$LINE++;
 		}
