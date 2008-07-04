@@ -268,7 +268,7 @@ sub verify_csv_report {
 	# foo.pm => foo.pm.csv is tested by foo.pm.x
 	$csvfile =~ s/\.x//;
 	$csvfile .= ".p" unless $csvfile =~ /\.p/;
-	$csvfile = "$outdir/${csvfile}.csv";
+	$csvfile = "$outdir/${csvfile}-line.csv";
 	unlink $csvfile;
 
 	run_command("$perl $nytprofcsv --file=$profile_datafile --out=$outdir");

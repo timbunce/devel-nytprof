@@ -96,7 +96,6 @@ sub new {
 
 	$self->{profile}->make_fid_filenames_relative($opts->{relative_paths});
 
-	$self->{data} = _map_new_to_old($self->{profile});
 	return $self;
 }
 
@@ -110,7 +109,8 @@ sub process {
 }
 
 sub _map_new_to_old {
-	my $data = shift;
+	my ($data, $fid_line_set) = @_;
+	$fid_line_set ||= 'fid_line_time';
 	# convert into old-style data structure
 	my $dump = 0;
 	require Data::Dumper if $dump;
@@ -118,7 +118,7 @@ sub _map_new_to_old {
 	warn Data::Dumper::Dumper($data) if $dump;
 
 	my $fid_fileinfo  = $data->{fid_fileinfo};
-	my $dataset_name = $ENV{NYTPROF_DATASET} || 'fid_line_time'; # temp hack
+	my $dataset_name = $ENV{NYTPROF_DATASET} || $fid_line_set;
 	my $fid_line_time = $data->{$dataset_name}
 		or die "No $dataset_name data set in profile data\n";
 
@@ -268,11 +268,26 @@ sub output_dir {
 ##
 sub report {
 	my $self = shift;
-
 	my $profile = $self->{profile};
 
+	my %set_tag = ( fid_line_time => '-line' );
+	$set_tag{fid_block_time} = '-block' if $profile->{fid_block_time};
+	$set_tag{fid_sub_time}   = '-sub'   if $profile->{fid_sub_time};
+
+	for my $fid_line_set (keys %set_tag) {
+		$self->_generate_report($profile, $fid_line_set, $set_tag{$fid_line_set});
+	}
+}
+
+##
+sub _generate_report {
+	my $self = shift;
+	my ($profile, $fid_line_set, $filetag) = @_;
+
+	my $data = _map_new_to_old($profile, $fid_line_set);
+
 	# pre-calculate some data so it can be cross-referenced
-	foreach my $filestr (keys %{$self->{data}}) {
+	foreach my $filestr (keys %$data) {
 
 		# discover file path
 		my $fname = $filestr;
@@ -288,7 +303,7 @@ sub report {
 		$self->{filestats}->{$filestr}->{filename} = $filestr;
 	}
 
-	foreach my $filestr (keys %{$self->{data}}) {
+	foreach my $filestr (keys %$data) {
 
 		# test file modification date. Files that have been touched after the
 		# profiling was done may very well produce useless output since the source
@@ -301,8 +316,8 @@ sub report {
 													# (should equal sum of $totalsAccum)
 		my $runningTotalCalls; # holds the running total number of calls.
 
-		foreach my $key (keys %{$self->{data}->{$filestr}}) {
-			my $a = $self->{data}->{$filestr}->{$key};
+		foreach my $key (keys %{$data->{$filestr}}) {
+			my $a = $data->{$filestr}->{$key};
 
 			if (0 == $a->[1]) {
 				# The debugger cannot stop on BEGIN{...} lines.  A line in a begin
@@ -367,8 +382,9 @@ sub report {
 
 		# open output file
 		my $fname = $self->{filestats}->{$filestr}->{html_safe};
-		open (OUT, "> $self->{output_dir}/$fname$self->{suffix}") or
-			confess "Unable to open $self->{output_dir}/$fname$self->{suffix} "
+		$fname .= $filetag.$self->{suffix};
+		open (OUT, "> $self->{output_dir}/$fname") or
+			confess "Unable to open $self->{output_dir}/$fname "
 						."for writing: $!\n";
 
 		# begin output
@@ -402,7 +418,7 @@ sub report {
 					$p =~ s/\:\:/-/g;
 					my $t = substr($fname, -1 * (length $p) - 3, length $p);
 					if($p eq $t) {
-						$self->{data}->{$filestr}->{package} = $1;
+						$data->{$filestr}->{package} = $1;
 					}
 				}
 			}
@@ -438,7 +454,7 @@ sub report {
 						print OUT $line; # from source rather than profile db
 					} elsif ($hash->{value} eq 'line') {
 						print OUT $LINE;
-					} elsif (exists $self->{data}->{$filestr}->{$LINE}) {
+					} elsif (exists $data->{$filestr}->{$LINE}) {
 						printf(OUT "%0.".$self->{numeric_precision}->{$hash->{value}}
 										.$FLOAT_FORMAT,
 										$totalsByLine{$LINE}->{$hash->{value}});
