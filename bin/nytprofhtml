@@ -189,8 +189,9 @@ $reporter->set_param('lineend', {start => "</tr>\n"});
 
 # set output options
 $reporter->set_param('suffix', '.html');
-$reporter->add_regexp(' ', '&nbsp;');
-$reporter->add_regexp('\t', '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
+#$reporter->add_regexp(' ', '&nbsp;');
+#$reporter->add_regexp('\t', '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
+$reporter->add_regexp('\t', ' 'x8);
 $reporter->add_regexp('<', '&lt;');
 $reporter->add_regexp('>', '&gt;');
 
