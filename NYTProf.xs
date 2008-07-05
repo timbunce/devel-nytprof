@@ -895,12 +895,16 @@ pp_entersub_profiler(pTHX) {
 		SV *subname_sv = newSV(0);
 		SV *sv_tmp;
 		CV *cv;
+		int is_xs;
 
 		if (op != next_op) { /* have entered a sub */
 			/* use cv of sub we've just entered to get name */
 			sub_sv = (SV *)cxstack[cxstack_ix].blk_sub.cv;
+			is_xs = 0;
 		}
-		/* else have returned from XS so use sub_sv for name */
+		else { /* have returned from XS so use sub_sv for name */
+			is_xs = 1;
+		}
 
 		/* determine the original fully qualified name for sub */
 		/* XXX hacky with lots of obscure edge cases */
@@ -929,7 +933,7 @@ pp_entersub_profiler(pTHX) {
 			sv_setsv(subname_sv, sub_sv);
 		}
 		else {
-			char *what = (op == next_op) ? "xs" : "sub";
+			char *what = (is_xs) ? "xs" : "sub";
 			warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
 			if (trace_level || 1)
 				sv_dump(sub_sv);
@@ -943,8 +947,13 @@ pp_entersub_profiler(pTHX) {
 		/* { subname => { "fid:line" => count } } */
 		sv_tmp = *hv_fetch(sub_callers_hv, SvPV_nolen(subname_sv), 
 												SvCUR(subname_sv), 1);
-		if (!SvROK(sv_tmp)) /* autoviv */
-			sv_setsv(sv_tmp, newRV_noinc((SV*)newHV()));
+		if (!SvROK(sv_tmp)) { /* autoviv */
+			HV *hv = newHV();
+			if (is_xs) /* create dummy item to hold flag to indicate xs */
+				sv_setsv(*hv_fetch(hv, "0:0", 3, 1), &PL_sv_yes);
+			/* autoviv the hash ref */
+			sv_setsv(sv_tmp, newRV_noinc((SV*)hv));
+		}
 		sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
 		sv_inc(sv_tmp);
 	}
@@ -1476,8 +1485,14 @@ load_profile_data_from_stream() {
 				if (!SvROK(sv)) /* autoviv */
 					sv_setsv(sv, newRV_noinc((SV*)newHV()));
 
-				len = my_snprintf(text, sizeof(text), "%u", line);
-				sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
+				if (fid) {
+					len = my_snprintf(text, sizeof(text), "%u", line);
+					sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
+				}
+				else { /* is meta-data about sub */
+					/* line == 0: is_xs */
+					sv = *hv_fetch((HV*)SvRV(sv), "is_xs", 5, 1);
+				}
 
 				sv_setuv(sv, count);
 				break;
