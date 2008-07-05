@@ -524,10 +524,10 @@ Devel::NYTProf::Reader - Tranforms L<Devel::NYTProf> output into comprehensive, 
  # First run some code through the profiler to generate the nytprof database.
  perl -d:NYTProf some_perl.pl
 
- # To create an HTML report in ./profiler 
+ # To create an HTML report in ./nytprof 
  nytprofhtml
 
- # To create a csv report in ./profiler 
+ # To create a csv report in ./nytprof 
  nytprofcsv
 
  # Or to generate a simple comma delimited report manually

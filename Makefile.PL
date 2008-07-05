@@ -21,9 +21,9 @@ my $is_developer = (-d '.svn');
 
 # --- Bail out on Windows
 if ($^O eq 'MSWin32') {
-	print "This module does not support Windows because of NYTProf.xs.\n"
-				."Feel free to port it and submit a patch to develnytprof-dev\@googlegroups.com\n";
-	die "No support for OS";
+	print "This module does not currently support Windows.\n"
+				."Please help us port it - contact us at develnytprof-dev\@googlegroups.com\n";
+	die "No support for OS" if $ENV{AUTOMATED_TESTING}; # keep cpan-testers happy
 }
 
 # --- Options
@@ -142,7 +142,7 @@ WriteMakefile(
 													'bin/nytprofcsv' => '$(INST_MAN1DIR)/nytprofcsv.1' },
     INC               => $INCLUDE,
 		clean							=> { 
-			FILES	=> "nytprof.out profiler t/nytprof.out t/profiler t/test*.*.new t/auto"
+			FILES	=> "nytprof.out nytprof t/nytprof.out t/nytprof t/test*.*.new t/auto"
 		},
 		%mm_opts,
 );

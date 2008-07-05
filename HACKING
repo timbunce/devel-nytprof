@@ -59,19 +59,14 @@ Note:  While writing a test, it is helpful to be able to run it directly,
 			without the test harness.  This allows you to view more output stdout and 
 			stderr.  Fortunately, its easy to do:
 
-			PERL5LIB=blib/lib:blib/arch perl -d:NYTProf t/test01.p
+			perl -Mblib -MDevel::NYTProf t/test01.p
 
-			The output will be in ./nytprof. You can then also run
-			the csv manually:
+			The output will be in the ./nytprof.out file.
+			You can then also run the csv manually:
 
-			PERL5LIB=blib/lib:blib/arch perl bin/nytprofcsv
+			perl -Mblib bin/nytprofcsv
 
-			The final file will be in ./profiler/test01.p.csv
-
-If youve changed any internals of the profiler then don't forget to also test
-'use_db_sub' mode, like this:
-
-	NYTPROF_TEST=use_db_sub=1 make test
+			The final file will be in ./nytprof/test01.p.csv
 
 Remember, testing is VERY VERY important!  Within a day or two of releasing
 code, the CPAN testers will test the release on pretty much every major platform
