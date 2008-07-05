@@ -39,91 +39,14 @@ my $INCLUDE;
 my $stdio_dir;
 my $stdio_ext_dir;
 my $time_dir;
-
-sub search_paths {
-	my $dir = shift;
-	my @dirs = split /:/, $dir;
-	foreach (@dirs) {
-		opendir(DIR, $_) or "Unable to open $_\n" and next;
-
-		while(my $file = readdir(DIR)) {
-			if ($file =~ m/^stdio\.h$/) {
-				$stdio_dir = $_ unless defined $stdio_dir;
-			} elsif ($file =~ m/^stdio_ext\.h$/) {
-				$stdio_ext_dir = $_ unless defined $stdio_ext_dir;
-			} elsif ($file =~ m/^time\.h$/) {
-				$time_dir = $_ unless defined $time_dir;
-			}
-			last if (defined $stdio_dir && defined $stdio_ext_dir
-				&& defined $time_dir);
-		}
-
-		closedir(DIR);
-		last if (defined $stdio_dir && defined $stdio_ext_dir && defined $time_dir);
-	}
-}
-
-my $cpp =  $Config{cpp};
-if (!defined $cpp || 0 == length($cpp)) {
-	print "Warning: cpp not found in your perl config.  Falling back to `cat'";
-	$cpp = 'cat';
-}
-
 my $fpurge;
-sub search_for_fpurge {
-	if (defined $stdio_dir) {
-		open(STDIOH, "$cpp $stdio_dir/stdio.h |");
-		while (<STDIOH>) {
-			if (m/(_{0,2}fpurge)\s*\(/go) {
-				$fpurge = $1;
-				$stdio_ext_dir = undef;
-				last;
-			}
-		}
-		close STDIOH;
-	}
 
-	return if (defined $fpurge);
+my $cpp =  $Config{cpp} || do {
+	warn "Warning: cpp not found in your perl config.  Falling back to 'cat'\n";
+	'cat';
+};
 
-	if (defined $stdio_ext_dir) {
-		open(STDIOEH, "$cpp $stdio_ext_dir/stdio_ext.h |");
-		while (<STDIOEH>) {
-			if (m/(_{0,2}fpurge)\s*\(/go) {
-				$fpurge = $1;
-				$stdio_dir = undef;
-				last;
-			}
-		}
-		close STDIOEH;
-	}
-}
-
-my $clock_gettime;
-sub search_for_clock_gettime {
-	return if not $time_dir;
-	open(TIMEH, "$cpp $time_dir/time.h |");
-	while (<TIMEH>) {
-		if (m/(clock_gettime)\s*\(/go) {
-			$clock_gettime = $1;
-			last;
-		}
-	}
-	close TIMEH;
-}
-
-sub verify_fpurge {
-	if (defined ($fpurge)) {
-		if (defined $stdio_ext_dir) {
-			print "Found $fpurge in $stdio_ext_dir/stdio_ext.h\n";
-			$INCLUDE = $stdio_ext_dir;
-		} else {
-			print "Found $fpurge in $stdio_dir/stdio.h\n";
-			$INCLUDE = $stdio_dir;
-		}
-		return 1;
-	}
-	undef;
-}
+my $clock_gettime = search_for_clock_gettime($time_dir);
 
 if (defined $ENV{INCLUDE}) {
   search_paths($ENV{INCLUDE});
@@ -133,7 +56,7 @@ if (defined $ENV{INCLUDE}) {
 search_for_fpurge();
 search_for_clock_gettime();
 
-while(!verify_fpurge) {
+while (!verify_fpurge()) {
 	print<<EOD;
 		Unable to find an fpurge function in your INCLUDE path 
 		files. fpurge isn't required, but will result in MUCH
@@ -209,6 +132,91 @@ WriteMakefile(
 		},
 		%mm_opts,
 );
+
+exit 0;
+
+# --- Utility functions ---
+
+
+sub search_paths {
+	my $dir = shift;
+	my @dirs = split /:/, $dir;
+	foreach (@dirs) {
+		opendir(DIR, $_) or "Unable to open $_\n" and next;
+
+		while(my $file = readdir(DIR)) {
+			if ($file =~ m/^stdio\.h$/) {
+				$stdio_dir = $_ unless defined $stdio_dir;
+			} elsif ($file =~ m/^stdio_ext\.h$/) {
+				$stdio_ext_dir = $_ unless defined $stdio_ext_dir;
+			} elsif ($file =~ m/^time\.h$/) {
+				$time_dir = $_ unless defined $time_dir;
+			}
+			last if (defined $stdio_dir && defined $stdio_ext_dir
+				&& defined $time_dir);
+		}
+
+		closedir(DIR);
+		last if (defined $stdio_dir && defined $stdio_ext_dir && defined $time_dir);
+	}
+}
+
+
+sub search_for_fpurge {
+	if (defined $stdio_dir) {
+		open(STDIOH, "$cpp $stdio_dir/stdio.h |");
+		while (<STDIOH>) {
+			if (m/(_{0,2}fpurge)\s*\(/go) {
+				$fpurge = $1;
+				$stdio_ext_dir = undef;
+				last;
+			}
+		}
+		close STDIOH;
+	}
+
+	return if (defined $fpurge);
+
+	if (defined $stdio_ext_dir) {
+		open(STDIOEH, "$cpp $stdio_ext_dir/stdio_ext.h |");
+		while (<STDIOEH>) {
+			if (m/(_{0,2}fpurge)\s*\(/go) {
+				$fpurge = $1;
+				$stdio_dir = undef;
+				last;
+			}
+		}
+		close STDIOEH;
+	}
+}
+
+
+sub verify_fpurge {
+	if (defined ($fpurge)) {
+		if (defined $stdio_ext_dir) {
+			print "Found $fpurge in $stdio_ext_dir/stdio_ext.h\n";
+			$INCLUDE = $stdio_ext_dir;
+		} else {
+			print "Found $fpurge in $stdio_dir/stdio.h\n";
+			$INCLUDE = $stdio_dir;
+		}
+		return 1;
+	}
+	undef;
+}
+
+
+sub search_for_clock_gettime {
+	my $dir = shift
+		or return;
+	open(TIMEH, "$cpp $dir/time.h |");
+	while (<TIMEH>) {
+		if (m/(clock_gettime)\s*\(/go) {
+			return $1;
+		}
+	}
+	close TIMEH;
+}
 
 
 # --- MakeMaker overrides ---
