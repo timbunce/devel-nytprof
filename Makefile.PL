@@ -34,53 +34,67 @@ GetOptions(
 
 # --- Discover how much of stdio is implemented
 
-print "Looking for stdio.h and stdio_ext.h\n";
-my $INCLUDE;
-my $stdio_dir;
-my $stdio_ext_dir;
-my $time_dir;
-my $fpurge;
-
 my $cpp =  $Config{cpp} || do {
 	warn "Warning: cpp not found in your perl config.  Falling back to 'cat'\n";
 	'cat';
 };
 
-my $clock_gettime = search_for_clock_gettime($time_dir);
+print "Looking for header files and functions...\n";
+my $INCLUDE;
+my $fpurge;
+my $fpurge_h_file = '';
+my $clock_gettime;
 
-if (defined $ENV{INCLUDE}) {
-  search_paths($ENV{INCLUDE});
-} else {
-  search_paths('/include:/usr/include:/usr/local/include');
-}
-search_for_fpurge();
-search_for_clock_gettime();
+my $h_files;
+my @h_dirs;
+push @h_dirs, split /:/, $ENV{INCLUDE} if $ENV{INCLUDE};
+push @h_dirs, split ' ', $Config{libsdirs};
+push @h_dirs, qw(/include /usr/include /usr/local/include);
+@h_dirs = grep { -d $_ } @h_dirs;
 
-while (!verify_fpurge()) {
-	print<<EOD;
-		Unable to find an fpurge function in your INCLUDE path 
-		files. fpurge isn't required, but will result in MUCH
-		faster profiling if your code may fork.  If it normally 
-		found in stdio_ext.h, and sometimes in stdio.h.  Try 
-		using `find' or `locate' to discover where these files
-		reside.  Enter paths to include in the search here, 
-		seperated by ':' (or leave it blank to not use fpurge 
-		at all)
+SEARCH: {
 
-EOD
-		my $pathstr = prompt("Additional header search paths:", "");
-		if (length $pathstr) {
-			search_paths($pathstr);
-			search_for_fpurge();
-		} else {
+	$h_files = find_h_files(@h_dirs);
+
+	# search for clock_gettime
+	$clock_gettime = search_h_file('time.h', qr/(clock_gettime)\s*\(/)
+		and print "Found $clock_gettime in time.h\n";
+
+	# search for fpurge
+	my @stdio_h_files = qw(stdio.h stdio_ext.h);
+	for my $h (@stdio_h_files) {
+		if ($fpurge = search_h_file($h, qr/(_{0,2}fpurge)\s*\(/)) {
+			my $dir = $h_files->{$h};
+			print "Found $fpurge in $dir/$h\n";
+			$fpurge_h_file = $h;
+			$INCLUDE .= "-I$dir ";
 			last;
 		}
+	}
+
+  if (!$fpurge) {
+		print "\nWarning: Unable to find an fpurge function in your header files.\n";
+		print "I looked for @stdio_h_files in @h_dirs\n";
+		print join "\n",
+			"The fpurge function isn't required, but if you profile code that",
+			"calls fork() you may get corrupt profile data without it.",
+			"If it normally found in stdio_ext.h, and sometimes in stdio.h.",
+			"Try using 'find' or 'locate' to discover where these files reside.",
+			"Enter paths to search here, seperated by ':' (or just press return to not use fpurge)",
+			"\n";
+
+		my $pathstr = prompt("Additional header paths to search for fpurge:", "");
+		if ($pathstr) {
+			my @new = split /:/, $pathstr;
+			print "Adding '$_' for search path\n" for @new;
+			-d $_ or warn "$_ does not exist\n" for @new;
+			push @h_dirs, @new;
+			redo SEARCH;
+		}
+		print "\n";
+	}
 }
 
-$INCLUDE = $stdio_dir if defined $stdio_dir;
-$INCLUDE = $stdio_ext_dir if defined $stdio_ext_dir;
-my $include_string = "-I.";
-$include_string .= $INCLUDE if defined $INCLUDE;
 
 my @LIBS = ();
 push @LIBS, "-lrt" if $clock_gettime;
@@ -89,9 +103,9 @@ push @LIBS, "-lrt" if $clock_gettime;
 # the contents of the Makefile that is written.
 my %mm_opts;
 
-$mm_opts{DEFINE} .= '-DHAS'.uc($fpurge) if defined($fpurge);
+$mm_opts{DEFINE} .= '-DHAS'.uc($fpurge) if $fpurge;
 $mm_opts{DEFINE} .= ' -DHAS'.uc($clock_gettime) if $clock_gettime;
-$mm_opts{DEFINE} .= ' -DHAS_STDIO_EXT_H' if defined $stdio_ext_dir;
+$mm_opts{DEFINE} .= ' -DHAS_STDIO_EXT_H' if $fpurge_h_file eq 'stdio_ext.h';
 
 $mm_opts{LICENSE} = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
 $mm_opts{OPTIMIZE} = '-g'  if $opt_g;
@@ -126,7 +140,7 @@ WriteMakefile(
     EXE_FILES					=> [ 'bin/nytprofhtml', 'bin/nytprofcsv' ],
     MAN1PODS					=> { 'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
 													'bin/nytprofcsv' => '$(INST_MAN1DIR)/nytprofcsv.1' },
-    INC               => $include_string, # e.g., '-I. -I/usr/include/other'
+    INC               => $INCLUDE,
 		clean							=> { 
 			FILES	=> "nytprof.out profiler t/nytprof.out t/profiler t/test*.*.new t/auto"
 		},
@@ -138,85 +152,36 @@ exit 0;
 # --- Utility functions ---
 
 
-sub search_paths {
-	my $dir = shift;
-	my @dirs = split /:/, $dir;
-	foreach (@dirs) {
-		opendir(DIR, $_) or "Unable to open $_\n" and next;
+sub find_h_files {
+	my @dirs = @_;
+	my %h_files;
+	foreach my $dir (@dirs) {
+		next unless $dir;
+		opendir(DIR, $dir)
+			or next; # silently ignore missing directories
 
-		while(my $file = readdir(DIR)) {
-			if ($file =~ m/^stdio\.h$/) {
-				$stdio_dir = $_ unless defined $stdio_dir;
-			} elsif ($file =~ m/^stdio_ext\.h$/) {
-				$stdio_ext_dir = $_ unless defined $stdio_ext_dir;
-			} elsif ($file =~ m/^time\.h$/) {
-				$time_dir = $_ unless defined $time_dir;
-			}
-			last if (defined $stdio_dir && defined $stdio_ext_dir
-				&& defined $time_dir);
+		while (my $file = readdir(DIR)) {
+			next unless $file =~ /\.h$/;
+			$h_files{$file} ||= $dir; # record first found
 		}
-
-		closedir(DIR);
-		last if (defined $stdio_dir && defined $stdio_ext_dir && defined $time_dir);
 	}
+	close DIR;
+	return \%h_files;
+}
+
+sub search_h_file {
+	my ($h_file, $regex) = @_;
+	my $dir = $h_files->{$h_file}
+		or return undef;
+	open H, "$cpp $dir/$h_file |";
+	while (<H>) {
+		return $1 if m/$regex/;
+	}
+	close H;
+	return undef
 }
 
 
-sub search_for_fpurge {
-	if (defined $stdio_dir) {
-		open(STDIOH, "$cpp $stdio_dir/stdio.h |");
-		while (<STDIOH>) {
-			if (m/(_{0,2}fpurge)\s*\(/go) {
-				$fpurge = $1;
-				$stdio_ext_dir = undef;
-				last;
-			}
-		}
-		close STDIOH;
-	}
-
-	return if (defined $fpurge);
-
-	if (defined $stdio_ext_dir) {
-		open(STDIOEH, "$cpp $stdio_ext_dir/stdio_ext.h |");
-		while (<STDIOEH>) {
-			if (m/(_{0,2}fpurge)\s*\(/go) {
-				$fpurge = $1;
-				$stdio_dir = undef;
-				last;
-			}
-		}
-		close STDIOEH;
-	}
-}
-
-
-sub verify_fpurge {
-	if (defined ($fpurge)) {
-		if (defined $stdio_ext_dir) {
-			print "Found $fpurge in $stdio_ext_dir/stdio_ext.h\n";
-			$INCLUDE = $stdio_ext_dir;
-		} else {
-			print "Found $fpurge in $stdio_dir/stdio.h\n";
-			$INCLUDE = $stdio_dir;
-		}
-		return 1;
-	}
-	undef;
-}
-
-
-sub search_for_clock_gettime {
-	my $dir = shift
-		or return;
-	open(TIMEH, "$cpp $dir/time.h |");
-	while (<TIMEH>) {
-		if (m/(clock_gettime)\s*\(/go) {
-			return $1;
-		}
-	}
-	close TIMEH;
-}
 
 
 # --- MakeMaker overrides ---
