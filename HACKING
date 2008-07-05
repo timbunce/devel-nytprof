@@ -135,6 +135,11 @@ See http://search.cpan.org/dist/Devel-Profile/ for use case.
 Add @INC to data file so reports can be made more readable by removing
 (possibly very long) library paths where appropriate.
 
+Add time to begin and end pid markers in data file.
+
+Add marker with timestamp for phases BEGIN, CHECK, INIT, END
+(could combine with pid marker)
+
 Add size and mtime of fid to data file.
 
 Intercept all opcodes that may fork and run perl code in the child
@@ -219,3 +224,13 @@ so the profiler could be used to profile debuggers etc.
 Add file format backwards compatibility tests.
 
 Add tests for evals in regex: s/.../ ...perl code... /e
+
+Add tests for -block and -sub csv reports.
+
+Add tests with various kinds of blocks (if, do, etc) and loops.
+
+Add links to -$level html reports to ease switching between them.
+
+Set options via import so perl -d:NYTProf=... works. Very handy. May need
+alternative option syntax. Also perl gives special meaning to 't' option
+(threads) so we should reserve the same for eventual thread support.
