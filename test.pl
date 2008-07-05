@@ -33,6 +33,7 @@ my %SKIP_TESTS = (
 
 my %opts = (
 	profperlopts => '-d:NYTProf',
+	html => $ENV{NYTPROF_TEST_HTML},
 );
 GetOptions(\%opts,
 	qw/p=s I=s v|verbose d|debug html open profperlopts=s/
@@ -44,8 +45,6 @@ my $opt_perl = $opts{p};
 my $opt_include = $opts{I};
 my $profile_datafile = 'nytprof_t.out'; # non-default to test override works
 
-my $outdir = 'nytprof_o';	# this directory gets deleted by tests
-mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
 
 if ($ENV{NYTPROF}) { # avoid external interference
 	warn "Existing NYTPROF env var value ($ENV{NYTPROF}) ignored for tests. Use NYTPROF_TEST env var if need be.\n";
@@ -137,8 +136,11 @@ sub run_test {
 			verify_data($test, $test_datafile);
 		}
 		elsif ($type eq 'x') {
+			my $outdir = "$basename.outdir";
+			mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
 			unlink <$outdir/*>;
-			verify_csv_report($test, $test_datafile);
+
+			verify_csv_report($test, $test_datafile, $outdir);
 
 			if ($opts{html}) {
 				run_command("$perl $nytprofhtml --file=$profile_datafile --out=$outdir");
@@ -148,7 +150,7 @@ sub run_test {
 		}
 		else {
 			warn "Unrecognized extension '$type' on test file '$test'\n"
-				unless $type eq 'new'; # handy for "test.pl t/test01.*"
+				unless $type eq 'new' or $type eq 'outdir'; # handy for "test.pl t/test01.*"
 		}
 	}
 }
@@ -255,7 +257,7 @@ sub diff_files {
 
 
 sub verify_csv_report {
-	my ($test, $profile_datafile) = @_;
+	my ($test, $profile_datafile, $outdir) = @_;
 
 	# generate and parse/check csv report
 

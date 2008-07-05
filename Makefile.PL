@@ -142,7 +142,7 @@ WriteMakefile(
 													'bin/nytprofcsv' => '$(INST_MAN1DIR)/nytprofcsv.1' },
     INC               => $INCLUDE,
 		clean							=> { 
-			FILES	=> "nytprof.out nytprof t/nytprof.out t/nytprof t/test*.*.new t/auto"
+			FILES	=> "nytprof_t.out nytprof t/nytprof.out t/*.outdir t/test*.*.new t/auto"
 		},
 		%mm_opts,
 );
