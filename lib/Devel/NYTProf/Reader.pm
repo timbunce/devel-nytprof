@@ -297,6 +297,7 @@ sub _generate_report {
 		}
 		$fname =~ s#^[/\\]##o;		# nuke leading / or \
 		$fname =~ s#[/\\]#-#go; # replace / and \ with html safe -
+		$fname .= $filetag;
 
 		$self->{filestats}->{$filestr}->{html_safe} = $fname;
 		# store original filename in value as well as key
@@ -382,7 +383,7 @@ sub _generate_report {
 
 		# open output file
 		my $fname = $self->{filestats}->{$filestr}->{html_safe};
-		$fname .= $filetag.$self->{suffix};
+		$fname .= $self->{suffix};
 		open (OUT, "> $self->{output_dir}/$fname") or
 			confess "Unable to open $self->{output_dir}/$fname "
 						."for writing: $!\n";
