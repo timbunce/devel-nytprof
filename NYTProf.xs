@@ -93,9 +93,10 @@ static FILE* in;
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static bool embed_fid_line = 0;
 static bool usecputime = 0;
-static bool profile_blocks = 1;
 static int use_db_sub = 0;
 static int profile_begin = 0;
+static int profile_blocks = 1;	/* block and sub *exclusive* times */
+static int profile_subs = 0;    /* sub *inclusive* times */
 static int trace_level = 0;
 
 /* time tracking */
@@ -857,9 +858,34 @@ reinit_if_forked(pTHX) {
 }
 
 
-/************************************
- * Sub caller tracking
- ************************************/
+/******************************************
+ * Sub caller and inclusive time tracking
+ ******************************************/
+
+typedef struct sub_call_start_st {
+	int foo;
+	SV *subname_sv;
+} sub_call_start_t;
+
+void
+incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
+	SV *subname_sv = sub_call_start->subname_sv;
+	warn("incr_sub_inclusive_time %p", subname_sv);
+	warn("incr_sub_inclusive_time %s", SvPV_nolen(sub_call_start->subname_sv));
+	/* measure how many ticks spent in xs sub
+		* convert to double float integer
+		* and increment in hash
+		*/
+	sv_free(sub_call_start->subname_sv);
+}
+
+void	/* wrapper called via scope exit due to save_destructor below */
+incr_sub_inclusive_time_ix(pTHX_ void *save_ix_void) {
+	I32 save_ix = (I32)save_ix_void;
+	sub_call_start_t *sub_call_start = SSPTR(save_ix, sub_call_start_t *);
+  incr_sub_inclusive_time(aTHX_ sub_call_start);
+}
+
 
 OP *
 pp_entersub_profiler(pTHX) {
@@ -868,6 +894,11 @@ pp_entersub_profiler(pTHX) {
 	OP *next_op = PL_op->op_next; /* op to execute after sub returns */
 	dSP;
 	SV *sub_sv = *SP;
+  sub_call_start_t sub_call_start;
+
+	if (profile_subs && is_profiling) {
+		/* XXX copy latest time recorded by DB_profiler into sub_call_start time element */
+	}
 
 	/*
 	 * for normal subs pp_entersub enters the sub
@@ -956,6 +987,24 @@ pp_entersub_profiler(pTHX) {
 		}
 		sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
 		sv_inc(sv_tmp);
+
+		if (profile_subs) {
+			sub_call_start.subname_sv = subname_sv;
+			if (is_xs) {
+				/* acculumate now time we've just spent in the xs sub */
+				incr_sub_inclusive_time(aTHX_ &sub_call_start);
+			}
+			else {
+				/* copy struct to save stack (very efficient) */
+				I32 save_ix = SSNEWa(sizeof(sub_call_start), MEM_ALIGNBYTES);
+				Copy(&sub_call_start, SSPTR(save_ix, sub_call_start_t *), 1, sub_call_start_t);
+				/* defer acculumating time spent until we leave the sub */
+				save_destructor_x(incr_sub_inclusive_time_ix, (void *)save_ix);
+			}
+		}
+		else {
+			sv_free(subname_sv);
+		}
 	}
 
 	return op;
