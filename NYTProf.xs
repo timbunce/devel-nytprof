@@ -96,7 +96,7 @@ static bool usecputime = 0;
 static int use_db_sub = 0;
 static int profile_begin = 0;
 static int profile_blocks = 1;	/* block and sub *exclusive* times */
-static int profile_subs = 0;    /* sub *inclusive* times */
+static int profile_subs = 1;    /* sub *inclusive* times */
 static int trace_level = 0;
 
 /* time tracking */
@@ -121,7 +121,7 @@ static unsigned int ticks_per_sec = 0; /* 0 forces error if not set */
 
 /* prototypes */
 static void write_cached_fids();
-void print_header(pTHX);
+void output_header(pTHX);
 unsigned int get_file_id(pTHX_ char*, STRLEN, int);
 void output_int(unsigned int);
 void DB(pTHX);
@@ -158,7 +158,7 @@ HV *sub_callers_hv;
  * output file header
  */
 void
-print_header(pTHX) {
+output_header(pTHX) {
 	time_t basetime = PL_basetime;
 	unsigned int ticks = (usecputime) ? CLOCKS_PER_SEC : 1000000;
 
@@ -178,6 +178,7 @@ print_header(pTHX) {
 	fprintf(out, ":%s=%s\n",       "xs_version",    XS_VERSION);
 	fprintf(out, ":%s=%d.%d.%d\n", "perl_version",  PERL_REVISION, PERL_VERSION, PERL_SUBVERSION);
 	fprintf(out, ":%s=%u\n",       "ticks_per_sec", ticks);
+	if (0)fprintf(out, ":%s=%lu\n",       "nv_size", sizeof(NV));
 
 	OUTPUT_PID();
 
@@ -400,7 +401,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int create_new) {
  * least number of bytes possible.  All numbers are positive. Use sign slot as
  * a marker
  */
-void output_int(unsigned int i) {
+void
+output_int(unsigned int i) {
 
 	/* general case. handles all integers */
 	if (i < 0x80) { /* < 8 bits */
@@ -427,6 +429,19 @@ void output_int(unsigned int i) {
 		fputc( (char)(i >> 16), out);
 		fputc( (char)(i >> 8), out);
 		fputc( (char)i, out);
+	}
+}
+
+/**
+ * Output a double precision float via a simple binary write of the memory.
+ * (Minor portbility issues are seen as less important than speed and space.)
+ */
+void
+output_nv(NV nv) {
+	int i = sizeof(NV);
+	unsigned char *p = (char*)&nv;
+	while (i-- > 0) {
+		fputc(*p++, out);
 	}
 }
 
@@ -836,7 +851,7 @@ open_output_file(pTHX_ char *filename) {
 	if (trace_level)
 			warn("Opened %s\n", filename);
 
-	print_header(aTHX);
+	output_header(aTHX);
 }
 
 
@@ -863,19 +878,21 @@ reinit_if_forked(pTHX) {
  ******************************************/
 
 typedef struct sub_call_start_st {
-	int foo;
 	SV *subname_sv;
+	AV *sub_av;
 } sub_call_start_t;
 
 void
 incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
+	AV *av = sub_call_start->sub_av;
 	SV *subname_sv = sub_call_start->subname_sv;
-	warn("incr_sub_inclusive_time %p", subname_sv);
-	warn("incr_sub_inclusive_time %s", SvPV_nolen(sub_call_start->subname_sv));
-	/* measure how many ticks spent in xs sub
-		* convert to double float integer
-		* and increment in hash
-		*/
+	SV *time_sv = *av_fetch(av, 1, 1);
+	double time_in_sub = 2;
+
+	if (trace_level >= 2)
+		warn("exited %s after %fs (%fs total from here)\n",
+			SvPV_nolen(subname_sv), time_in_sub, SvNV(time_sv)+time_in_sub);
+	sv_setnv(time_sv, SvNV(time_sv)+time_in_sub);
 	sv_free(sub_call_start->subname_sv);
 }
 
@@ -975,21 +992,35 @@ pp_entersub_profiler(pTHX) {
 			fprintf(stderr, "fid %d:%d called %s (%s)\n", fid, line, 
 							SvPV_nolen(subname_sv), OP_NAME(op));
 
-		/* { subname => { "fid:line" => count } } */
+		/* { subname => { "fid:line" => [ count, incl_time ] } } */
 		sv_tmp = *hv_fetch(sub_callers_hv, SvPV_nolen(subname_sv), 
 												SvCUR(subname_sv), 1);
-		if (!SvROK(sv_tmp)) { /* autoviv */
+		if (!SvROK(sv_tmp)) { /* autoviv hash ref */
 			HV *hv = newHV();
-			if (is_xs) /* create dummy item to hold flag to indicate xs */
-				sv_setsv(*hv_fetch(hv, "0:0", 3, 1), &PL_sv_yes);
-			/* autoviv the hash ref */
-			sv_setsv(sv_tmp, newRV_noinc((SV*)hv));
+			sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
+			/* create dummy item to hold flag to indicate xs */
+			if (is_xs) {
+				AV *av = newAV();
+				av_store(av, 0, newSVuv(1));    /* flag to indicate xs */
+				av_store(av, 1, newSVnv(0.0));
+				sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
+			}
 		}
+
 		sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
-		sv_inc(sv_tmp);
+		if (!SvROK(sv_tmp)) { /* autoviv array ref */
+			AV *av = newAV();
+			av_store(av, 0, newSVuv(1));    /* count of call to sub */
+			av_store(av, 1, newSVnv(0.0));	/* inclusive time in sub */
+			sv_setsv(sv_tmp, newRV_noinc((SV *)av));
+		}
+		else {
+			sv_inc(AvARRAY(SvRV(sv_tmp))[0]);
+		}
 
 		if (profile_subs) {
 			sub_call_start.subname_sv = subname_sv;
+			sub_call_start.sub_av = (AV *)SvRV(sv_tmp);
 			if (is_xs) {
 				/* acculumate now time we've just spent in the xs sub */
 				incr_sub_inclusive_time(aTHX_ &sub_call_start);
@@ -1263,7 +1294,8 @@ write_sub_callers(pTHX) {
 		while (NULL != (sv = hv_iternextsv(fid_lines_hv, &fid_line_string,
 										&fid_line_len))) 
 		{
-			unsigned int count = SvUV(sv);
+			AV *av = (AV *)SvRV(sv);
+			unsigned int count = SvUV(AvARRAY(av)[0]);
 			unsigned int fid = 0;
 			unsigned int line = 0;
 			sscanf(fid_line_string, "%u:%u", &fid, &line);
@@ -1274,6 +1306,7 @@ write_sub_callers(pTHX) {
 			output_int(fid);
 			output_int(line);
 			output_int(count);
+			output_nv( SvNV(AvARRAY(av)[1]) );
 			fputs(sub_name, out);
 			fputc('\n', out);
 		}
@@ -1325,8 +1358,23 @@ read_int() {
 		newint <<= 8;
 		newint |= (unsigned char)fgetc(in);
 	}
-        return newint;
+	return newint;
 }
+
+/**
+ * Read an NV by simple byte copy to memory
+ * bit integer. See output_int() for the compression details.
+ */
+NV
+read_nv() {
+	NV nv;
+	int i = sizeof(NV);
+	unsigned char *p = (char*)&nv;
+	while (i-- > 0) {
+		*p++ = (unsigned char)fgetc(in);
+	}
+}
+
 
 /**
  * Process a profile output file and return the results in a hash like
@@ -1515,6 +1563,7 @@ load_profile_data_from_stream() {
 				unsigned int fid   = read_int();
 				unsigned int line  = read_int();
 				unsigned int count = read_int();
+				NV incl_time       = read_nv();
 				if (NULL == fgets(text, sizeof(text), in))
 					croak("Profile format error in sub line range"); /* probably EOF */
 
