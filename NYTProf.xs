@@ -102,11 +102,24 @@ static int trace_level = 0;
 /* time tracking */
 static struct tms start_ctime, end_ctime;
 #ifdef HAS_GETTIMEOFDAY
-static struct timeval start_time, end_time;
+   typedef struct timeval time_of_day_t;
+#  define get_time_of_day(into) gettimeofday(&into, NULL)
+#  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
+		overflow = 0; \
+		ticks = ((e.tv_sec - s.tv_sec) * 1000000 + e.tv_usec - s.tv_usec); \
+	} STMT_END
 #else
-static int (*u2time)(pTHX_ UV *) = 0;
-static UV start_utime[2], end_utime[2];
+   static int (*u2time)(pTHX_ UV *) = 0;
+   typedef UV time_of_day_t[2];
+#  define get_time_of_day(into) (*u2time)(aTHX_ into)
+#  define get_ticks_between(s, e, ticks, overflow)  STMT_START { \
+		overflow = 0; \
+		ticks = ((e[0] - s[0]) * 1000000 + e[1] - s[1]); \
+	} STMT_END
 #endif
+static time_of_day_t start_time;
+static time_of_day_t end_time;
+
 static unsigned int last_executed_line;
 static unsigned int last_executed_fid;
 static        char *last_executed_fileptr;
@@ -439,7 +452,7 @@ output_int(unsigned int i) {
 void
 output_nv(NV nv) {
 	int i = sizeof(NV);
-	unsigned char *p = (char*)&nv;
+	unsigned char *p = (unsigned char *)&nv;
 	while (i-- > 0) {
 		fputc(*p++, out);
 	}
@@ -699,22 +712,18 @@ void
 DB(pTHX) {
 	char *file;
 	unsigned int elapsed;
+	unsigned int overflow;
+
 	COP *cop;
 
 	if (usecputime) {
 		times(&end_ctime);
+		overflow = 0; /* XXX */
 		elapsed = end_ctime.tms_utime - start_ctime.tms_utime
 						+ end_ctime.tms_stime - start_ctime.tms_stime;
 	} else {
-#ifdef HAS_GETTIMEOFDAY
-		gettimeofday(&end_time, NULL);
-		elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000
-						+ end_time.tv_usec - start_time.tv_usec;
-#else
-		(*u2time)(aTHX_ end_utime);
-		elapsed = (end_utime[0] - start_utime[0]) * 1000000
-						+ end_utime[1] - start_utime[1];
-#endif
+		get_time_of_day(end_time);
+		get_ticks_between(start_time, end_time, elapsed, overflow);
 	}
 
 	if (!out)
@@ -784,12 +793,7 @@ DB(pTHX) {
 	if (usecputime) {
 		times(&start_ctime);
 	} else {
-#ifdef HAS_GETTIMEOFDAY
-		gettimeofday(&start_time, NULL);
-#else
-		start_utime[2];
-		(*u2time)(aTHX_ start_utime);
-#endif
+		get_time_of_day(start_time);
 	}
 }
 
@@ -878,6 +882,8 @@ reinit_if_forked(pTHX) {
  ******************************************/
 
 typedef struct sub_call_start_st {
+  time_of_day_t sub_call_time;
+	char fid_line[50];
 	SV *subname_sv;
 	AV *sub_av;
 } sub_call_start_t;
@@ -887,11 +893,19 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	AV *av = sub_call_start->sub_av;
 	SV *subname_sv = sub_call_start->subname_sv;
 	SV *time_sv = *av_fetch(av, 1, 1);
-	double time_in_sub = 2;
+	double time_in_sub;
+  time_of_day_t sub_end_time;
+	unsigned int ticks, overflow;
 
-	if (trace_level >= 2)
-		warn("exited %s after %fs (%fs total from here)\n",
-			SvPV_nolen(subname_sv), time_in_sub, SvNV(time_sv)+time_in_sub);
+	get_time_of_day(sub_end_time);
+	get_ticks_between(sub_call_start->sub_call_time, sub_end_time, ticks, overflow);
+	time_in_sub = overflow + ticks / 1000000.0;
+
+	if (trace_level >= 3)
+		warn("exited %s after %fs (%fs @ %s)\n",
+			SvPV_nolen(subname_sv), time_in_sub,
+			SvNV(time_sv)+time_in_sub, sub_call_start->fid_line);
+
 	sv_setnv(time_sv, SvNV(time_sv)+time_in_sub);
 	sv_free(sub_call_start->subname_sv);
 }
@@ -914,7 +928,7 @@ pp_entersub_profiler(pTHX) {
   sub_call_start_t sub_call_start;
 
 	if (profile_subs && is_profiling) {
-		/* XXX copy latest time recorded by DB_profiler into sub_call_start time element */
+		get_time_of_day(sub_call_start.sub_call_time);
 	}
 
 	/*
@@ -1021,6 +1035,7 @@ pp_entersub_profiler(pTHX) {
 		if (profile_subs) {
 			sub_call_start.subname_sv = subname_sv;
 			sub_call_start.sub_av = (AV *)SvRV(sv_tmp);
+			strcpy(sub_call_start.fid_line, fid_line_key);
 			if (is_xs) {
 				/* acculumate now time we've just spent in the xs sub */
 				incr_sub_inclusive_time(aTHX_ &sub_call_start);
@@ -1083,6 +1098,9 @@ disable_profile(pTHX)
 int
 init_profiler(pTHX) {
 	unsigned int hashtable_memwidth;
+#ifndef HAS_GETTIMEOFDAY
+	SV **svp;
+#endif
 
 	/* Save the process id early. We can monitor it to detect forks that affect 
 		 output buffering.
@@ -1097,6 +1115,15 @@ init_profiler(pTHX) {
 		warn("NYTProf internal error - perl not in debug mode");
 		return 0;
 	}
+
+#ifndef HAS_GETTIMEOFDAY
+	require_pv("Time/HiRes.pm"); /* before opcode redirection */
+	svp = hv_fetch(PL_modglobal, "Time::U2time", 12, 0);
+	if (!svp || !SvIOK(*svp)) croak("Time::HiRes is required");
+	u2time = INT2PTR(int(*)(pTHX_ UV*), SvIV(*svp));
+	if (trace_level)
+		warn("Using Time::HiRes %p\n", u2time);
+#endif
 
 	/* create file id mapping hash */
 	hashtable_memwidth = sizeof(Hash_entry*) * hashtable.size;
@@ -1144,14 +1171,7 @@ init_profiler(pTHX) {
 	if (usecputime) {
 		times(&start_ctime);
 	} else {
-#ifdef HAS_GETTIMEOFDAY
-		gettimeofday(&start_time, NULL);
-#else
-		SV **svp = hv_fetch(PL_modglobal, "Time::U2time", 12, 0);
-		if (!svp || !SvIOK(*svp)) croak("Time::HiRes is required");
-		u2time = INT2PTR(int(*)(pTHX_ UV*), SvIV(*svp));
-		(*u2time)(aTHX_ start_utime);
-#endif
+		get_time_of_day(start_time);
 	}
   return 1;
 }
@@ -1369,10 +1389,11 @@ NV
 read_nv() {
 	NV nv;
 	int i = sizeof(NV);
-	unsigned char *p = (char*)&nv;
+	unsigned char *p = (unsigned char *)&nv;
 	while (i-- > 0) {
 		*p++ = (unsigned char)fgetc(in);
 	}
+	return nv;
 }
 
 
