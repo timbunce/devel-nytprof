@@ -53,8 +53,8 @@ fid_sub_time	3	11	0	0
 fid_sub_time	3	11	1	2
 fid_sub_time	3	11	2	1	[ 0 1 ]
 fid_sub_time	3	14	[ 0 1 ]
-sub_caller	AutoLoader::AUTOLOAD	1	17	1
-sub_caller	AutoLoader::AUTOLOAD	1	18	1
+sub_caller	AutoLoader::AUTOLOAD	1	17	[ 1 0 ]
+sub_caller	AutoLoader::AUTOLOAD	1	18	[ 1 0 ]
 sub_subinfo	AutoLoader::AUTOLOAD	[ 2 21 117 2 0 ]
 sub_subinfo	AutoLoader::BEGIN	[ 2 173 173 0 0 ]
 sub_subinfo	AutoLoader::__ANON__[AutoLoader.pm:96]	[ 2 96 96 0 0 ]

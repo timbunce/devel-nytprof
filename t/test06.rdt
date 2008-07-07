@@ -49,14 +49,14 @@ fid_sub_time	1	31	[ 0 223 ]
 fid_sub_time	1	42	[ 0 1 ]
 fid_sub_time	1	43	[ 0 1 ]
 fid_sub_time	1	44	[ 0 1 ]
-sub_caller	main::bar	1	43	1
-sub_caller	main::baz	1	44	1
-sub_caller	main::foo	1	42	1
-sub_caller	main::noop	1	12	10
-sub_caller	main::noop	1	14	100
-sub_caller	main::noop	1	25	100
-sub_caller	main::noop	1	36	100
-sub_caller	main::noop	1	37	100
+sub_caller	main::bar	1	43	[ 1 0 ]
+sub_caller	main::baz	1	44	[ 1 0 ]
+sub_caller	main::foo	1	42	[ 1 0 ]
+sub_caller	main::noop	1	12	[ 10 0 ]
+sub_caller	main::noop	1	14	[ 100 0 ]
+sub_caller	main::noop	1	25	[ 100 0 ]
+sub_caller	main::noop	1	36	[ 100 0 ]
+sub_caller	main::noop	1	37	[ 100 0 ]
 sub_subinfo	main::bar	[ 1 19 28 1 0 ]
 sub_subinfo	main::baz	[ 1 30 40 1 0 ]
 sub_subinfo	main::foo	[ 1 9 17 1 0 ]

@@ -1627,7 +1627,7 @@ load_profile_data_from_stream() {
 
 				if (!sub_callers_hv)
 					sub_callers_hv = newHV();
-				/* { 'pkg::sub' => { fid => { line => count } } } */
+				/* { 'pkg::sub' => { fid => { line => [ count, incl_time ] } } } */
 				sv = *hv_fetch(sub_callers_hv, text, strlen(text)-1, 1);
 				if (!SvROK(sv))		/* autoviv */
 						sv_setsv(sv, newRV_noinc((SV*)newHV()));
@@ -1640,7 +1640,11 @@ load_profile_data_from_stream() {
 				if (fid) {
 					len = my_snprintf(text, sizeof(text), "%u", line);
 					sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
-					sv_setuv(sv, count);
+					if (!SvROK(sv)) /* autoviv */
+						sv_setsv(sv, newRV_noinc((SV*)newAV()));
+					sv = SvRV(sv);
+					sv_setuv(*av_fetch((AV *)sv, 0, 1), count);
+					sv_setnv(*av_fetch((AV *)sv, 1, 1), incl_time);
 				}
 				else { /* is meta-data about sub */
 					/* line == 0: is_xs - set line range to 0,0 as marker */

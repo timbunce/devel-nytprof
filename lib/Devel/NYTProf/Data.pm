@@ -272,6 +272,10 @@ sub normalize_variables {
 	my $sub_subinfo = $self->{sub_subinfo};
 	$_->[4] = 0 for values %$sub_subinfo;
 
+	# { 'pkg::sub' => { fid => { line => [ count, incl_time ] } } }
+	my $sub_caller = $self->{sub_caller} || {};
+	$_->[1]=0 for map { values %$_ } map { values %$_ } values %$sub_caller;
+
 	my $inc = [ @INC, '.' ];
 
 	$self->make_fid_filenames_relative( $inc );
