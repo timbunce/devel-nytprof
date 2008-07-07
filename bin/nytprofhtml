@@ -165,12 +165,28 @@ sub subroutine_table {
 
   # XXX would be nice to color code these according to the overall time spent in the sub
   my $sub_links = qq{<table border=1 cellpadding=0>
-    <tr><th>Lines</th><th>Subroutine</th></tr>
+    <tr><th>Lines</th><th colspan=2>Subroutine</th></tr>
   };
   $sub_links .= join "", map {
-    sprintf qq{<tr><td>%d&mdash;%d</td><td>sub <a href="#%d">%s</a></td></tr>},
-      $_->{first_line}, $_->{last_line},
-      $_->{first_line}, $_->{subname};
+    my $last_index = 1 + rindex $_->{subname}, ':';
+    my $pkg = substr $_->{subname}, 0, $last_index;
+    my $subr = substr $_->{subname}, $last_index;
+
+    my $first_line = $_->{first_line};
+    my $last_line = $_->{last_line};
+
+    if ($first_line == $last_line) {
+      sprintf qq{<tr><td>%d</td><td class="sub_pkg"><a class="sub_pkg" href="#%d">%s</a></td><td class="sub_sub"><a class="sub_sub" href="#%d">%s</a></td></tr>},
+        $first_line,
+        $first_line, $pkg, 
+        $last_line, $subr;
+    }
+    else {
+      sprintf qq{<tr><td>%d&mdash;%d</td><td class="sub_pkg"><a class="sub_pkg" href="#%d">%s</a></td><td class="sub_sub"><a class="sub_sub" href="#%d">%s</a></td></tr>},
+        $first_line, $last_line,
+        $first_line, $pkg, 
+        $first_line, $subr;
+    }
   } @subs;
   $sub_links .= "</table>\n";
 
@@ -183,7 +199,7 @@ $reporter->set_param('datastart', sub {
 
     my $sub_links = ($subs && %$subs) ? subroutine_table($subs) : "";
 
-    return qq{<div style="font-family: monospace">$sub_links</div><br>
+    return qq{$sub_links<br>
       <table border=1 cellpadding=0>
       <tr><th>Line</th><th>Calls</th><th>Time</th><th>Times/Call</th><th>Code</th>
       </tr>\n
@@ -516,6 +532,50 @@ td {
 
 .index { text-align: left; }
 
+/* subrouting dispatch table */
+td.sub_pkg {
+    text-align: right;
+    padding-right: 0;
+    border-right: hidden;
+    font-family: monospace;
+}
+
+td.sub_sub {
+    text-align: left;
+    padding-left: 0;
+    border-left: hidden;
+    font-family: monospace;
+}
+
+a.sub_pkg:link {
+  color: grey;
+  text-decoration: none;
+}
+a.sub_sub:link {
+  color: blue;
+  text-decoration: none;
+}
+
+a.sub_pkg:hover,
+a.sub_sub:hover,
+a.sub_pkg:visited:hover,
+a.sub_sub:visited:hover {
+  text-decoration: underline;
+}
+
+a.sub_pkg:visited, 
+a.sub_pkg:active {
+  color: grey;
+  text-decoration: none;
+}
+a.sub_sub:visited, 
+a.sub_sub:active {
+  color: blue;
+  text-decoration: none;
+}
+
+/* XXX
+ * Can be removed if images are not used
 div#top_header {
 	width: 100%;
 	background-image: url("../../images/header_fill.png");
@@ -529,6 +589,7 @@ img#top_header_text {
 img#top_header_right {
 	float: right;
 }
+*/
 
 /* source code */
 pre,.s {
