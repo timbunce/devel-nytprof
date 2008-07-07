@@ -1402,6 +1402,23 @@ read_nv() {
 }
 
 
+AV *
+lookup_subinfo_av(pTHX_ char *subname, STRLEN len, HV *sub_subinfo_hv)
+{
+	SV *sv;
+	if (!len)
+		len = strlen(subname);
+	/* { 'pkg::sub' => [
+		*			fid, first_line, last_line, incl_time
+		*		], ... }
+		*/
+	sv = *hv_fetch(sub_subinfo_hv, subname, len, 1);
+	if (!SvROK(sv))		/* autoviv */
+			sv_setsv(sv, newRV_noinc((SV*)newAV()));
+	return SvRV(sv);
+}
+
+
 /**
  * Process a profile output file and return the results in a hash like
  * { fid_fileinfo  => [ [file, other...info ], ... ], # index by [fid]
@@ -1432,7 +1449,7 @@ load_profile_data_from_stream() {
 	AV* fid_line_time_av = newAV();
 	AV* fid_block_time_av = NULL;
 	AV* fid_sub_time_av = NULL;
-	HV* sub_fid_lines_hv = NULL;
+	HV* sub_subinfo_hv = NULL;
 	HV* sub_callers_hv = NULL;
 
 	av_extend(fid_fileinfo_av, 64);  /* grow it up front. */
@@ -1569,22 +1586,20 @@ load_profile_data_from_stream() {
 				if (trace_level >= 3)
 				    warn("Sub %.*s fid %u lines %u..%u\n",
 							(int)strlen(text)-1, text, fid, first_line, last_line);
-				if (!sub_fid_lines_hv)
-					sub_fid_lines_hv = newHV();
-				/* { 'pkg::sub' => [ fid, first_line, last_line ], ... } */
-				sv = *hv_fetch(sub_fid_lines_hv, text, strlen(text)-1, 1);
-				if (!SvROK(sv))		/* autoviv */
-						sv_setsv(sv, newRV_noinc((SV*)newAV()));
-				av = (AV*)SvRV(sv);
-				av_store(av, 0, newSVuv(fid));
-				av_store(av, 1, newSVuv(first_line));
-				av_store(av, 2, newSVuv(last_line));
+				if (!sub_subinfo_hv)
+					sub_subinfo_hv = newHV();
+				av = lookup_subinfo_av(aTHX_ text, strlen(text)-1, sub_subinfo_hv);
+				sv_setuv(*av_fetch(av, 0, 1), fid);
+				sv_setuv(*av_fetch(av, 1, 1), first_line);
+				sv_setuv(*av_fetch(av, 2, 1), last_line);
+				/* [3] used for incl_time - updated by sub caller info below */
 				break;
 			}
 
 			case 'c':	/* sub callers */
 			{
 				SV *sv;
+				AV *subinfo_av;
 				int len;
 				unsigned int fid   = read_int();
 				unsigned int line  = read_int();
@@ -1596,6 +1611,10 @@ load_profile_data_from_stream() {
 				if (trace_level >= 3)
 				    warn("Sub %.*s called by fid %u line %u: count %d\n",
 							(int)strlen(text)-1, text, fid, line, count);
+
+				if (!sub_subinfo_hv)
+					sub_subinfo_hv = newHV();
+				subinfo_av = lookup_subinfo_av(aTHX_ text, strlen(text)-1, sub_subinfo_hv);
 
 				if (!sub_callers_hv)
 					sub_callers_hv = newHV();
@@ -1612,13 +1631,18 @@ load_profile_data_from_stream() {
 				if (fid) {
 					len = my_snprintf(text, sizeof(text), "%u", line);
 					sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
+					sv_setuv(sv, count);
 				}
 				else { /* is meta-data about sub */
-					/* line == 0: is_xs */
-					sv = *hv_fetch((HV*)SvRV(sv), "is_xs", 5, 1);
+					/* line == 0: is_xs - set line range to 0,0 as marker */
+					sv_setiv(*av_fetch(subinfo_av, 2, 1), 0);
+					sv_setiv(*av_fetch(subinfo_av, 3, 1), 0);
 				}
 
-				sv_setuv(sv, count);
+				/* accumulate incl_time for each fid:line into subinfo */
+				sv = *av_fetch(subinfo_av, 3, 1);
+				sv_setnv(sv, incl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
+
 				break;
 			}
 
@@ -1695,8 +1719,8 @@ load_profile_data_from_stream() {
 		hv_stores(profile_hv, "fid_block_time", newRV_noinc((SV*)fid_block_time_av)); 
 	if (fid_sub_time_av)
 		hv_stores(profile_hv, "fid_sub_time",   newRV_noinc((SV*)fid_sub_time_av)); 
-	if (sub_fid_lines_hv)
-		hv_stores(profile_hv, "sub_fid_line",   newRV_noinc((SV*)sub_fid_lines_hv)); 
+	if (sub_subinfo_hv)
+		hv_stores(profile_hv, "sub_subinfo",    newRV_noinc((SV*)sub_subinfo_hv)); 
 	if (sub_callers_hv)
 		hv_stores(profile_hv, "sub_caller",     newRV_noinc((SV*)sub_callers_hv)); 
 	return profile_hv;

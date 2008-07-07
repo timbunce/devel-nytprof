@@ -129,9 +129,9 @@ The types of data present can depend on the options used when profiling.
             }
         }
     }
-    sub_fid_line => {
-        main::bar => [ 1 6 8 ]
-        main::foo => [ 1 1 4 ]
+    sub_subinfo => {
+        main::bar => [ 1 6 8 2e-06 ]
+        main::foo => [ 1 1 4 1.5e-06 ]
     }
  }
 
@@ -152,8 +152,8 @@ separarate the elements of the path.
   sub_caller	main::bar	1	16	1
   sub_caller	main::bar	1	3	2
   sub_caller	main::foo	1	11	1
-  sub_fid_line	main::bar	[ 1 6 8 ]
-  sub_fid_line	main::foo	[ 1 1 4 ]
+  sub_subinfo	main::bar	[ 1 6 8 ]
+  sub_subinfo	main::foo	[ 1 1 4 ]
   
 This format is especially useful for grep'ing and diff'ing.
 
@@ -187,8 +187,13 @@ sub _dump_elements {
 		$padN = $pad x (@$path+1);
 	}
 
+	my $format = {
+		sub_subinfo => { compact => 1 },
+	};
+
 	print $fh "$start\n" if $start;
 	$path = [ @$path, undef ];
+	my $key1 = $path->[0] || $keys->[0];
 	for my $key (@$keys) {
 
 		my $value = ($is_hash) ? $r->{$key} : $r->[$key];
@@ -198,17 +203,19 @@ sub _dump_elements {
 
 		# special case some common cases to be more compact:
 		#		fid_*_time   [fid][line] = [N,N]
-		#		sub_fid_line {subname} = [fid,startline,endline]
-		# XXX should be checking path instead
-		my $as_compact = (ref $value eq 'ARRAY' && @$value <= 9
-		               && !grep { ref or !defined } @$value);
-
+		#		sub_subinfo {subname} = [fid,startline,endline,incl_time]
+		my $as_compact = $format->{$key1}{compact};
+		if (not defined $as_compact) { # so guess...
+			$as_compact = (ref $value eq 'ARRAY' && @$value <= 9
+										&& !grep { ref or !defined } @$value);
+		}
 
 		# print the value intro
 		print $fh "$padN$key$colon"
 			unless ref $value && !$as_compact;
 
 		if ($as_compact) {
+			no warnings qw(uninitialized);
 			print $fh "[ @$value ]\n";
 		}
 		elsif (ref $value) {
@@ -237,6 +244,7 @@ The data normalized is:
  - basetime attribute: set to 0
  - xs_version attribute: set to 0
  - perl_version attribute: set to 0
+ - subroutines: inclusive time set to 0
  - filenames: path prefixes matching absolute paths in @INC are removed
  - filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
 
@@ -261,6 +269,9 @@ sub normalize_variables {
 		}
 	}
 
+	my $sub_subinfo = $self->{sub_subinfo};
+	$_->[3] = 0 for values %$sub_subinfo;
+
 	my $inc = [ @INC, '.' ];
 
 	$self->make_fid_filenames_relative( $inc );
@@ -268,7 +279,7 @@ sub normalize_variables {
 	# normalize sub names like
 	#		AutoLoader::__ANON__[/lib/perl5/5.8.6/AutoLoader.pm:96]
 	strip_prefix_from_paths($inc, $self->{sub_caller},   '\[');
-	strip_prefix_from_paths($inc, $self->{sub_fid_line}, '\[');
+	strip_prefix_from_paths($inc, $self->{sub_subinfo}, '\[');
 
 	# normalize eval numbers to 0
 	# XXX would be nicer to only do this for 'non-local' fids
@@ -366,12 +377,12 @@ sub subs_defined_in_file {
 	my ($self, $fid, $incl_lines) = @_;
 
 	$fid = $self->resolve_fid($fid);
-	my $sub_fid_line = $self->{sub_fid_line}
+	my $sub_subinfo = $self->{sub_subinfo}
 		or return;
 
 	my %subs;
-	while ( my ($sub, $fid_line_info) = each %$sub_fid_line) {
-		next if $fid_line_info->[0] != $fid;
+	while ( my ($sub, $fid_line_info) = each %$sub_subinfo) {
+		next if $fid_line_info->[0] && $fid_line_info->[0] != $fid;
 		my (undef, $first, $last) = @$fid_line_info;
 		$subs{ $sub } = {
 			subname => $sub,
@@ -383,8 +394,10 @@ sub subs_defined_in_file {
 	}
 
 	if ($incl_lines) { # add in the first-line-number keys
-		push @{ $subs{ $_->{first_line} } }, $_
-			for values %subs;
+		for (values %subs) {
+			next unless defined(my $first_line = $_->{first_line});
+			push @{ $subs{ $first_line } }, $_;
+		}
 	}
 
 	return \%subs;
@@ -458,9 +471,9 @@ executed the eval.
 sub file_line_range_of_sub {
 	my ($self, $sub) = @_;
 
-	my $sub_fid_line = $self->{sub_fid_line}{$sub}
+	my $sub_subinfo = $self->{sub_subinfo}{$sub}
 			or return; # no such sub
-	my ($fid, $first, $last) = @$sub_fid_line;
+	my ($fid, $first, $last) = @$sub_subinfo;
 
 	my $fileinfo = $self->{fid_fileinfo}->[$fid];
 	while ($fileinfo->[1]) { # is an eval
