@@ -75,13 +75,20 @@ my $reporter = new Devel::NYTProf::Reader($opt{file});
 $reporter->output_dir($opt{out});
 
 # set formatting for html
-$reporter->set_param('header', get_header("Profile: !~FILENAME~!").
+$reporter->set_param('header', sub {
+    my ($profile, $filestr) = @_;
+    get_header("Profile: !~FILENAME~!").
 qq{<body> 
 <div class="header" style="position: relative; overflow-x: hidden; overflow-y: hidden; z-index: 0; ">
-<div class="headerForeground">
+<div class="headerForeground" style="float: left">
     <span class="siteTitle">Performance Profile</span>
-    <span class="siteSubtitle">
-    </span>
+    <span class="siteSubtitle">per-!~LEVEL~!</span><br />
+    <span class="siteSubtitle">For ${ \($profile->{attribute}{application}) }</span><br />
+    <span class="siteSubtitle">Run ${ \scalar localtime($profile->{attribute}{basetime}) }</span>
+</div>
+<div class="headerForeground" style="float: right">
+    <span class="siteTitle">&nbsp;</span>
+    <span class="siteSubtitle">Generated ${ \scalar localtime(time) }</span>
 </div>
 <div style="position: absolute; left: 0px; top: 0%; width: 100%; height: 101%; z-index: -1; background-color: rgb(17, 136, 255); "></div>
 <div style="position: absolute; left: 0px; top: 2%; width: 100%; height: 99%; z-index: -1; background-color: rgb(16, 134, 253); "></div>
@@ -142,7 +149,7 @@ qq{<body>
 </td></tr>\n
 <td class='h' align='right'>Total Time</td><td align=\"left\">!~TOTAL_TIME~!
 seconds</td>\n</tr></table><br/>
-});
+}});
 
 $reporter->set_param('taintmsg', 
 "<div class='warn_title'>WARNING!</div>\n
@@ -458,9 +465,9 @@ __DATA__
 
 body { font-family: sans-serif; }
 
-.header { font-family: sans-serif; }
+.header { font-family: sans-serif; padding-left: 1em; }
 .headerForeground { color: white; padding: 10px; padding-top: 50px; }
-.siteTitle { font-size: 2em; padding-left: 10px; }
+.siteTitle { font-size: 2em; }
 .siteSubTitle { font-size: 1.2em; }
 
 h1, h3 {

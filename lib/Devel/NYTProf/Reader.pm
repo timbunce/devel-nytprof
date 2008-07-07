@@ -63,6 +63,8 @@ sub new {
 			replacements => [
 				{pattern => '!~FILENAME~!', 
 					replace => "\$FILE"},
+				{pattern => '!~LEVEL~!', 
+					replace => "\$LEVEL"},
 				{pattern => '!~DEV_CALLS~!', 
 					replace => "\$statistics{calls}->[0]"},
 				{pattern => '!~DEV_TIME~!', 
@@ -270,9 +272,9 @@ sub report {
 	my $self = shift;
 	my $profile = $self->{profile};
 
-	my %set_tag = ( fid_line_time => '-line' );
-	$set_tag{fid_block_time} = '-block' if $profile->{fid_block_time};
-	$set_tag{fid_sub_time}   = '-sub'   if $profile->{fid_sub_time};
+	my %set_tag = ( fid_line_time => 'line' );
+	$set_tag{fid_block_time} = 'block' if $profile->{fid_block_time};
+	$set_tag{fid_sub_time}   = 'sub'   if $profile->{fid_sub_time};
 
 	for my $fid_line_set (keys %set_tag) {
 		$self->_generate_report($profile, $fid_line_set, $set_tag{$fid_line_set});
@@ -282,7 +284,7 @@ sub report {
 ##
 sub _generate_report {
 	my $self = shift;
-	my ($profile, $fid_line_set, $filetag) = @_;
+	my ($profile, $fid_line_set, $LEVEL) = @_;
 
 	my $data = _map_new_to_old($profile, $fid_line_set);
 
@@ -297,7 +299,7 @@ sub _generate_report {
 		}
 		$fname =~ s#^[/\\]##o;		# nuke leading / or \
 		$fname =~ s#[/\\]#-#go; # replace / and \ with html safe -
-		$fname .= $filetag;
+		$fname .= "-$LEVEL" if $LEVEL;
 
 		$self->{filestats}->{$filestr}->{html_safe} = $fname;
 		# store original filename in value as well as key
