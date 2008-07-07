@@ -74,10 +74,16 @@ my $reporter = new Devel::NYTProf::Reader($opt{file});
 # place to store this crap
 $reporter->output_dir($opt{out});
 
-
 # set formatting for html
 $reporter->set_param('header', get_header("Profile: !~FILENAME~!").
-"<body> <h1>Performance Profile</h1> <table><tr>
+"<body> 
+<div id='top_header'>
+ <img id='top_header_left' src='../../images/left_header_cap.png'/>
+ <img id='top_header_text' src='../../images/header_text.png'/>
+ <img id='top_header_right' src='../../images/right_header_cap.png'/>
+ <div style='clear: both;'></div>
+</div> <br />
+<table><tr>
 <td class='h' align='right'>File</td><td align=\"left\">!~FILENAME~!</td></tr>
 <td class='h' align='right'>Total Calls</td><td align=\"left\">!~TOTAL_CALLS~! statements executed
 </td></tr>\n
@@ -201,6 +207,9 @@ $reporter->report();
 # output a css file too (optional, but good for pretty pages)
 my @css = <DATA>;
 $reporter->_output_additional('style.css', \@css);
+
+# copy images folder into output directory
+# TODO copy images folder
 
 output_indexpage($reporter, 'index.html');
 
@@ -425,6 +434,20 @@ td {
 }
 
 .index { text-align: left; }
+
+div#top_header {
+	width: 100%;
+	background-image: url("../../images/header_fill.png");
+}
+img#top_header_left {
+	float: left;
+}
+img#top_header_text {
+	float: left;
+}
+img#top_header_right {
+	float: right;
+}
 
 /* source code */
 pre,.s {
