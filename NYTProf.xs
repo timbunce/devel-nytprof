@@ -172,6 +172,7 @@ HV *sub_callers_hv;
  */
 void
 output_header(pTHX) {
+	SV *sv;
 	time_t basetime = PL_basetime;
 	unsigned int ticks = (usecputime) ? CLOCKS_PER_SEC : 1000000;
 
@@ -191,6 +192,10 @@ output_header(pTHX) {
 	fprintf(out, ":%s=%s\n",       "xs_version",    XS_VERSION);
 	fprintf(out, ":%s=%d.%d.%d\n", "perl_version",  PERL_REVISION, PERL_VERSION, PERL_SUBVERSION);
 	fprintf(out, ":%s=%u\n",       "ticks_per_sec", ticks);
+	/* $0 - application name */
+	mg_get(sv = get_sv("0",GV_ADDWARN));
+	fprintf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
+
 	if (0)fprintf(out, ":%s=%lu\n",       "nv_size", sizeof(NV));
 
 	OUTPUT_PID();
