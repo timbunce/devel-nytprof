@@ -16,6 +16,7 @@ use Getopt::Long;
 use List::Util qw(sum);
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
+use Devel::NYTProf::Util qw(fmt_float);
 
 our $VERSION = 1.02;
 
@@ -157,12 +158,15 @@ $reporter->set_param('taintmsg',
 after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n");
 
 sub subroutine_table {
-  my ($subs_defined_hash) = @_;
+  my ($profile, $filestr) = @_;
+
+  my $subs_in_file = $profile->subs_defined_in_file( $filestr, 0 );
+  return "" unless $subs_in_file && %$subs_in_file;
 
   my @subs = sort {
-    $a->{first_line} <=> $b->{first_line}
-  } values %$subs_defined_hash;
-$DB::single=1;
+    $b->{incl_time} <=> $a->{incl_time} or
+    $a->{subname}   <=> $b->{subname}
+  } values %$subs_in_file;
 
   # XXX would be nice to color code these according to the overall time spent in the sub
   my $sub_links = qq{<table border=1 cellpadding=0>
@@ -204,9 +208,8 @@ $DB::single=1;
 
 $reporter->set_param('datastart', sub {
     my ($profile, $filestr) = @_;
-    my $subs = $profile->subs_defined_in_file( $filestr, 0 );
 
-    my $sub_links = ($subs && %$subs) ? subroutine_table($subs) : "";
+    my $sub_links = subroutine_table($profile, $filestr);
 
     return qq{$sub_links<br>
       <table border=1 cellpadding=0>
@@ -410,22 +413,15 @@ sub output_indexpage {
 
 # calculates how good or bad the time is for a file based on the others
 sub determine_severity {
-	my ($column, $val, $stats) = @_; # @_[3] is like arrayref (deviation, mean)
+	my (undef, $val, $stats) = @_; # @_[3] is like arrayref (deviation, mean)
 	return "<td></td>" unless defined $val;
+
+	# normalize the width/precision so that the tables look good.
+	$val = fmt_float($val, NUMERIC_PRECISION);
 	return "<td>$val</td>" unless defined $stats;
 
 	my $devs = ($val - $stats->[1]); #stats->[1] is the mean.
 	$devs /= $stats->[0] if $stats->[0]; # no divide by zero when all values equal
-
-	# normalize the width/precision so that the tables look good.
-	# don't do this for 'calls' because the number is always an integer
-	if (defined $column and $column ne 'calls') {
-		if ($val < 0.00001 and $val > 0) {
-			$val = sprintf(" %.0e", $val);
-		} else {
-			$val = sprintf(" %.".NUMERIC_PRECISION."f", $val);
-		}
-	}
 
 	my $class;
 	if ($devs < 0) { # fast
@@ -755,4 +751,4 @@ at your option, any later version of Perl 5 you may have available.
 
 =cut
 
-# vim:ts=2:sw=2
+# vim:ts=2:sw=2:sts=0:noexpandtab

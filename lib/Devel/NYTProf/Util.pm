@@ -37,6 +37,7 @@ use Cwd qw(getcwd);
 
 our @EXPORT_OK = qw(
 	strip_prefix_from_paths
+	fmt_float
 );
 
 
@@ -95,6 +96,20 @@ sub strip_prefix_from_paths {
 	}
 
 	return;
+}
+
+
+# eg normalize the width/precision so that the tables look good.
+sub fmt_float {
+  my ($val, $precision) = @_;
+  if ($val < 0.00001 and $val > 0) {
+    $val = sprintf("%.0e", $val);
+  }
+  elsif ($val != int($val)) {
+		$precision ||= 5;
+    $val = sprintf("%.${precision}f", $val);
+  }
+  return $val;
 }
 
 
