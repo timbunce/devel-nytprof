@@ -165,42 +165,30 @@ sub subroutine_table {
 
   my @subs = sort {
     $b->{incl_time} <=> $a->{incl_time} or
-    $a->{subname}   <=> $b->{subname}
+    $a->{subname}   cmp $b->{subname}
   } values %$subs_in_file;
 
   # XXX would be nice to color code these according to the overall time spent in the sub
   my $sub_links = qq{<table border=1 cellpadding=0>
-    <tr><th>Lines</th><th colspan=2>Subroutine</th></tr>
+    <tr><th>Calls</th><th>Inclusive<br />Time</th><th colspan=2>Subroutine</th></tr>
   };
-  $sub_links .= join "", map {
-    my $last_index = 1 + rindex $_->{subname}, ':';
 
-    my ($pkg, $subr);
-    if ($_->{subname} =~ m/(.*)(__ANON__.*)/o) {
-      ($pkg, $subr) = ($1, $2);
-    }
-    else {
-      $pkg = substr $_->{subname}, 0, $last_index;
-      $subr = substr $_->{subname}, $last_index;
-    }
-
-    my $first_line = $_->{first_line};
-    my $last_line = $_->{last_line};
-
-    if ($first_line == $last_line) {
-      sprintf qq{<tr><td>%d</td><td class="sub_pkg">%s</td><td class="sub_sub"><a class="sub_sub" href="#%d">%s</a></td></tr>},
-        $first_line,
-        $pkg, 
-        $last_line, $subr;
-    }
-    else {
-      sprintf qq{<tr><td>%d&mdash;%d</td><td class="sub_pkg">%s</td><td class="sub_sub"><a class="sub_sub" href="#%d">%s</a></td></tr>},
-        $first_line, $last_line,
-        $pkg, 
-        $first_line, $subr;
-    }
-  } @subs;
-
+	my @rows;
+	for my $sub (@subs) {
+		$sub_links .= "<tr>";
+		# calls
+		$sub_links .= determine_severity(undef, $sub->{calls} || 0, undef);
+		# incl_time
+		$sub_links .= determine_severity(undef, $sub->{incl_time} || 0, undef);
+		# package and subname
+		my $subname = $sub->{subname};
+		$subname =~ s/\[.*?:(\d+)\]/[:$1]/; # remove filename from eg __ANON__
+		my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1,$2) : ('',$subname);
+		$sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
+		$sub_links .= sprintf(qq{<td class="sub_sub"><a href="#%d">%s</a></td>},
+			$sub->{first_line}, $subr);
+		$sub_links .= "<tr>\n";
+	}
   $sub_links .= "</table>\n";
 
   return $sub_links;
@@ -418,7 +406,7 @@ sub determine_severity {
 
 	# normalize the width/precision so that the tables look good.
 	$val = fmt_float($val, NUMERIC_PRECISION);
-	return "<td>$val</td>" unless defined $stats;
+	return qq{<td class="n">$val</td>} unless defined $stats;
 
 	my $devs = ($val - $stats->[1]); #stats->[1] is the mean.
 	$devs /= $stats->[0] if $stats->[0]; # no divide by zero when all values equal
