@@ -162,6 +162,7 @@ sub subroutine_table {
   my @subs = sort {
     $a->{first_line} <=> $b->{first_line}
   } values %$subs_defined_hash;
+$DB::single=1;
 
   # XXX would be nice to color code these according to the overall time spent in the sub
   my $sub_links = qq{<table border=1 cellpadding=0>
@@ -169,25 +170,33 @@ sub subroutine_table {
   };
   $sub_links .= join "", map {
     my $last_index = 1 + rindex $_->{subname}, ':';
-    my $pkg = substr $_->{subname}, 0, $last_index;
-    my $subr = substr $_->{subname}, $last_index;
+
+    my ($pkg, $subr);
+    if ($_->{subname} =~ m/(.*)(__ANON__.*)/o) {
+      ($pkg, $subr) = ($1, $2);
+    }
+    else {
+      $pkg = substr $_->{subname}, 0, $last_index;
+      $subr = substr $_->{subname}, $last_index;
+    }
 
     my $first_line = $_->{first_line};
     my $last_line = $_->{last_line};
 
     if ($first_line == $last_line) {
-      sprintf qq{<tr><td>%d</td><td class="sub_pkg"><a class="sub_pkg" href="#%d">%s</a></td><td class="sub_sub"><a class="sub_sub" href="#%d">%s</a></td></tr>},
+      sprintf qq{<tr><td>%d</td><td class="sub_pkg">%s</td><td class="sub_sub"><a class="sub_sub" href="#%d">%s</a></td></tr>},
         $first_line,
-        $first_line, $pkg, 
+        $pkg, 
         $last_line, $subr;
     }
     else {
-      sprintf qq{<tr><td>%d&mdash;%d</td><td class="sub_pkg"><a class="sub_pkg" href="#%d">%s</a></td><td class="sub_sub"><a class="sub_sub" href="#%d">%s</a></td></tr>},
+      sprintf qq{<tr><td>%d&mdash;%d</td><td class="sub_pkg">%s</td><td class="sub_sub"><a class="sub_sub" href="#%d">%s</a></td></tr>},
         $first_line, $last_line,
-        $first_line, $pkg, 
+        $pkg, 
         $first_line, $subr;
     }
   } @subs;
+
   $sub_links .= "</table>\n";
 
   return $sub_links;
@@ -534,40 +543,30 @@ td {
 
 /* subrouting dispatch table */
 td.sub_pkg {
-    text-align: right;
-    padding-right: 0;
-    border-right: hidden;
-    font-family: monospace;
+  text-align: right;
+  padding-right: 0;
+  border-right: hidden;
+  font-family: monospace;
+  color: grey;
 }
 
 td.sub_sub {
-    text-align: left;
-    padding-left: 0;
-    border-left: hidden;
-    font-family: monospace;
+  text-align: left;
+  padding-left: 0;
+  border-left: hidden;
+  font-family: monospace;
 }
 
-a.sub_pkg:link {
-  color: grey;
-  text-decoration: none;
-}
 a.sub_sub:link {
   color: blue;
   text-decoration: none;
 }
 
-a.sub_pkg:hover,
 a.sub_sub:hover,
-a.sub_pkg:visited:hover,
 a.sub_sub:visited:hover {
   text-decoration: underline;
 }
 
-a.sub_pkg:visited, 
-a.sub_pkg:active {
-  color: grey;
-  text-decoration: none;
-}
 a.sub_sub:visited, 
 a.sub_sub:active {
   color: blue;
