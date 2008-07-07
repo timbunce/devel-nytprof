@@ -26,6 +26,6 @@ sub_caller	main::bar	1	13	1
 sub_caller	main::bar	1	17	1
 sub_caller	main::baz	1	18	1
 sub_caller	main::foo	1	14	1
-sub_subinfo	main::bar	[ 1 7 9 0 ]
-sub_subinfo	main::baz	[ 1 11 15 0 ]
-sub_subinfo	main::foo	[ 1 1 5 0 ]
+sub_subinfo	main::bar	[ 1 7 9 2 0 ]
+sub_subinfo	main::baz	[ 1 11 15 1 0 ]
+sub_subinfo	main::foo	[ 1 1 5 1 0 ]

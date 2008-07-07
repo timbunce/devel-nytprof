@@ -47,5 +47,5 @@ sub_caller	main::bar	2	3	1
 sub_caller	main::bar	4	3	1
 sub_caller	main::foo	1	11	1
 sub_caller	main::foo	1	12	1
-sub_subinfo	main::bar	[ 1 7 9 0 ]
-sub_subinfo	main::foo	[ 1 1 5 0 ]
+sub_subinfo	main::bar	[ 1 7 9 3 0 ]
+sub_subinfo	main::foo	[ 1 1 5 2 0 ]

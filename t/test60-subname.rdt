@@ -23,5 +23,5 @@ sub_caller	Socket::inet_aton	1	12	1
 sub_caller	Socket::inet_aton	1	16	1
 sub_caller	Socket::inet_aton	1	5	1
 sub_caller	Socket::inet_aton	1	9	1
-sub_subinfo	Socket::inet_aton	[   0 0 ]
-sub_subinfo	main::BEGIN	[ 1 2 2 0 ]
+sub_subinfo	Socket::inet_aton	[ undef 0 0 5 0 ]
+sub_subinfo	main::BEGIN	[ 1 2 2 0 0 ]

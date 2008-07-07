@@ -1008,8 +1008,8 @@ pp_entersub_profiler(pTHX) {
 		}
 
 		if (trace_level >= 3)
-			fprintf(stderr, "fid %d:%d called %s (%s)\n", fid, line, 
-							SvPV_nolen(subname_sv), OP_NAME(op));
+			fprintf(stderr, "fid %d:%d called %s (%s, %s)\n", fid, line, 
+				SvPV_nolen(subname_sv), (is_xs) ? "xs" : "sub", OP_NAME(op));
 
 		/* { subname => { "fid:line" => [ count, incl_time ] } } */
 		sv_tmp = *hv_fetch(sub_callers_hv, SvPV_nolen(subname_sv), 
@@ -1413,8 +1413,17 @@ lookup_subinfo_av(pTHX_ char *subname, STRLEN len, HV *sub_subinfo_hv)
 		*		], ... }
 		*/
 	sv = *hv_fetch(sub_subinfo_hv, subname, len, 1);
-	if (!SvROK(sv))		/* autoviv */
-			sv_setsv(sv, newRV_noinc((SV*)newAV()));
+	if (!SvROK(sv))	{	/* autoviv */
+		AV *av = newAV();
+		SV *rv = newRV_noinc((SV *)av);
+		/* 0: fid - may be undef
+		 * 1: start_line - may be undef if not known and not known to be xs
+		 * 2: end_line - ditto
+		 */
+		sv_setuv(*av_fetch(av, 3, 1), 0);	/* call count */
+		sv_setnv(*av_fetch(av, 4, 1), 0);	/* incl_time */
+		sv_setsv(sv, rv);
+  }
 	return SvRV(sv);
 }
 
@@ -1591,7 +1600,8 @@ load_profile_data_from_stream() {
 				sv_setuv(*av_fetch(av, 0, 1), fid);
 				sv_setuv(*av_fetch(av, 1, 1), first_line);
 				sv_setuv(*av_fetch(av, 2, 1), last_line);
-				/* [3] used for incl_time - updated by sub caller info below */
+				/* [3] used for call count - updated by sub caller info below */
+				/* [4] used for incl_time - updated by sub caller info below */
 				break;
 			}
 
@@ -1638,8 +1648,10 @@ load_profile_data_from_stream() {
 					sv_setiv(*av_fetch(subinfo_av, 2, 1), 0);
 				}
 
-				/* accumulate incl_time for each fid:line into subinfo */
-				sv = *av_fetch(subinfo_av, 3, 1);
+				/* accumulate per-sub totals into subinto */
+				sv = *av_fetch(subinfo_av, 3, 1);	/* sub call count */
+				sv_setuv(sv, count + (SvOK(sv) ? SvUV(sv) : 0));
+				sv = *av_fetch(subinfo_av, 4, 1); /* sub incl_time */
 				sv_setnv(sv, incl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
 
 				break;
@@ -1670,7 +1682,7 @@ load_profile_data_from_stream() {
 				break;
 			}
 
-			case ':':
+			case ':':	/* attribute (as text) */
 			{
 				char *value, *end;
 				SV *value_sv;

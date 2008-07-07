@@ -130,8 +130,8 @@ The types of data present can depend on the options used when profiling.
         }
     }
     sub_subinfo => {
-        main::bar => [ 1 6 8 2e-06 ]
-        main::foo => [ 1 1 4 1.5e-06 ]
+        main::bar => [ 1 6 8 762 2e-06 ]
+        main::foo => [ 1 1 4 793 1.5e-06 ]
     }
  }
 
@@ -152,8 +152,8 @@ separarate the elements of the path.
   sub_caller	main::bar	1	16	1
   sub_caller	main::bar	1	3	2
   sub_caller	main::foo	1	11	1
-  sub_subinfo	main::bar	[ 1 6 8 ]
-  sub_subinfo	main::foo	[ 1 1 4 ]
+  sub_subinfo	main::bar	[ 1 6 8 762 2e-06 ]
+  sub_subinfo	main::foo	[ 1 1 4 793 1.5e-06 ]
   
 This format is especially useful for grep'ing and diff'ing.
 
@@ -203,7 +203,7 @@ sub _dump_elements {
 
 		# special case some common cases to be more compact:
 		#		fid_*_time   [fid][line] = [N,N]
-		#		sub_subinfo {subname} = [fid,startline,endline,incl_time]
+		#		sub_subinfo {subname} = [fid,startline,endline,calls,incl_time]
 		my $as_compact = $format->{$key1}{compact};
 		if (not defined $as_compact) { # so guess...
 			$as_compact = (ref $value eq 'ARRAY' && @$value <= 9
@@ -270,7 +270,7 @@ sub normalize_variables {
 	}
 
 	my $sub_subinfo = $self->{sub_subinfo};
-	$_->[3] = 0 for values %$sub_subinfo;
+	$_->[4] = 0 for values %$sub_subinfo;
 
 	my $inc = [ @INC, '.' ];
 
@@ -354,6 +354,8 @@ lines 42 thru 49, then $profile->line_calls_for_file( 'foo.pl' ) would return:
 			fid => 7,
 			first_line => 42,
 			last_line => 49,
+			calls => 726,
+			incl_time => 2e-03,
 			callers => { ... },
 		},
 		42 => [ <ref to same hash as above> ]
@@ -381,14 +383,16 @@ sub subs_defined_in_file {
 		or return;
 
 	my %subs;
-	while ( my ($sub, $fid_line_info) = each %$sub_subinfo) {
-		next if !$fid_line_info->[0] || $fid_line_info->[0] != $fid;
-		my (undef, $first, $last) = @$fid_line_info;
+	while ( my ($sub, $subinfo) = each %$sub_subinfo) {
+		my ($subfid, $first, $last, $calls, $incl_time) = @$subinfo;
+		next if !$subfid || $subfid != $fid;
 		$subs{ $sub } = {
 			subname => $sub,
-			fid => $fid,
+			fid => $subfid,
 			first_line => $first,
 			last_line => $last,
+			incl_time => $incl_time || 0,
+			calls => $calls || 0,
 			callers => $self->{sub_caller}->{$sub},
 		};
 	}

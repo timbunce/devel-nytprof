@@ -482,20 +482,19 @@ sub _generate_report {
 
 sub href_for_sub {
 	my ($self, $sub) = @_;
-	my ($file, $fid, $first, $last) = $self->{profile}->file_line_range_of_sub($sub) or do {
-		our %href_for_sub_no_data_warn;
+
+	my ($file, $fid, $first, $last) = $self->{profile}->file_line_range_of_sub($sub);
+	if (!$first) {
+		return undef if defined $first; # is xs (first and least are 0)
 		warn("No file line range data for sub '$sub'\n")
-			unless $href_for_sub_no_data_warn{$sub}++; # warn just once
+			unless our $href_for_sub_no_data_warn->{$sub}++; # warn just once
 		return undef;
 	};
-	if (!$file && $first==0 && $last==0) { # is XS
-		return;
-	}
+
 	my $stats = $self->get_file_stats();
 	my $file_stats = $stats->{$file};
 	if (!$file_stats) {
-		warn("Sub '$sub' file '$file' (fid $fid) not in stats\n");
-		#warn "[@{[ keys %$stats ]}]\n";
+		warn("Sub '$sub' file '$file' (fid $fid) not in stats!\n");
 		return "#sub unknown";
 	}
 	my $html_safe = $file_stats->{html_safe} ||= do {
