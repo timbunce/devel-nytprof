@@ -216,7 +216,7 @@ sub _dump_elements {
 
 		if ($as_compact) {
 			no warnings qw(uninitialized);
-			print $fh "[ @$value ]\n";
+			printf $fh "[ %s ]\n", join(" ", map { defined($_) ? $_ : 'undef' } @$value );
 		}
 		elsif (ref $value) {
 			$path->[-1] = $key;
@@ -382,7 +382,7 @@ sub subs_defined_in_file {
 
 	my %subs;
 	while ( my ($sub, $fid_line_info) = each %$sub_subinfo) {
-		next if $fid_line_info->[0] && $fid_line_info->[0] != $fid;
+		next if !$fid_line_info->[0] || $fid_line_info->[0] != $fid;
 		my (undef, $first, $last) = @$fid_line_info;
 		$subs{ $sub } = {
 			subname => $sub,
@@ -466,6 +466,9 @@ Where is a subroutine is defined within a string eval, for example, the fid
 will be the pseudo-fid for the eval, and the $file will be the filename that
 executed the eval.
 
+Subroutines that are implemented in XS have a line range of 0,0 and currently
+don't have an associated file.
+
 =cut
 
 sub file_line_range_of_sub {
@@ -475,8 +478,8 @@ sub file_line_range_of_sub {
 			or return; # no such sub
 	my ($fid, $first, $last) = @$sub_subinfo;
 
-	my $fileinfo = $self->{fid_fileinfo}->[$fid];
-	while ($fileinfo->[1]) { # is an eval
+	my $fileinfo = $fid && $self->{fid_fileinfo}->[$fid];
+	while ($fileinfo->[1]) { # file is an eval
 		# eg string eval
 		# eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
 		warn sprintf "%s: fid %d -> %d for %s\n",

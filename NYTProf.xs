@@ -1576,7 +1576,6 @@ load_profile_data_from_stream() {
 
 			case 's':	/* subroutine file line range */
 			{
-				SV *sv;
 				AV *av;
 				unsigned int fid        = read_int();
 				unsigned int first_line = read_int();
@@ -1635,8 +1634,8 @@ load_profile_data_from_stream() {
 				}
 				else { /* is meta-data about sub */
 					/* line == 0: is_xs - set line range to 0,0 as marker */
+					sv_setiv(*av_fetch(subinfo_av, 1, 1), 0);
 					sv_setiv(*av_fetch(subinfo_av, 2, 1), 0);
-					sv_setiv(*av_fetch(subinfo_av, 3, 1), 0);
 				}
 
 				/* accumulate incl_time for each fid:line into subinfo */

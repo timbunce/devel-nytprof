@@ -486,8 +486,11 @@ sub href_for_sub {
 		our %href_for_sub_no_data_warn;
 		warn("No file line range data for sub '$sub'\n")
 			unless $href_for_sub_no_data_warn{$sub}++; # warn just once
-		return "#sub unknown";
+		return undef;
 	};
+	if (!$file && $first==0 && $last==0) { # is XS
+		return;
+	}
 	my $stats = $self->get_file_stats();
 	my $file_stats = $stats->{$file};
 	if (!$file_stats) {

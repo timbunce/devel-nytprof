@@ -156,18 +156,32 @@ $reporter->set_param('taintmsg',
 <div class='warn'>The source file used to generate this report was modified
 after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n");
 
+sub subroutine_table {
+  my ($subs_defined_hash) = @_;
+
+  my @subs = sort {
+    $a->{first_line} <=> $b->{first_line}
+  } values %$subs_defined_hash;
+
+  # XXX would be nice to color code these according to the overall time spent in the sub
+  my $sub_links = qq{<table border=1 cellpadding=0>
+    <tr><th>Lines</th><th>Subroutine</th></tr>
+  };
+  $sub_links .= join "", map {
+    sprintf qq{<tr><td>%d&mdash;%d</td><td>sub <a href="#%d">%s</a></td></tr>},
+      $_->{first_line}, $_->{last_line},
+      $_->{first_line}, $_->{subname};
+  } @subs;
+  $sub_links .= "</table>\n";
+
+  return $sub_links;
+}
+
 $reporter->set_param('datastart', sub {
     my ($profile, $filestr) = @_;
-    my $subs_defined_hash = $profile->subs_defined_in_file( $filestr, 0 );
-    my @subs = sort {
-      $a->{first_line} <=> $b->{first_line}
-    } values %$subs_defined_hash;
+    my $subs = $profile->subs_defined_in_file( $filestr, 0 );
 
-    # XXX would be nice to color code these according to the overall time spent in the sub
-    my $sub_links = join "<br>\n", map {
-      sprintf qq{sub <a href="#%d">%s</a> lines %d&mdash;%d},
-        $_->{first_line}, $_->{subname}, $_->{first_line}, $_->{last_line};
-    } @subs;
+    my $sub_links = ($subs && %$subs) ? subroutine_table($subs) : "";
 
     return qq{<div style="font-family: monospace">$sub_links</div><br>
       <table border=1 cellpadding=0>
@@ -231,9 +245,10 @@ $reporter->set_param('column4', {
         my @counts;
         $epilogue = join "\n", map {
           push @counts, $calls->{$_};
-          sprintf qq{$ws# <a href="%s">%s</a> called %d times},
-            $reporter->href_for_sub($_),
-            $_, $calls->{$_}
+          my $href = $reporter->href_for_sub($_);
+          (($href) ? sprintf(qq{$ws# <a href="%s">%s</a>}, $href, $_)
+                   : sprintf(qq{$ws# %s}, $_)
+          )." called $calls->{$_} times";
         } sort keys %$calls;
         $epilogue = sprintf qq{<div class="calls">%s</div>}, $epilogue;
       }
