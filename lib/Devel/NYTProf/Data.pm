@@ -350,7 +350,7 @@ reference to an array. The array contains a hash ref for each of the
 subroutines defined on that line.
 
 For example, if the file 'foo.pl' defines one subroutine, called pkg1::foo, on
-lines 42 thru 49, then $profile->line_calls_for_file( 'foo.pl' ) would return:
+lines 42 thru 49, then $profile->subs_defined_in_file( 'foo.pl', 1 ) would return:
 
 	{
 		'pkg1::foo' => {
@@ -555,20 +555,22 @@ argument can be an integer file id (fid) or a file path. Returns undef if the
 profile contains no C<sub_caller> data for the $file.
 
 The keys of the returned hash are line numbers. The values are references to
-hashes with fully qualified subroutine names as keys and integer call counts as
-values.
+hashes with fully qualified subroutine names as keys. Each hash value is an
+reference to an array containing an integer call count (how many times the sub
+was called from that line of that file) and an inclusive time (how much time
+was spent inside the sub when it was called from that line of that file).
 
 For example, if the following was line 42 of a file C<foo.pl>:
 
   ++$wiggle if foo(24) == bar(42);
 
 that line was executed once, and foo and bar were imported from pkg1, then
-$profile->line_calls_for_file( 'foo.pl' ) would return:
+$profile->line_calls_for_file( 'foo.pl' ) would return something like:
 
 	{
 		42 => {
-			'pkg1::foo' => 1,
-			'pkg1::bar' => 1,
+			'pkg1::foo' => [ 1, 0.02093 ],
+			'pkg1::bar' => [ 1, 0.00154 ],
 		},
 	}
 
@@ -587,7 +589,7 @@ sub line_calls_for_file {
 			or next;
 
 		while ( my ($line, $calls) = each %$line_calls_hash) {
-			$line_calls->{$line}{$sub} += $calls;
+			$line_calls->{$line}{$sub} = $calls;
 		}
 
 	}

@@ -182,7 +182,9 @@ sub subroutine_table {
 		$sub_links .= determine_severity(undef, $sub->{incl_time} || 0, undef);
 		# package and subname
 		my $subname = $sub->{subname};
-		$subname =~ s/\[.*?:(\d+)\]/[:$1]/; # remove filename from eg __ANON__
+		# remove own filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
+		# XXX doesn't work right because $filestr isn't full filename
+		$subname =~ s/\Q$filestr\E:(\d+)/:$1/g;
 		my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1,$2) : ('',$subname);
 		$sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
 		$sub_links .= sprintf(qq{<td class="sub_sub"><a href="#%d">%s</a></td>},
@@ -201,7 +203,7 @@ $reporter->set_param('datastart', sub {
 
     return qq{$sub_links<br>
       <table border=1 cellpadding=0>
-      <tr><th>Line</th><th>Calls</th><th>Time</th><th>Times/Call</th><th>Code</th>
+      <tr><th>Line</th><th>Stmts</th><th>Time</th><th>Time/Stmt</th><th>Code</th>
       </tr>\n
     };
 });
@@ -231,14 +233,16 @@ $reporter->set_param('column4', {
 
         my @callers;
         while ( my ($fid, $fid_line_info) = each %$callers ) {
-          push @callers, [ $fid, $_, $fid_line_info->{$_}, 0 ]
+          push @callers, [ $fid, $_, @{$fid_line_info->{$_}} ]
             for keys %$fid_line_info;
         }
         my $total_calls = sum(map { $_->[2] } @callers);
+				my $avg_per_call = fmt_float($sub_info->{incl_time} / $total_calls);
 
-        push @prologue, sprintf "# %ss within %s which was called%s:",
-            $sub_info->{incl_time}, $sub_info->{subname},
-            ($total_calls > 1) ? " $total_calls times" : "";
+        push @prologue, sprintf "# spent %ss within %s which was called%s:",
+            fmt_float($sub_info->{incl_time}), $sub_info->{subname},
+            ($total_calls <= 1) ? ""
+							: " $total_calls times, avg ${avg_per_call}s/call";
 
         # order by most frequent caller first
         for my $caller (sort { $b->[2] <=> $a->[2] } @callers) {
@@ -246,14 +250,18 @@ $reporter->set_param('column4', {
 
           my @subnames = $profile->subname_at_file_line($fid, $line);
           my $subname = (@subnames) ? " by ".join(" or ",@subnames) : "";
+					my $avg_time = ($count <= 1) ? ""
+						: sprintf ", avg %ss/call", fmt_float($incl_time/$count);
           $incl_time = sprintf " (%ss)", fmt_float($incl_time);
 
           my $filename = $profile->fid_filename($fid);
           my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
           my $caller_filename = $profile->fid_filename($fid);
 
-          push @prologue, sprintf q{# %d times%s%s at <a href="%s#%d">line %d</a> of %s},
-            $count, $incl_time, $subname, "$href.html", $line, $line, $caller_filename;
+          push @prologue, sprintf q{# %d times%s%s at <a href="%s#%d">line %d</a> of %s%s},
+            $count, $incl_time, $subname,
+						"$href.html", $line, $line, $caller_filename,
+						$avg_time;
         }
       }
       my $prologue = join("\n",@prologue);
@@ -263,13 +271,13 @@ $reporter->set_param('column4', {
       my $epilogue = '';
       if (%$calls) {
         my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
-        my @counts;
         $epilogue = join "\n", map {
-          push @counts, $calls->{$_};
+          my ($count, $incl_time) = @{$calls->{$_}};
           my $href = $reporter->href_for_sub($_);
           (($href) ? sprintf(qq{$ws# <a href="%s">%s</a>}, $href, $_)
                    : sprintf(qq{$ws# %s}, $_)
-          )." called $calls->{$_} times";
+          ).sprintf(" called $count times, taking %ss, avg %ss/call",
+						fmt_float($incl_time), fmt_float($incl_time/$count));
         } sort keys %$calls;
         $epilogue = sprintf qq{<div class="calls">%s</div>}, $epilogue;
       }
