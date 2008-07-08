@@ -188,7 +188,6 @@ sub set_param {
 
 sub get_param {
 	my ($self, $param, $code_args) = @_;
-	$DB::single=1;
 	my $value = $self->{$param};
 	if (ref $value eq 'CODE') {
 		$code_args ||= [];
