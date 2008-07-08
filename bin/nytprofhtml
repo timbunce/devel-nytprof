@@ -16,7 +16,7 @@ use Getopt::Long;
 use List::Util qw(sum);
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
-use Devel::NYTProf::Util qw(fmt_float);
+use Devel::NYTProf::Util qw(fmt_float calculate_median_absolute_deviation);
 
 our $VERSION = 1.02;
 
@@ -279,8 +279,7 @@ sub output_level_indexpage {
 
 	my @values = map { $_->{'time'} } values %$stats;
 	# Use Median Absolute Deviation Formula
-	my ($amdev_t, $mean_t) = 
-			@{Devel::NYTProf::Reader::calculate_median_absolute_deviation(\@values)};
+	my ($amdev_t, $mean_t) = @{calculate_median_absolute_deviation(\@values)};
 	undef @values;
 
 	for (values %$stats) {
@@ -290,8 +289,7 @@ sub output_level_indexpage {
 
 	@values = map { $_->{'time/call'} } values %$stats;
 	# Use Median Absolute Deviation Formula
-	my ($amdev_tc, $mean_tc) = 
-			@{Devel::NYTProf::Reader::calculate_median_absolute_deviation(\@values)};
+	my ($amdev_tc, $mean_tc) = @{calculate_median_absolute_deviation(\@values)};
 	undef @values;
 
 	###

@@ -34,10 +34,12 @@ use base qw'Exporter';
 
 use Carp;
 use Cwd qw(getcwd);
+use List::Util qw(sum);
 
 our @EXPORT_OK = qw(
 	strip_prefix_from_paths
 	fmt_float
+	calculate_median_absolute_deviation
 );
 
 
@@ -110,6 +112,22 @@ sub fmt_float {
     $val = sprintf("%.${precision}f", $val);
   }
   return $val;
+}
+
+
+## Given a ref to an array of numeric values
+## returns average distance from the median value, and the median.
+## Highly resistant to extremes
+sub calculate_median_absolute_deviation {
+	my $values = shift;
+	return [ 0, 0 ] if @$values == 0; # no data
+
+	$values = [ sort { $a <=> $b } @$values ];
+	my $median = $values->[ int(scalar(@$values) / 2) ];
+	my $sum = 0;
+	$sum += abs($_ - $median) for @$values;
+
+	return [ $sum / scalar @$values, $median ];
 }
 
 

@@ -17,7 +17,7 @@ use Carp;
 use Config;
 
 use Devel::NYTProf::Data;
-use Devel::NYTProf::Util qw(strip_prefix_from_paths);
+use Devel::NYTProf::Util qw(strip_prefix_from_paths calculate_median_absolute_deviation);
 
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
@@ -200,34 +200,6 @@ sub get_param {
 sub add_regexp {
 	my ($self, $pattern, $replace) = @_;
 	push (@{$self->{user_regexp}}, {pattern => $pattern, replace => $replace});
-}
-
-# calculate the standard deviation for this data set
-# NOT USED.  This will work very well in code that is normalized (i.e. the same
-# time is spent in every file) but is fairly useless in practice...
-# use it if you want.
-sub calculate_standard_deviation {
-	my $stats = shift;
-	$stats = [sort {$a <=> $b} @$stats];
-
-	my $sum;
-	map ($sum += $_, @$stats);
-	my $mean = $sum / scalar @$stats;
-
-	$sum = 0;
-	map ($sum += ($_ - $mean) ** 2, @$stats);
-	return [sqrt (abs ($sum / scalar @$stats)), $mean];
-}
-
-## Use average distance from the median value. Highly resistant to extremes
-sub calculate_median_absolute_deviation {
-	my $stats = shift;
-	return [ 0, 0 ] if @$stats == 0; # no data
-	$stats = [sort {$a <=> $b} @$stats];
-	my $median = $stats->[int (scalar(@$stats) / 2)];
-	my $sum;
-	map ($sum += abs($_ - $median), @$stats);
-	return [$sum / scalar @$stats, $median];
 }
 
 ##
