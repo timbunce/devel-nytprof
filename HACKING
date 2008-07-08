@@ -231,3 +231,17 @@ alternative option syntax. Also perl gives special meaning to 't' option
 (threads) so we should reserve the same for eventual thread support.
 
 Add help option which would print a summary of the options and exit
+
+Add mechanism to specify options inside the .p file, such as
+# NYTPROF=...
+
+Add mechanism to specify inside the .p file that NYTProf
+should not be loaded via the command line. That's needed to test
+behaviors in environments where perl is init'd first. Such as mod_perl.
+Then we can test things like not having the sub line range for some subs.
+
+Add way to tell if were returning from the outermost scope, ie we're
+in mod_perl and we're exiting a handler back to mod_perl. So any wait time
+before the next statement shouldn't be counted.
+Otherwise a some return, typically from a DESTROY, gets all the time spent
+waiting for the next request. Which is inappropriate and confusing.
