@@ -79,9 +79,9 @@ $reporter->output_dir($opt{out});
 $reporter->set_param('header', sub {
 	my ($profile, $filestr, $output_filestr, $level) = @_;
 
-	my $profile_mode_buttons = get_mode_buttons($profile->{profile_modes}, $output_filestr, $level);
+	my $profile_level_buttons = get_level_buttons($profile->{profile_modes}, $output_filestr, $level);
 
-	my $subhead = qq{per-!~LEVEL~! $profile_mode_buttons<br />
+	my $subhead = qq{&emsp;&emsp;$profile_level_buttons<br />
 		For ${ \($profile->{attribute}{application}) }
 	};
 
@@ -413,31 +413,31 @@ the same terms as Perl itself.
 END
 }
 
-# return an html string with buttons for switching between profile modes
-sub get_mode_buttons {
+
+# return an html string with buttons for switching between profile levels of detail
+sub get_level_buttons {
   my $mode_ref = shift;
   my $file = shift;
   my $level = shift;
 
-  my $html = qq{<div id="mode_btn_bar">[};
-  $html .= join '|', map { 
+  my $html = join '&emsp;&bull;&emsp;', map { 
     my $mode = $mode_ref->{$_};
-    my $mode_file = $file;
-    my $selected = q//;
 
     if ($mode eq $level) {
-      qq{<div class="mode_btn mode_btn_selected">$mode</div>} 
+      qq{<span class="mode_btn mode_btn_selected">$mode view</span>} 
     }
     else {
+			my $mode_file = $file;
       # replace the mode specifier in the output file name -- file-name-MODE.html
       $mode_file =~ s/(.*-).*?\.html/$1$mode.html/o;
 
-      qq{<div class="mode_btn"><a href="$mode_file">$mode</a></div>} 
+      qq{<span class="mode_btn"><a href="$mode_file">$mode view</a></span>} 
     }
   } keys %$mode_ref;
 
-  return $html . q{]</div>};
+  return qq{<span>&laquo;&emsp;$html&emsp;&raquo;</span>};
 }
+
 
 # returns the generic header string.  Here only to make the code more readable.
 sub get_html_header {
@@ -575,19 +575,6 @@ td {
 
 .index { text-align: left; }
 
-#mode_btn_bar {
-  display: inline;
-}
-.mode_btn {
-  display: inline;
-  padding: 0 10px;
-}
-.mode_btn > a:link,
-.mode_btn > a:visited,
-.mode_btn_selected {
-  color: white;
-  font-size: 14px;
-}
 .mode_btn_selected {
   font-style: italic;
 }
