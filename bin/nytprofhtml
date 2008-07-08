@@ -245,20 +245,21 @@ $reporter->set_param('lineend', {start => "</tr>\n"});
 
 # set output options
 $reporter->set_param('suffix', '.html');
-#$reporter->add_regexp(' ', '&nbsp;');
-#$reporter->add_regexp('\t', '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
 $reporter->add_regexp('\t', ' 'x8);
 $reporter->add_regexp('<', '&lt;');
 $reporter->add_regexp('>', '&gt;');
 
 # generate the files
-$reporter->report();
+$reporter->report({
+		level_additional => sub {
+			my ($profile, $fid_line_set, $level) = @_;
+			$level = $1 if $level =~ m/^fid_(\w+)_time/;
+			output_level_indexpage($reporter, "index-$level.html");
+		},
+});
 
 # output a css file too (optional, but good for pretty pages)
-my @css = <DATA>;
-$reporter->_output_additional('style.css', \@css);
-
-output_indexpage($reporter, 'index.html');
+$reporter->_output_additional('style.css', [ <DATA> ]);
 
 #
 # SUBROUTINES
@@ -266,7 +267,7 @@ output_indexpage($reporter, 'index.html');
 
 # output an html indexing page with some information to help navigate potential
 # large numbers of profiled files. Optional, recommended
-sub output_indexpage {
+sub output_level_indexpage {
 	my ($r, $filename) = @_;
 	my $profile = $reporter->{profile};
 	

@@ -270,11 +270,16 @@ sub output_dir {
 ##
 sub report {
 	my $self = shift;
-	my $profile = $self->{profile};
+	my ($opts) = @_;
 
+	my $level_additional_sub = $opts->{level_additional};
+	my $profile = $self->{profile};
 	my $modes = $profile->{profile_modes};
+
 	for my $fid_line_set (keys %$modes) {
 		$self->_generate_report($profile, $fid_line_set, $modes->{$fid_line_set});
+		$level_additional_sub->($self, $profile, $fid_line_set, $modes->{$fid_line_set})
+			if $level_additional_sub;
 	}
 }
 
