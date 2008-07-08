@@ -261,7 +261,7 @@ $reporter->add_regexp('>', '&gt;');
 $reporter->report({
 		level_additional => sub {
 			my ($profile, $level) = @_;
-			output_level_indexpage($reporter, "index-$level.html");
+			output_level_indexpage($reporter, $level, "index-$level.html");
 		},
 });
 
@@ -275,7 +275,7 @@ $reporter->_output_additional('style.css', [ <DATA> ]);
 # output an html indexing page with some information to help navigate potential
 # large numbers of profiled files. Optional, recommended
 sub output_level_indexpage {
-	my ($r, $filename) = @_;
+	my ($r, $level, $filename) = @_;
 	my $profile = $reporter->{profile};
 	
 	my $stats = $r->get_file_stats();
@@ -298,14 +298,16 @@ sub output_level_indexpage {
 
 
 	###
+	my $profile_level_buttons = get_level_buttons($profile->get_profile_levels, $filename, $level);
 
 	open (OUT, '>', "$opt{out}/$filename")
-		or confess "Unable to open file $opt{out}/$filename\n";
+		or croak "Unable to open file $opt{out}/$filename: $!";
 
 	print OUT get_html_header();
-	print OUT get_header($profile, "Performance Profile Index", qq{<br />
+	my $subhead = qq{&emsp;&emsp;$profile_level_buttons<br />
 		For ${ \($profile->{attribute}{application}) }
-	});
+	};
+	print OUT get_header($profile, "Performance Profile Index", $subhead);
 	print OUT qq{
 		<div class="body_content"><br/>
 		Jump to a file: &nbsp;<select>
