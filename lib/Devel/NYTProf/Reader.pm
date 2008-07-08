@@ -188,6 +188,7 @@ sub set_param {
 
 sub get_param {
 	my ($self, $param, $code_args) = @_;
+	$DB::single=1;
 	my $value = $self->{$param};
 	if (ref $value eq 'CODE') {
 		$code_args ||= [];
@@ -272,12 +273,9 @@ sub report {
 	my $self = shift;
 	my $profile = $self->{profile};
 
-	my %set_tag = ( fid_line_time => 'line' );
-	$set_tag{fid_block_time} = 'block' if $profile->{fid_block_time};
-	$set_tag{fid_sub_time}   = 'sub'   if $profile->{fid_sub_time};
-
-	for my $fid_line_set (keys %set_tag) {
-		$self->_generate_report($profile, $fid_line_set, $set_tag{$fid_line_set});
+	my $modes = $profile->{profile_modes};
+	for my $fid_line_set (keys %$modes) {
+		$self->_generate_report($profile, $fid_line_set, $modes->{$fid_line_set});
 	}
 }
 
@@ -361,13 +359,18 @@ sub _generate_report {
 		my $line_calls_hash = $profile->line_calls_for_file( $filestr );
 		my $subs_defined_hash = $profile->subs_defined_in_file( $filestr, 1 );
 
+		# the output file name that will be open later.  Not including directory at this time.
+		# keep here so that the variable replacement subs can get at it.
+		my $fname = $self->{filestats}->{$filestr}->{html_safe} . $self->{suffix};
+
 		# localize header and footer for variable replacement
-		my $header    = $self->get_param('header',    [ $profile, $filestr ]);
+		my $header    = $self->get_param('header',    [ $profile, $filestr, $fname, $LEVEL]);
 		my $footer    = $self->get_param('footer',    [ $profile, $filestr ]);
 		my $taintmsg  = $self->get_param('taintmsg',  [ $profile, $filestr ]);
 		my $datastart = $self->get_param('datastart', [ $profile, $filestr ]);
 		my $dataend   = $self->get_param('dataend',   [ $profile, $filestr ]);
 		my $FILE = $filestr;
+
 		foreach my $transform (@{$self->{replacements}}) {
 			my $pattern = $transform->{pattern};
 			my $replace = $transform->{replace};
@@ -384,8 +387,6 @@ sub _generate_report {
 		}
 
 		# open output file
-		my $fname = $self->{filestats}->{$filestr}->{html_safe};
-		$fname .= $self->{suffix};
 		open (OUT, "> $self->{output_dir}/$fname") or
 			confess "Unable to open $self->{output_dir}/$fname "
 						."for writing: $!\n";

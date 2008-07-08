@@ -77,13 +77,16 @@ $reporter->output_dir($opt{out});
 
 # set formatting for html
 $reporter->set_param('header', sub {
-    my ($profile, $filestr) = @_;
+    my ($profile, $filestr, $output_filestr, $level) = @_;
+
+    my $profile_mode_buttons = get_mode_buttons($profile->{profile_modes}, $output_filestr, $level);
+
     get_header("Profile: !~FILENAME~!").
 qq{<body> 
 <div class="header" style="position: relative; overflow-x: hidden; overflow-y: hidden; z-index: 0; ">
 <div class="headerForeground" style="float: left">
     <span class="siteTitle">Performance Profile</span>
-    <span class="siteSubtitle">per-!~LEVEL~!</span><br />
+    <!-- span class="siteSubtitle">per-$level</span --!> $profile_mode_buttons<br />
     <span class="siteSubtitle">For ${ \($profile->{attribute}{application}) }</span><br />
     <span class="siteSubtitle">Run ${ \scalar localtime($profile->{attribute}{basetime}) }</span>
 </div>
@@ -170,7 +173,7 @@ sub subroutine_table {
 
   # XXX would be nice to color code these according to the overall time spent in the sub
   my $sub_links = qq{<table border=1 cellpadding=0>
-    <tr><th>Calls</th><th>Inclusive<br />Time</th><th colspan=2>Subroutine</th></tr>
+    <tr><th>Calls</th><th>Inclusive<br />Time</th><th colspan=2 class="left_indent_header">Subroutine</th></tr>
   };
 
 	my @rows;
@@ -203,7 +206,7 @@ $reporter->set_param('datastart', sub {
 
     return qq{$sub_links<br>
       <table border=1 cellpadding=0>
-      <tr><th>Line</th><th>Stmts</th><th>Time</th><th>Time/Stmt</th><th>Code</th>
+      <tr><th>Line</th><th>Stmts</th><th>Time</th><th>Time/Stmt</th><th class="left_indent_header">Code</th>
       </tr>\n
     };
 });
@@ -312,9 +315,6 @@ $reporter->report();
 # output a css file too (optional, but good for pretty pages)
 my @css = <DATA>;
 $reporter->_output_additional('style.css', \@css);
-
-# copy images folder into output directory
-# TODO copy images folder
 
 output_indexpage($reporter, 'index.html');
 
@@ -465,6 +465,32 @@ the same terms as Perl itself.
 END
 }
 
+# return an html string with buttons for switching between profile modes
+sub get_mode_buttons {
+  my $mode_ref = shift;
+  my $file = shift;
+  my $level = shift;
+
+  my $html = qq{<div id="mode_btn_bar">[};
+  $html .= join '|', map { 
+    my $mode = $mode_ref->{$_};
+    my $mode_file = $file;
+    my $selected = q//;
+
+    if ($mode eq $level) {
+      qq{<div class="mode_btn mode_btn_selected">$mode</div>} 
+    }
+    else {
+      # replace the mode specifier in the output file name -- file-name-MODE.html
+      $mode_file =~ s/(.*-).*?\.html/$1$mode.html/o;
+
+      qq{<div class="mode_btn"><a href="$mode_file">$mode</a></div>} 
+    }
+  } keys %$mode_ref;
+
+  return $html . q{]</div>};
+}
+
 # returns the generic header string.  Here only to make the code more readable.
 sub get_header {
 	my $title = shift || "Profile Index";
@@ -538,6 +564,23 @@ td {
 
 .index { text-align: left; }
 
+#mode_btn_bar {
+  display: inline;
+}
+.mode_btn {
+  display: inline;
+  padding: 0 10px;
+}
+.mode_btn > a:link,
+.mode_btn > a:visited,
+.mode_btn_selected {
+  color: white;
+  font-size: 14px;
+}
+.mode_btn_selected {
+  font-style: italic;
+}
+
 /* subrouting dispatch table */
 td.sub_pkg {
   text-align: right;
@@ -588,6 +631,11 @@ img#top_header_right {
 */
 
 /* source code */
+th.left_indent_header {
+  padding-left: 15px;
+  text-align: left;
+}
+
 pre,.s {
 	text-align: left;
 	font-family: monospace;

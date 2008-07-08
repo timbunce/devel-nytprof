@@ -33,6 +33,9 @@ fid_sub_time	1	22	[ 0 1 ]
 fid_sub_time	1	23	[ 0 1 ]
 fid_sub_time	1	24	[ 0 1 ]
 fid_sub_time	1	26	[ 0 1 ]
+profile_modes	fid_block_time	block
+profile_modes	fid_line_time	line
+profile_modes	fid_sub_time	sub
 sub_caller	main::bar	1	12	[ 1 0 ]
 sub_caller	main::bar	1	13	[ 1 0 ]
 sub_caller	main::bar	1	14	[ 1 0 ]

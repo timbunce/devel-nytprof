@@ -53,6 +53,9 @@ fid_sub_time	3	11	0	0
 fid_sub_time	3	11	1	2
 fid_sub_time	3	11	2	1	[ 0 1 ]
 fid_sub_time	3	14	[ 0 1 ]
+profile_modes	fid_block_time	block
+profile_modes	fid_line_time	line
+profile_modes	fid_sub_time	sub
 sub_caller	AutoLoader::AUTOLOAD	1	17	[ 1 0 ]
 sub_caller	AutoLoader::AUTOLOAD	1	18	[ 1 0 ]
 sub_subinfo	AutoLoader::AUTOLOAD	[ 2 21 117 2 0 ]

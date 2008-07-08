@@ -17,3 +17,6 @@ fid_sub_time	1	1	0	0
 fid_sub_time	1	1	1	1
 fid_sub_time	1	1	2	1	[ 0 1 ]
 fid_sub_time	1	1	2	2	[ 0 1 ]
+profile_modes	fid_block_time	block
+profile_modes	fid_line_time	line
+profile_modes	fid_sub_time	sub
