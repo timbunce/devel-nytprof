@@ -245,3 +245,25 @@ in mod_perl and we're exiting a handler back to mod_perl. So any wait time
 before the next statement shouldn't be counted.
 Otherwise a some return, typically from a DESTROY, gets all the time spent
 waiting for the next request. Which is inappropriate and confusing.
+
+Add top-n statements to file reports between sub table and line table.
+
+Pure css tooltips, with a :before or :after with content:, may let us add help notes to the
+counts column to describe what the count is actually a count of, without
+bloating the html.
+http://meyerweb.com/eric/css/edge/popups/demo.html
+http://www.communitymx.com/content/article.cfm?page=4&cid=4E2C0
+http://www.kollermedia.at/archive/2008/03/24/easy-css-tooltip/
+The tricky/clever/new idea is that by nesting a span inside another and using
+the :before or :after on the inner one the text of the popup can reside in css
+and not html. Mind you, I've not seen anyone do this so I may be crazy :)
+
+The data file includes the information mapping a line-level live to the
+corresponding block-level and sub-level lines. This should be added to the data
+structure. It would enable a much richer visualization of which lines have
+contributed to the 'rolled up' counts. That's especially tricky to work out
+with the block level view.
+
+Following on from that I have a totally crazy idea that the browsers css engine
+could be used to highlight the corresponding rollup line when hovering over a
+source line, and/or the opposite. Needs lots of thought, but it's an interesting idea.
