@@ -505,13 +505,27 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
     case CXt_SUB:
         start_op = CvSTART(cx->blk_sub.cv);
         break;
+#ifdef CXt_LOOP
     case CXt_LOOP:
-#if (PERL_VERSION < 10)
+#  if (PERL_VERSION < 10)
         start_op = cx->blk_loop.redo_op;
-#else
+#  else
         start_op = cx->blk_loop.my_op->op_redoop;
+#  endif
+	 break;
+#else
+#  if defined (CXt_LOOP_PLAIN) && defined (CXt_LOOP_FOR) && defined(CXt_LOOP_LAZYIV) && defined (CXt_LOOP_LAZYSV)
+    /* This is Perl 5.11.0 or later */
+    case CXt_LOOP_LAZYIV:
+    case CXt_LOOP_LAZYSV:
+    case CXt_LOOP_PLAIN:
+    case CXt_LOOP_FOR:
+	start_op = cx->blk_loop.my_op->op_redoop;
+	break;
+#  else
+#    warning "The perl you are using is missing some essential defines.  Your results may not be accurate."
+#  endif
 #endif
-        break;
     case CXt_BLOCK:
 				/* this will be NULL for the top-level 'main' block */
         start_op = (OP*)cx->blk_oldcop;
