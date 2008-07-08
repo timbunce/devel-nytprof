@@ -277,20 +277,18 @@ sub output_level_indexpage {
   # resolution
 	my $stats = $r->get_file_stats();
 
-	my @values = map { $_->{'time'} } values %$stats;
-	# Use Median Absolute Deviation Formula
-	my ($amdev_t, $mean_t) = @{calculate_median_absolute_deviation(\@values)};
-	undef @values;
-
 	for (values %$stats) {
 		next if not $_;
 		$_->{'time/call'} = ($_->{calls}) ?  $_->{'time'} / $_->{calls} : 0;
 	}
 
-	@values = map { $_->{'time/call'} } values %$stats;
-	# Use Median Absolute Deviation Formula
-	my ($amdev_tc, $mean_tc) = @{calculate_median_absolute_deviation(\@values)};
-	undef @values;
+	my $dev_time = calculate_median_absolute_deviation(
+		[ map { $_->{'time'} } values %$stats ]
+	);
+	my $dev_avgt = calculate_median_absolute_deviation(
+		[ map { $_->{'time/call'} } values %$stats ]
+	);
+
 
 	###
 
@@ -326,10 +324,8 @@ sub output_level_indexpage {
 		my $safe = $_->{html_safe};
 		print OUT  "<tr class='index'>";
 
-		my $html_time = determine_severity('time',
-											$_->{'time'}, [$amdev_t, $mean_t]);
-		my $html_calltime = determine_severity('time/call', 
-											$_->{'time/call'}, [$amdev_tc, $mean_tc]);
+		my $html_time = determine_severity('time', $_->{'time'}, $dev_time);
+		my $html_calltime = determine_severity('time/call', $_->{'time/call'}, $dev_avgt);
 
 		print OUT "<td class='n'>$_->{calls}</td>"
 							."$html_time"
@@ -347,9 +343,9 @@ sub output_level_indexpage {
 	print OUT sprintf $stats_fmt,
 		int(fmt_float($allCalls/keys %$stats)), fmt_float($allTimes/keys %$stats), '', "Average";
 	print OUT sprintf $stats_fmt,
-		'', fmt_float($mean_t), fmt_float($mean_tc), "Median";
+		'', fmt_float($dev_time->[1]), fmt_float($dev_avgt->[1]), "Median";
 	print OUT sprintf $stats_fmt,
-		'', fmt_float($amdev_t), fmt_float($amdev_tc), "Deviation";
+		'', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]), "Deviation";
 	print OUT '</table><br/><br/>';
 
 	print OUT "</div></body></html>";
