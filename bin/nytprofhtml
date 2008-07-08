@@ -224,6 +224,10 @@ $reporter->set_param('column4', {
 
       my $epilogue = '';
       if (%$calls) {
+				my @calls_to = sort {
+					$calls->{$b}[1] <=> $calls->{$a}[1] or # incl_time
+					$a cmp $b
+				} keys %$calls;
         my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
         $epilogue = join "\n", map {
           my ($count, $incl_time) = @{$calls->{$_}};
@@ -234,7 +238,7 @@ $reporter->set_param('column4', {
           $html .= sprintf qq{, avg %ss/call}, fmt_float($incl_time/$count)
 						if $count > 1;
 					$html;
-        } sort keys %$calls;
+        } @calls_to;
         $epilogue = sprintf qq{<div class="calls">%s</div>}, $epilogue;
       }
 
