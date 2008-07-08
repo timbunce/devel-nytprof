@@ -102,6 +102,7 @@ $reporter->set_param('taintmsg',
 <div class='warn'>The source file used to generate this report was modified
 after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n");
 
+
 sub subroutine_table {
   my ($profile, $filestr) = @_;
 
@@ -118,13 +119,20 @@ sub subroutine_table {
     <tr><th>Calls</th><th>Inclusive<br />Time</th><th colspan=2 class="left_indent_header">Subroutine</th></tr>
   };
 
+	my $dev_incl_time = calculate_median_absolute_deviation(
+		[ map { $_->{incl_time} } @subs ]
+	);
+	my $dev_calls = calculate_median_absolute_deviation(
+		[ map { $_->{calls} } @subs ]
+	);
+
 	my @rows;
 	for my $sub (@subs) {
 		$sub_links .= "<tr>";
 		# calls
-		$sub_links .= determine_severity(undef, $sub->{calls} || 0, undef);
+		$sub_links .= determine_severity(undef, $sub->{calls} || 0, $dev_calls);
 		# incl_time
-		$sub_links .= determine_severity(undef, $sub->{incl_time} || 0, undef);
+		$sub_links .= determine_severity(undef, $sub->{incl_time} || 0, $dev_incl_time);
 		# package and subname
 		my $subname = $sub->{subname};
 		# remove own filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
@@ -271,10 +279,6 @@ sub output_level_indexpage {
 	my ($r, $filename) = @_;
 	my $profile = $reporter->{profile};
 	
-	# Calculate the mean and deviation using a good generic formula.
-  # Note: Using Median Absolute Deviation because it is fairly resistant to 
-  # the extreme values likely to be found in code and therefore provides better
-  # resolution
 	my $stats = $r->get_file_stats();
 
 	for (values %$stats) {
@@ -282,6 +286,10 @@ sub output_level_indexpage {
 		$_->{'time/call'} = ($_->{calls}) ?  $_->{'time'} / $_->{calls} : 0;
 	}
 
+	# Calculate the mean and deviation using a good generic formula.
+  # Note: Using Median Absolute Deviation because it is fairly resistant to 
+  # the extreme values likely to be found in code and therefore provides better
+  # resolution
 	my $dev_time = calculate_median_absolute_deviation(
 		[ map { $_->{'time'} } values %$stats ]
 	);
