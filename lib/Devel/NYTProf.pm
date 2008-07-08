@@ -68,47 +68,120 @@ __END__
 
 =head1 NAME
 
-Devel::NYTProf - line-by-line code profiler and report generator
+Devel::NYTProf - Powerful feature-rich perl source code profiler
 
 =head1 SYNOPSIS
 
  # profile code and write database to ./nytprof.out
  perl -d:NYTProf some_perl.pl
 
- # convert database into html
+ # convert database into html files, e.g., ./nytprof/index.html
  nytprofhtml
 
- # or into comma seperated files
+ # or into comma seperated files, e.g., ./nytprof/*.csv
  nytprofcsv
-
- # or into any other format by implementing your own Devel::NYTProf::Reader
- # submit new implementations like nytprofhtml as bugs/patches for inclusion.
- # (reports go into ./profiler by default)
-
-=head1 HISTORY
-
-A bit of history and a shameless plug...
-
-NYTProf stands for 'New York Times Profiler'. Indeed, this module was developed
-by The New York Times Co. to help our developers quickly identify bottlenecks in
-large Perl applications.  The NY Times loves Perl and we hope the community will benefit from our work as much as we have from theirs.
-
-Please visit L<http://open.nytimes.com>, our open source blog to see what we are up to, L<http://code.nytimes.com> to see some of our open projects and then 
-check out L<http://nytimes.com> for the latest news!
 
 =head1 DESCRIPTION
  
-Devel::NYTProf will profile your perl code line-by-line and enable you to 
-create reports in HTML, CSV/plain text or any other format.
+Devel::NYTProf is a powerful feature-rich perl source code profiler.
 
-This module is implemented in XS (aka C) and the profiler is on par with the speed of L<Devel::FastProf>.  This is the first release, so it will get faster.
+ * Performs per-line statement profiling for fine detail
+ * Performs per-subroutine statement profiling for overview
+ * Performs per-block profiling (the first profiler to do so)
+ * Performs inclusive timing of subroutines, per calling location
+ * Can profile compile-time activity or just run-time
+ * Uses novel techniques for efficient profiling
+ * Very fast - the fastest line-profiler for perl
+ * Handles applications that fork, with no performance cost
+ * Immune from noise caused by profiling overheads and i/o
+ * Program being profiled can stop/start the profiler
+ * Generates richly annotated and cross-linked html reports
+ * Trivial to use with mod_perl - add one line to httpd.conf
+ * Includes an extensive test suite
+ * Tested on very large codebases
 
-The real strenght of Devel::NYTProf isn't its speeds, but the included
-L<Devel::NYTProf::Reader> module (and its implementations).  See 
-L<Devel::NYTProf::Reader> for more information, but basically the Reader
-provides an interface to parsing NYTProf databases and outputing arbitrary
-reports.  This means that unlike L<Devel::FastProf>, you can easily implement
-your own output format without editing the C source and recompiling the module.
+=head1 PROFILING
+
+Usually you'd load Devel::NYTProf on the command line using the perl -d option:
+
+ perl -d:NYTProf some_perl.pl
+
+To save typing the ':NYTProf' you could set the PERL5DB env var 
+
+ PERL5DB='use Devel::NYTProf'
+
+and then just perl -d would work:
+
+ perl -d some_perl.pl
+
+Or you can avoid the need to add the -d option at all by using the C<PERL5OPT> env var:
+
+  PERL5OPT=-d:NYTProf
+
+That's also very handy when you can't alter the perl command line being used to
+run the script you want to profile.
+
+=head1 ENVIRONMENT VARIABLES
+
+The behavior of Devel::NYTProf may be modified by setting the 
+environment variable C<NYTPROF>.  It is possible to use this environment
+variable to effect multiple setting by separating the values with a C<:>.  For
+example:
+
+    export NYTPROF=trace=2:begin=1:file=/tmp/nytprof.out
+
+=over 4
+
+=item trace=N
+
+Set trace level to N. 0 is off (the default). Higher values cause more detailed trace output.
+
+=item begin=1
+
+Include compile-time activity in the profile. Currently that's not the default,
+but that's likely to change in future.
+
+=item subs=0
+
+Set to 0 to disable the collection of subroutine inclusive timings.
+
+=item blocks=0
+
+Set to 0 to disable the determination of block and subroutine location per statement.
+This makes the profiler about 50% faster (as of July 2008) but you loose some
+valuable information. The extra cost is likely to be reduced in later versions
+anyway, as little optimization has been done on that part of the code.
+The profiler is fast enough that you should rarely feel
+the need to disable features to get more speed.
+
+=item use_db_sub=1
+
+Set to 1 to enable use of the traditional DB::DB() subroutine to perform
+profiling, instead of the faster 'opcode redirection' technique that's used by
+default.
+
+=item usecputime=1
+
+Measure user + system CPU time instead of the real elapsed 'wall clock' time (which is the default).
+
+Measuring CPU time has the advantage of making the measurements independant of
+time spent blocked waiting for the cpu or network i/o etc. But it also has the
+severe disadvantage of having I<far> less accurate timings on most systems.
+
+=item file=...
+
+Specify the output file to write profile data to (default: './nytprof.out').
+
+=back
+
+=head1 REPORTS
+
+The L<Devel::NYTProf::Data> module provides a low-level interface for loading
+teh profile data.
+
+The L<Devel::NYTProf::Reader> module provides an interface for generating
+arbitrary reports.  This means that you can implement your own output format in
+perl.
 
 Included in the bin directory of this distribution are two scripts
 which implement the L<Devel::NYTProf::Reader> interface: 
@@ -119,71 +192,26 @@ which implement the L<Devel::NYTProf::Reader> interface:
 nytprofcsv - creates comma delimited profile reports
 
 =item *
-nytprofhtml - creates a very cool HTML report 
-(including statistics, source code and color highlighting)
+nytprofhtml - creates attractive, richly annotated, and fully cross-linked html
+reports (including statistics, source code and color highlighting)
 
 =back
-
-=head1 ENVIRONMENT VARIABLES
-
-I<WARNING: ignoring these settings may cause unintended side effects in code that might fork>
-
-The behavior of Devel::NYTProf may be modified substantially by setting the 
-environment variable C<NYTPROF>.  It is possible to use this environment
-variable to effect multiple setting by separating the values with a C<:>.  For
-example:
-
-    export NYTPROF=allowfork:trace=10
-
-=over 4
-
-=item trace=N
-
-Set trace level to N. 0 is off (the default). Higher values cause more detailed trace output.
-
-=item allowfork
-
-Enables fork detection and file locking and disables output buffering.  This will have a severe effect on performance, so use only with code that can fork. You I<MUST> use this with code that forks! [default: off]
-
-=item usecputime
-
-Measure user + system CPU time instead of the real elapsed 'wall clock' time (which is the default).
-
-Measuring CPU time has the advantage of making the measurements independant of
-time spent blocked waiting for the cpu or network i/o etc. But it also has the
-disadvantage of having I<far> less accurate timings on most systems.
-
-=item file=...
-
-Specify the output file to write profile data to (default: 'nytprof.out').
-The filenames 'STDOUT' and 'STDERR' are reserved and refer to the standard
-output and standard error streams respectively.
-
-=back
-
-=head1 PLATFORM SUPPORT
-
-The Makefile.PL script will automatically try to determine some information
-about your system.  This module is mostly XS (which is C, not Perl) and takes
-advantage of some less universal GNU C functions. It should work on any GNU C
-system. If you encounter a problem, make sure INCLUDE has the path to stdio.h
-and ext_stdio.h (if present).  See the CPAN Testers results on the distribution 
-page.
 
 =head1 LIMITATIONS
+
+=head2 Only profiles code loaded after this module
+
+Loading via the perl -d option ensures it's loaded first.
 
 =head2 threads
 
 C<Devel::NYTProf> is not currently thread safe.
 
+=head2 Windows
+
+Currently there's no support for Windows.
+
 =head1 BUGS
-
-Currently processes which fork after initializing the profiler aren't able to
-output correct file ids for any files which haven't already been 'seen' by the
-profiler. That means any file loaded after the program starts, or any string evals.
-This limitation will be fixed in a future version.
-
-No Windows support.  I didn't test on Windows and it probably won't work.
 
 Some eval tests may fail on perl 5.6.x. It is safe for 'force install' and
 ignore this.
@@ -203,21 +231,34 @@ might want to check this out if you plan to implement a custom report. Its easy!
 
 =head1 AUTHOR
 
-B<Adam Kaplan>, C<< <akaplan at nytimes.com> >>
-B<Tim Bunce>, L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>
-B<Steve Peters>, C<< <steve at fisharerojo.org> >>
+B<Adam Kaplan>, C<< <akaplan at nytimes.com> >>.
+B<Tim Bunce>, L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>.
+B<Steve Peters>, C<< <steve at fisharerojo.org> >>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008 by Adam Kaplan and The New York Times Company
+Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
+Copyright (C) 2008 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
 at your option, any later version of Perl 5 you may have available.
 
-=head1 A BRIEF HISTORY OF PERL PROFILERS
+=head1 HISTORY
 
-Draft. Will be expanded.
+A bit of history and a shameless plug...
+
+NYTProf stands for 'New York Times Profiler'. Indeed, this module was initially
+developed from Devel::FastProf by The New York Times Co. to help our developers
+quickly identify bottlenecks in large Perl applications.  The NY Times loves
+Perl and we hope the community will benefit from our work as much as we have
+from theirs.
+
+Please visit L<http://open.nytimes.com>, our open source blog to see what we
+are up to, L<http://code.nytimes.com> to see some of our open projects and then
+check out L<http://nytimes.com> for the latest news!
+
+=head2 Background
 
 Subroutine-level profilers:
 
@@ -234,5 +275,30 @@ Statement-level profilers:
   Devel::FastProf     | 2005-09-20| SALVA
   Devel::NYTProf      | 2008-03-04| AKAPLAN
   Devel::Profit       | 2008-05-19| LBROCARD
+
+Devel::NYTProf is a (now distant) fork of Devel::FastProf, which was itself an
+evolution of Devel::SmallProf.
+
+Adam Kaplan took Devel::FastProf and added html report generation (based on
+Devel::Cover) and a test suite - a tricky think to do for a profiler.
+Meanwhile Tim Bunce had been extending Devel::FastProf to add per-sub and
+per-block timing, plus subroutine caller tracking.
+
+When Devel::NYTProf was released Tim switched to working on Devel::NYTProf
+because the html report would be a good way to show the extra profile data, and
+the test suite made development much easier and safer.
+
+Then he went a little crazy and added a slew of new features, in addition to
+per-sub and per-block timing and subroutine caller tracking. These included the
+'opcode interception' method of profiling, ultra-fast and robust inclusive
+subroutine timing, doubling performance, plus major changes to html reporting
+to display all the extra profile call and timing data in richly annotated and
+cross-linked reports.
+
+Steve Peters came on board along the way with patches for portability and to
+keep NYTProf working with the latest development perl versions.
+
+Adam's work is sponsored by The New York Times Co. L<http://open.nytimes.com>.
+Tim's work was partly sponsored by Shopzilla. L<http://www.shopzilla.com>.
 
 =cut
