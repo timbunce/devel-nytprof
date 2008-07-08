@@ -110,20 +110,17 @@ sub process {
 	return _map_new_to_old($data);
 }
 
-sub _map_new_to_old {
-	my ($data, $fid_line_set) = @_;
-	$fid_line_set ||= 'fid_line_time';
-	# convert into old-style data structure
+
+sub _map_new_to_old {    # convert into old-style data structure
+	my ($profile, $level) = @_;
+	my $fid_line_data = $profile->get_fid_line_data($level ||= 'line');
+
 	my $dump = 0;
 	require Data::Dumper if $dump;
-	$data->dump_profile_data({filehandle => \*STDERR, separator => "\t"}) if $dump;
-	warn Data::Dumper::Dumper($data) if $dump;
+	$profile->dump_profile_data({filehandle => \*STDERR, separator => "\t"}) if $dump;
+	warn Data::Dumper::Dumper($profile) if $dump;
 
-	my $fid_fileinfo  = $data->{fid_fileinfo};
-	my $dataset_name = $ENV{NYTPROF_DATASET} || $fid_line_set;
-	my $fid_line_time = $data->{$dataset_name}
-		or die "No $dataset_name data set in profile data\n";
-
+	my $fid_fileinfo  = $profile->{fid_fileinfo};
 	my $oldstyle = {};
 	for my $fid (1..@$fid_fileinfo-1) {
 
@@ -133,7 +130,7 @@ sub _map_new_to_old {
 		my $filename = $fid_fileinfo->[$fid][0]
 				or warn "No filename for fid $fid";
 
-		my $lines_array = $fid_line_time->[$fid]
+		my $lines_array = $fid_line_data->[$fid]
 			or next; # ignore fid's with no lines executed
 
 		# convert any embedded eval line time arrays to hashes
@@ -246,11 +243,10 @@ sub report {
 
 	my $level_additional_sub = $opts->{level_additional};
 	my $profile = $self->{profile};
-	my $modes = $profile->{profile_modes};
-
-	for my $fid_line_set (keys %$modes) {
-		$self->_generate_report($profile, $fid_line_set, $modes->{$fid_line_set});
-		$level_additional_sub->($self, $profile, $fid_line_set, $modes->{$fid_line_set})
+	my $modes = $profile->get_profile_levels;
+	for my $level (values %$modes) {
+		$self->_generate_report($profile, $level);
+		$level_additional_sub->($profile, $level)
 			if $level_additional_sub;
 	}
 }
@@ -258,9 +254,9 @@ sub report {
 ##
 sub _generate_report {
 	my $self = shift;
-	my ($profile, $fid_line_set, $LEVEL) = @_;
+	my ($profile, $LEVEL) = @_;
 
-	my $data = _map_new_to_old($profile, $fid_line_set);
+	my $data = _map_new_to_old($profile, $LEVEL);
 
 	# pre-calculate some data so it can be cross-referenced
 	foreach my $filestr (keys %$data) {

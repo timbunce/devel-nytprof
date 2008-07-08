@@ -22,6 +22,7 @@ for my $run (keys %runs) {
 
     system "open demo/profiler-$run/index-line.html"
         if $^O eq 'darwin';
+    system "ls -lrt demo/profiler-$run/.";
 
     sleep 1;
 }

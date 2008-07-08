@@ -79,7 +79,7 @@ $reporter->output_dir($opt{out});
 $reporter->set_param('header', sub {
 	my ($profile, $filestr, $output_filestr, $level) = @_;
 
-	my $profile_level_buttons = get_level_buttons($profile->{profile_modes}, $output_filestr, $level);
+	my $profile_level_buttons = get_level_buttons($profile->get_profile_levels, $output_filestr, $level);
 
 	my $subhead = qq{&emsp;&emsp;$profile_level_buttons<br />
 		For ${ \($profile->{attribute}{application}) }
@@ -260,8 +260,7 @@ $reporter->add_regexp('>', '&gt;');
 # generate the files
 $reporter->report({
 		level_additional => sub {
-			my ($profile, $fid_line_set, $level) = @_;
-			$level = $1 if $level =~ m/^fid_(\w+)_time/;
+			my ($profile, $level) = @_;
 			output_level_indexpage($reporter, "index-$level.html");
 		},
 });

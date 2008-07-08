@@ -230,6 +230,19 @@ sub _dump_elements {
 }
 
 
+sub get_profile_levels {
+	return shift->{profile_modes};
+}
+
+sub get_fid_line_data {
+	my ($self, $level) = @_;
+	$level ||= 'line';
+	my $fid_line_data = $self->{"fid_${level}_time"}
+		or croak("No $level-level data in profile");
+	return $fid_line_data;
+}
+
+
 =head2 normalize_variables
 
   $profile->normalize_variables;
