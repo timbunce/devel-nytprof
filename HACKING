@@ -296,3 +296,13 @@ at 25: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /
 at 37: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 37.
 Unable to determine line number in -e.
 Unable to determine line number in -e.
+
+Add way for use to ask for pid to be embedded into the data file name
+so that using PERL5OPT=-d:NYTProf and running multiple scripts
+won't overwrite the same profile file each time. (Could also add way to embed
+basename($0) into the filename)
+
+Add option to disable statement based profiling, so you're left with subroutine
+inclusive timing. That's *really* fast and would be handy for a quick check on
+performance of a large application. It's also generates no i/o till the end
+so may be useful for long running apps that would otherwise generate a huge data file.
