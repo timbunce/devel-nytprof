@@ -1,0 +1,20 @@
+attribute	application	test50-disable.p
+attribute	basetime	0
+attribute	perl_version	0
+attribute	ticks_per_sec	1000000
+attribute	xs_version	0
+fid_block_time	1	1	[ 0 1 ]
+fid_block_time	1	2	[ 0 1 ]
+fid_block_time	1	5	[ 0 1 ]
+fid_fileinfo	1	[ test50-disable.p   1 0 0 0 ]
+fid_line_time	1	1	[ 0 1 ]
+fid_line_time	1	2	[ 0 1 ]
+fid_line_time	1	5	[ 0 1 ]
+fid_sub_time	1	1	[ 0 1 ]
+fid_sub_time	1	2	[ 0 1 ]
+fid_sub_time	1	5	[ 0 1 ]
+profile_modes	fid_block_time	block
+profile_modes	fid_line_time	line
+profile_modes	fid_sub_time	sub
+sub_caller	DB::enable_profile	1	4	[ 1 0 ]
+sub_subinfo	DB::enable_profile	[ undef 0 0 2 0 ]

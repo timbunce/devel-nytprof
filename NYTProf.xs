@@ -93,7 +93,7 @@ static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static bool embed_fid_line = 0;
 static bool usecputime = 0;
 static int use_db_sub = 0;
-static int profile_begin = 0;
+static int profile_begin = 0;   /* profile at once, ie compile time */
 static int profile_blocks = 1;	/* block and sub *exclusive* times */
 static int profile_subs = 1;    /* sub *inclusive* times */
 static int trace_level = 0;
@@ -815,16 +815,19 @@ set_option(const char* option, const char* value) {
 		strncpy(PROF_output_file, value, MAXPATHLEN);
 	}
 	else if (strEQ(option, "usecputime")) {
-		usecputime = 1;
+		usecputime = atoi(value);
 	}
 	else if (strEQ(option, "begin")) {
 		profile_begin = atoi(value);
 	}
+	else if (strEQ(option, "subs")) {
+		profile_subs = atoi(value);
+	}
 	else if (strEQ(option, "blocks")) {
-		profile_blocks = 1;
+		profile_blocks = atoi(value);
 	}
 	else if (strEQ(option, "expand")) {
-		embed_fid_line = 1;
+		embed_fid_line = atoi(value);
 	}
 	else if (strEQ(option, "trace")) {
 		trace_level = atoi(value);

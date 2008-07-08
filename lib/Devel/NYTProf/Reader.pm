@@ -102,15 +102,6 @@ sub new {
 }
 
 
-sub process {
-	my $filename = shift;
-	my $opts = shift;
-	my $data = Devel::NYTProf::Data->new( { filename => $filename } );
-	$data->make_fid_filenames_relative($opts->{relative_paths});
-	return _map_new_to_old($data);
-}
-
-
 sub _map_new_to_old {    # convert into old-style data structure
 	my ($profile, $level) = @_;
 	my $fid_line_data = $profile->get_fid_line_data($level ||= 'line');

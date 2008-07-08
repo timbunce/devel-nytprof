@@ -58,14 +58,13 @@ $NYTPROF_TEST{file} = $profile_datafile;
 
 chdir( 't' ) if -d 't';
 
-my $tests_per_extn = { p => 1, v => 1, rdt => 1, x => 2 };
+my $tests_per_extn = { p => 1, rdt => 1, x => 3 };
 
 s:^t/:: for @ARGV; # allow args to use t/ prefix
 # *.p   = perl code to profile
-# *.v   = (old) profile data structure to verify
 # *.rdt = result tsv data dump to verify
 # *.x   = result csv dump to verify (should change to .rcv)
-my @tests = @ARGV ? @ARGV : sort <*.p *.v *.rdt *.x>;  # glob-sort, for OS/2
+my @tests = @ARGV ? @ARGV : sort <*.p *.rdt *.x>;  # glob-sort, for OS/2
 
 plan tests => 1 + number_of_tests(@tests) * 2;
 
@@ -129,9 +128,6 @@ sub run_test {
 			unlink_old_profile_datafiles($profile_datafile);
 			profile($test, $profile_datafile);
 		}
-		elsif ($type eq 'v') {
-			verify_old_data($test, $test_datafile);
-		}
 		elsif ($type eq 'rdt') {
 			verify_data($test, $test_datafile);
 		}
@@ -163,46 +159,22 @@ sub run_command {
   local $ENV{PERL5LIB} = $perl5lib;
   open(RV, "$cmd |") or die "Can't execute $cmd: $!\n";
   my @results = <RV>;
-  close RV or warn "Error status $? from $cmd\n";
+  my $ok = close RV;
+	warn "Error status $? from $cmd\n" if not $ok;
   if ($opts{v}) {
     print "$cmd\n";
     print @results;
     print "\n";
   }
-  return @results;
+  return $ok;
 }
 
 
 sub profile {
 	my ($test, $profile_datafile) = @_;
 
-	my @results = run_command("$perl $opts{profperlopts} $test");
-	pass($test); # mainly to show progress
-}
-
-
-sub verify_old_data {
-	my ($test, $profile_datafile) = @_;
-
-	my $hash = eval {
-		my %opts = ( relative_paths => [ @INC, '.' ] );
-		Devel::NYTProf::Reader::process($profile_datafile, \%opts)
-	};
-	if ($@) {
-		diag($@);
-		fail($test);
-		return;
-	}
-
-  # remove times unless specifically testing times
-  foreach my $outer (keys %$hash) {
-		pop_times($hash->{$outer});
-	}
-
-	my $expected;
-	eval scalar slurp_file($test);
-	is_deeply($hash, $expected, $test)
-		or dump_data_to_file($hash, "$test.new");
+	my $cmd = "$perl $opts{profperlopts} $test";
+	ok run_command($cmd), "$test should run ok";
 }
 
 
@@ -273,7 +245,8 @@ sub verify_csv_report {
 	$csvfile = "$outdir/${csvfile}-line.csv";
 	unlink $csvfile;
 
-	run_command("$perl $nytprofcsv --file=$profile_datafile --out=$outdir");
+	my $cmd = "$perl $nytprofcsv --file=$profile_datafile --out=$outdir";
+	ok run_command($cmd), "generate csv ok";
 
 	my @got      = slurp_file($csvfile);
 	my @expected = slurp_file($test);

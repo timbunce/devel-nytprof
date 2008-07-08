@@ -77,6 +77,9 @@ t/test30-fork.0.x
 t/test30-fork.1.rdt
 t/test30-fork.1.x
 t/test50-disable.p
+t/test50-disable.rdt
 t/test50-disable.x
 t/test60-subname.p
 t/test60-subname.rdt
+t/test90-stress.p
+test.pl

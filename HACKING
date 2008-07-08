@@ -229,3 +229,5 @@ Add links to -$level html reports to ease switching between them.
 Set options via import so perl -d:NYTProf=... works. Very handy. May need
 alternative option syntax. Also perl gives special meaning to 't' option
 (threads) so we should reserve the same for eventual thread support.
+
+Add help option which would print a summary of the options and exit
