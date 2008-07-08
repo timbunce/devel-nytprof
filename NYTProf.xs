@@ -195,7 +195,7 @@ output_header(pTHX) {
 	mg_get(sv = get_sv("0",GV_ADDWARN));
 	fprintf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
 
-	if (0)fprintf(out, ":%s=%u\n",       "nv_size", sizeof(NV));
+	if (0)fprintf(out, ":%s=%lu\n",       "nv_size", sizeof(NV));
 
 	OUTPUT_PID();
 

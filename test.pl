@@ -27,8 +27,8 @@ $|=1;
 
 # skip these tests when the provided condition is true
 my %SKIP_TESTS = (
-	'test06' => ($] >= 5.008) ? 0 : "needs perl < 5.8",
-	'test15' => ($] <  5.008) ? 0 : "needs perl >= 5.8",
+	'test06' => ($] >= 5.008) ? 0 : "needs perl >= 5.8",
+	'test15' => ($] <  5.008) ? 0 : "needs perl < 5.8",
 );
 
 my %opts = (

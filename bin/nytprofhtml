@@ -86,7 +86,8 @@ $reporter->set_param('header', sub {
 	};
 
 	get_html_header("Profile: !~FILENAME~!") .
-	get_header($profile, "Performance Profile", $subhead) .
+	get_header(profile => $profile, title => "Performance Profile", subtitle => $subhead, 
+							mode => qq/-$level/) .
 qq{<div class="body_content">
 <br />
 <table><tr>
@@ -307,7 +308,7 @@ sub output_level_indexpage {
 	my $subhead = qq{&emsp;&emsp;$profile_level_buttons<br />
 		For ${ \($profile->{attribute}{application}) }
 	};
-	print OUT get_header($profile, "Performance Profile Index", $subhead);
+	print OUT get_header(profile => $profile, title => "Performance Profile Index", subtitle => $subhead);
 	print OUT qq{
 		<div class="body_content"><br/>
 		Jump to a file: &nbsp;<select>
@@ -465,13 +466,23 @@ EOD
 }
 
 sub get_header {
-	my ($profile, $head1, $head2, $right1, $right2) = @_;
+	my %args = @_;
+	my ($profile, 			$head1, 			$head2, 				 $right1, 			$right2, 					$mode) = 
+		 ($args{profile}, $args{title}, $args{subtitle}, $args{title2}, $args{subtitle2}, $args{mode});
 
 	$right1 ||= "&nbsp;";
 	$right2 ||= "Run on ${ \scalar localtime($profile->{attribute}{basetime}) }<br />Reported on ".localtime(time);
 
+	my $back_link = q//;
+	if ($mode) {
+		$back_link = qq{<div class="header_back">
+			<a href="index$mode.html">&larr; Index</a>
+		</div>};
+	}
+
 	return qq{<body> 
 <div class="header" style="position: relative; overflow-x: hidden; overflow-y: hidden; z-index: 0; ">
+$back_link
 <div class="headerForeground" style="float: left">
 	<span class="siteTitle">$head1</span>
 	<span class="siteSubtitle">$head2<span>
@@ -544,6 +555,8 @@ __DATA__
  */
 
 /* Note: default values use the color-safe web palette. */
+a:hover { color: red; }
+a:visited { color: #333333; }
 
 body { font-family: sans-serif; margin: 0px; }
 .body_content { margin: 8px; }
@@ -553,8 +566,16 @@ body { font-family: sans-serif; margin: 0px; }
 .siteTitle { font-size: 2em; }
 .siteSubTitle { font-size: 1.2em; }
 
-a:hover { color: red; }
-a:visited { color: #333333; }
+.header_back { 
+	position: absolute; 
+	padding: 10px;
+}
+.header_back > a:link,
+.header_back > a:visited {
+	color: white; 
+	text-decoration: none;
+	font-size: 0.75em;
+}
 
 table { 
 	border-collapse: collapse; 
