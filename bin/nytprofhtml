@@ -228,10 +228,12 @@ $reporter->set_param('column4', {
         $epilogue = join "\n", map {
           my ($count, $incl_time) = @{$calls->{$_}};
           my $href = $reporter->href_for_sub($_);
-          (($href) ? sprintf(qq{$ws# <a href="%s">%s</a>}, $href, $_)
-                   : sprintf(qq{$ws# %s}, $_)
-          ).sprintf(" called $count times, taking %ss, avg %ss/call",
-						fmt_float($incl_time), fmt_float($incl_time/$count));
+					my $html = sprintf qq{%s# spent %ss making %d calls to },
+						$ws, fmt_float($incl_time), $count;
+					$html .= ($href) ? sprintf(qq{<a href="%s">%s</a>}, $href, $_) : $_;
+          $html .= sprintf qq{, avg %ss/call}, fmt_float($incl_time/$count)
+						if $count > 1;
+					$html;
         } sort keys %$calls;
         $epilogue = sprintf qq{<div class="calls">%s</div>}, $epilogue;
       }
