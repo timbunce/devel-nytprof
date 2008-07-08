@@ -21,7 +21,6 @@
 #include "XSUB.h"
 
 #ifndef NO_PPPORT_H
-#   define NEED_my_strlcpy
 #   define NEED_my_snprintf
 #   include "ppport.h"
 #endif
@@ -196,7 +195,7 @@ output_header(pTHX) {
 	mg_get(sv = get_sv("0",GV_ADDWARN));
 	fprintf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
 
-	if (0)fprintf(out, ":%s=%lu\n",       "nv_size", sizeof(NV));
+	if (0)fprintf(out, ":%s=%u\n",       "nv_size", sizeof(NV));
 
 	OUTPUT_PID();
 
@@ -907,7 +906,7 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	time_in_sub = overflow + ticks / 1000000.0;
 
 	if (trace_level >= 3)
-		warn("exited %s after %fs (%fs @ %s)\n",
+		warn("exited %s after %fs (%"NVff"s @ %s)\n",
 			SvPV_nolen(subname_sv), time_in_sub,
 			SvNV(time_sv)+time_in_sub, sub_call_start->fid_line);
 
@@ -1000,7 +999,7 @@ pp_entersub_profiler(pTHX) {
 			sv_setsv(subname_sv, sub_sv);
 		}
 		else {
-			char *what = (is_xs) ? "xs" : "sub";
+			const char *what = (is_xs) ? "xs" : "sub";
 			warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
 			if (trace_level || 1)
 				sv_dump(sub_sv);
@@ -1424,7 +1423,7 @@ lookup_subinfo_av(pTHX_ char *subname, STRLEN len, HV *sub_subinfo_hv)
 		sv_setnv(*av_fetch(av, 4, 1), 0);	/* incl_time */
 		sv_setsv(sv, rv);
   }
-	return SvRV(sv);
+	return (AV *)SvRV(sv);
 }
 
 
@@ -1669,7 +1668,7 @@ load_profile_data_from_stream() {
 				int len = my_snprintf(text, sizeof(text), "%d", pid);
 				hv_store(live_pids_hv, text, len, newSVuv(ppid), 0);
 				if (trace_level)
-					warn("Start of profile data for pid %s (ppid %d, %ld pids live)\n",
+					warn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live)\n",
 						text, ppid, HvKEYS(live_pids_hv));
 				break;
 			}
@@ -1682,7 +1681,7 @@ load_profile_data_from_stream() {
 					warn("Inconsistent pids in profile data (pid %d not introduced)", 
 								pid);
 				if (trace_level)
-					warn("End of profile data for pid %s, %ld remaining\n", text, 
+					warn("End of profile data for pid %s, %"IVdf" remaining\n", text, 
 								HvKEYS(live_pids_hv));
 				break;
 			}
@@ -1722,7 +1721,7 @@ load_profile_data_from_stream() {
 	}
 
 	if (EOF == c && HvKEYS(live_pids_hv)) {
-		warn("profile data possibly truncated, no terminator for %ld pids", 
+		warn("profile data possibly truncated, no terminator for %"IVdf" pids", 
 					HvKEYS(live_pids_hv));
 	}
 	sv_free((SV*)live_pids_hv);
