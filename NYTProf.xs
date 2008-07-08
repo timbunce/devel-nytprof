@@ -531,7 +531,11 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
     /* find next cop from OP */
 		o = start_op;
     while ( o && (type = (o->op_type) ? o->op_type : o->op_targ) ) {
+#ifdef OP_SETSTATE
         if (type == OP_NEXTSTATE || type == OP_SETSTATE || type == OP_DBSTATE) {
+#else
+        if (type == OP_NEXTSTATE || type == OP_DBSTATE) {
+#endif
 				  if (trace_level >= 4)
 						warn("\tstart_cop_of_context %s is %s line %d of %s\n",
 							block_type[CxTYPE(cx)], OP_NAME(o), (int)CopLINE((COP*)o), 
@@ -1140,8 +1144,10 @@ init_profiler(pTHX) {
 	if (!use_db_sub) {
 		pp_nextstate_orig = PL_ppaddr[OP_NEXTSTATE];
 		PL_ppaddr[OP_NEXTSTATE] = pp_nextstate_profiler;
+#ifdef OP_SETSTATE
 		pp_setstate_orig = PL_ppaddr[OP_SETSTATE];
 		PL_ppaddr[OP_SETSTATE] = pp_setstate_profiler;
+#endif
 		pp_dbstate_orig = PL_ppaddr[OP_DBSTATE];
 		PL_ppaddr[OP_DBSTATE] = pp_dbstate_profiler;
 	}
