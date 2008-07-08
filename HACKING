@@ -267,3 +267,10 @@ with the block level view.
 Following on from that I have a totally crazy idea that the browsers css engine
 could be used to highlight the corresponding rollup line when hovering over a
 source line, and/or the opposite. Needs lots of thought, but it's an interesting idea.
+
+test14 depends on the AutoLoad module looking like version 5.60, the
+version included with Perl 5.8.8.  Perl 5.8.9 and Perl 5.10.0 have
+a more recent version.  Users can also now update AutoLoader from CPAN.
+We need to skip test14 if using a different version of AutoLoader, and
+make the tests a bit smarter with differing AutoLoader versions.  Steve
+is looking into this.
