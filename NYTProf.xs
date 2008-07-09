@@ -1601,6 +1601,7 @@ load_profile_data_from_stream() {
 				av_store(av, 4, newSVuv(fid_flags));
 				av_store(av, 5, newSVuv(file_size));
 				av_store(av, 6, newSVuv(file_mtime));
+				/* 7: profile ref */
 
 				av_store(fid_fileinfo_av, file_num, newRV_noinc((SV*)av));
 				break;

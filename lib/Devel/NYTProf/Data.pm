@@ -44,7 +44,7 @@ use Cwd qw(getcwd);
 use Scalar::Util qw(blessed);
 
 use Devel::NYTProf::Core;
-use Devel::NYTProf::Util qw(strip_prefix_from_paths);
+use Devel::NYTProf::Util qw(strip_prefix_from_paths get_abs_paths_alternation_regex);
 
 my $trace = 0;
 
@@ -67,17 +67,39 @@ sub new {
 	my $profile = load_profile_data_from_file($file);
 	bless $profile => $class;
 
+	# add link to profile so fidinfo objects be more useful
+	# XXX circular ref
+	$_ and $_->[7] = $profile for @{ $profile->{fid_fileinfo} };
+
 	# bless fid_fileinfo data
 	(my $fid_class = $class) =~ s/\w+$/ProfFile/;
-	$_ && bless $_ => $fid_class for @{ $profile->{fid_fileinfo} };
+	$_ and bless $_ => $fid_class for @{ $profile->{fid_fileinfo} };
 
 	# bless sub_subinfo data
 	(my $sub_class = $class) =~ s/\w+$/ProfSub/;
-	$_ && bless $_ => $sub_class for values %{ $profile->{sub_subinfo} };
+	$_ and bless $_ => $sub_class for values %{ $profile->{sub_subinfo} };
 
 	return $profile;
 }
 
+sub all_fileinfos {
+	my @all = @{ shift->{fid_fileinfo} };
+	shift @all; # drop fid 0
+	return @all;
+}
+
+sub fileinfo_of {
+	my $self = shift;
+	my $arg = shift;
+	return $arg if ref $arg and $arg->isa('Devel::NYTProf::ProfFile');
+	return $self->{fid_fileinfo}[ $arg ];
+}
+
+
+sub inc {
+	# XXX should return inc from profile data, when it's there
+	return @INC;
+}
 
 =head2 dump_profile_data
 
@@ -248,9 +270,43 @@ sub get_profile_levels {
 sub get_fid_line_data {
 	my ($self, $level) = @_;
 	$level ||= 'line';
-	my $fid_line_data = $self->{"fid_${level}_time"}
-		or croak("No $level-level data in profile");
+	my $fid_line_data = $self->{"fid_${level}_time"};
 	return $fid_line_data;
+}
+
+
+=head2 remove_internal_data_of
+
+  $profile->remove_internal_data_of( $fileinfo_or_fid );
+
+Removes from the profile all information relating to the internals of the specified file.
+Data for calls made from outside the file to subroutines defined within it, are kept.
+
+=cut
+
+sub remove_internal_data_of {
+	my $self = shift;
+	my $fileinfo = $self->fileinfo_of( shift );
+	my $fid = $fileinfo->fid;
+
+	# remove any timing data for inside this file
+	for my $level (qw(line block sub)) {
+		my $fid_line_data = $self->get_fid_line_data($level)
+			or next;
+		$fid_line_data->[$fid] = undef;
+	}
+
+	# remove all subs defined in this file
+	if (my $sub_subinfo = $self->{sub_subinfo}) {
+		while ( my ($subname, $subinfo) = each %$sub_subinfo ) {
+			delete $sub_subinfo->{$subname} if $subinfo->fid == $fid;
+		}
+	}
+
+	# remove sub_caller info for calls made from within this file
+	if (my $sub_caller = $self->{sub_caller}) {
+		delete $_->{$fid} for values %$sub_caller;
+	}
 }
 
 
@@ -271,6 +327,7 @@ The data normalized is:
  - subroutines: inclusive time set to 0
  - filenames: path prefixes matching absolute paths in @INC are removed
  - filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
+ - calls remove_internal_data_of() for files loaded from absolute paths in @INC
 
 =cut
 
@@ -281,21 +338,29 @@ sub normalize_variables {
 	$self->{attribute}{xs_version} = 0;
 	$self->{attribute}{perl_version} = 0;
 
-	for (keys %$self) {
+	# remove_internal_data_of library files
+	# (the definition of which is quite vague at the moment)
+	my @abs_inc = grep { $_ =~ m:^/: } $self->inc;
+	my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
+	for my $fileinfo ($self->all_fileinfos) {
+		# ignore files not in perl's own lib
+		next if $fileinfo->filename !~ $is_lib_regex;
+		$self->remove_internal_data_of($fileinfo);
+	}
 
-		# fid_line_times => [fid][line][time,...]
-		next unless /^fid_\w+_time$/;
-
-		# iterate over the fids that have data
-		my $fid_lines = $self->{$_} || [];
-		for my $of_fid (@$fid_lines) {
+	# zero the statement timing data
+	for my $level (qw(line block sub)) {
+		my $fid_line_data = $self->get_fid_line_data($level) || [];
+		for my $of_fid (@$fid_line_data) {
 			_zero_array_elem($of_fid, 0) if $of_fid;
 		}
 	}
 
+	# zero subroutine inclusive time
 	my $sub_subinfo = $self->{sub_subinfo};
 	$_->[4] = 0 for values %$sub_subinfo;
 
+	# zero per-call-location subroutine inclusive time
 	# { 'pkg::sub' => { fid => { line => [ count, incl_time ] } } }
 	my $sub_caller = $self->{sub_caller} || {};
 	$_->[1]=0 for map { values %$_ } map { values %$_ } values %$sub_caller;
@@ -625,6 +690,21 @@ sub line_calls_for_file {
 
 use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 
+sub filename   { shift->[0] }
+sub eval_fid   { shift->[1] }
+sub eval_line  { shift->[2] }
+sub fid        { shift->[3] }
+sub flags      { shift->[4] }
+sub size       { shift->[5] }
+sub mtime      { shift->[6] }
+sub profile    { shift->[7] }
+
+sub outer {
+	my $self = shift;
+	my $fid = shift->eval_fid or return undef;
+	return $self->profile->fileinfo_of($fid);
+}
+
 
 # should return the filename that the application used
 # when loading the file
@@ -641,13 +721,21 @@ sub _values_for_dump {
 	my $self = shift;
 	my @values = @$self;
 	$values[0] = $self->filename_without_inc;
+	pop @values; # remove profile ref
 	return \@values;
 }
 
 } # end of package
 
+
 {
 package Devel::NYTProf::ProfSub;	# sub_subinfo
+
+sub fid          { shift->[0] }
+sub first_line   { shift->[1] }
+sub last_line    { shift->[2] }
+sub calls        { shift->[3] }
+sub incl_time    { shift->[4] }
 
 } # end of package
 

@@ -41,6 +41,8 @@ our @EXPORT_OK = qw(
 	strip_prefix_from_paths
 	fmt_float
 	calculate_median_absolute_deviation
+	get_alternation_regex
+	get_abs_paths_alternation_regex
 );
 
 
