@@ -158,7 +158,11 @@ the need to disable features to get more speed.
 
 Set to 1 to enable use of the traditional DB::DB() subroutine to perform
 profiling, instead of the faster 'opcode redirection' technique that's used by
-default.
+default. It also disables some extra mechanisms that help ensure more accurate
+results for things like the last statements in subroutines.
+
+If you find a use, or need, for use_db_sub=1 then please let us know,
+otherise this vestige of old slower ways is likely to be removed.
 
 =item usecputime=1
 

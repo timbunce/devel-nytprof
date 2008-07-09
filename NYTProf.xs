@@ -137,7 +137,7 @@ static void write_cached_fids();
 void output_header(pTHX);
 unsigned int get_file_id(pTHX_ char*, STRLEN, int);
 void output_int(unsigned int);
-void DB(pTHX);
+void DB_stmt(pTHX);
 void set_option(const char*, const char*);
 static int enable_profile(pTHX);
 static int disable_profile(pTHX);
@@ -147,10 +147,11 @@ HV *load_profile_data_from_stream();
 AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num, 
 															double time, int count, unsigned int fid);
 
-OP *pp_nextstate_profiler(pTHX); OP *(*pp_nextstate_orig)(pTHX);
-OP *pp_setstate_profiler(pTHX);  OP *(*pp_setstate_orig)(pTHX);
-OP *pp_dbstate_profiler(pTHX);   OP *(*pp_dbstate_orig)(pTHX);
-OP *pp_entersub_profiler(pTHX);  OP *(*pp_entersub_orig)(pTHX);
+/* copy of original contents of PL_ppaddr */
+OP * (CPERLscope(**PL_ppaddr_orig))(pTHX);
+#define run_original_op(type) CALL_FPTR(PL_ppaddr_orig[type])(aTHX)
+OP *pp_entersub_profiler(pTHX);
+OP *pp_leaving_profiler(pTHX);
 HV *sub_callers_hv;
 
 /* macros for outputing profile data */
@@ -729,10 +730,10 @@ closest_cop(pTHX_ const COP *cop, const OP *o)
 
 
 /**
- * PerlDB implementation. Called before each breakable statement
+ * Main statement profiling function. Called before each breakable statement.
  */
 void
-DB(pTHX) {
+DB_stmt(pTHX) {
 	char *file;
 	unsigned int elapsed;
 	unsigned int overflow;
@@ -963,7 +964,7 @@ pp_entersub_profiler(pTHX) {
 	 * for XS subs pp_entersub executes the entire sub
 	 * and returning the op *after* the sub (PL_op->op_next)
 	 */
-	op = pp_entersub_orig(aTHX);
+	op = run_original_op(OP_ENTERSUB);
 
 	if (is_profiling) {
 
@@ -973,7 +974,7 @@ pp_entersub_profiler(pTHX) {
 		unsigned int fid = (file == last_executed_fileptr)
 			? last_executed_fid
 			: get_file_id(aTHX_ file, strlen(file), 1);
-		/* XXX could use same closest_cop as DB() but it doesn't seem
+		/* XXX could use same closest_cop as DB_stmt() but it doesn't seem
 		 * to be needed here. Line is 0 only when call is from embedded
 		 * C code like mod_perl (at least in my testing so far)
 		 */
@@ -1082,12 +1083,31 @@ pp_entersub_profiler(pTHX) {
 	return op;
 }
 
+static void
+DB_leave(pTHX)
+{
+	/* Called after ops that indicate we've completed a statement
+   * and are returning into some outer statement.
+   * Used to ensure that time between now and the next statement being
+   * entered, is allocated to the appropriate statement.
+   */
+}
+
+
 OP *
-pp_nextstate_profiler(pTHX) { OP *op=pp_nextstate_orig(aTHX); DB(aTHX); return op; }
+pp_stmt_profiler(pTHX) {
+	/* handles OP_DBSTATE, OP_SETSTATE, etc */
+	OP *op = run_original_op(PL_op->op_type);
+	DB_stmt(aTHX);
+	return op;
+}
 OP *
-pp_setstate_profiler(pTHX) {  OP *op=pp_setstate_orig(aTHX);  DB(aTHX); return op; }
-OP *
-pp_dbstate_profiler(pTHX) {   OP *op=pp_dbstate_orig(aTHX);   DB(aTHX); return op; }
+pp_leaving_profiler(pTHX) {
+	/* handles OP_LEAVESUB, OP_LEAVEEVAL, etc */
+	OP *op = run_original_op(PL_op->op_type);
+	DB_leave(aTHX);
+	return op;
+}
 
 
 /************************************
@@ -1159,21 +1179,26 @@ init_profiler(pTHX) {
 	open_output_file(aTHX_ PROF_output_file);
 
 	/* redirect opcodes for statement profiling */
+	New(0, PL_ppaddr_orig, OP_max, void *);
+	Copy(PL_ppaddr, PL_ppaddr_orig, OP_max, void *);
 	if (!use_db_sub) {
-		pp_nextstate_orig = PL_ppaddr[OP_NEXTSTATE];
-		PL_ppaddr[OP_NEXTSTATE] = pp_nextstate_profiler;
+		PL_ppaddr[OP_NEXTSTATE]  = pp_stmt_profiler;
+		PL_ppaddr[OP_DBSTATE]    = pp_stmt_profiler;
 #ifdef OP_SETSTATE
-		pp_setstate_orig = PL_ppaddr[OP_SETSTATE];
-		PL_ppaddr[OP_SETSTATE] = pp_setstate_profiler;
+		PL_ppaddr[OP_SETSTATE]   = pp_stmt_profiler;
 #endif
-		pp_dbstate_orig = PL_ppaddr[OP_DBSTATE];
-		PL_ppaddr[OP_DBSTATE] = pp_dbstate_profiler;
+		PL_ppaddr[OP_LEAVESUB]   = pp_leaving_profiler;
+		PL_ppaddr[OP_LEAVESUBLV] = pp_leaving_profiler;
+		PL_ppaddr[OP_LEAVE]      = pp_leaving_profiler;
+		PL_ppaddr[OP_LEAVELOOP]  = pp_leaving_profiler;
+		PL_ppaddr[OP_LEAVEWRITE] = pp_leaving_profiler;
+		PL_ppaddr[OP_LEAVEEVAL]  = pp_leaving_profiler;
+		PL_ppaddr[OP_LEAVETRY]   = pp_leaving_profiler;
 	}
 
 	/* redirect opcodes for caller tracking */
 	if (!sub_callers_hv)
 		sub_callers_hv = newHV();
-	pp_entersub_orig = PL_ppaddr[OP_ENTERSUB];
 	PL_ppaddr[OP_ENTERSUB] = pp_entersub_profiler;
 
 	if (profile_begin) {
@@ -1788,7 +1813,7 @@ DB_profiler(...)
 		/* this sub gets aliased as "DB::DB" by NYTProf.pm if use_db_sub is true */
 		PERL_UNUSED_VAR(items);
 		if (use_db_sub)
-			DB(aTHX);
+			DB_stmt(aTHX);
 	  else if (1||trace_level)
 			warn("DB called needlessly");
 
@@ -1816,7 +1841,7 @@ _finish(...)
 	is_finishing = 1;
 	if (trace_level)
 		warn("_finish (last_pid %d, getpid %d)\n", last_pid, getpid());
-	DB(aTHX); /* write data for final statement */
+	DB_stmt(aTHX); /* write data for final statement */
 	disable_profile(aTHX);
 	if (out) {
 		write_sub_line_ranges(aTHX_ 0);
