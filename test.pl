@@ -48,6 +48,9 @@ my $opt_perl = $opts{p};
 my $opt_include = $opts{I};
 my $profile_datafile = 'nytprof_t.out'; # non-default to test override works
 
+# note some env vars that might impact the tests
+$ENV{$_} && warn "$_=$ENV{$_}\n"
+	for qw(PERL5DB PERL5OPT PERL_UNICODE PERLIO);
 
 if ($ENV{NYTPROF}) { # avoid external interference
 	warn "Existing NYTPROF env var value ($ENV{NYTPROF}) ignored for tests. Use NYTPROF_TEST env var if need be.\n";
