@@ -4,7 +4,7 @@
 HACKING Devel::NYTProf
 ======================
 
-The New York Times and I encourage hacking Devel::NYTProf!
+We encourage hacking Devel::NYTProf!
 
 OBTAINING THE CURRENT RELEASE
 -----------------------------
@@ -30,8 +30,8 @@ When developing, please ensure that no new compiler warnings are output.
 
 TESTING
 -------
-You MUST write test cases for you changes. All tests that are dropped into the
-"t" folder and added to MANIFEST will be executed.  The testing system is
+You MUST write test cases for your changes. All tests that are dropped into the
+"t" folder will be executed. (Remember to add them to MANIFEST.)  The testing system is
 customized for this module because profilers are not that easy to test.
 The system still uses Test::Harness and Test::More, so it should behave just
 like any other perl modules 'make test'.
@@ -250,6 +250,10 @@ the inclusive timing code can take a copy of the current cumulative overhead.
 When the subroutine exits the code can subtract the difference between the
 original cumulative overhead and the current one.
 
+Talking that further, the same approach may be able to provide *exclusive*
+subroutine times. That would make NYTProf an even better sub-level profiler
+and, when line-level profiling is disabled, the fastest profiler by far.
+
 Add way to tell if were returning from the outermost scope, ie we're
 in mod_perl and we're exiting a handler back to mod_perl. So any wait time
 before the next statement shouldn't be counted.
@@ -306,3 +310,8 @@ Add option to disable statement based profiling, so you're left with subroutine
 inclusive timing. That's *really* fast and would be handy for a quick check on
 performance of a large application. It's also generates no i/o till the end
 so may be useful for long running apps that would otherwise generate a huge data file.
+
+Add tooltip to sub names where we can't provide a link because the sub is in XS.
+
+Add a 'permalink' icon (eg infinity symbol) to the right of lines defining subs
+to make it easer to email/IM links to particular places in the code.
