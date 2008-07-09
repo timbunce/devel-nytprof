@@ -141,10 +141,15 @@ WriteMakefile(
     MAN1PODS					=> { 'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
 													'bin/nytprofcsv' => '$(INST_MAN1DIR)/nytprofcsv.1' },
     INC               => $INCLUDE,
-		clean							=> { 
-			FILES	=> "t/nytprof_t.out nytprof t/nytprof.out t/*.outdir t/test*.*.new t/auto"
-		},
-		%mm_opts,
+    clean             => { 
+        FILES => "t/nytprof_t.out nytprof t/nytprof.out t/*.outdir t/test*.*.new t/auto"
+    },
+    dist  => {
+        DIST_DEFAULT=> 'clean distcheck disttest tardist',
+        PREOP => '$(MAKE) -f Makefile.old distdir',
+        COMPRESS => 'gzip -v9', SUFFIX => 'gz',
+    },
+    %mm_opts,
 );
 
 exit 0;
