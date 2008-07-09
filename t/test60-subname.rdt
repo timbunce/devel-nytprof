@@ -22,9 +22,9 @@ fid_sub_time	1	16	[ 0 1 ]
 profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
-sub_caller	Socket::inet_aton	1	12	[ 1 0 ]
-sub_caller	Socket::inet_aton	1	16	[ 1 0 ]
-sub_caller	Socket::inet_aton	1	5	[ 1 0 ]
-sub_caller	Socket::inet_aton	1	9	[ 1 0 ]
-sub_subinfo	Socket::inet_aton	[ undef 0 0 5 0 ]
+sub_caller	Socket::pack_sockaddr_un	1	12	[ 1 0 ]
+sub_caller	Socket::pack_sockaddr_un	1	16	[ 1 0 ]
+sub_caller	Socket::pack_sockaddr_un	1	5	[ 1 0 ]
+sub_caller	Socket::pack_sockaddr_un	1	9	[ 1 0 ]
+sub_subinfo	Socket::pack_sockaddr_un	[ undef 0 0 5 0 ]
 sub_subinfo	main::BEGIN	[ 1 2 2 0 0 ]
