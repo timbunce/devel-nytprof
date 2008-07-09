@@ -4,7 +4,7 @@
 ##
 ## Copyright, contact and other information can be found
 ## at the bottom of this file, or by going to:
-## http://search.cpan.org/~akaplan/Devel-NYTProf
+## http://search.cpan.org/dist/Devel-NYTProf/
 ##
 ###########################################################
 ## $Id$
@@ -237,8 +237,8 @@ B<Steve Peters>, C<< <steve at fisharerojo.org> >>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
-Copyright (C) 2008 by Tim Bunce, Ireland.
+  Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
+  Copyright (C) 2008 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

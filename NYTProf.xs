@@ -2,8 +2,9 @@
  * ************************************************************************
  * This file is part of the Devel::NYTProf package.
  * Copyright 2008 Adam J. Kaplan, The New York Times Company.
+ * Copyright 2008 Tim Bunce, Ireland.
  * Released under the same terms as Perl 5.8
- * See http://search.cpan.org/~akaplan/Devel-NYTProf for more information
+ * See http://search.cpan.org/dist/Devel-NYTProf/
  *
  * Contributors:
  * Adam Kaplan, akaplan at nytimes.com

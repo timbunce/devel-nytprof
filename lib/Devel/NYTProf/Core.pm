@@ -14,7 +14,7 @@ package Devel::NYTProf::Core;
 
 use XSLoader;
 
-our $VERSION = '1.50'; # increment with XS changes too
+our $VERSION = '1.90'; # increment with XS changes too
 
 XSLoader::load('Devel::NYTProf', $VERSION);
 
@@ -36,7 +36,7 @@ Devel::NYTProf::Core - load internals of Devel::NYTProf
 =head1 DESCRIPTION
 
 This module is not meant to be used directly.
-See L<Devel::NYTProf> and L<Devel::NYTProf::Reader>.
+See L<Devel::NYTProf>, L<Devel::NYTProf::Data>, and L<Devel::NYTProf::Reader>.
 
 =head1 AUTHOR
 

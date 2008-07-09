@@ -4,7 +4,7 @@
 ##
 ## Copyright, contact and other information can be found
 ## at the bottom of this file, or by going to:
-## http://search.cpan.org/~akaplan/Devel-NYTProf
+## http://search.cpan.org/dist/Devel-NYTProf/
 ##
 ###########################################################
 # $Id$
@@ -135,7 +135,7 @@ WriteMakefile(
     	  'Test::More'      => 0,
     	  'XSLoader'        => 0,
     	  'Getopt::Long'    => 0,
-    	}, # e.g., Module::Name => 1.1
+    	},
     LIBS              => \@LIBS,
     EXE_FILES					=> [ 'bin/nytprofhtml', 'bin/nytprofcsv' ],
     MAN1PODS					=> { 'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
