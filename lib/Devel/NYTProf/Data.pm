@@ -41,6 +41,7 @@ use strict;
 
 use Carp;
 use Cwd qw(getcwd);
+use Scalar::Util qw(blessed);
 
 use Devel::NYTProf::Core;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths);
@@ -60,20 +61,19 @@ sub new {
 	my $class = shift;
 	my $args = shift || { filename => 'nytprof.out' };
 
-	croak "No file specified (@{[ %$args ]})" unless $args->{filename};
+	my $file = $args->{filename}
+		or croak "No filename specified";
 	
-	my @files;
-	if(defined $args->{allowfork}) {
-		@files = glob($args->{filename} . "*");
-	} else {
-		push @files, $args->{filename};
-	}
-	my $profile;
-
-	for my $file (@files) {
-		$profile = Devel::NYTProf::Data::load_profile_data_from_file($file);
-	}
+	my $profile = load_profile_data_from_file($file);
 	bless $profile => $class;
+
+	# bless fid_fileinfo data
+	(my $fid_class = $class) =~ s/\w+$/ProfFile/;
+	$_ && bless $_ => $fid_class for @{ $profile->{fid_fileinfo} };
+
+	# bless sub_subinfo data
+	(my $sub_class = $class) =~ s/\w+$/ProfSub/;
+	$_ && bless $_ => $sub_class for values %{ $profile->{sub_subinfo} };
 
 	return $profile;
 }
@@ -104,7 +104,15 @@ The types of data present can depend on the options used when profiling.
         xs_version => 1.13
     }
     fid_fileinfo => [
-        1: test01.p
+        1: [
+            0: test01.p
+            1: 
+            2: 
+            3: 1
+            4: 0
+            5: 0
+            6: 0
+        ]
     ]
     fid_line_time => [
         1: [
@@ -201,12 +209,15 @@ sub _dump_elements {
 		# skip undef elements in array
 		next if !defined($value) && !$is_hash;
 
+		$value = $value->_values_for_dump
+			if blessed $value && $value->can('_values_for_dump');
+
 		# special case some common cases to be more compact:
 		#		fid_*_time   [fid][line] = [N,N]
 		#		sub_subinfo {subname} = [fid,startline,endline,calls,incl_time]
 		my $as_compact = $format->{$key1}{compact};
 		if (not defined $as_compact) { # so guess...
-			$as_compact = (ref $value eq 'ARRAY' && @$value <= 9
+			$as_compact = (UNIVERSAL::isa($value, 'ARRAY') && @$value <= 9
 										&& !grep { ref or !defined } @$value);
 		}
 
@@ -316,7 +327,6 @@ sub make_fid_filenames_relative {
 }
 
 
-
 sub _zero_array_elem {
 	my ($ary_of_line_data, $index) = @_;
 	for my $line_data (@$ary_of_line_data) {
@@ -337,8 +347,7 @@ sub _filename_to_fid {
 		my $fid_fileinfo = $self->{fid_fileinfo} || [];
 		my $filename_to_fid = {};
 		for my $fid (1..@$fid_fileinfo-1) {
-			my $filename = $fid_fileinfo->[$fid];
-			$filename = $filename->[0] if ref $filename; # string eval
+			my $filename = $fid_fileinfo->[$fid][0];
 			$filename_to_fid->{$filename} = $fid;
 		}
 		$filename_to_fid;
@@ -609,6 +618,38 @@ sub line_calls_for_file {
 	return $line_calls;
 }
 
+## --- will move out to separate files later ---
+# for now these are viewed as private classes
+
+{ package Devel::NYTProf::ProfFile;	# fid_fileinfo
+
+use Devel::NYTProf::Util qw(strip_prefix_from_paths);
+
+
+# should return the filename that the application used
+# when loading the file
+sub filename_without_inc {
+	my $self = shift;
+	my $f = [ $self->[0] ];
+	# XXX @INC here should use the INC in the profiled code
+	strip_prefix_from_paths( \@INC, $f );
+	return $f->[0];
+}
+
+
+sub _values_for_dump {
+	my $self = shift;
+	my @values = @$self;
+	$values[0] = $self->filename_without_inc;
+	return \@values;
+}
+
+} # end of package
+
+{
+package Devel::NYTProf::ProfSub;	# sub_subinfo
+
+} # end of package
 
 1;
 

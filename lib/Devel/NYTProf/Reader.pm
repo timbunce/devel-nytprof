@@ -249,6 +249,11 @@ sub _generate_report {
 
 	my $data = _map_new_to_old($profile, $LEVEL);
 
+	carp "Profile report data contains no files"
+		unless keys %$data;
+
+	#$profile->dump_profile_data({ filehandle => \*STDERR, separator=>"\t", });
+
 	# pre-calculate some data so it can be cross-referenced
 	foreach my $filestr (keys %$data) {
 
@@ -350,6 +355,7 @@ sub _generate_report {
 		}
 
 		# open output file
+		#warn "$self->{output_dir}/$fname";
 		open (OUT, "> $self->{output_dir}/$fname") or
 			confess "Unable to open $self->{output_dir}/$fname "
 						."for writing: $!\n";

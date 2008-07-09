@@ -35,6 +35,7 @@ use base qw'Exporter';
 use Carp;
 use Cwd qw(getcwd);
 use List::Util qw(sum);
+use UNIVERSAL qw( isa can VERSION );
 
 our @EXPORT_OK = qw(
 	strip_prefix_from_paths
@@ -43,8 +44,36 @@ our @EXPORT_OK = qw(
 );
 
 
-# edit @$paths in-place to remove specified absolute path prefixes
+sub get_alternation_regex {
+	my ($strings) = @_;
 
+	# sort longest string first
+	my @strings = sort { length $b <=> length $a } @$strings;
+
+	# build string regex for each string
+	my $regex = join "|", map { quotemeta $_ } @strings;
+
+	return qr/(?:$regex)/;
+}
+
+
+sub get_abs_paths_alternation_regex {
+	my ($inc, $cwd) = @_;
+	my @inc = @$inc or croak "No paths";
+
+	# rewrite relative directories to be absolute
+  # the logic here should match that in get_file_id()
+  for (@inc) {
+    next if m{^\/};   # already absolute
+    $_ =~ s/^\.\///;  # remove a leading './'
+		$cwd ||= getcwd();
+    $_ = ($_ eq '.') ? $cwd : "$cwd/$_";
+  }
+
+	return get_alternation_regex(\@inc);
+}
+
+# edit @$paths in-place to remove specified absolute path prefixes
 sub strip_prefix_from_paths {
 	my ($inc_ref, $paths, $anchor) = @_;
 	$anchor = '^' if not defined $anchor;
@@ -53,27 +82,13 @@ sub strip_prefix_from_paths {
 		or return;
 	return if not defined $paths;
 
-	# rewrite relative directories to be absolute
-  # the logic here should match that in get_file_id()
-  my $cwd;
-  for (@inc) {
-    next if m{^\/};   # already absolute
-    $_ =~ s/^\.\///;  # remove a leading './'
-		$cwd ||= getcwd();
-    $_ = ($_ eq '.') ? $cwd : "$cwd/$_";
-  }
+	my $inc_regex = get_abs_paths_alternation_regex(\@inc);
 
-	# sort longest paths first
-	@inc = sort { length $b <=> length $a } @inc;
-
-	# build string regex for each path
-	my $inc_regex = join "|", map { quotemeta $_ } @inc;
-
-	# convert to regex object, anchor at start, soak up any /'s at end
-	$inc_regex = qr{($anchor)(?:$inc_regex)/*};
+	# anchor at start, capture anchor, soak up any /'s at end
+	$inc_regex = qr{($anchor)$inc_regex/*};
 
 	# strip off prefix using regex, skip any empty/undef paths
-	if (ref $paths eq 'ARRAY') {
+	if (UNIVERSAL::isa($paths, 'ARRAY')) {
 		for my $path (@$paths) {
 			if (ref $path) { # recurse to process deeper data
 				strip_prefix_from_paths($inc_ref, $path, $anchor);
@@ -83,7 +98,7 @@ sub strip_prefix_from_paths {
 			}
 		}
 	}
-	elsif (ref $paths eq 'HASH') {
+	elsif (UNIVERSAL::isa($paths,'HASH')) {
 		for my $orig (keys %$paths) {
 			(my $new = $orig) =~ s{$inc_regex}{$1}
 				or next;
