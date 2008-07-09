@@ -207,6 +207,14 @@ Loading via the perl -d option ensures it's loaded first.
 
 C<Devel::NYTProf> is not currently thread safe.
 
+=head2 For perl versions before 5.8.8 it may change what caller() returns
+
+For example, the Readonly module croaks with an "Invalid tie" when profiled with
+perl versions before 5.8.8. That's because it's explicitly checking for certain
+values from caller().  We're not quite sure what the cause is yet.
+
+=head2 
+
 =head2 Windows
 
 Currently there's no support for Windows.
