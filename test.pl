@@ -95,10 +95,13 @@ if($opts{v} ){
 ok(-x $nytprofcsv, "Where's nytprofcsv?");
 
 # run all tests in various configurations
-for my $use_db_sub (0,1) {
-	run_all_tests( {
-		use_db_sub => $use_db_sub,
-	} );
+for my $leave (1,0) {
+	for my $use_db_sub (0,1) {
+		run_all_tests( {
+			leave => $leave,
+			use_db_sub => $use_db_sub,
+		} );
+	}
 }
 
 sub run_all_tests {
@@ -161,16 +164,18 @@ sub run_command {
   my ($cmd) = @_;
   print "NYTPROF=$ENV{NYTPROF}\n" if $opts{v} && $ENV{NYTPROF};
   local $ENV{PERL5LIB} = $perl5lib;
-  open(RV, "$cmd |") or die "Can't execute $cmd: $!\n";
-  my @results = <RV>;
-  my $ok = close RV;
+	my $ok;
+	if ($opts{v}) {
+		print "$cmd\n";
+		$ok = (system($cmd) == 0);
+	}
+	else {
+		open(RV, "$cmd |") or die "Can't execute $cmd: $!\n";
+		my @results = <RV>;
+		$ok = close RV;
+	}
 	warn "Error status $? from $cmd\n" if not $ok;
-  if ($opts{v}) {
-    print "$cmd\n";
-    print @results;
-    print "\n";
-  }
-  return $ok;
+	return $ok;
 }
 
 

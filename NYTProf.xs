@@ -40,6 +40,8 @@
 #define PL_curcop_nytprof PL_curcop
 #endif
 
+#define OP_NAME_safe(op) ((op) ? OP_NAME(op) : "NULL")
+
 #include <sys/time.h>
 #include <stdio.h>
 #ifdef HAS_STDIO_EXT_H
@@ -97,13 +99,15 @@ static int use_db_sub = 0;
 static int profile_begin = 0;   /* profile at once, ie compile time */
 static int profile_blocks = 1;	/* block and sub *exclusive* times */
 static int profile_subs = 1;    /* sub *inclusive* times */
+static int profile_leave = 1;   /* correct block end timing */
+static int profile_zero = 0;    /* don't do timing, all times are zero */
 static int trace_level = 0;
 
 /* time tracking */
 static struct tms start_ctime, end_ctime;
 #ifdef HAS_GETTIMEOFDAY
    typedef struct timeval time_of_day_t;
-#  define get_time_of_day(into) gettimeofday(&into, NULL)
+#  define get_time_of_day(into) if (!profile_zero) gettimeofday(&into, NULL)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
 		overflow = 0; \
 		ticks = ((e.tv_sec - s.tv_sec) * 1000000 + e.tv_usec - s.tv_usec); \
@@ -111,7 +115,7 @@ static struct tms start_ctime, end_ctime;
 #else
    static int (*u2time)(pTHX_ UV *) = 0;
    typedef UV time_of_day_t[2];
-#  define get_time_of_day(into) (*u2time)(aTHX_ into)
+#  define get_time_of_day(into) if (!profile_zero) (*u2time)(aTHX_ into)
 #  define get_ticks_between(s, e, ticks, overflow)  STMT_START { \
 		overflow = 0; \
 		ticks = ((e[0] - s[0]) * 1000000 + e[1] - s[1]); \
@@ -126,7 +130,6 @@ static        char *last_executed_fileptr;
 static unsigned int last_block_line;
 static unsigned int last_sub_line;
 static unsigned int is_profiling;
-static unsigned int is_finishing;
 static pid_t last_pid;
 
 /* reader module variables */
@@ -137,12 +140,15 @@ static void write_cached_fids();
 void output_header(pTHX);
 unsigned int get_file_id(pTHX_ char*, STRLEN, int);
 void output_int(unsigned int);
-void DB_stmt(pTHX);
+void DB_stmt(pTHX_ OP *op);
 void set_option(const char*, const char*);
 static int enable_profile(pTHX);
 static int disable_profile(pTHX);
+static void finish_profile(pTHX);
 void open_output_file(pTHX_ char *);
 int reinit_if_forked(pTHX);
+void write_sub_line_ranges(pTHX_ int fids_only);
+void write_sub_callers(pTHX);
 HV *load_profile_data_from_stream();
 AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num, 
 															double time, int count, unsigned int fid);
@@ -496,6 +502,7 @@ static COP *
 start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
     OP *start_op, *o;
     int type;
+    int trace = 4;
 
     switch (CxTYPE(cx)) {
     case CXt_EVAL:
@@ -539,7 +546,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
         break;
     }
     if (!start_op) {
-        if (trace_level >= 4)
+        if (trace_level >= trace)
             warn("\tstart_cop_of_context: can't find start of %s\n", 
             			block_type[CxTYPE(cx)]);
         return NULL;
@@ -552,21 +559,22 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx) {
 #else
         if (type == OP_NEXTSTATE || type == OP_DBSTATE) {
 #endif
-				  if (trace_level >= 4)
+				  if (trace_level >= trace)
 						warn("\tstart_cop_of_context %s is %s line %d of %s\n",
 							block_type[CxTYPE(cx)], OP_NAME(o), (int)CopLINE((COP*)o), 
 							OutCopFILE((COP*)o));
 					return (COP*)o;
 				}
         /* should never get here? */
-        if (1 || trace_level)
+        if (trace_level) {
             warn("\tstart_cop_of_context %s op '%s' isn't a cop", 
             			block_type[CxTYPE(cx)], OP_NAME(o));
+				}
         if (trace_level >= 4)
             do_op_dump(1, PerlIO_stderr(), o);
         o = o->op_next;
     }
-    if (trace_level >= 3) {
+    if (trace_level >= 1) {
 			warn("\tstart_cop_of_context: can't find next cop for %s line %ld\n",
 					block_type[CxTYPE(cx)], (long)CopLINE(PL_curcop_nytprof));
 			do_op_dump(1, PerlIO_stderr(), start_op);
@@ -733,11 +741,10 @@ closest_cop(pTHX_ const COP *cop, const OP *o)
  * Main statement profiling function. Called before each breakable statement.
  */
 void
-DB_stmt(pTHX) {
+DB_stmt(pTHX_ OP *op) {
 	char *file;
 	unsigned int elapsed;
 	unsigned int overflow;
-
 	COP *cop;
 
 	if (usecputime) {
@@ -749,6 +756,8 @@ DB_stmt(pTHX) {
 		get_time_of_day(end_time);
 		get_ticks_between(start_time, end_time, elapsed, overflow);
 	}
+	if (overflow)	/* XXX later output overflow to file */
+		warn("profile time overflow of %d seconds discarded", overflow);
 
 	if (!out)
 		return;
@@ -783,7 +792,7 @@ DB_stmt(pTHX) {
 			cop = PL_curcop_nytprof;
 		last_executed_line = CopLINE(cop);
 		if (!last_executed_line) { /* typically when _finish called by END */
-			if (!is_finishing)
+			if (op)	/* should never happen */
 				warn("Unable to determine line number in %s", OutCopFILE(cop));
 			last_executed_line = 1; /* don't want zero line numbers in data */
 		}
@@ -808,7 +817,9 @@ DB_stmt(pTHX) {
 	if (profile_blocks) {
 		last_block_line = 0;
 		last_sub_line   = 0;
-		visit_contexts(aTHX_ ~0, &_check_context);
+		if (op) {
+			visit_contexts(aTHX_ ~0, &_check_context);
+		}
 		/* if we didn't find block or sub scopes then use current line */
 		if (!last_block_line) last_block_line = last_executed_line;
 		if (!last_sub_line)   last_sub_line   = last_executed_line;
@@ -820,6 +831,48 @@ DB_stmt(pTHX) {
 		get_time_of_day(start_time);
 	}
 }
+
+
+static void
+DB_leave(pTHX_ OP *op)
+{
+	int prev_last_executed_fid  = last_executed_fid;
+	int prev_last_executed_line = last_executed_line;
+
+	/* Called _after_ ops that indicate we've completed a statement
+	 * and are returning into the middle of some outer statement.
+	 * Used to ensure that time between now and the _next_ statement
+	 * being entered, is allocated to the outer statement we've
+	 * returned into and not the previous statement.
+	 * PL_curcop has already been updated.
+	 */
+
+	if (!is_profiling)
+		return;
+
+	/* measure and output end time of previous statement
+	 * (earlier than it would have been done)
+	 * and switch back to measuring the 'calling' statement
+	 */
+	DB_stmt(aTHX_ op);
+
+	/* output a 'discount' marker to indicate the next statement time shouldn't
+	 * increment the count (because the time is not for a new statement but simply
+	 * a continuation of a previously counted statement).
+	 */
+	fputc('-', out);
+
+	if (trace_level >= 1) {
+		warn("left %u:%u via %s back to %s at %u:%u (b%u s%u)%s",
+			prev_last_executed_fid, prev_last_executed_line,
+			OP_NAME_safe(PL_op), OP_NAME_safe(op),
+			last_executed_fid, last_executed_line, last_block_line, last_sub_line,
+			(op) ? "" : ", LEAVING PERL"
+		);
+		warn("Wrote dis-count for next measurement\n");
+	}
+}
+
 
 /**
  * Sets or toggles the option specified by 'option'. 
@@ -841,6 +894,9 @@ set_option(const char* option, const char* value) {
 	}
 	else if (strEQ(option, "blocks")) {
 		profile_blocks = atoi(value);
+	}
+	else if (strEQ(option, "leave")) {
+		profile_leave = atoi(value);
 	}
 	else if (strEQ(option, "expand")) {
 		embed_fid_line = atoi(value);
@@ -921,12 +977,17 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	SV *subname_sv = sub_call_start->subname_sv;
 	SV *time_sv = *av_fetch(av, 1, 1);
 	double time_in_sub;
-  time_of_day_t sub_end_time;
-	unsigned int ticks, overflow;
 
-	get_time_of_day(sub_end_time);
-	get_ticks_between(sub_call_start->sub_call_time, sub_end_time, ticks, overflow);
-	time_in_sub = overflow + ticks / 1000000.0;
+	if (profile_zero) {
+		time_in_sub = 0.0;
+	}
+	else {
+		time_of_day_t sub_end_time;
+		unsigned int ticks, overflow;
+		get_time_of_day(sub_end_time);
+		get_ticks_between(sub_call_start->sub_call_time, sub_end_time, ticks, overflow);
+		time_in_sub = overflow + ticks / 1000000.0;
+	}
 
 	if (trace_level >= 3)
 		warn("exited %s after %fs (%"NVff"s @ %s)\n",
@@ -1083,30 +1144,25 @@ pp_entersub_profiler(pTHX) {
 	return op;
 }
 
-static void
-DB_leave(pTHX)
-{
-	/* Called after ops that indicate we've completed a statement
-   * and are returning into some outer statement.
-   * Used to ensure that time between now and the next statement being
-   * entered, is allocated to the appropriate statement.
-   */
-}
-
 
 OP *
-pp_stmt_profiler(pTHX) {
-	/* handles OP_DBSTATE, OP_SETSTATE, etc */
+pp_stmt_profiler(pTHX) {    /* handles OP_DBSTATE, OP_SETSTATE, etc */
 	OP *op = run_original_op(PL_op->op_type);
-	DB_stmt(aTHX);
+	DB_stmt(aTHX_ op);
 	return op;
 }
 OP *
-pp_leaving_profiler(pTHX) {
-	/* handles OP_LEAVESUB, OP_LEAVEEVAL, etc */
+pp_leaving_profiler(pTHX) { /* handles OP_LEAVESUB, OP_LEAVEEVAL, etc */
 	OP *op = run_original_op(PL_op->op_type);
-	DB_leave(aTHX);
+	DB_leave(aTHX_ op);
 	return op;
+}
+OP *
+pp_exit_profiler(pTHX) {   	/* handles OP_EXIT, OP_EXEC, etc */
+	DB_leave(aTHX_ NULL);     /* call DB_leave *before* run_original_op() */
+	if (PL_op->op_type == OP_EXEC)
+		finish_profile(aTHX);   /* this is the last chance we'll get */
+	return run_original_op(PL_op->op_type);
 }
 
 
@@ -1140,6 +1196,32 @@ disable_profile(pTHX)
 	return prev_is_profiling;
 }
 
+static void
+finish_profile(pTHX)
+{
+	if (trace_level)
+		warn("_finish (last_pid %d, getpid %d)\n", last_pid, getpid());
+
+	/* write data for final statement, unless DB_leave has already */
+	if (!profile_leave || use_db_sub)
+		DB_stmt(aTHX_ NULL);
+
+	disable_profile(aTHX);
+
+	if (out) {
+		write_sub_line_ranges(aTHX_ 0);
+		write_sub_callers(aTHX);
+		/* mark end of profile data for last_pid pid
+		 * (which is the pid that relates to the out filehandle)
+		 */
+		END_OUTPUT_PID(last_pid);
+		if (-1 == fclose(out))
+			warn("Error closing profile data file: %s", strerror(errno));
+		out = NULL;
+	}
+}
+
+
 /* Initial setup */
 int
 init_profiler(pTHX) {
@@ -1148,14 +1230,11 @@ init_profiler(pTHX) {
 	SV **svp;
 #endif
 
-	/* Save the process id early. We can monitor it to detect forks that affect 
-		 output buffering.
-		 NOTE: don't fork before calling the xsloader obviously! */
+	/* Save the process id early. We monitor it to detect forks */
 	last_pid = getpid();
-	is_finishing = 0;
 
-	if (trace_level)
-		warn("NYTProf init pid %d\n", last_pid);
+	if (trace_level || profile_zero)
+		warn("NYTProf init pid %d%s\n", last_pid, profile_zero ? ", zero=1" : "");
 
 	if (get_hv("DB::sub", 0) == NULL) {
 		warn("NYTProf internal error - perl not in debug mode");
@@ -1187,13 +1266,22 @@ init_profiler(pTHX) {
 #ifdef OP_SETSTATE
 		PL_ppaddr[OP_SETSTATE]   = pp_stmt_profiler;
 #endif
-		PL_ppaddr[OP_LEAVESUB]   = pp_leaving_profiler;
-		PL_ppaddr[OP_LEAVESUBLV] = pp_leaving_profiler;
-		PL_ppaddr[OP_LEAVE]      = pp_leaving_profiler;
-		PL_ppaddr[OP_LEAVELOOP]  = pp_leaving_profiler;
-		PL_ppaddr[OP_LEAVEWRITE] = pp_leaving_profiler;
-		PL_ppaddr[OP_LEAVEEVAL]  = pp_leaving_profiler;
-		PL_ppaddr[OP_LEAVETRY]   = pp_leaving_profiler;
+		if (profile_leave) {
+			PL_ppaddr[OP_LEAVESUB]   = pp_leaving_profiler;
+			PL_ppaddr[OP_LEAVESUBLV] = pp_leaving_profiler;
+			PL_ppaddr[OP_LEAVE]      = pp_leaving_profiler;
+			PL_ppaddr[OP_LEAVELOOP]  = pp_leaving_profiler;
+			PL_ppaddr[OP_LEAVEWRITE] = pp_leaving_profiler;
+			PL_ppaddr[OP_LEAVEEVAL]  = pp_leaving_profiler;
+			PL_ppaddr[OP_LEAVETRY]   = pp_leaving_profiler;
+			PL_ppaddr[OP_DUMP]       = pp_leaving_profiler;
+			PL_ppaddr[OP_RETURN]     = pp_leaving_profiler;
+			PL_ppaddr[OP_UNSTACK]    = pp_leaving_profiler; /* natural end of simple loop */
+			/* OP_NEXT is missing because that jumps to OP_UNSTACK */
+			/* OP_EXIT and OP_EXEC need special handling */
+			PL_ppaddr[OP_EXIT]       = pp_exit_profiler;
+			PL_ppaddr[OP_EXEC]       = pp_exit_profiler;
+		}
 	}
 
 	/* redirect opcodes for caller tracking */
@@ -1235,7 +1323,7 @@ init_profiler(pTHX) {
 
 void
 add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num,			
-					double time, unsigned int eval_file_num, unsigned int eval_line_num) 
+					double time, unsigned int eval_file_num, unsigned int eval_line_num, int count) 
 {
   /* get ref to array of per-line data */
   unsigned int fid = (eval_line_num) ? eval_file_num : file_num;
@@ -1245,7 +1333,7 @@ add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num,
 			sv_setsv(line_time_rvav, newRV_noinc((SV*)newAV()));
 
   if (!eval_line_num) {
-		store_profile_line_entry(aTHX_ line_time_rvav, line_num, time, 1, fid);
+		store_profile_line_entry(aTHX_ line_time_rvav, line_num, time, count, fid);
 	}
 	else {
 		/* times for statements executed *within* a string eval are accumulated
@@ -1259,7 +1347,7 @@ add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num,
 		if (!SvROK(eval_line_time_rvav))		/* autoviv */
 				sv_setsv(eval_line_time_rvav, newRV_noinc((SV*)newAV()));
 
-		store_profile_line_entry(aTHX_ eval_line_time_rvav, line_num, time, 1, fid);
+		store_profile_line_entry(aTHX_ eval_line_time_rvav, line_num, time, count, fid);
 	}
 }
 
@@ -1494,11 +1582,12 @@ load_profile_data_from_stream() {
 	int file_major, file_minor;
 
 	unsigned long input_line = 0L;
-	unsigned int file_num;
-	unsigned int line_num;
+	unsigned int file_num = 0;
+	unsigned int line_num = 0;
 	unsigned int ticks;
 	char text[MAXPATHLEN*2];
 	int c; /* for while loop */
+	int statement_discount = 0;
 	HV *profile_hv;
 	HV* profile_modes = newHV();
 	HV *live_pids_hv = newHV();
@@ -1525,6 +1614,14 @@ load_profile_data_from_stream() {
 			warn("Token %lu is %d ('%c') at %ld\n", input_line, c, c, (long)ftell(in)-1);
 
 		switch (c) {
+			case '-':
+			{
+				if (statement_discount)
+					warn("multiple statement discount after %u:%d\n", file_num, line_num);
+				++statement_discount;
+				break;
+			}
+
 			case '*':			/*FALLTHRU*/
 			case '+':
 			{
@@ -1554,7 +1651,9 @@ load_profile_data_from_stream() {
 				}
 
 				add_entry(aTHX_ fid_line_time_av, file_num, line_num,
-						seconds, eval_file_num, eval_line_num);
+						seconds, eval_file_num, eval_line_num,
+						1-statement_discount
+				);
 				if (trace_level >= 3)
 						warn("Read %d:%-4d %2u ticks\n", file_num, line_num, ticks);
 
@@ -1565,17 +1664,22 @@ load_profile_data_from_stream() {
 					if (!fid_block_time_av)
 						fid_block_time_av = newAV();
 					add_entry(aTHX_ fid_block_time_av, file_num, block_line_num,
-							seconds, eval_file_num, eval_line_num);
+							seconds, eval_file_num, eval_line_num,
+							1-statement_discount
+					);
 
 					if (!fid_sub_time_av)
 						fid_sub_time_av = newAV();
 					add_entry(aTHX_ fid_sub_time_av, file_num, sub_line_num,
-							seconds, eval_file_num, eval_line_num);
+							seconds, eval_file_num, eval_line_num,
+							1-statement_discount
+					);
 
 					if (trace_level >= 3)
 							warn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
 				}
 
+				statement_discount = 0;
 				break;
 			}
 
@@ -1813,7 +1917,7 @@ DB_profiler(...)
 		/* this sub gets aliased as "DB::DB" by NYTProf.pm if use_db_sub is true */
 		PERL_UNUSED_VAR(items);
 		if (use_db_sub)
-			DB_stmt(aTHX);
+			DB_stmt(aTHX_ PL_op);
 	  else if (1||trace_level)
 			warn("DB called needlessly");
 
@@ -1836,24 +1940,11 @@ disable_profile()
 	aTHX
 
 void
-_finish(...)
-	PPCODE:
-	is_finishing = 1;
-	if (trace_level)
-		warn("_finish (last_pid %d, getpid %d)\n", last_pid, getpid());
-	DB_stmt(aTHX); /* write data for final statement */
-	disable_profile(aTHX);
-	if (out) {
-		write_sub_line_ranges(aTHX_ 0);
-		write_sub_callers(aTHX);
-		/* mark end of profile data for last_pid pid
-		 * (which is the pid that relates to the out filehandle)
-		 */
-		END_OUTPUT_PID(last_pid);
-		if (-1 == fclose(out))
-			warn("Error closing profile data file: %s", strerror(errno));
-		out = NULL;
-	}
+finish_profile(...)
+	ALIAS:
+	_finish = 1
+	C_ARGS:
+	aTHX
 
 
 MODULE = Devel::NYTProf		PACKAGE = Devel::NYTProf::Data
