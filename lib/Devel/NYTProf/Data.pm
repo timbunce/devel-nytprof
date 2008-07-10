@@ -333,6 +333,7 @@ The data normalized is:
 
 sub normalize_variables {
 	my $self = shift;
+	my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
 
 	$self->{attribute}{basetime} = 0;
 	$self->{attribute}{xs_version} = 0;
@@ -343,14 +344,21 @@ sub normalize_variables {
 	my @abs_inc = grep { $_ =~ m:^/: } $self->inc;
 	my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
 	for my $fileinfo ($self->all_fileinfos) {
+
+		# normalize eval sequence numbers in 'file' names to 0
+		$fileinfo->[0] =~ s/$eval_regex/(${1}eval 0)/g;
+
 		# ignore files not in perl's own lib
 		next if $fileinfo->filename !~ $is_lib_regex;
+
 		$self->remove_internal_data_of($fileinfo);
 	}
 
-	# zero the statement timing data
+	# normalize line data
 	for my $level (qw(line block sub)) {
 		my $fid_line_data = $self->get_fid_line_data($level) || [];
+
+		# zero the statement timing data
 		for my $of_fid (@$fid_line_data) {
 			_zero_array_elem($of_fid, 0) if $of_fid;
 		}
@@ -369,16 +377,18 @@ sub normalize_variables {
 
 	$self->make_fid_filenames_relative( $inc );
 
-	# normalize sub names like
-	#		AutoLoader::__ANON__[/lib/perl5/5.8.6/AutoLoader.pm:96]
-	strip_prefix_from_paths($inc, $self->{sub_caller},   '\[');
-	strip_prefix_from_paths($inc, $self->{sub_subinfo}, '\[');
+	for my $info ($self->{sub_subinfo}, $self->{sub_caller}) {
 
-	# normalize eval numbers to 0
-	# XXX would be nicer to only do this for 'non-local' fids
-	for my $info (@{ $self->{fid_fileinfo} }) {
-		next unless $info && ref $info;
-		$info->[0] =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg;
+		# normalize paths in sub names like
+		#		AutoLoader::__ANON__[/lib/perl5/5.8.6/AutoLoader.pm:96]
+		strip_prefix_from_paths($inc, $info, '\[');
+
+		# normalize eval sequence numbers in sub names to 0
+		for my $subname (keys %$info) {
+			(my $newname = $subname) =~ s/$eval_regex/(${1}eval 0)/g;
+			next if $newname eq $subname;
+			$info->{$newname} = delete $info->{$subname};
+		}
 	}
 
 	return;
