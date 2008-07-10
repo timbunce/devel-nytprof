@@ -267,6 +267,8 @@ sub _generate_report {
 		$fname .= "-$LEVEL" if $LEVEL;
 
 		$self->{filestats}->{$filestr}->{html_safe} = $fname;
+		# save per-level html_safe name
+		$self->{filestats}->{$filestr}->{$LEVEL}->{html_safe} = $fname;
 		# store original filename in value as well as key
 		$self->{filestats}->{$filestr}->{filename} = $filestr;
 	}

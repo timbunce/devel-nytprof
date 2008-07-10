@@ -862,14 +862,13 @@ DB_leave(pTHX_ OP *op)
 	 */
 	fputc('-', out);
 
-	if (trace_level >= 1) {
-		warn("left %u:%u via %s back to %s at %u:%u (b%u s%u)%s",
+	if (trace_level >= 4) {
+		warn("left %u:%u via %s back to %s at %u:%u (b%u s%u) - discounting next statement%s\n",
 			prev_last_executed_fid, prev_last_executed_line,
 			OP_NAME_safe(PL_op), OP_NAME_safe(op),
 			last_executed_fid, last_executed_line, last_block_line, last_sub_line,
 			(op) ? "" : ", LEAVING PERL"
 		);
-		warn("Wrote dis-count for next measurement\n");
 	}
 }
 

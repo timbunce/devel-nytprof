@@ -20,7 +20,7 @@ for my $run (keys %runs) {
     system("perl -Mblib bin/nytprofhtml -out=demo/profiler-$run") == 0
         or exit 0;
 
-    system "open demo/profiler-$run/index-line.html"
+    system "open demo/profiler-$run/index.html"
         if $^O eq 'darwin';
     system "ls -lrt demo/profiler-$run/.";
 

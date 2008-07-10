@@ -265,12 +265,9 @@ $reporter->add_regexp('<', '&lt;');
 $reporter->add_regexp('>', '&gt;');
 
 # generate the files
-$reporter->report({
-		level_additional => sub {
-			my ($profile, $level) = @_;
-			output_level_indexpage($reporter, $level, "index-$level.html");
-		},
-});
+$reporter->report();
+
+output_indexpage($reporter, "index.html");
 
 # output a css file too (optional, but good for pretty pages)
 $reporter->_output_additional('style.css', [ <DATA> ]);
@@ -281,8 +278,8 @@ $reporter->_output_additional('style.css', [ <DATA> ]);
 
 # output an html indexing page with some information to help navigate potential
 # large numbers of profiled files. Optional, recommended
-sub output_level_indexpage {
-	my ($r, $level, $filename) = @_;
+sub output_indexpage {
+	my ($r, $filename) = @_;
 	my $profile = $reporter->{profile};
 	
 	my $stats = $r->get_file_stats();
@@ -295,7 +292,7 @@ sub output_level_indexpage {
 	# Calculate the mean and deviation using a good generic formula.
   # Note: Using Median Absolute Deviation because it is fairly resistant to 
   # the extreme values likely to be found in code and therefore provides better
-  # resolution
+  # resolution. See http://en.wikipedia.org/wiki/Median_absolute_deviation
 	my $dev_time = calculate_median_absolute_deviation(
 		[ map { $_->{'time'} } values %$stats ]
 	);
@@ -305,13 +302,11 @@ sub output_level_indexpage {
 
 
 	###
-	my $profile_level_buttons = get_level_buttons($profile->get_profile_levels, $filename, $level);
-
 	open (OUT, '>', "$opt{out}/$filename")
 		or croak "Unable to open file $opt{out}/$filename: $!";
 
 	print OUT get_html_header();
-	my $subhead = qq{&emsp;&emsp;$profile_level_buttons<br />
+	my $subhead = qq{<br />
 		For ${ \($profile->{attribute}{application}) }
 	};
 	print OUT get_header(profile => $profile, title => "Performance Profile Index", subtitle => $subhead);
@@ -331,27 +326,32 @@ sub output_level_indexpage {
 	# generate time-sorted sections for files
 	print OUT "<table border=1 cellspacing=0>";
 	print OUT "<tr class='index'><th>Stmts</th><th>Time</th>"
-						."<th>Avg.</th><th>File</th></tr>";
+						."<th>Avg.</th><th>Reports</th><th>Source File</th></tr>";
 
 	my $allTimes = 0; # for stats table at the bottom only
 	my $allCalls = 0; # for stats table at the bottom only
 
-	foreach (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
-		my $safe = $_->{html_safe};
+	foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
 		print OUT  "<tr class='index'>";
+		print OUT "<td class='n'>$filestats->{calls}</td>";
+		print OUT determine_severity('time', $filestats->{'time'}, $dev_time);
+		print OUT determine_severity('time/call', $filestats->{'time/call'}, $dev_avgt);
 
-		my $html_time = determine_severity('time', $_->{'time'}, $dev_time);
-		my $html_calltime = determine_severity('time/call', $_->{'time/call'}, $dev_avgt);
-
-		print OUT "<td class='n'>$_->{calls}</td>"
-							."$html_time"
-							."$html_calltime\n";
-		print OUT  "<td><a name='$safe' href='$safe.html'>$_->{filename}</a></td>";
+		my $safe = $filestats->{html_safe};
+		#print OUT  "<td><a name='$safe' href='$safe.html'>$filestats->{filename}</a></td>";
+		my $rep_links = join '&emsp;&bull;&emsp;', map {
+			my $level_html_safe = $filestats->{$_}->{html_safe};
+			($level_html_safe)
+				? sprintf(qq{<a href="%s.html">%s</a>}, $level_html_safe, $_)
+				: ()
+		} qw(line block sub);
+		print OUT  "<td>$rep_links</td>";
+		print OUT  "<td>$filestats->{filename}</td>";
 		print OUT  "</tr>\n";
 
 		# stats collection
-		$allTimes += $_->{'time'}; 
-		$allCalls += $_->{calls};
+		$allTimes += $filestats->{'time'}; 
+		$allCalls += $filestats->{calls};
 	}
 	my $stats_fmt = qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td style="font-style: italic">%s</td></tr>};
 	print OUT sprintf $stats_fmt,
@@ -758,13 +758,15 @@ The reports include dynamic runtime analysis wherein each line and each file
 is analyzed based on the preformance of the other lines and files.  As a
 result, you can quickly find the slowest module and the slowest line in a 
 module.  Slowness is measured in three ways: total calls, total time and
-average time per call.  Analysis is based on absolute deviations from the 
-median.
+average time per call.
+
+Coloring is based on absolute deviations from the median.
+See L<http://en.wikipedia.org/wiki/Median_absolute_deviation> for more details.
 
 That might sound complicated, but in reality you can just run the command and
 enjoy your report!
 
-Note: You'll need to run your app through L<Devel::NYTProf> debugger first 
+Note: You'll need to run your app through L<Devel::NYTProf> debugger first .
 
 =head1 COMMAND-LINE OPTIONS
 
@@ -774,7 +776,7 @@ These are the command line options understood by C<nytprofhtml>
 
 =item -f, --file <filename>
 
-Specifies the location of the input file. Default: nytprof.out
+Specifies the location of the input file. Default: ./nytprof.out
 
 =item -o, --out <dir>
 
@@ -782,11 +784,12 @@ Where to place the generated report. Default: ./nytprof/
 
 =item -d, --delete
 
-Purge any existing database located at whatever -o (above) is set to
+Purge any existing database report at whatever -o (above) is set to
 
 =item -l, --lib <dir>
 
-Add a path to the beginning of @INC
+Add a path to the beginning of @INC to help nytprofhtml find the source files
+used by the code. Should not be needed in practice.
 
 =item -h, --help
 

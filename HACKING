@@ -318,3 +318,5 @@ to make it easer to email/IM links to particular places in the code.
 
 Change from tracing via warn() to use our own function that, at least initially,
 calls warn() while temporarily disabling the __WARN__ hook.
+
+Profile and optimize report generation
