@@ -16,7 +16,11 @@ use Getopt::Long;
 use List::Util qw(sum);
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
-use Devel::NYTProf::Util qw(fmt_float calculate_median_absolute_deviation);
+use Devel::NYTProf::Util qw(
+	fmt_float
+	calculate_median_absolute_deviation
+	get_abs_paths_alternation_regex
+);
 
 our $VERSION = 1.02;
 
@@ -332,6 +336,8 @@ sub output_indexpage {
 	print OUT "<tr class='index'><th>Stmts</th><th>Time</th>"
 						."<th>Avg.</th><th>Reports</th><th>Source File</th></tr>";
 
+	my $inc_path_regex = get_abs_paths_alternation_regex(\@INC);
+
 	my $allTimes = 0; # for stats table at the bottom only
 	my $allCalls = 0; # for stats table at the bottom only
 
@@ -350,7 +356,8 @@ sub output_indexpage {
 				: ()
 		} qw(line block sub);
 		print OUT  "<td>$rep_links</td>";
-		print OUT  "<td>$filestats->{filename}</td>";
+		(my $shortname = $filestats->{filename}) =~ s/$inc_path_regex\/?//;
+		print OUT  "<td>$shortname</td>";
 		print OUT  "</tr>\n";
 
 		# stats collection
@@ -603,10 +610,10 @@ body { font-family: sans-serif; margin: 0px; }
 .footer,
 .footer > a:link,
 .footer > a:visited {
-	margin: 8px;
 	color: #cccccc;
 	text-decoration: none;
 }
+.footer { margin: 8px; }
 
 table { 
 	border-collapse: collapse; 

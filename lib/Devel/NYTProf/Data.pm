@@ -478,6 +478,10 @@ subroutine was called. For example:
 
 sub subs_defined_in_file {
 	my ($self, $fid, $incl_lines) = @_;
+	$incl_lines ||= 0;
+
+	my $cache_key = "_cache:subs_defined_in_file:$fid:$incl_lines";
+	return $self->{$cache_key} if $self->{$cache_key};
 
 	$fid = $self->resolve_fid($fid);
 	my $sub_subinfo = $self->{sub_subinfo}
@@ -505,7 +509,8 @@ sub subs_defined_in_file {
 		}
 	}
 
-	return \%subs;
+	$self->{$cache_key} = \%subs;
+	return $self->{$cache_key};
 }
 
 
@@ -518,8 +523,10 @@ sub subs_defined_in_file {
 
 sub subname_at_file_line {
 	my ($self, $fid, $line) = @_;
-	# XXX could be done more efficiently
+
 	my $subs = $self->subs_defined_in_file($fid, 0);
+
+	# XXX could be done more efficiently
 	my @subname;
 	for my $sub_info (values %$subs) {
 		next if $sub_info->{first_line} > $line
