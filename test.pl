@@ -70,7 +70,10 @@ s:^t/:: for @ARGV; # allow args to use t/ prefix
 # *.x   = result csv dump to verify (should change to .rcv)
 my @tests = @ARGV ? @ARGV : sort <*.p *.rdt *.x>;  # glob-sort, for OS/2
 
-plan tests => 1 + number_of_tests(@tests) * 2;
+my @test_opt_leave = (1, 0);
+my @test_opt_use_db_sub = (0, 1);
+
+plan tests => 1 + number_of_tests(@tests) * @test_opt_leave * @test_opt_use_db_sub;
 
 my $path_sep = $Config{path_sep} || ':';
 if( -d '../blib' ){
@@ -95,8 +98,8 @@ if($opts{v} ){
 ok(-x $nytprofcsv, "Where's nytprofcsv?");
 
 # run all tests in various configurations
-for my $leave (1,0) {
-	for my $use_db_sub (0,1) {
+for my $leave (@test_opt_leave) {
+	for my $use_db_sub (@test_opt_use_db_sub) {
 		run_all_tests( {
 			leave => $leave,
 			use_db_sub => $use_db_sub,
