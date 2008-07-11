@@ -30,6 +30,7 @@ my %SKIP_TESTS = (
 	'test06' => ($] >= 5.008) ? 0 : "needs perl >= 5.8",
 	'test15' => ($] <  5.008) ? 0 : "needs perl < 5.8",
 	'test16' => ($] >=  5.010) ? 0 : "needs perl >= 5.10",
+	'test30-fork' => ($^O ne 'cygwin') ? 0 : "test fails on Cygwin - missing fpurge",
 );
 
 my %opts = (
