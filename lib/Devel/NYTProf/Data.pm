@@ -457,12 +457,12 @@ subroutines defined on that line, typically just one.
 
 sub subs_defined_in_file {
 	my ($self, $fid, $incl_lines) = @_;
+	$fid = $self->resolve_fid($fid);
 	$incl_lines ||= 0;
 
 	my $cache_key = "_cache:subs_defined_in_file:$fid:$incl_lines";
 	return $self->{$cache_key} if $self->{$cache_key};
 
-	$fid = $self->resolve_fid($fid);
 	my $sub_subinfo = $self->{sub_subinfo}
 		or return;
 
@@ -597,6 +597,7 @@ then that corresponding fid is returned.
 
 sub resolve_fid {
 	my ($self, $file) = @_;
+	Carp::confess("No file specified") unless defined $file;
 	my $resolve_fid_cache = $self->_filename_to_fid;
 
 	# exact match
@@ -734,7 +735,9 @@ sub profile      { shift->[7] }
 
 sub fileinfo {
 	my $self = shift;
-	$self->profile->fileinfo_of($self->fid);
+	my $fid = $self->fid
+		or return undef; # sub not have a known fid
+	$self->profile->fileinfo_of($fid);
 }
 
 sub _values_for_dump {
