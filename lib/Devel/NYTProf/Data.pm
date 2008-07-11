@@ -74,8 +74,6 @@ sub new {
 	# XXX circular ref, add weaken
 	$_ and $_->[7] = $profile for @$fid_fileinfo;
 	       $_->[7] = $profile for values %$sub_subinfo;
-	# add subname into sub_subinfo
-	$sub_subinfo->{$_}->[6] = $_ for keys %$sub_subinfo;
 
 	# bless fid_fileinfo data
 	(my $fid_class = $class) =~ s/\w+$/ProfFile/;
@@ -84,6 +82,28 @@ sub new {
 	# bless sub_subinfo data
 	(my $sub_class = $class) =~ s/\w+$/ProfSub/;
 	$_ and bless $_ => $sub_class for values %$sub_subinfo;
+
+	my %anon_eval_subs_merged;
+	while ( my ($subname, $subinfo) = each %$sub_subinfo ) {
+		# add subname into sub_subinfo
+		$subinfo->[6] = $subname;
+		if ($subname =~ s/(::__ANON__\[\(\w*eval) \d+\)/$1 0)/) {
+			# sub names like "PPI::Node::	__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
+			# aren't very useful, so we merge them by changing the eval to 0
+			my $oldname = $subinfo->[6];
+			delete $sub_subinfo->{$oldname}; # delete old name
+			if (my $newinfo = $sub_subinfo->{$subname}) {
+				$newinfo->merge_in($subinfo);
+			}
+			else {
+				# is first to change, so just move ref to new name
+				$sub_subinfo->{$subname} = $subinfo;
+				$subinfo->[6] = $subname;
+			}
+			# XXX do something more useful later
+			delete $profile->{sub_caller}->{$oldname};
+		}
+	}
 
 	return $profile;
 }
@@ -394,6 +414,8 @@ sub normalize_variables {
 		for my $subname (keys %$info) {
 			(my $newname = $subname) =~ s/$eval_regex/(${1}eval 0)/g;
 			next if $newname eq $subname;
+			# XXX should merge instead
+			warn "Discarded previous $newname info" if $info->{$newname};
 			$info->{$newname} = delete $info->{$subname};
 		}
 	}
@@ -738,6 +760,14 @@ sub fileinfo {
 	my $fid = $self->fid
 		or return undef; # sub not have a known fid
 	$self->profile->fileinfo_of($fid);
+}
+
+sub merge_in {
+	my $self = shift;
+	my $newinfo = shift;
+	$self->[3] += $newinfo->[3]; # calls
+	$self->[4] += $newinfo->[4]; # calls
+	return;
 }
 
 sub _values_for_dump {
