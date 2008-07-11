@@ -17,7 +17,11 @@ use Carp;
 use Config;
 
 use Devel::NYTProf::Data;
-use Devel::NYTProf::Util qw(strip_prefix_from_paths calculate_median_absolute_deviation);
+use Devel::NYTProf::Util qw(
+	strip_prefix_from_paths
+	html_safe_filename
+	calculate_median_absolute_deviation
+);
 
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
@@ -257,13 +261,8 @@ sub _generate_report {
 	foreach my $filestr (keys %$data) {
 
 		# discover file path
-		my $fname = $filestr;
-		foreach (@INC) {
-			$_ = '\.' if ($_ eq '.');
-			$fname =~ s/^$_//;
-		}
-		$fname =~ s#^[/\\]##o;		# nuke leading / or \
-		$fname =~ s#[/\\]#-#go; # replace / and \ with html safe -
+		my $fileinfo = $profile->fileinfo_of($filestr);
+		my $fname = html_safe_filename($fileinfo->filename_without_inc);
 		$fname .= "-$LEVEL" if $LEVEL;
 
 		$self->{filestats}->{$filestr}->{html_safe} = $fname;

@@ -20,6 +20,7 @@ use Devel::NYTProf::Util qw(
 	fmt_float
 	calculate_median_absolute_deviation
 	get_abs_paths_alternation_regex
+	html_safe_filename
 );
 
 our $VERSION = 1.02;
@@ -155,9 +156,17 @@ sub subroutine_table {
 		$subname =~ s/\Q$filestr\E:(\d+)/:$1/g;
 		my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1,$2) : ('',$subname);
 		$sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
+
 		$subr =~ s/$inc_path_regex//; # for __ANON__[/very/long/path...]
-		$sub_links .= sprintf(qq{<td class="sub_sub"><a href="#%s">%s</a></td>},
-			$sub->first_line || 'UNKNOWN', $subr);
+		my $first_line = $sub->first_line;
+		my $fileinfo = $sub->fileinfo;
+		if ($fileinfo and my ($outer_fileinfo, $outer_line) = $fileinfo->outer) { # eval
+			$fileinfo   = $outer_fileinfo;
+			$first_line = $outer_line;
+		}
+		$sub_links .= sprintf(qq{<td class="sub_sub"><a href="%s-line.html#%s">%s</a></td>},
+			$fileinfo ? html_safe_filename($fileinfo->filename_without_inc) : "",
+			$first_line || 'UNKNOWN', $subr);
 
 		# callers
 		my $callers = $sub->callers;
@@ -216,6 +225,7 @@ $reporter->set_param('column4', {
       my ($value, $linenum, $linesrc, $profile, $subs, $calls) = @_;
 
       my @prologue;
+			# for each of the subs defined on this line, who called them
       for my $sub_info (@$subs) {
         my $callers = $sub_info->callers;
         next unless $callers && %$callers;
@@ -253,10 +263,11 @@ $reporter->set_param('column4', {
 						$avg_time;
         }
       }
-      my $prologue = join("\n",@prologue);
-      $prologue = sprintf qq{<div class="calls">%s</div>}, $prologue
-        if $prologue;
+      my $prologue = '';
+      $prologue = sprintf qq{<div class="calls">%s</div>}, join("\n",@prologue)
+        if @prologue;
 
+			# give details of each of the subs called by this line
       my $epilogue = '';
       if (%$calls) {
 				my @calls_to = sort {

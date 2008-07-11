@@ -38,11 +38,12 @@ use List::Util qw(sum);
 use UNIVERSAL qw( isa can VERSION );
 
 our @EXPORT_OK = qw(
-	strip_prefix_from_paths
 	fmt_float
+	strip_prefix_from_paths
 	calculate_median_absolute_deviation
 	get_alternation_regex
 	get_abs_paths_alternation_regex
+	html_safe_filename
 );
 
 
@@ -148,6 +149,13 @@ sub calculate_median_absolute_deviation {
 	return [ $sum / scalar @$values, $median ];
 }
 
+
+sub html_safe_filename {
+	my ($fname) = @_;
+	$fname =~ s{ ^[/\\] }{}x;    # remove leading / or \
+	$fname =~ s{  [/\\] }{-}xg;  # replace / and \ with html safe -
+	return $fname;
+}
 
 1;
 

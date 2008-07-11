@@ -98,6 +98,7 @@ sub fileinfo_of {
 	my $self = shift;
 	my $arg = shift;
 	return $arg if ref $arg and $arg->isa('Devel::NYTProf::ProfFile');
+	$arg = $self->resolve_fid($arg);
 	return $self->{fid_fileinfo}[ $arg ];
 }
 
@@ -691,8 +692,11 @@ sub profile    { shift->[7] }
 
 sub outer {
 	my $self = shift;
-	my $fid = shift->eval_fid or return undef;
-	return $self->profile->fileinfo_of($fid);
+	my $fid = $self->eval_fid
+		or return;
+	my $fileinfo = $self->profile->fileinfo_of($fid);
+	return $fileinfo unless wantarray;
+	return ($fileinfo, $self->eval_line);
 }
 
 
@@ -700,12 +704,10 @@ sub outer {
 # when loading the file
 sub filename_without_inc {
 	my $self = shift;
-	my $f = [ $self->[0] ];
-	# XXX @INC here should use the INC in the profiled code
-	strip_prefix_from_paths( \@INC, $f );
+	my $f = [ $self->filename ];
+	strip_prefix_from_paths( [ $self->profile->inc ], $f );
 	return $f->[0];
 }
-
 
 sub _values_for_dump {
 	my $self = shift;
@@ -729,6 +731,11 @@ sub incl_time    { shift->[4] }
 sub spare5       { shift->[5] }
 sub subname      { shift->[6] }
 sub profile      { shift->[7] }
+
+sub fileinfo {
+	my $self = shift;
+	$self->profile->fileinfo_of($self->fid);
+}
 
 sub _values_for_dump {
 	my $self = shift;
