@@ -115,8 +115,8 @@ sub subroutine_table {
   return "" unless $subs_in_file && %$subs_in_file;
 
   my @subs = sort {
-    $b->{incl_time} <=> $a->{incl_time} or
-    $a->{subname}   cmp $b->{subname}
+    $b->incl_time <=> $a->incl_time or
+    $a->subname   cmp $b->subname
   } values %$subs_in_file;
 
   # XXX would be nice to color code these according to the overall time spent in the sub
@@ -125,28 +125,28 @@ sub subroutine_table {
   };
 
 	my $dev_incl_time = calculate_median_absolute_deviation(
-		[ map { $_->{incl_time} } @subs ]
+		[ map { $_->incl_time } @subs ]
 	);
 	my $dev_calls = calculate_median_absolute_deviation(
-		[ map { $_->{calls} } @subs ]
+		[ map { $_->calls } @subs ]
 	);
 
 	my @rows;
 	for my $sub (@subs) {
 		$sub_links .= "<tr>";
 		# calls
-		$sub_links .= determine_severity(undef, $sub->{calls} || 0, $dev_calls);
+		$sub_links .= determine_severity(undef, $sub->calls || 0, $dev_calls);
 		# incl_time
-		$sub_links .= determine_severity(undef, $sub->{incl_time} || 0, $dev_incl_time);
+		$sub_links .= determine_severity(undef, $sub->incl_time || 0, $dev_incl_time);
 		# package and subname
-		my $subname = $sub->{subname};
+		my $subname = $sub->subname;
 		# remove own filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
 		# XXX doesn't work right because $filestr isn't full filename
 		$subname =~ s/\Q$filestr\E:(\d+)/:$1/g;
 		my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1,$2) : ('',$subname);
 		$sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
 		$sub_links .= sprintf(qq{<td class="sub_sub"><a href="#%d">%s</a></td>},
-			$sub->{first_line}, $subr);
+			$sub->first_line, $subr);
 		$sub_links .= "<tr>\n";
 	}
   $sub_links .= "</table>\n";
@@ -190,7 +190,7 @@ $reporter->set_param('column4', {
 
       my @prologue;
       for my $sub_info (@$subs) {
-        my $callers = $sub_info->{callers};
+        my $callers = $sub_info->callers;
         next unless $callers && %$callers;
 
         my @callers;
@@ -199,10 +199,10 @@ $reporter->set_param('column4', {
             for keys %$fid_line_info;
         }
         my $total_calls = sum(map { $_->[2] } @callers);
-				my $avg_per_call = fmt_float($sub_info->{incl_time} / $total_calls);
+				my $avg_per_call = fmt_float($sub_info->incl_time / $total_calls);
 
         push @prologue, sprintf "# spent %ss within %s which was called%s:",
-            fmt_float($sub_info->{incl_time}), $sub_info->{subname},
+            fmt_float($sub_info->incl_time), $sub_info->subname,
             ($total_calls <= 1) ? ""
 							: " $total_calls times, avg ${avg_per_call}s/call";
 

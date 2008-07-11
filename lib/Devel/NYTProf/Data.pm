@@ -497,20 +497,12 @@ sub subs_defined_in_file {
 	while ( my ($sub, $subinfo) = each %$sub_subinfo) {
 		my ($subfid, $first, $last, $calls, $incl_time) = @$subinfo;
 		next if !$subfid || $subfid != $fid;
-		$subs{ $sub } = {
-			subname => $sub,
-			fid => $subfid,
-			first_line => $first,
-			last_line => $last,
-			incl_time => $incl_time || 0,
-			calls => $calls || 0,
-			callers => $self->{sub_caller}->{$sub},
-		};
+		$subs{ $sub } = $subinfo;
 	}
 
 	if ($incl_lines) { # add in the first-line-number keys
 		for (values %subs) {
-			next unless defined(my $first_line = $_->{first_line});
+			next unless defined(my $first_line = $_->first_line);
 			push @{ $subs{ $first_line } }, $_;
 		}
 	}
@@ -535,9 +527,9 @@ sub subname_at_file_line {
 	# XXX could be done more efficiently
 	my @subname;
 	for my $sub_info (values %$subs) {
-		next if $sub_info->{first_line} > $line
-				 or $sub_info->{last_line}  < $line;
-		push @subname, $sub_info->{subname};
+		next if $sub_info->first_line > $line
+				 or $sub_info->last_line  < $line;
+		push @subname, $sub_info->subname;
 	}
 	@subname = sort { length($a) <=> length($b) } @subname;
 	return @subname if wantarray;
