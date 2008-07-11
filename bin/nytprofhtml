@@ -134,10 +134,13 @@ sub subroutine_table {
 	my @rows;
 	for my $sub (@subs) {
 		$sub_links .= "<tr>";
+
 		# calls
 		$sub_links .= determine_severity(undef, $sub->calls || 0, $dev_calls);
+
 		# incl_time
 		$sub_links .= determine_severity(undef, $sub->incl_time || 0, $dev_incl_time);
+
 		# package and subname
 		my $subname = $sub->subname;
 		# remove own filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
@@ -147,6 +150,22 @@ sub subroutine_table {
 		$sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
 		$sub_links .= sprintf(qq{<td class="sub_sub"><a href="#%d">%s</a></td>},
 			$sub->first_line, $subr);
+
+		# callers
+		my $callers = $sub->callers;
+		my $callers_html;
+		if ($callers && %$callers) {
+			# { fid => { line => [ count, incl_time ] } } }
+			my $total_callers = sum(map { scalar keys %$_ } values %$callers);
+			$callers_html = sprintf qq{<td>%d locations in %d files</td>},
+				$total_callers, scalar keys %$callers;
+		}
+		else {
+			$callers_html = sprintf qq{<td>&nbsp;</td>}, $pkg;
+		}
+		# XXX not worth showing till the callers method can merge eval fids together
+		$sub_links .= $callers_html if 0;
+
 		$sub_links .= "<tr>\n";
 	}
   $sub_links .= "</table>\n";

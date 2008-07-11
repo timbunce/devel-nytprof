@@ -445,40 +445,12 @@ in a source file.  The $file argument can be an integer file id (fid) or a file 
 Returns undef if the profile contains no C<sub_caller> data for the $file.
 
 The keys are fully qualifies subroutine names and the corresponding value is a
-hash reference containing information about the subroutine.
+hash reference containing L<Devel::NYTProf::ProfSub> objects..
 
 If $include_lines is true then the hash also contains integer keys
 corresponding to the first line of the subroutine. The corresponding value is a
 reference to an array. The array contains a hash ref for each of the
-subroutines defined on that line.
-
-For example, if the file 'foo.pl' defines one subroutine, called pkg1::foo, on
-lines 42 thru 49, then $profile->subs_defined_in_file( 'foo.pl', 1 ) would return:
-
-	{
-		'pkg1::foo' => {
-			subname => 'pkg1::foo',
-			fid => 7,
-			first_line => 42,
-			last_line => 49,
-			calls => 726,
-			incl_time => 2e-03,
-			callers => { ... },
-		},
-		42 => [ <ref to same hash as above> ]
-	}
-
-The C<callers> item is a ref to a hash that describes locations from which the
-subroutine was called. For example:
-
-  callers => {
-		3 => {       # calls from fid 3
-				12 => 1, # sub was called from fid 3, line 12, 1 time.
-				16 => 1,
-				3 => 2,
-		},
-		8 => { ... }
-	}
+subroutines defined on that line, typically just one.
 
 =cut
 
@@ -763,7 +735,12 @@ sub _values_for_dump {
 
 sub callers {
 	my $self = shift;
-	$self->profile->{sub_caller}->{$self->subname}
+	# { fid => { line => [ count, incl_time ] } } }
+	my $callers = $self->profile->{sub_caller}->{$self->subname}
+		or return undef;
+	# XXX should 'collapse' data for calls from eval fids
+	# (with an option to not collapse)
+	return $callers;
 }
 
 } # end of package
