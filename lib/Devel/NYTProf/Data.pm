@@ -467,12 +467,15 @@ sub subs_defined_in_file {
 
 	my %subs;
 	while ( my ($sub, $subinfo) = each %$sub_subinfo) {
-		my ($subfid, $first, $last, $calls, $incl_time) = @$subinfo;
-		next if !$subfid || $subfid != $fid;
+		if ($fid) {
+			my $subfid = $subinfo->fid or next;
+			next unless $subfid == $fid;
+		}
 		$subs{ $sub } = $subinfo;
 	}
 
 	if ($incl_lines) { # add in the first-line-number keys
+		croak "Can't include line numbers without a fid" unless $fid;
 		for (values %subs) {
 			next unless defined(my $first_line = $_->first_line);
 			push @{ $subs{ $first_line } }, $_;

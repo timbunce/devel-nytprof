@@ -109,20 +109,17 @@ after the profiler database was generated. The database might be out of sync, yo
 
 
 sub subroutine_table {
-  my ($profile, $filestr) = @_;
+  my ($profile, $filestr, $max_subs) = @_;
 
   my $subs_in_file = $profile->subs_defined_in_file( $filestr, 0 );
   return "" unless $subs_in_file && %$subs_in_file;
+
+	my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
 
   my @subs = sort {
     $b->incl_time <=> $a->incl_time or
     $a->subname   cmp $b->subname
   } values %$subs_in_file;
-
-  # XXX would be nice to color code these according to the overall time spent in the sub
-  my $sub_links = qq{<table border=1 cellpadding=0>
-    <tr><th>Calls</th><th>Inclusive<br />Time</th><th colspan=2 class="left_indent_header">Subroutine</th></tr>
-  };
 
 	my $dev_incl_time = calculate_median_absolute_deviation(
 		[ map { $_->incl_time } @subs ]
@@ -131,8 +128,18 @@ sub subroutine_table {
 		[ map { $_->calls } @subs ]
 	);
 
+	my @subs_to_show = ($max_subs) ? splice @subs, 0, $max_subs : @subs;
+	my $qualifier = (@subs > @subs_to_show) ? "Top $max_subs " : "";
+
+  my $sub_links;
+
+  $sub_links .= qq{<table border=1 cellpadding=0>
+		<caption>${qualifier}Subroutines &mdash; ordered by inclusive time then name</caption>
+    <tr><th>Calls</th><th>Inclusive<br />Time</th><th colspan=2 class="left_indent_header">Subroutine</th></tr>
+  };
+
 	my @rows;
-	for my $sub (@subs) {
+	for my $sub (@subs_to_show) {
 		$sub_links .= "<tr>";
 
 		# calls
@@ -148,6 +155,7 @@ sub subroutine_table {
 		$subname =~ s/\Q$filestr\E:(\d+)/:$1/g;
 		my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1,$2) : ('',$subname);
 		$sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
+		$subr =~ s/$inc_path_regex//; # for __ANON__[/very/long/path...]
 		$sub_links .= sprintf(qq{<td class="sub_sub"><a href="#%d">%s</a></td>},
 			$sub->first_line, $subr);
 
@@ -339,23 +347,32 @@ sub output_indexpage {
 	print OUT get_header(profile => $profile, title => "Performance Profile Index", subtitle => $subhead);
 	print OUT qq{
 		<div class="body_content"><br/>
-		Jump to a file: &nbsp;<select>
 	};
 
-	# generate name-sorted select options for namespace groupings
-	foreach (sort keys %$stats) {
-		my $safe = $stats->{$_}->{html_safe};
-		print OUT "<option onClick=location.href=('#$safe');>$_</option>\n"
-				if $safe;
+	# generate name-sorted select options for files, if there are many
+	if (keys %$stats > 30) {
+		print OUT qq{Jump to a file: &nbsp;<select>};
+		foreach (sort keys %$stats) {
+			my $safe = $stats->{$_}->{html_safe};
+			print OUT "<option onClick=location.href=('#$safe');>$_</option>\n"
+					if $safe;
+		}
+		print OUT "</select><br/><br/>\n";
 	}
-	print OUT "</select><br/><br/>\n";
+
+	# Show top subs across all files
+	# (keep it less than a page so users can see the file table)
+	print OUT subroutine_table($profile, 0, 15);
 
 	# generate time-sorted sections for files
-	print OUT "<table border=1 cellspacing=0>";
+	print OUT qq{
+		<table border=1 cellspacing=0>
+		<caption>Source Code Files &mdash; ordered by exclusive time then name</caption>
+	};
 	print OUT "<tr class='index'><th>Stmts</th><th>Time</th>"
 						."<th>Avg.</th><th>Reports</th><th>Source File</th></tr>";
 
-	my $inc_path_regex = get_abs_paths_alternation_regex(\@INC);
+	my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
 
 	my $allTimes = 0; # for stats table at the bottom only
 	my $allCalls = 0; # for stats table at the bottom only
@@ -375,7 +392,7 @@ sub output_indexpage {
 				: ()
 		} qw(line block sub);
 		print OUT  "<td>$rep_links</td>";
-		(my $shortname = $filestats->{filename}) =~ s/$inc_path_regex\/?//;
+		(my $shortname = $filestats->{filename}) =~ s/$inc_path_regex//;
 		print OUT  "<td>$shortname</td>";
 		print OUT  "</tr>\n";
 
@@ -637,6 +654,8 @@ body { font-family: sans-serif; margin: 0px; }
 table { 
 	border-collapse: collapse; 
 	border-spacing: 0px; 
+	margin-top: 20px;
+	margin-botom: 20px;
 }
 tr { 
 	text-align : center;
@@ -651,6 +670,13 @@ td {
 	border: solid 1px #cccccc; 
 	padding: 0em 0.4em 0em 0.4em;
 }
+caption {
+	background-color: #dddddd;
+	text-align: left;
+	text-wrap: none;
+	white-space: pre;
+	padding: 0.4em;
+}
 
 .index { text-align: left; }
 
@@ -658,7 +684,7 @@ td {
   font-style: italic;
 }
 
-/* subrouting dispatch table */
+/* subroutine dispatch table */
 td.sub_pkg {
   text-align: right;
   padding-right: 0;
