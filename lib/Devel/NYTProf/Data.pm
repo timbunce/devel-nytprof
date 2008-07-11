@@ -67,17 +67,23 @@ sub new {
 	my $profile = load_profile_data_from_file($file);
 	bless $profile => $class;
 
-	# add link to profile so fidinfo objects be more useful
-	# XXX circular ref
-	$_ and $_->[7] = $profile for @{ $profile->{fid_fileinfo} };
+	my $fid_fileinfo = $profile->{fid_fileinfo};
+	my $sub_subinfo  = $profile->{sub_subinfo};
+
+	# add profile ref so fidinfo & subinfo objects
+	# XXX circular ref, add weaken
+	$_ and $_->[7] = $profile for @$fid_fileinfo;
+	       $_->[7] = $profile for values %$sub_subinfo;
+	# add subname into sub_subinfo
+	$sub_subinfo->{$_}->[6] = $_ for keys %$sub_subinfo;
 
 	# bless fid_fileinfo data
 	(my $fid_class = $class) =~ s/\w+$/ProfFile/;
-	$_ and bless $_ => $fid_class for @{ $profile->{fid_fileinfo} };
+	$_ and bless $_ => $fid_class for @$fid_fileinfo;
 
 	# bless sub_subinfo data
 	(my $sub_class = $class) =~ s/\w+$/ProfSub/;
-	$_ and bless $_ => $sub_class for values %{ $profile->{sub_subinfo} };
+	$_ and bless $_ => $sub_class for values %$sub_subinfo;
 
 	return $profile;
 }
@@ -753,6 +759,20 @@ sub first_line   { shift->[1] }
 sub last_line    { shift->[2] }
 sub calls        { shift->[3] }
 sub incl_time    { shift->[4] }
+sub spare5       { shift->[5] }
+sub subname      { shift->[6] }
+sub profile      { shift->[7] }
+
+sub _values_for_dump {
+	my $self = shift;
+	my @values = @{$self}[0..4];
+	return \@values;
+}
+
+sub callers {
+	my $self = shift;
+	$self->profile->{sub_caller}->{$self->subname}
+}
 
 } # end of package
 
