@@ -747,23 +747,6 @@ a.sub_sub:active {
   text-decoration: none;
 }
 
-/* XXX
- * Can be removed if images are not used
-div#top_header {
-	width: 100%;
-	background-image: url("../../images/header_fill.png");
-}
-img#top_header_left {
-	float: left;
-}
-img#top_header_text {
-	float: left;
-}
-img#top_header_right {
-	float: right;
-}
-*/
-
 /* source code */
 th.left_indent_header {
   padding-left: 15px;
