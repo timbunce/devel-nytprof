@@ -96,6 +96,9 @@ if($opts{v} ){
 	print "nytprofcvs: $nytprofcsv\n";
 }
 
+diag("Note: fpurge function not found, so fork test may fail")
+	unless Devel::NYTProf::HAS_FPURGE();
+
 ok(-x $nytprofcsv, "Where's nytprofcsv?");
 
 # run all tests in various configurations

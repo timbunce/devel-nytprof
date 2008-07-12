@@ -52,12 +52,16 @@
 
 #ifdef HASFPURGE
 #define FPURGE(file) fpurge(file)
+#define HAS_FPURGE_BOOL 1
 #elif defined(HAS_FPURGE)
 #define FPURGE(file) _fpurge(file)
+#define HAS_FPURGE_BOOL 1
 #elif defined(HAS__FPURGE)
 #define FPURGE(file) __fpurge(file)
+#define HAS_FPURGE_BOOL 1
 #else
 #define FPURGE(file)
+#define HAS_FPURGE_BOOL 0
 #warning "No fpurge function found -- risk of corrupted profile when forking"
 #endif
 
@@ -1898,6 +1902,17 @@ load_profile_data_from_stream() {
 
 MODULE = Devel::NYTProf		PACKAGE = Devel::NYTProf		
 PROTOTYPES: DISABLE
+
+I32
+constant()
+	PROTOTYPE:
+	ALIAS:
+		HAS_FPURGE = HAS_FPURGE_BOOL
+	CODE:
+	RETVAL = ix;                         
+	OUTPUT:
+	RETVAL
+
 
 MODULE = Devel::NYTProf		PACKAGE = DB
 PROTOTYPES: DISABLE 
