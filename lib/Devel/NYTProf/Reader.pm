@@ -85,7 +85,6 @@ sub new {
 				{pattern => '!~TOTAL_TIME~!', 
 					replace => "\$self->{filestats}->{\$filestr}->{'time'}"},
 			],
-			source_line_func => undef,
 			callsfunc => undef,
 			timefunc => undef,
 			'time/callsfunc' => undef,
@@ -382,41 +381,19 @@ sub _generate_report {
 			my $makes_calls_to = $line_calls_hash->{$LINE} || {};
 			my $subs_defined = $subs_defined_hash->{$LINE} || [];
 
-			# can we get the main package for this file from this line?
-			{ 
-				local $1;
-				$line =~ m/^\s*package\s+([\S]*)\s*;/;
-				if (defined $1) {
-					my $p = $1;
-					$p =~ s/\:\:/-/g;
-					my $t = substr($fname, -1 * (length $p) - 3, length $p);
-					if($p eq $t) {
-						$data->{$filestr}->{package} = $1;
-					}
-				}
-			}
-
 			# begin output
-
-			# If a source_line_func reference is provided, it will control ALL output
-			if (my $func = $self->{source_line_func}) {
-				print OUT $func->(
-					$LINE, $line, $totalsByLine{$LINE},
-					\%statistics, $profile, $subs_defined, $makes_calls_to
-				);
-				next;
-			}
 
 			foreach my $hash (@{$self->{line}}) {
 
 				# If a func reference is provided, it will control output for this column.
-				if (defined $hash->{func}) {
-					if ($hash->{value}) {
-						print OUT $hash->{func}($hash->{value}, 
-											$totalsByLine{$LINE}->{$hash->{value}},
-											$statistics{$hash->{value}}, $LINE, $line, $profile, $subs_defined, $makes_calls_to);
+				if (defined(my $func = $hash->{func})) {
+					my $value = $hash->{value};
+					if ($value) {
+						print OUT $func->($value, 
+											$totalsByLine{$LINE}->{$value},
+											$statistics{$value}, $LINE, $line, $profile, $subs_defined, $makes_calls_to);
 					} else {
-						print OUT $hash->{func}($hash->{value}, $LINE, $line, $profile, $subs_defined, $makes_calls_to);
+						print OUT $func->($value, $LINE, $line, $profile, $subs_defined, $makes_calls_to);
 					}
 					next;
 				}

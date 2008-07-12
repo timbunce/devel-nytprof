@@ -224,6 +224,11 @@ $reporter->set_param('column4', {
     func => sub {
       my ($value, $linenum, $linesrc, $profile, $subs, $calls) = @_;
 
+			$linesrc =~ s/&/&amp;/g;
+			$linesrc =~ s/>/&gt;/g;
+			$linesrc =~ s/>/&gt;/g;
+			$linesrc =~ s/\t/        /g;
+
       my @prologue;
 			# for each of the subs defined on this line, who called them
       for my $sub_info (@$subs) {
@@ -306,9 +311,6 @@ $reporter->set_param('lineend', {start => "</tr>\n"});
 
 # set output options
 $reporter->set_param('suffix', '.html');
-$reporter->add_regexp('\t', ' 'x8);
-$reporter->add_regexp('<', '&lt;');
-$reporter->add_regexp('>', '&gt;');
 
 # generate the files
 $reporter->report();
@@ -428,7 +430,7 @@ sub output_indexpage {
 		my $filename = $filestats->{filename};
 		my $fid = $profile->resolve_fid($filename) or warn "Can't find fid for $_";
 		(my $shortname = $filename) =~ s/$inc_path_regex//;
-		print OUT  sprintf q{<td><a name="f%s"></a>%s</td>}, $fid, $shortname;
+		print OUT  sprintf q{<td><a name="f%s" title="%s">%s</a></td>}, $fid, $filename, $shortname;
 		print OUT  "</tr>\n";
 
 		# stats collection
