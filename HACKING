@@ -320,3 +320,6 @@ Change from tracing via warn() to use our own function that, at least initially,
 calls warn() while temporarily disabling the __WARN__ hook.
 
 Profile and optimize report generation
+
+Add title/tooltip to inclusive times (ie subroutine times) showing the percentage
+of the total runtime it represents.

@@ -381,13 +381,13 @@ sub output_indexpage {
 
 	# generate name-sorted select options for files, if there are many
 	if (keys %$stats > 30) {
-		print OUT qq{Jump to a file: &nbsp;<select>};
+		print OUT qq{<form name="jump"><select name="file" onChange="location.href=document.jump.file.value;">\n};
+		printf OUT qq{<option disabled>%s</option>\n}, "Jump to file...";
 		foreach (sort keys %$stats) {
-			my $safe = $stats->{$_}->{html_safe};
-			print OUT "<option onClick=location.href=('#$safe');>$_</option>\n"
-					if $safe;
+			my $fid = $profile->resolve_fid($_) or warn "Can't find fid for $_";
+			printf OUT qq{<option value="#f%s">%s</option>\n}, $fid, $_;
 		}
-		print OUT "</select><br/><br/>\n";
+		print OUT "</select><form><br/>\n";
 	}
 
 	# Show top subs across all files
@@ -403,7 +403,7 @@ sub output_indexpage {
 		<table border=1 cellspacing=0>
 		<caption>Source Code Files &mdash; ordered by exclusive time then name</caption>
 	};
-	print OUT "<tr class='index'><th>Stmts</th><th>Time</th>"
+	print OUT "<tr class='index'><th>Stmts</th><th>Exclusive<br />Time</th>"
 						."<th>Avg.</th><th>Reports</th><th>Source File</th></tr>";
 
 	my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
@@ -412,22 +412,23 @@ sub output_indexpage {
 	my $allCalls = 0; # for stats table at the bottom only
 
 	foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
-		print OUT  "<tr class='index'>";
+		print OUT  qq{<tr class="index">};
 		print OUT "<td class='n'>$filestats->{calls}</td>";
-		print OUT determine_severity('time', $filestats->{'time'}, $dev_time);
+		print OUT determine_severity('time',      $filestats->{'time'},      $dev_time);
 		print OUT determine_severity('time/call', $filestats->{'time/call'}, $dev_avgt);
 
-		my $safe = $filestats->{html_safe};
-		#print OUT  "<td><a name='$safe' href='$safe.html'>$filestats->{filename}</a></td>";
-		my $rep_links = join '&emsp;&bull;&emsp;', map {
+		my $rep_links = join '&nbsp;&bull;&nbsp;', map {
 			my $level_html_safe = $filestats->{$_}->{html_safe};
 			($level_html_safe)
 				? sprintf(qq{<a href="%s.html">%s</a>}, $level_html_safe, $_)
 				: ()
 		} qw(line block sub);
 		print OUT  "<td>$rep_links</td>";
-		(my $shortname = $filestats->{filename}) =~ s/$inc_path_regex//;
-		print OUT  "<td>$shortname</td>";
+
+		my $filename = $filestats->{filename};
+		my $fid = $profile->resolve_fid($filename) or warn "Can't find fid for $_";
+		(my $shortname = $filename) =~ s/$inc_path_regex//;
+		print OUT  sprintf q{<td><a name="f%s"></a>%s</td>}, $fid, $shortname;
 		print OUT  "</tr>\n";
 
 		# stats collection
