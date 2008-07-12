@@ -271,8 +271,8 @@ Measuring CPU time has the advantage of making the measurements independant of
 time spent blocked waiting for the cpu or network i/o etc. But it also has the
 severe disadvantage of having typically I<far> less accurate timings.
 
-Most systems use a 0.1 second granularity. With modern processors having multi-
-gigahertz clocks, 0.1 seconds is like a lifetime. The cpu time clock 'ticks'
+Most systems use a 0.01 second granularity. With modern processors having multi-
+gigahertz clocks, 0.01 seconds is like a lifetime. The cpu time clock 'ticks'
 happen so rarely relative to the activity of a most applications that you'd
 have to run the code for many hours to have any hope of reasonably useful results.
 
