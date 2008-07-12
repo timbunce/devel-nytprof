@@ -69,6 +69,7 @@ sub new {
 
 	my $fid_fileinfo = $profile->{fid_fileinfo};
 	my $sub_subinfo  = $profile->{sub_subinfo};
+	my $sub_caller   = $profile->{sub_caller};
 
 	# add profile ref so fidinfo & subinfo objects
 	# XXX circular ref, add weaken
@@ -100,8 +101,35 @@ sub new {
 				$sub_subinfo->{$subname} = $subinfo;
 				$subinfo->[6] = $subname;
 			}
-			# XXX do something more useful later
-			delete $profile->{sub_caller}->{$oldname};
+
+			# delete sub_caller info and merge into new name
+			my $old_caller_info = delete $sub_caller->{$oldname};
+			# { 'pkg::sub' => { fid => { line => [ count, incl_time ] } } } */
+			if (my $newinfo = $sub_caller->{$subname}) {
+				# iterate over old and merge info new
+				while ( my ($fid, $line_hash) = each %$old_caller_info ) {
+					my $new_line_hash = $newinfo->{$fid};
+					if (!$new_line_hash) {
+						$newinfo->{$fid} = $line_hash;
+						next;
+					}
+					# merge lines in %$line_hash into %$new_line_hash
+					while ( my ($line, $line_info) = each %$line_hash ) {
+						my $new_line_info = $new_line_hash->{$line};
+						if (!$new_line_info) {
+							$new_line_hash->{$line} = $line_info;
+							next;
+						}
+						# merge @$line_info into @$new_line_info
+						$new_line_info->[0] += $line_info->[0];
+						$new_line_info->[1] += $line_info->[1];
+					}
+					
+				}
+			}
+			else {
+				$sub_caller->{$subname} = $old_caller_info;
+			}
 		}
 	}
 

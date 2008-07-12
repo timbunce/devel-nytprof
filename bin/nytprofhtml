@@ -197,7 +197,7 @@ $reporter->set_param('datastart', sub {
 
     return qq{$sub_links<br>
       <table border=1 cellpadding=0>
-      <tr><th>Line</th><th>Stmts.</th><th>Time</th><th>Avg.</th><th class="left_indent_header">Code</th>
+      <tr><th>Line</th><th>Stmts.</th><th>Exclusive<br />Time</th><th>Avg.</th><th class="left_indent_header">Code</th>
       </tr>\n
     };
 });
