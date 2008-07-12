@@ -75,7 +75,7 @@ Devel::NYTProf - Powerful feature-rich perl source code profiler
  # profile code and write database to ./nytprof.out
  perl -d:NYTProf some_perl.pl
 
- # convert database into html files, e.g., ./nytprof/index.html
+ # convert database into a set of html files, e.g., ./nytprof/index.html
  nytprofhtml
 
  # or into comma seperated files, e.g., ./nytprof/*.csv
@@ -87,12 +87,12 @@ Devel::NYTProf is a powerful feature-rich perl source code profiler.
 
  * Performs per-line statement profiling for fine detail
  * Performs per-subroutine statement profiling for overview
- * Performs per-block profiling (the first profiler to do so)
- * Performs inclusive timing of subroutines, per calling location
+ * Performs per-block statement profiling (the first profiler to do so)
  * Accounts correctly for time spent after calls return
+ * Performs inclusive timing of subroutines, per calling location
  * Can profile compile-time activity or just run-time
  * Uses novel techniques for efficient profiling
- * Very fast - the fastest line-profiler for perl
+ * Very fast - the fastest statement-profiler for perl
  * Handles applications that fork, with no performance cost
  * Immune from noise caused by profiling overheads and i/o
  * Program being profiled can stop/start the profiler
@@ -100,6 +100,92 @@ Devel::NYTProf is a powerful feature-rich perl source code profiler.
  * Trivial to use with mod_perl - add one line to httpd.conf
  * Includes an extensive test suite
  * Tested on very large codebases
+
+NYTProf is effectively two profilers in one: a statement profiler, and a
+subroutine profiler.
+
+=head2 Statement Profiling
+
+The statement profiler measures the time between entering one perl statement
+and entering the next. Whenever execution reaches a new statement, the time
+since entering the previous statement is calculated and added to the time
+associated with the line of the source file that the statement starts on.
+
+By default the statement profiler also determines the first line of the current
+block and the first line of the current statement, and accumulates times
+associated with those. NYTProf is the only Perl profiler to perform block level
+profiling.
+
+Another innovation unique to NYTProf is automatic compensation for a problem
+inherent in simplistic statement-to-statement timing. Consider a statement that
+calls a subroutine and then performs some other work that doesn't execute new
+statements, for example:
+
+  foo(...) + mkdir(...);
+
+In all other statement profilers the time spent in remainder of the expression
+(mkdir in the example) will be recorded as having been spent I<on the last
+statement executed in foo()>! Here's another example:
+
+  while (<>) {
+	    ...
+			1;
+	}
+
+After the first time around the loop, any further time spent evaluating the
+condition (waiting for input in this example) would be be recorded as having
+been spent I<on the last statement executed in the loop>!
+
+NYTProf avoids these problems by intercepting the opcodes which indicate that
+control is returning into some previous statement and adjusting the profile
+accordingly.
+
+The statement profiler naturally generates a lot of data which is streamed out
+to a file in a very compact format. NYTProf takes care to not include the
+measurement and writing overheads in the profile times (some profilers produce
+'noisy' data due to periodic stdio flushing).
+
+=head2 Subroutine Profiling
+
+The subroutine profiler measures the time between entering a subroutine and
+leaving it. It then increments a call count and accumulates the duration.
+For each subroutine called, separate counts and durations are stored I<for each
+location that called the subroutine>.
+
+Subroutine entry is detected by intercepting the entersub opcode. Subroutine
+exit is detected via perl's internal save stack. The result is both extremely
+fast and very robust.
+
+=head2 Application Profiling
+
+NYTProf records extra information in the data file to capture details that may
+be useful when analysing the performance. It also records the filename and line
+ranges of all the subroutines.
+
+NYTProf can profile applications that fork, and does so with no loss of
+performance. There's (now) no special 'allowfork' mode. It just works.
+NYTProf detects the fork and starts writing a new profile file with the pid
+appended to the filename.
+
+=head2 Fast Profiling
+
+The NYTProf profiler is written almost entirely in C and great are has been
+taken to ensure it's very efficient.
+
+=head2 Apache Profiling
+
+Just add one line near the start of your httpd.conf file:
+
+	PerlModule Devel::NYTProf::Apache
+
+By default you'll get a F</tmp/nytprof.$$.out> file for the parent process and
+a F</tmp/nytprof.$parent.out.$$> file for each worker process.
+
+NYTProf takes care to detect when control is returning back from perl to
+mod_perl so time spent in mod_perl (such as waiting for the next request)
+does not get allocated to the last statement executed.
+
+Works with mod_perl 1 and 2. See L<Devel::NYTProf::Apache> for more information.
 
 =head1 PROFILING
 
@@ -160,18 +246,11 @@ Set to 0 to disable the extra work done to allocate times accurately when
 returning into the middle of statement. For example leaving a subroutine
 and returning into the middle of statement, or re-evaluting a loop condition.
 
-Normally line-based profilers measure the time between starting one 'statement'
-and starting the next. So when a subroutine call returns, the time spent
-copying the return value and evaluating and remaining expressions in the
-calling statement, get incorrectly allocated to the last statement executed in
-the subroutine. Similarly for loop conditions.
-
 This feature also ensures that in embedded environments, such as mod_perl,
 the last statement executed doesn't accumulate the time spent 'outside perl'.
 
 NYTProf is the only line-level profiler to measure these times correctly.
 The profiler is fast enough that you shouldn't need to disable this feature.
-
 
 =item use_db_sub=1
 
@@ -181,15 +260,21 @@ default. It also disables some extra mechanisms that help ensure more accurate
 results for things like the last statements in subroutines.
 
 If you find a use, or need, for use_db_sub=1 then please let us know,
-otherise this vestige of old slower ways is likely to be removed.
+otherwise this vestige of old slower ways is likely to be removed.
 
 =item usecputime=1
 
-Measure user + system CPU time instead of the real elapsed 'wall clock' time (which is the default).
+Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
+time (which is the default).
 
 Measuring CPU time has the advantage of making the measurements independant of
 time spent blocked waiting for the cpu or network i/o etc. But it also has the
-severe disadvantage of having I<far> less accurate timings on most systems.
+severe disadvantage of having typically I<far> less accurate timings.
+
+Most systems use a 0.1 second granularity. With modern processors having multi-
+gigahertz clocks, 0.1 seconds is like a lifetime. The cpu time clock 'ticks'
+happen so rarely relative to the activity of a most applications that you'd
+have to run the code for many hours to have any hope of reasonably useful results.
 
 =item file=...
 
@@ -204,7 +289,7 @@ teh profile data.
 
 The L<Devel::NYTProf::Reader> module provides an interface for generating
 arbitrary reports.  This means that you can implement your own output format in
-perl.
+perl. (Though the module is in a state of flux and may be deprecated soon.)
 
 Included in the bin directory of this distribution are two scripts
 which implement the L<Devel::NYTProf::Reader> interface: 
@@ -228,13 +313,14 @@ Loading via the perl -d option ensures it's loaded first.
 
 =head2 threads
 
-C<Devel::NYTProf> is not currently thread safe.
+C<Devel::NYTProf> is not currently thread safe. If you may be interested in
+making it thread safe then get in touch with us. We'd love to help.
 
 =head2 For perl versions before 5.8.8 it may change what caller() returns
 
 For example, the Readonly module croaks with an "Invalid tie" when profiled with
-perl versions before 5.8.8. That's because it's explicitly checking for certain
-values from caller().  We're not quite sure what the cause is yet.
+perl versions before 5.8.8. That's because L<Readonly> explicitly checking for
+certain values from caller().  We're not quite sure what the cause is yet.
 
 =head2 Subroutine exclusive time is not (currently) available
 
@@ -260,7 +346,7 @@ L<nytprofhtml> is a script included that produces html reports.
 L<nytprofcsv> is another script included that produces plain text CSV reports.
 
 L<Devel::NYTProf::Reader> is the module that powers the report scripts.  You
-might want to check this out if you plan to implement a custom report. Its easy!
+might want to check this out if you plan to implement a custom report.
 
 =head1 AUTHOR
 
