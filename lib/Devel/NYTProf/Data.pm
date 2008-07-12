@@ -518,10 +518,9 @@ sub subs_defined_in_file {
 
 	my %subs;
 	while ( my ($sub, $subinfo) = each %$sub_subinfo) {
-		if ($fid) {
-			my $subfid = $subinfo->fid or next;
-			next unless $subfid == $fid;
-		}
+		# XXX should use $subinfo->fid but we need this to be fast so we
+		# break encapsulation till we stop using this brute force method
+		next if $fid && ($subinfo->[0]||0) != $fid;
 		$subs{ $sub } = $subinfo;
 	}
 

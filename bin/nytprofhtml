@@ -225,7 +225,7 @@ $reporter->set_param('column4', {
       my ($value, $linenum, $linesrc, $profile, $subs, $calls) = @_;
 
 			$linesrc =~ s/&/&amp;/g;
-			$linesrc =~ s/>/&gt;/g;
+			$linesrc =~ s/</&lt;/g;
 			$linesrc =~ s/>/&gt;/g;
 			$linesrc =~ s/\t/        /g;
 
