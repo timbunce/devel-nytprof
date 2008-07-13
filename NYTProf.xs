@@ -40,6 +40,9 @@
 #define PL_curcop_nytprof PL_curcop
 #endif
 
+#ifndef OP_NAME	/* for perl 5.6 */
+#define OP_NAME "<?>"
+#endif
 #define OP_NAME_safe(op) ((op) ? OP_NAME(op) : "NULL")
 
 #include <sys/time.h>
