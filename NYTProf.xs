@@ -952,16 +952,26 @@ int
 reinit_if_forked(pTHX) {
 	if (getpid() == last_pid)
 		return 0;		/* not forked */
+	/* we're now the child process */
 	if (trace_level >= 1)
 		warn("New pid %d (was %d)\n", getpid(), last_pid);
+	/* reset state */
 	last_pid = getpid();
 	last_executed_fileptr = NULL;
+	if (sub_callers_hv)
+		hv_clear(sub_callers_hv);
+
+#if HAS_FPURGE_BOOL
 	FPURGE(out);
+#else
+	warn("NYTProf not built with fpurge support so %s may be corrupted by the fork", PROF_output_file);
+#endif
   /* we don't bother closing the current out fh so if we don't have fpurge
 	* any old pending data that was duplicated by the fork won't be written
 	* until the program exits and that'll be much easier to handle by the reader
 	*/
 	open_output_file(aTHX_ PROF_output_file);
+
 	return 1;		/* have forked */
 }
 
