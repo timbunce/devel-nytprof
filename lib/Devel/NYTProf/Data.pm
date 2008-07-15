@@ -51,7 +51,7 @@ my $trace = 0;
 =head2 new
 
 	$profile = Devel::NYTProf::Data->new( { filename => 'nytprof.out' } );
-  
+
 Reads the specified file containing profile data written by L<Devel::NYTProf>,
 aggregates the contents, and returns the results as a blessed data structure.
 
@@ -239,7 +239,7 @@ separarate the elements of the path.
   sub_caller	main::foo	1	11	1
   sub_subinfo	main::bar	[ 1 6 8 762 2e-06 ]
   sub_subinfo	main::foo	[ 1 1 4 793 1.5e-06 ]
-  
+
 This format is especially useful for grep'ing and diff'ing.
 
 =cut

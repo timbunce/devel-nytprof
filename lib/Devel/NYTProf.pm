@@ -18,6 +18,7 @@ package	# hide the package from the PAUSE indexer
 	# Set the flags that influence compilation ASAP so we get full details
 	# (sub line ranges etc) of modules loaded as a side effect of loading
 	# Devel::NYTProf::Core (ie XSLoader, strict, Exporter etc.)
+	# See "perldoc perlvar" for details of the $^P flags
 	$^P = 0x010 # record line range of sub definition
 	    | 0x100 # informative "file" names for evals
 	    | 0x200;# informative names for anonymous subroutines
@@ -43,29 +44,6 @@ package	# hide the package from the PAUSE indexer
 
 __END__
 
-=for comment from perlvar
-
-  $^P   The internal variable for debugging support.  The meanings of
-	the various bits are subject to change, but currently indicate:
-
-	0x01  Debug subroutine enter/exit.
-	0x02  Line-by-line debugging.
-	0x04  Switch off optimizations.
-	0x08  Preserve more data for future interactive inspections.
-	0x10  Keep info about source lines on which a subroutine is defined.
-	0x20  Start with single-step on.
-	0x40  Use subroutine address instead of name when reporting.
-	0x80  Report "goto &subroutine" as well.
-	0x100 Provide informative "file" names for evals based on the
-		place they were compiled.
-	0x200 Provide informative names to anonymous subroutines based
-		on the place they were compiled.
-	0x400 Debug assertion subroutines enter/exit.
-
-	Some bits may be relevant at compile-time only, some at run-
-	time only.  This is a new mechanism and the details may change.
-=cut
-
 =head1 NAME
 
 Devel::NYTProf - Powerful feature-rich perl source code profiler
@@ -82,7 +60,7 @@ Devel::NYTProf - Powerful feature-rich perl source code profiler
  nytprofcsv
 
 =head1 DESCRIPTION
- 
+
 Devel::NYTProf is a powerful feature-rich perl source code profiler.
 
  * Performs per-line statement profiling for fine detail
@@ -109,7 +87,7 @@ subroutine profiler.
 The statement profiler measures the time between entering one perl statement
 and entering the next. Whenever execution reaches a new statement, the time
 since entering the previous statement is calculated and added to the time
-associated with the line of the source file that the statement starts on.
+associated with the line of the source file that the previous statement starts on.
 
 By default the statement profiler also determines the first line of the current
 block and the first line of the current statement, and accumulates times
@@ -128,9 +106,9 @@ In all other statement profilers the time spent in remainder of the expression
 statement executed in foo()>! Here's another example:
 
   while (<>) {
-	    ...
-			1;
-	}
+     ...
+     1;
+  }
 
 After the first time around the loop, any further time spent evaluating the
 condition (waiting for input in this example) would be be recorded as having
@@ -169,7 +147,7 @@ appended to the filename.
 
 =head2 Fast Profiling
 
-The NYTProf profiler is written almost entirely in C and great are has been
+The NYTProf profiler is written almost entirely in C and great care has been
 taken to ensure it's very efficient.
 
 =head2 Apache Profiling
@@ -285,7 +263,7 @@ Specify the output file to write profile data to (default: './nytprof.out').
 =head1 REPORTS
 
 The L<Devel::NYTProf::Data> module provides a low-level interface for loading
-teh profile data.
+the profile data.
 
 The L<Devel::NYTProf::Reader> module provides an interface for generating
 arbitrary reports.  This means that you can implement your own output format in
@@ -313,8 +291,8 @@ Loading via the perl -d option ensures it's loaded first.
 
 =head2 threads
 
-C<Devel::NYTProf> is not currently thread safe. If you may be interested in
-making it thread safe then get in touch with us. We'd love to help.
+C<Devel::NYTProf> is not currently thread safe. If you'd be interested in
+helping us make it thread safe then please get in touch with us.
 
 =head2 For perl versions before 5.8.8 it may change what caller() returns
 
@@ -336,6 +314,12 @@ Currently there's no support for Windows.
 Possibly.
 
 =head1 SEE ALSO
+
+Screenshots of L<nytprofhtml> reports can be seen at
+L<http://timbunce.files.wordpress.com/2008/07/nytprof-perlcritic-index.png> and
+L<http://timbunce.files.wordpress.com/2008/07/nytprof-perlcritic-all-perl-files.png>
+plus a writeup of the new features and history of NYTProf v2 at
+L<http://blog.timbunce.org/tag/performance/> (will be soon)
 
 Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
 
