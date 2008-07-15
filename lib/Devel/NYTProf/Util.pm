@@ -23,6 +23,8 @@ Devel::NYTProf::Util - general utility functions for L<Devel::NYTProf>
 
 Contains general utility functions for L<Devel::NYTProf>
 
+B<Note:> The documentation for this module is currently incomplete and out of date.
+
 =head1 FUNCTIONS
 
 =cut
@@ -163,7 +165,7 @@ __END__
 
 =head1 SEE ALSO
 
-L<Devel::NYTProf>
+L<Devel::NYTProf> and L<Devel::NYTProf::Data>
 
 =head1 AUTHOR
 
@@ -173,7 +175,7 @@ B<Steve Peters>, C<< <steve at fisharerojo.org> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008 by Tim Bunce, Ireland.
+Copyright (c) 2008 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

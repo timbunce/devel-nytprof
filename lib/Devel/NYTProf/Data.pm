@@ -32,6 +32,9 @@ Access to the data should be via methods in this class to avoid breaking
 encapsulation (and thus breaking your code when the data structures change in
 future versions).
 
+XXX Currently the documentation is out of date as this module is evolving
+rapidly.
+
 =head1 METHODS
 
 =cut
@@ -835,7 +838,8 @@ B<Steve Peters>, C<< <steve at fisharerojo.org> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
+ Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
+ Copyright (C) 2008 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

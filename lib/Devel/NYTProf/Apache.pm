@@ -68,24 +68,16 @@ Devel::NYTProf::Apache - Profile mod_perl applications with Devel::NYTProf
 
 =head1 DESCRIPTION
 
-This module allows mod_perl applciations to be profiled using
+This module allows mod_perl applications to be profiled using
 C<Devel::NYTProf>. 
 
-=head1 NOTES
+If the NYTPROF environment variable isn't set then Devel::NYTProf::Apache
+will issue a warning and default it to:
 
-For proper functioning of C<Devel::NYTProf>, the NYTPROF environment
-variable should be set.  See L<Devel::NYTProf/"ENVIRONMENT VARIABLES"> for 
+	file=/tmp/nytprof.$$.out
+
+See L<Devel::NYTProf/"ENVIRONMENT VARIABLES"> for 
 more details on the settings effected by this environment variable.
-Certain settings are important for C<mod_perl> users.
-
-=over 4
-
-=item file=N
-
-Tells C<Devel::NYTProf> where to save your profile data.  The module defaults
-to '/tmp/nytprof.$$.out' which may not be what you want.
-
-=back
 
 =head1 SEE ALSO
 
