@@ -20,6 +20,7 @@ ppport.h
 README
 t/00.load.t
 t/90.pod.t
+t/80.version.t
 t/91.pod_coverage.t
 test.pl
 t/test01.p

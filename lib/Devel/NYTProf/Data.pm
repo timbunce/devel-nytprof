@@ -49,6 +49,8 @@ use Scalar::Util qw(blessed);
 use Devel::NYTProf::Core;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths get_abs_paths_alternation_regex);
 
+our $VERSION = '2.01';
+
 my $trace = 0;
 
 =head2 new

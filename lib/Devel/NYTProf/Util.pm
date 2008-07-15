@@ -39,6 +39,8 @@ use Cwd qw(getcwd);
 use List::Util qw(sum);
 use UNIVERSAL qw( isa can VERSION );
 
+our $VERSION = '2.01';
+
 our @EXPORT_OK = qw(
 	fmt_float
 	strip_prefix_from_paths
