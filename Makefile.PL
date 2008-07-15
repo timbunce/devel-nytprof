@@ -104,7 +104,7 @@ push @LIBS, "-lrt" if $clock_gettime;
 my %mm_opts;
 
 $mm_opts{DEFINE} .= '-DHAS'.uc($fpurge) if $fpurge;
-$mm_opts{DEFINE} .= ' -DHAS'.uc($clock_gettime) if $clock_gettime;
+$mm_opts{DEFINE} .= ' -DHAS_'.uc($clock_gettime) if $clock_gettime;
 $mm_opts{DEFINE} .= ' -DHAS_STDIO_EXT_H' if $fpurge_h_file eq 'stdio_ext.h';
 
 $mm_opts{LICENSE} = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
