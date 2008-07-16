@@ -241,19 +241,14 @@ should not be loaded via the command line. That's needed to test
 behaviors in environments where perl is init'd first. Such as mod_perl.
 Then we can test things like not having the sub line range for some subs.
 
-NYTProf.xs takes two time measurements per statement in order to hide the
-overheads and avoid 'noise' in the results due to stdio flushing at
-unpredictable moments. The subroutine inclusive timing currently has no way to
-compensate for the same overheads. That can be fixed  as follows... The
-statement profile code could measure the overhead time (by subtracting the two
-times it takes) and accumulate it into a global. When a sub is entered
-the inclusive timing code can take a copy of the current cumulative overhead.
-When the subroutine exits the code can subtract the difference between the
-original cumulative overhead and the current one.
-
-Talking that further, the same approach may be able to provide *exclusive*
-subroutine times. That would make NYTProf an even better sub-level profiler
-and, when line-level profiling is disabled, the fastest profiler by far.
+It may be possible to calculate *exclusive* subroutine times like this:
+Whenever a sub inclusive time is calculated, increment a global by that amount.
+When a sub is entered record the current cumulative sub time.
+When a sub is left, subtract the different between the saved cumulative sub time
+and the current cumulative sub time from the inclusive sub time to give the
+exclusive sub time.
+That would make NYTProf an even better sub-level profiler and, when line-level
+profiling is disabled, the fastest sub profiler by far.
 
 Add way to tell if were returning from the outermost scope, ie we're
 in mod_perl and we're exiting a handler back to mod_perl. So any wait time
@@ -332,3 +327,6 @@ recursing (based on CvDEPTH(cv)) wich would be 0 for subs that didn't recurse
 (a handy boolean) and could be subtracted from the inclusive time to get the
 'outer' inclusive time.
 
+The sub_caller information is currently one level deep. It would be good to
+make it two levels that. Espacially because it would allow you to "see through"
+AUTOLOADs.

@@ -7,7 +7,8 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 =head2 Changes in Devel::NYTProf 2.02
 
   Uses clock_gettime() if available for 100ns resolution.
-	Uses CLOCK_MONOTONIC if available else CLOCK_REALTIME.
+    Uses CLOCK_MONOTONIC if available else CLOCK_REALTIME.
+    Thanks to Steve Peters.
   Deducts statement measurement overheads from inclusive subroutine time.
 
 =head2 Changes in Devel::NYTProf 2.01
