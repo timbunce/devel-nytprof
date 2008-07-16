@@ -15,4 +15,8 @@ Socket->pack_sockaddr_un();
 @Subclass::ISA = qw(Socket);
 Subclass->pack_sockaddr_un();
 
+my $subname = "Socket::pack_sockaddr_un";
+&$subname("foo");
 
+#sub launch { goto &$subname }
+#launch("foo");
