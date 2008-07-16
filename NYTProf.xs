@@ -119,16 +119,16 @@ static struct tms start_ctime, end_ctime;
 #  else
 #    define CLOCK_GETTIME(ts) clock_gettime(CLOCK_REALTIME, ts)
 #  endif
-#  define CLOCKS_PER_TICK 10000000
+#  define CLOCKS_PER_TICK 10000000 /* 10 million */
 #  define get_time_of_day(into) if (!profile_zero) CLOCK_GETTIME(&into)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
-                overflow = 0; \
-                ticks = ((e.tv_sec - s.tv_sec) * CLOCKS_PER_TICK + (e.tv_nsec / 100) - (s.tv_nsec / 100)); \
-        } STMT_END
+     overflow = 0; \
+     ticks = ((e.tv_sec - s.tv_sec) * CLOCKS_PER_TICK + (e.tv_nsec / 100) - (s.tv_nsec / 100)); \
+   } STMT_END
 #else
 #ifdef HAS_GETTIMEOFDAY
    typedef struct timeval time_of_day_t;
-#  define CLOCKS_PER_TICK 1000000
+#  define CLOCKS_PER_TICK 1000000 /* 1 million */
 #  define get_time_of_day(into) if (!profile_zero) gettimeofday(&into, NULL)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
 		overflow = 0; \
@@ -137,6 +137,7 @@ static struct tms start_ctime, end_ctime;
 #else
    static int (*u2time)(pTHX_ UV *) = 0;
    typedef UV time_of_day_t[2];
+#  define CLOCKS_PER_TICK 1000000 /* 1 million */
 #  define get_time_of_day(into) if (!profile_zero) (*u2time)(aTHX_ into)
 #  define get_ticks_between(s, e, ticks, overflow)  STMT_START { \
 		overflow = 0; \
