@@ -1,7 +1,7 @@
 attribute	application	test08.p
 attribute	basetime	0
 attribute	perl_version	0
-attribute	ticks_per_sec	1000000
+attribute	ticks_per_sec	0
 attribute	xs_version	0
 fid_block_time	1	1	0	0
 fid_block_time	1	1	1	1

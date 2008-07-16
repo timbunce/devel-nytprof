@@ -398,6 +398,7 @@ sub normalize_variables {
 	$self->{attribute}{basetime} = 0;
 	$self->{attribute}{xs_version} = 0;
 	$self->{attribute}{perl_version} = 0;
+	$self->{attribute}{ticks_per_sec} = 0;
 
 	# remove_internal_data_of library files
 	# (the definition of which is quite vague at the moment)
