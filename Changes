@@ -1,78 +1,99 @@
+=head1 NAME
+
+Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
+
+(As of $Date$ $Revision$)
+
+=head2 Changes in Devel::NYTProf 2.02
+
+  Use clock_gettime if available for 100ns resolution
+    Uses CLOCK_MONOTONIC if available else CLOCK_REALTIME
+
+=head2 Changes in Devel::NYTProf 2.01
+
+  Fixed and unified module version numbers.
+
+=head2 Changes in Devel::NYTProf 2.00
+
+  Major changes. Much extra functionality and performance.
+  See http://blog.timbunce.org/2008/07/15/nytprof-v2-a-major-advance-in-perl-profilers/
+
+=head2 Changes in and before 1.50
+
+	1.50  ? ? ? 0:00:00 2008
+		- Major revision to include Tim Bunce's call scope statistics features,
+				code/doc refactoring, optimizations and bug fixes.
+		- Fixes major issues with profiling code that forks.
+
+	1.13	Wed Mar 26 9:35:00 2008
+		- Fixed RedHat EL bug - %f isn't the C format for floating-point for RHEL
+				Changed Reader.pm to warn-and-continue instead of dieing when a source 
+				file cannot be found. (the file will be skipped). Feature by request.
+				Makefile.PL changes by tim.bunce - fix warning on LICENSE key when 
+				installed by older versions of MakeMaker. Added vim modeline.
+
+	1.12	Tue Mar 25 11:05:00 2008
+		- Fixed YET ANOTHER test failure caused by trivial differences between v5.6
+				and v5.8.x.	Added test15 that only executes on <5.8 and test06 now only
+				runs on >5.8.0
+
+	1.11	Mon Mar 24 11:26:00 2008
+		- Rewrote test06 and test 13 only. No functionality changes. There is a Perl
+				debugger bug. In perl >5.6 closing "}" in empty loops get execution
+				counts for some reason.	This caused 5.6 to fail 'make test' 
+				needlessly.	(5.6 actually handles it better and 5.8 & 5.10). So I 
+				changed the code to avoid empty loop tests, which are no more useful 
+				than loops with code in them.	
+				*test06 now tests only loops - foreach, while and do-while loops. 
+				*test13 now tests only forms of eval, and eval failures - loops removed
+
+	1.10	Web Mar 19 21:02:00 2008
+		- Another CPAN versioning fix. Hopefully the last!!!
+		- Added Makefile.pl check to report unsupported OS on Win32
+
+	0.09	Wed Mar 19 13:05:00 2008
+		- Fixed broken CPAN version numbering
+		- Implemented malloc() fix by Tim Bunce (tim.bunce@gmail.[nospam]com
+		- Wrote a better eval test, now covers all uses ("", perlcode, {...})
+		- Fixed AutoSplit file source problem
+		- Wrote AutoSplit/AutoLoader tests (test14)
+		- Bugs fixed (hopefully)	33889, 34234, 33991, 33878
+
+	0.08	Mon Mar 10 17:35:00 2008
+		- Added #define to fix missing linkage for OutCopFile (Perl <5.8.0 fix)
+		- Added test12, basic do script test
+		- Moved min version to 5.6.0 again (another attempt)
+
+	0.05	Fri Mar 7 10:29:00 2008
+		- Changed XS code to compile clean with -ansi and -pedantic
+		- Removed `cont' on file argument to process due to XS error in Perl 5.6
+		- Added code to Makefile.PL so that header sources are run through the C 
+				pre-processor (if availible) as a potential fix for some BSD systems.
+
+	0.03	Thu Mar 6 09:12:00 2008
+		- Fixed a VERY tricky bug some people had encountered. Scalar references to 
+				code that is evaled at runtime will cause divide-by-zero error IF the
+				reference was declared in a BEGIN {...} and used outside of a BEGIN. 
+				(The debugger/profiler can't see what happens in a BEGIN)
+		- Added test case for above issue as test11
+		- Fixed (i hope) the OSX segfault when using a re-malloc'd pointer that was 
+				once freed.
+		- Changed XS to compile cleanly with -Wall.
+		- Adopted versioning scheme: modules/files start at 1.0 and the distro will
+				continue from 0.0, thus making mixed versions less confusing.
+		- Enabled the debugging switch so that NYTProf can be used in the form
+				perl -MDevel::NYTProf code.pl (BUT this is ALPHA quality -- may bork)
+		- Minor cleanup to Makefile.PL
+
+	0.02	Wed Mar 5 14:20:00 2008
+		- fixed a bunch of minor problems with the distribution that caused cpan
+				warnings and also cause the exe scripts to not be installed
+		- now a working cpan distro
+
+	0.01	Tue Feb 12 10:34:03 2008
+		- original version; created by h2xs 1.23 with options
+				-A -n Devel::NYTProf
+
+=cut
+
 # vim: ts=2 sw=2 sts=0 noexpandtab:
-# $Id$
-Revision history for Perl extension Devel::NYTProf.
-
-1.50  ? ? ? 0:00:00 2008
-	- Major revision to include Tim Bunce's call scope statistics features,
-			code/doc refactoring, optimizations and bug fixes.
-	- Fixes major issues with profiling code that forks.
-
-1.13	Wed Mar 26 9:35:00 2008
-	- Fixed RedHat EL bug - %f isn't the C format for floating-point for RHEL
-			Changed Reader.pm to warn-and-continue instead of dieing when a source 
-			file cannot be found. (the file will be skipped). Feature by request.
-			Makefile.PL changes by tim.bunce - fix warning on LICENSE key when 
-			installed by older versions of MakeMaker. Added vim modeline.
-
-1.12	Tue Mar 25 11:05:00 2008
-	- Fixed YET ANOTHER test failure caused by trivial differences between v5.6
-			and v5.8.x.	Added test15 that only executes on <5.8 and test06 now only
-			runs on >5.8.0
-
-1.11	Mon Mar 24 11:26:00 2008
-	- Rewrote test06 and test 13 only. No functionality changes. There is a Perl
-			debugger bug. In perl >5.6 closing "}" in empty loops get execution
-			counts for some reason.	This caused 5.6 to fail 'make test' 
-			needlessly.	(5.6 actually handles it better and 5.8 & 5.10). So I 
-			changed the code to avoid empty loop tests, which are no more useful 
-			than loops with code in them.	
-			*test06 now tests only loops - foreach, while and do-while loops. 
-			*test13 now tests only forms of eval, and eval failures - loops removed
-
-1.10	Web Mar 19 21:02:00 2008
-	- Another CPAN versioning fix. Hopefully the last!!!
-	- Added Makefile.pl check to report unsupported OS on Win32
-
-0.09	Wed Mar 19 13:05:00 2008
-	- Fixed broken CPAN version numbering
-	- Implemented malloc() fix by Tim Bunce (tim.bunce@gmail.[nospam]com
-	- Wrote a better eval test, now covers all uses ("", perlcode, {...})
-	- Fixed AutoSplit file source problem
-	- Wrote AutoSplit/AutoLoader tests (test14)
-	- Bugs fixed (hopefully)	33889, 34234, 33991, 33878
-
-0.08	Mon Mar 10 17:35:00 2008
-	- Added #define to fix missing linkage for OutCopFile (Perl <5.8.0 fix)
-	- Added test12, basic do script test
-	- Moved min version to 5.6.0 again (another attempt)
-
-0.05	Fri Mar 7 10:29:00 2008
-	- Changed XS code to compile clean with -ansi and -pedantic
-	- Removed `cont' on file argument to process due to XS error in Perl 5.6
-	- Added code to Makefile.PL so that header sources are run through the C 
-			pre-processor (if availible) as a potential fix for some BSD systems.
-
-0.03	Thu Mar 6 09:12:00 2008
-	- Fixed a VERY tricky bug some people had encountered. Scalar references to 
-			code that is evaled at runtime will cause divide-by-zero error IF the
-			reference was declared in a BEGIN {...} and used outside of a BEGIN. 
-			(The debugger/profiler can't see what happens in a BEGIN)
-	- Added test case for above issue as test11
-	- Fixed (i hope) the OSX segfault when using a re-malloc'd pointer that was 
-			once freed.
-	- Changed XS to compile cleanly with -Wall.
-	- Adopted versioning scheme: modules/files start at 1.0 and the distro will
-			continue from 0.0, thus making mixed versions less confusing.
-	- Enabled the debugging switch so that NYTProf can be used in the form
-			perl -MDevel::NYTProf code.pl (BUT this is ALPHA quality -- may bork)
-	- Minor cleanup to Makefile.PL
-
-0.02	Wed Mar 5 14:20:00 2008
-	- fixed a bunch of minor problems with the distribution that caused cpan
-			warnings and also cause the exe scripts to not be installed
-	- now a working cpan distro
-
-0.01	Tue Feb 12 10:34:03 2008
-	- original version; created by h2xs 1.23 with options
-			-A -n Devel::NYTProf
-
