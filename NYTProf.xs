@@ -142,7 +142,7 @@ static struct tms start_ctime, end_ctime;
 #  define get_time_of_day(into) if (!profile_zero) (*u2time)(aTHX_ into)
 #  define get_ticks_between(s, e, ticks, overflow)  STMT_START { \
 		overflow = 0; \
-		ticks = ((e[0] - s[0]) * 1000000 + e[1] - s[1]); \
+		ticks = ((e[0] - s[0]) * CLOCKS_PER_TICK + e[1] - s[1]); \
 	} STMT_END
 #endif
 #endif
@@ -156,8 +156,8 @@ static unsigned int last_block_line;
 static unsigned int last_sub_line;
 static unsigned int is_profiling;
 static pid_t last_pid;
+static double cumulative_overhead_ticks = 0.0;
 
-/* reader module variables */
 static unsigned int ticks_per_sec = 0; /* 0 forces error if not set */
 
 /* prototypes */
@@ -206,7 +206,6 @@ void
 output_header(pTHX) {
 	SV *sv;
 	time_t basetime = PL_basetime;
-	unsigned int ticks = (usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
 
 	assert(out != NULL);
 	/* File header with "magic" string, with file major and minor version */
@@ -223,7 +222,7 @@ output_header(pTHX) {
 	fprintf(out, ":%s=%lu\n",      "basetime",      (unsigned long)PL_basetime); /* $^T */
 	fprintf(out, ":%s=%s\n",       "xs_version",    XS_VERSION);
 	fprintf(out, ":%s=%d.%d.%d\n", "perl_version",  PERL_REVISION, PERL_VERSION, PERL_SUBVERSION);
-	fprintf(out, ":%s=%u\n",       "ticks_per_sec", ticks);
+	fprintf(out, ":%s=%u\n",       "ticks_per_sec", ticks_per_sec);
 	/* $0 - application name */
 	mg_get(sv = get_sv("0",GV_ADDWARN));
 	fprintf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
@@ -855,6 +854,10 @@ DB_stmt(pTHX_ OP *op) {
 	} else {
 		get_time_of_day(start_time);
 	}
+
+	/* measure time we've spent measuring so we can discount it */
+	get_ticks_between(end_time, start_time, elapsed, overflow);
+	cumulative_overhead_ticks += elapsed;
 }
 
 
@@ -1003,6 +1006,7 @@ typedef struct sub_call_start_st {
 	char fid_line[50];
 	SV *subname_sv;
 	AV *sub_av;
+	double current_overhead_ticks;
 } sub_call_start_t;
 
 void
@@ -1010,6 +1014,7 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	AV *av = sub_call_start->sub_av;
 	SV *subname_sv = sub_call_start->subname_sv;
 	SV *time_sv = *av_fetch(av, 1, 1);
+	int overhead_ticks = (cumulative_overhead_ticks - sub_call_start->current_overhead_ticks);
 	NV time_in_sub;
 
 	if (profile_zero) {
@@ -1017,16 +1022,21 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	}
 	else {
 		time_of_day_t sub_end_time;
+		/* statement overheads we've accumulated since we entered the sub */
 		unsigned int ticks, overflow;
+		/* calculate ticks since we entered the sub */
 		get_time_of_day(sub_end_time);
 		get_ticks_between(sub_call_start->sub_call_time, sub_end_time, ticks, overflow);
-		time_in_sub = overflow + ticks / 1000000.0;
+		time_in_sub = overflow + ticks / ticks_per_sec;
+		/* subtract the statement overheads */
+		time_in_sub -= overhead_ticks;
 	}
 
 	if (trace_level >= 3)
-		warn("exited %s after %fs (%"NVff"s @ %s)\n",
+		warn("exited %s after %fs (%"NVff"s @ %s, -%dt)\n",
 			SvPV_nolen(subname_sv), time_in_sub,
-			SvNV(time_sv)+time_in_sub, sub_call_start->fid_line);
+			SvNV(time_sv)+time_in_sub, sub_call_start->fid_line,
+			overhead_ticks);
 
 	sv_setnv(time_sv, SvNV(time_sv)+time_in_sub);
 	sv_free(sub_call_start->subname_sv);
@@ -1051,6 +1061,7 @@ pp_entersub_profiler(pTHX) {
 
 	if (profile_subs && is_profiling) {
 		get_time_of_day(sub_call_start.sub_call_time);
+		sub_call_start.current_overhead_ticks = cumulative_overhead_ticks;
 	}
 
 	/*
@@ -1234,7 +1245,8 @@ static void
 finish_profile(pTHX)
 {
 	if (trace_level)
-		warn("_finish (last_pid %d, getpid %d)\n", last_pid, getpid());
+		warn("finish_profile (last_pid %d, getpid %d, overhead %fs)\n",
+			last_pid, getpid(), cumulative_overhead_ticks/ticks_per_sec);
 
 	/* write data for final statement, unless DB_leave has already */
 	if (!profile_leave || use_db_sub)
@@ -1266,6 +1278,7 @@ init_profiler(pTHX) {
 
 	/* Save the process id early. We monitor it to detect forks */
 	last_pid = getpid();
+	ticks_per_sec = (usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
 
 	if (trace_level || profile_zero)
 		warn("NYTProf init pid %d%s\n", last_pid, profile_zero ? ", zero=1" : "");
@@ -1623,6 +1636,8 @@ load_profile_data_from_stream() {
 	int c; /* for while loop */
 	int statement_discount = 0;
 	NV total_stmt_seconds = 0.0;
+	int total_stmt_measures = 0;
+	int total_stmt_discounts = 0;
 	HV *profile_hv;
 	HV* profile_modes = newHV();
 	HV *live_pids_hv = newHV();
@@ -1654,6 +1669,7 @@ load_profile_data_from_stream() {
 				if (statement_discount)
 					warn("multiple statement discount after %u:%d\n", file_num, line_num);
 				++statement_discount;
+				++total_stmt_discounts;
 				break;
 			}
 
@@ -1715,6 +1731,7 @@ load_profile_data_from_stream() {
 							warn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
 				}
 
+				total_stmt_measures++;
 				statement_discount = 0;
 				break;
 			}
@@ -1911,7 +1928,8 @@ load_profile_data_from_stream() {
 	sv_free((SV*)live_pids_hv);
 
 	if (trace_level >= 1)
-			warn("Total statement time %f\n", total_stmt_seconds);
+			warn("Statement totals: measured %d, discounted %d, time %fs\n",
+				total_stmt_measures, total_stmt_discounts, total_stmt_seconds);
 
 	profile_hv = newHV();
 	hv_stores(profile_hv, "attribute",      	newRV_noinc((SV*)attr_hv));
