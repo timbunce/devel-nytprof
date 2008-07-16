@@ -323,3 +323,11 @@ Profile and optimize report generation
 
 Add title/tooltip to inclusive times (ie subroutine times) showing the percentage
 of the total runtime it represents.
+
+Subroutines that recurse directly or indirectly, such as Error::try, show
+higher subroutine inclusive times because the time spent recuring is
+double-counted. Could add an extra attribute that measures time spent when
+recursing (based on CvDEPTH(cv)) wich would be 0 for subs that didn't recurse
+(a handy boolean) and could be subtracted from the inclusive time to get the
+'outer' inclusive time.
+

@@ -136,6 +136,10 @@ Subroutine entry is detected by intercepting the entersub opcode. Subroutine
 exit is detected via perl's internal save stack. The result is both extremely
 fast and very robust.
 
+Note that subroutines that recurse directly or indirectly, such as Error::try,
+will show higher subroutine inclusive times because the time spent recuring
+will be double-counted. That may change in future.
+
 =head2 Application Profiling
 
 NYTProf records extra information in the data file to capture details that may
