@@ -113,13 +113,14 @@ static int trace_level = 0;
 /* time tracking */
 static struct tms start_ctime, end_ctime;
 #ifdef HAS_CLOCK_GETTIME
+   /* http://webnews.giga.net.tw/article//mailing.freebsd.performance/710 */
    typedef struct timespec time_of_day_t;   
 #  ifdef CLOCK_MONOTONIC
 #    define CLOCK_GETTIME(ts) clock_gettime(CLOCK_MONOTONIC, ts)
 #  else
 #    define CLOCK_GETTIME(ts) clock_gettime(CLOCK_REALTIME, ts)
 #  endif
-#  define CLOCKS_PER_TICK 10000000 /* 10 million */
+#  define CLOCKS_PER_TICK 10000000 /* 10 million - 100ns */
 #  define get_time_of_day(into) if (!profile_zero) CLOCK_GETTIME(&into)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
      overflow = 0; \
@@ -175,7 +176,7 @@ void write_sub_line_ranges(pTHX_ int fids_only);
 void write_sub_callers(pTHX);
 HV *load_profile_data_from_stream();
 AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num, 
-															double time, int count, unsigned int fid);
+															NV time, int count, unsigned int fid);
 
 /* copy of original contents of PL_ppaddr */
 OP * (CPERLscope(**PL_ppaddr_orig))(pTHX);
@@ -1009,7 +1010,7 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	AV *av = sub_call_start->sub_av;
 	SV *subname_sv = sub_call_start->subname_sv;
 	SV *time_sv = *av_fetch(av, 1, 1);
-	double time_in_sub;
+	NV time_in_sub;
 
 	if (profile_zero) {
 		time_in_sub = 0.0;
@@ -1356,7 +1357,7 @@ init_profiler(pTHX) {
 
 void
 add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num,			
-					double time, unsigned int eval_file_num, unsigned int eval_line_num, int count) 
+					NV time, unsigned int eval_file_num, unsigned int eval_line_num, int count) 
 {
   /* get ref to array of per-line data */
   unsigned int fid = (eval_line_num) ? eval_file_num : file_num;
@@ -1386,7 +1387,7 @@ add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num,
 
 
 AV *
-store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num, double time, 
+store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num, NV time, 
 													int count, unsigned int fid)
 {
 	SV *time_rvav = *av_fetch((AV*)SvRV(rvav), line_num, 1);
@@ -1621,6 +1622,7 @@ load_profile_data_from_stream() {
 	char text[MAXPATHLEN*2];
 	int c; /* for while loop */
 	int statement_discount = 0;
+	NV total_stmt_seconds = 0.0;
 	HV *profile_hv;
 	HV* profile_modes = newHV();
 	HV *live_pids_hv = newHV();
@@ -1659,12 +1661,13 @@ load_profile_data_from_stream() {
 			case '+':
 			{
 				SV *filename_sv;
-				double seconds;
+				NV seconds;
 				unsigned int eval_file_num = 0;
 				unsigned int eval_line_num = 0;
 
 				ticks    = read_int();
-				seconds  = (double)ticks / ticks_per_sec;
+				seconds  = (NV)ticks / ticks_per_sec;
+				total_stmt_seconds += seconds;
 				file_num = read_int();
 				line_num = read_int();
 
@@ -1906,6 +1909,9 @@ load_profile_data_from_stream() {
 					HvKEYS(live_pids_hv));
 	}
 	sv_free((SV*)live_pids_hv);
+
+	if (trace_level >= 1)
+			warn("Total statement time %f\n", total_stmt_seconds);
 
 	profile_hv = newHV();
 	hv_stores(profile_hv, "attribute",      	newRV_noinc((SV*)attr_hv));
