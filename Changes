@@ -8,7 +8,8 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 
   Fixed colors to use the median (not average) deviation from the median value.
 
-  Changed subroutine timing to deduct statement measurement overheads.
+  Improved accuracy of subroutine timing by deducting statement measurement overheads.
+  Improved readability of subroutine caller lists.
 
   Added exclusive subroutine time (time in sub excluding subs it called).
   Added use of clock_gettime(), if available, for 100ns resolution.
