@@ -10,6 +10,7 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
     Uses CLOCK_MONOTONIC if available else CLOCK_REALTIME.
     Thanks to Steve Peters.
   Deducts statement measurement overheads from inclusive subroutine time.
+  Fixed colors to use the median (not average) deviation from the median value.
 
 =head2 Changes in Devel::NYTProf 2.01
 

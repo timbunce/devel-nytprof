@@ -43,6 +43,7 @@ our $VERSION = '2.01';
 
 our @EXPORT_OK = qw(
 	fmt_float
+	fmt_incl_excl_time
 	strip_prefix_from_paths
 	calculate_median_absolute_deviation
 	get_alternation_regex
@@ -138,19 +139,29 @@ sub fmt_float {
 }
 
 
+sub fmt_incl_excl_time {
+	my ($incl, $excl) = @_;
+	my $diff = $incl - $excl;
+	return fmt_float($incl) unless $diff;
+	return sprintf "%ss (%s+%s)", fmt_float($incl+$excl), fmt_float($excl), fmt_float($incl-$excl);
+}
+
+
 ## Given a ref to an array of numeric values
-## returns average distance from the median value, and the median.
-## Highly resistant to extremes
+## returns median distance from the median value, and the median value.
+## See http://en.wikipedia.org/wiki/Median_absolute_deviation
 sub calculate_median_absolute_deviation {
-	my $values = shift;
-	return [ 0, 0 ] if @$values == 0; # no data
+	my $values_ref = shift;
+	my ($ignore_zeros) = @_;
+	return [ 0, 0 ] if @$values_ref == 0; # no data
 
-	$values = [ sort { $a <=> $b } @$values ];
-	my $median = $values->[ int(scalar(@$values) / 2) ];
-	my $sum = 0;
-	$sum += abs($_ - $median) for @$values;
+	my @values = ($ignore_zeros) ? grep { $_ } @$values_ref : @$values_ref;
+	my $median_value = [ sort { $a <=> $b } @values ]->[ @values / 2 ];
 
-	return [ $sum / scalar @$values, $median ];
+	my @devi = map { abs($_ - $median_value) } @values;
+	my $median_devi = [ sort { $a <=> $b } @devi ]->[ @devi / 2 ];
+
+	return [ $median_devi, $median_value ];
 }
 
 
