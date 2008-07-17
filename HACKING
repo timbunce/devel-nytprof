@@ -328,5 +328,12 @@ recursing (based on CvDEPTH(cv)) wich would be 0 for subs that didn't recurse
 'outer' inclusive time.
 
 The sub_caller information is currently one level deep. It would be good to
-make it two levels that. Espacially because it would allow you to "see through"
+make it two levels that. Especially because it would allow you to "see through"
 AUTOLOADs.
+
+Currently goto isn't noticed by the sub profiler. Need to intercept pp_goto.
+But that may be non-trivial. Could make it look like the statement that called
+the sub that called goto also called the sub that goto went to, or make it look
+like the goto &$sub made the call (but we'd then get the wrong inclusive time,
+probably).
+

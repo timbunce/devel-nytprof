@@ -312,6 +312,10 @@ certain values from caller().  We're not quite sure what the cause is yet.
 Time spent within a subroutine, exclusive of time spent in any subroutines it
 calls, it not currently avalable. It's planned to be added soon.
 
+=head2 goto
+
+The C<goto &$sub;> isn't recognised as a subroutine call.
+
 =head2 Windows
 
 Currently there's no support for Windows.
