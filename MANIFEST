@@ -2,6 +2,7 @@ benchmark.pl
 bin/nytprofcsv
 bin/nytprofhtml
 Changes
+demo/exclusive-sub-time.pl
 demo/demo-code.pl
 demo/demo-run.pl
 demo/README
