@@ -216,7 +216,7 @@ output_header(pTHX) {
 
 	assert(out != NULL);
 	/* File header with "magic" string, with file major and minor version */
-	fprintf(out, "NYTProf %d %d\n", 1, 1);
+	fprintf(out, "NYTProf %d %d\n", 1, 2);
 	/* Human readable comments and attributes follow
 	 * comments start with '#', end with '\n', and are discarded
 	 * attributes start with ':', a word, '=', then the value, then '\n'
@@ -1046,10 +1046,10 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	}
 
 	if (trace_level >= 3)
-		warn("exited %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, -%dt)\n",
+		warn("exited %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, oh %g-%g=%dt)\n",
 			SvPV_nolen(subname_sv), incl_subr_sec, called_sub_secs, excl_subr_sec,
 			SvNV(incl_time_sv)+incl_subr_sec, sub_call_start->fid_line,
-			overhead_ticks);
+			cumulative_overhead_ticks, sub_call_start->current_overhead_ticks, overhead_ticks);
 
 	sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
 	sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
@@ -1153,8 +1153,10 @@ pp_entersub_profiler(pTHX) {
 		}
 
 		if (trace_level >= 3)
-			fprintf(stderr, "fid %d:%d called %s (%s, %s)\n", fid, line, 
-				SvPV_nolen(subname_sv), (is_xs) ? "xs" : "sub", OP_NAME(op));
+			fprintf(stderr, "fid %d:%d called %s %s (oh %gt, sub %gs)\n", fid, line, 
+				SvPV_nolen(subname_sv), (is_xs) ? "xs" : "sub",
+				sub_call_start.current_overhead_ticks,
+				sub_call_start.current_subr_secs);
 
 		/* { subname => { "fid:line" => [ count, incl_time ] } } */
 		sv_tmp = *hv_fetch(sub_callers_hv, SvPV_nolen(subname_sv), 
@@ -1168,6 +1170,8 @@ pp_entersub_profiler(pTHX) {
 				av_store(av, 0, newSVuv(1));    /* flag to indicate xs */
 				av_store(av, 1, newSVnv(0.0));
 				av_store(av, 2, newSVnv(0.0));
+				av_store(av, 3, newSVnv(0.0));
+				av_store(av, 4, newSVnv(0.0));
 				sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
 			}
 		}
@@ -1178,6 +1182,8 @@ pp_entersub_profiler(pTHX) {
 			av_store(av, 0, newSVuv(1));    /* count of call to sub */
 			av_store(av, 1, newSVnv(0.0));	/* inclusive time in sub */
 			av_store(av, 2, newSVnv(0.0));	/* exclusive time in sub */
+			av_store(av, 3, newSVnv(0.0));	/* incl user cpu time in sub */
+			av_store(av, 4, newSVnv(0.0));	/* incl sys  cpu time in sub */
 			sv_setsv(sv_tmp, newRV_noinc((SV *)av));
 		}
 		else {
@@ -1527,13 +1533,19 @@ write_sub_callers(pTHX) {
 			unsigned int line = 0;
 			sscanf(fid_line_string, "%u:%u", &fid, &line);
 			if (trace_level >= 3)
-				warn("%s called by %u:%u: count %d\n", sub_name, fid, line, count);
+				warn("%s called by %u:%u: count %d (%"NVff"s %"NVff"s %"NVff"s %"NVff"s)\n",
+					sub_name, fid, line, count,
+					SvNV(AvARRAY(av)[1]), SvNV(AvARRAY(av)[2]),
+					SvNV(AvARRAY(av)[3]), SvNV(AvARRAY(av)[4]) );
 
 			fputc('c', out);
 			output_int(fid);
 			output_int(line);
 			output_int(count);
 			output_nv( SvNV(AvARRAY(av)[1]) );
+			output_nv( SvNV(AvARRAY(av)[2]) );
+			output_nv( SvNV(AvARRAY(av)[3]) );
+			output_nv( SvNV(AvARRAY(av)[4]) );
 			fputs(sub_name, out);
 			fputc('\n', out);
 		}
@@ -1624,6 +1636,7 @@ lookup_subinfo_av(pTHX_ char *subname, STRLEN len, HV *sub_subinfo_hv)
 		 */
 		sv_setuv(*av_fetch(av, 3, 1), 0);	/* call count */
 		sv_setnv(*av_fetch(av, 4, 1), 0);	/* incl_time */
+		sv_setnv(*av_fetch(av, 5, 1), 0);	/* excl_time */
 		sv_setsv(sv, rv);
   }
 	return (AV *)SvRV(sv);
@@ -1767,7 +1780,7 @@ load_profile_data_from_stream() {
 				file_num  = read_int();
 				eval_file_num = read_int();
 				eval_line_num = read_int();
-				if (file_major >= 1 && file_minor >= 1) {
+				if (file_major > 1 || (file_major == 1 && file_minor >= 1)) {
 					fid_flags     = read_int();
 					file_size     = read_int();
 					file_mtime    = read_int();
@@ -1838,6 +1851,14 @@ load_profile_data_from_stream() {
 				unsigned int line  = read_int();
 				unsigned int count = read_int();
 				NV incl_time       = read_nv();
+				NV excl_time       = 0.0;
+				NV ucpu_time       = 0.0;
+				NV scpu_time       = 0.0;
+				if (file_major > 1 || (file_major == 1 && file_minor >= 2)) {
+					excl_time        = read_nv();
+					ucpu_time        = read_nv();
+					scpu_time        = read_nv();
+				}
 				if (NULL == fgets(text, sizeof(text), in))
 					croak("Profile format error in sub line range"); /* probably EOF */
 
@@ -1847,7 +1868,7 @@ load_profile_data_from_stream() {
 
 				subinfo_av = lookup_subinfo_av(aTHX_ text, strlen(text)-1, sub_subinfo_hv);
 
-				/* { 'pkg::sub' => { fid => { line => [ count, incl_time ] } } } */
+				/* { 'pkg::sub' => { fid => { line => [ count, incl_time, excl_time ] } } } */
 				sv = *hv_fetch(sub_callers_hv, text, strlen(text)-1, 1);
 				if (!SvROK(sv))		/* autoviv */
 						sv_setsv(sv, newRV_noinc((SV*)newHV()));
@@ -1865,6 +1886,9 @@ load_profile_data_from_stream() {
 					sv = SvRV(sv);
 					sv_setuv(*av_fetch((AV *)sv, 0, 1), count);
 					sv_setnv(*av_fetch((AV *)sv, 1, 1), incl_time);
+					sv_setnv(*av_fetch((AV *)sv, 2, 1), excl_time);
+					sv_setnv(*av_fetch((AV *)sv, 3, 1), ucpu_time);
+					sv_setnv(*av_fetch((AV *)sv, 4, 1), scpu_time);
 				}
 				else { /* is meta-data about sub */
 					/* line == 0: is_xs - set line range to 0,0 as marker */
@@ -1872,11 +1896,13 @@ load_profile_data_from_stream() {
 					sv_setiv(*av_fetch(subinfo_av, 2, 1), 0);
 				}
 
-				/* accumulate per-sub totals into subinto */
+				/* accumulate per-sub totals into subinfo */
 				sv = *av_fetch(subinfo_av, 3, 1);	/* sub call count */
-				sv_setuv(sv, count + (SvOK(sv) ? SvUV(sv) : 0));
+				sv_setuv(sv, count     + (SvOK(sv) ? SvUV(sv) : 0));
 				sv = *av_fetch(subinfo_av, 4, 1); /* sub incl_time */
 				sv_setnv(sv, incl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
+				sv = *av_fetch(subinfo_av, 5, 1); /* sub excl_time */
+				sv_setnv(sv, excl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
 
 				break;
 			}

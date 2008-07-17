@@ -17,7 +17,7 @@ use List::Util qw(sum);
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
 use Devel::NYTProf::Util qw(
-	fmt_float
+	fmt_float fmt_incl_excl_time
 	calculate_median_absolute_deviation
 	get_abs_paths_alternation_regex
 	html_safe_filename
@@ -117,16 +117,20 @@ sub subroutine_table {
 
 	my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
 
+	# XXX slow - use Schwartzian transform or via XS or Sort::Key
   my @subs = sort {
-    $b->incl_time <=> $a->incl_time or
+    $b->excl_time <=> $a->excl_time or
     $a->subname   cmp $b->subname
   } values %$subs_in_file;
 
 	my $dev_incl_time = calculate_median_absolute_deviation(
-		[ map { $_->incl_time } @subs ]
+		[ map { $_->incl_time } @subs ], 1,
+	);
+	my $dev_excl_time = calculate_median_absolute_deviation(
+		[ map { $_->excl_time } @subs ], 1,
 	);
 	my $dev_calls = calculate_median_absolute_deviation(
-		[ map { $_->calls } @subs ]
+		[ map { $_->calls } @subs ], 1,
 	);
 
 	my @subs_to_show = ($max_subs) ? splice @subs, 0, $max_subs : @subs;
@@ -135,19 +139,20 @@ sub subroutine_table {
   my $sub_links;
 
   $sub_links .= qq{<table border=1 cellpadding=0>
-		<caption>${qualifier}Subroutines &mdash; ordered by inclusive time then name</caption>
-    <tr><th>Calls</th><th>Inclusive<br />Time</th><th colspan=2 class="left_indent_header">Subroutine</th></tr>
+		<caption>${qualifier}Subroutines &mdash; ordered by exclusive time</caption>
+    <tr><th>Calls</th>
+		<th>Inclusive<br />Time</th>
+		<th>Exclusive<br />Time</th>
+		<th colspan=2 class="left_indent_header">Subroutine</th></tr>
   };
 
 	my @rows;
 	for my $sub (@subs_to_show) {
 		$sub_links .= "<tr>";
 
-		# calls
-		$sub_links .= determine_severity(undef, $sub->calls || 0, $dev_calls);
-
-		# incl_time
+		$sub_links .= determine_severity(undef, $sub->calls     || 0, $dev_calls);
 		$sub_links .= determine_severity(undef, $sub->incl_time || 0, $dev_incl_time);
+		$sub_links .= determine_severity(undef, $sub->excl_time || 0, $dev_incl_time);
 
 		# package and subname
 		my $subname = $sub->subname;
@@ -243,27 +248,28 @@ $reporter->set_param('column4', {
         my $total_calls = sum(map { $_->[2] } @callers);
 				my $avg_per_call = fmt_float($sub_info->incl_time / $total_calls);
 
-        push @prologue, sprintf "# spent %ss within %s which was called%s:",
-            fmt_float($sub_info->incl_time), $sub_info->subname,
+        push @prologue, sprintf "# spent %s within %s which was called%s:",
+            fmt_incl_excl_time($sub_info->incl_time, $sub_info->excl_time),
+						$sub_info->subname,
             ($total_calls <= 1) ? ""
 							: " $total_calls times, avg ${avg_per_call}s/call";
 
         # order by most frequent caller first
         for my $caller (sort { $b->[2] <=> $a->[2] } @callers) {
-          my ($fid, $line, $count, $incl_time) = @$caller;
+          my ($fid, $line, $count, $incl_time, $excl_time) = @$caller;
 
           my @subnames = $profile->subname_at_file_line($fid, $line);
           my $subname = (@subnames) ? " by ".join(" or ",@subnames) : "";
 					my $avg_time = ($count <= 1) ? ""
 						: sprintf ", avg %ss/call", fmt_float($incl_time/$count);
-          $incl_time = sprintf " (%ss)", fmt_float($incl_time);
+          my $times = sprintf " (%s+%ss)", fmt_float($excl_time), fmt_float($incl_time-$excl_time);
 
           my $filename = $profile->fid_filename($fid);
           my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
           my $caller_filename = $profile->fid_filename($fid);
 
           push @prologue, sprintf q{# %d times%s%s at <a href="%s#%d">line %d</a> of %s%s},
-            $count, $incl_time, $subname,
+            $count, $times, $subname,
 						"$href.html", $line, $line, $caller_filename,
 						$avg_time;
         }

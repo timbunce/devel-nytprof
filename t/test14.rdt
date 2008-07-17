@@ -31,9 +31,9 @@ fid_sub_time	3	14	[ 0 1 ]
 profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
-sub_caller	AutoLoader::AUTOLOAD	1	17	[ 1 0 ]
-sub_caller	AutoLoader::AUTOLOAD	1	18	[ 1 0 ]
-sub_subinfo	main::BEGIN	[ 1 16 16 0 0 ]
-sub_subinfo	test14::BEGIN	[ 3 2 2 0 0 ]
-sub_subinfo	test14::bar	[ 3 10 12 0 0 ]
-sub_subinfo	test14::foo	[ 3 6 8 0 0 ]
+sub_caller	AutoLoader::AUTOLOAD	1	17	[ 1 0 0 0 0 ]
+sub_caller	AutoLoader::AUTOLOAD	1	18	[ 1 0 0 0 0 ]
+sub_subinfo	main::BEGIN	[ 1 16 16 0 0 0 ]
+sub_subinfo	test14::BEGIN	[ 3 2 2 0 0 0 ]
+sub_subinfo	test14::bar	[ 3 10 12 0 0 0 ]
+sub_subinfo	test14::foo	[ 3 6 8 0 0 0 ]
