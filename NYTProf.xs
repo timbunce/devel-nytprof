@@ -45,12 +45,16 @@
 #endif
 #define OP_NAME_safe(op) ((op) ? OP_NAME(op) : "NULL")
 
+#ifdef I_SYS_TIME
 #include <sys/time.h>
+#endif
 #include <stdio.h>
 #ifdef HAS_STDIO_EXT_H
 #include <stdio_ext.h>
 #else
-#warning "Not using stdio_ext.h. Add it to INCLUDE path and recompile with -DHAS_STDIO_EXT_H to use it."
+#  ifndef WIN32
+#    warning "Not using stdio_ext.h. Add it to INCLUDE path and recompile with -DHAS_STDIO_EXT_H to use it."
+#  endif
 #endif
 
 #ifdef HASFPURGE
@@ -65,7 +69,9 @@
 #else
 #define FPURGE(file)
 #define HAS_FPURGE_BOOL 0
-#warning "No fpurge function found -- risk of corrupted profile when forking"
+#  ifndef WIN32
+#    warning "No fpurge function found -- risk of corrupted profile when forking"
+#  endif
 #endif
 
 /* Hash table definitions */
@@ -155,7 +161,7 @@ static        char *last_executed_fileptr;
 static unsigned int last_block_line;
 static unsigned int last_sub_line;
 static unsigned int is_profiling;
-static pid_t last_pid;
+static Pid_t last_pid;
 static double cumulative_overhead_ticks = 0.0;
 
 static unsigned int ticks_per_sec = 0; /* 0 forces error if not set */

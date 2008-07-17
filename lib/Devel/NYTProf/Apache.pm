@@ -62,7 +62,7 @@ Devel::NYTProf::Apache - Profile mod_perl applications with Devel::NYTProf
 
 =head1 SYNOPSIS
 
-    # in you Apache config file with mod_perl installed
+    # in your Apache config file with mod_perl installed
     PerlPassEnv NYTPROF
     PerlModule Devel::NYTProf::Apache
 
