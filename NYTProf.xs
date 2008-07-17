@@ -1021,7 +1021,8 @@ void
 incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	AV *av = sub_call_start->sub_av;
 	SV *subname_sv = sub_call_start->subname_sv;
-	SV *time_sv = *av_fetch(av, 1, 1);
+	SV *incl_time_sv = *av_fetch(av, 1, 1);
+	SV *excl_time_sv = *av_fetch(av, 2, 1);
 	/* statement overheads we've accumulated since we entered the sub */
 	int overhead_ticks = (cumulative_overhead_ticks - sub_call_start->current_overhead_ticks);
 	/* seconds spent in subroutines called by this subroutine */
@@ -1047,10 +1048,11 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	if (trace_level >= 3)
 		warn("exited %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, -%dt)\n",
 			SvPV_nolen(subname_sv), incl_subr_sec, called_sub_secs, excl_subr_sec,
-			SvNV(time_sv)+incl_subr_sec, sub_call_start->fid_line,
+			SvNV(incl_time_sv)+incl_subr_sec, sub_call_start->fid_line,
 			overhead_ticks);
 
-	sv_setnv(time_sv, SvNV(time_sv)+incl_subr_sec);
+	sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
+	sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
 	sv_free(sub_call_start->subname_sv);
 
 	cumulative_subr_secs += excl_subr_sec;
@@ -1165,6 +1167,7 @@ pp_entersub_profiler(pTHX) {
 				AV *av = newAV();
 				av_store(av, 0, newSVuv(1));    /* flag to indicate xs */
 				av_store(av, 1, newSVnv(0.0));
+				av_store(av, 2, newSVnv(0.0));
 				sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
 			}
 		}
@@ -1174,6 +1177,7 @@ pp_entersub_profiler(pTHX) {
 			AV *av = newAV();
 			av_store(av, 0, newSVuv(1));    /* count of call to sub */
 			av_store(av, 1, newSVnv(0.0));	/* inclusive time in sub */
+			av_store(av, 2, newSVnv(0.0));	/* exclusive time in sub */
 			sv_setsv(sv_tmp, newRV_noinc((SV *)av));
 		}
 		else {
