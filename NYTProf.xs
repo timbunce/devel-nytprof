@@ -162,7 +162,8 @@ static unsigned int last_block_line;
 static unsigned int last_sub_line;
 static unsigned int is_profiling;
 static Pid_t last_pid;
-static double cumulative_overhead_ticks = 0.0;
+static NV cumulative_overhead_ticks = 0.0;
+static NV cumulative_subr_secs = 0.0;
 
 static unsigned int ticks_per_sec = 0; /* 0 forces error if not set */
 
@@ -1012,7 +1013,8 @@ typedef struct sub_call_start_st {
 	char fid_line[50];
 	SV *subname_sv;
 	AV *sub_av;
-	double current_overhead_ticks;
+	NV current_overhead_ticks;
+	NV current_subr_secs;
 } sub_call_start_t;
 
 void
@@ -1020,32 +1022,38 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start) {
 	AV *av = sub_call_start->sub_av;
 	SV *subname_sv = sub_call_start->subname_sv;
 	SV *time_sv = *av_fetch(av, 1, 1);
+	/* statement overheads we've accumulated since we entered the sub */
 	int overhead_ticks = (cumulative_overhead_ticks - sub_call_start->current_overhead_ticks);
-	NV time_in_sub;
+	/* seconds spent in subroutines called by this subroutine */
+	NV called_sub_secs = (cumulative_subr_secs      - sub_call_start->current_subr_secs);
+	NV incl_subr_sec;
+	NV excl_subr_sec;
 
 	if (profile_zero) {
-		time_in_sub = 0.0;
+		incl_subr_sec = 0.0;
+		excl_subr_sec = 0.0;
 	}
 	else {
 		time_of_day_t sub_end_time;
-		/* statement overheads we've accumulated since we entered the sub */
 		unsigned int ticks, overflow;
 		/* calculate ticks since we entered the sub */
 		get_time_of_day(sub_end_time);
 		get_ticks_between(sub_call_start->sub_call_time, sub_end_time, ticks, overflow);
-		time_in_sub = overflow + ticks / ticks_per_sec;
-		/* subtract the statement overheads */
-		time_in_sub -= overhead_ticks;
+		ticks -= overhead_ticks; /* subtract statement measurement overheads */
+		incl_subr_sec = overflow + ticks / (NV)ticks_per_sec;
+		excl_subr_sec = incl_subr_sec - called_sub_secs;
 	}
 
 	if (trace_level >= 3)
-		warn("exited %s after %fs (%"NVff"s @ %s, -%dt)\n",
-			SvPV_nolen(subname_sv), time_in_sub,
-			SvNV(time_sv)+time_in_sub, sub_call_start->fid_line,
+		warn("exited %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, -%dt)\n",
+			SvPV_nolen(subname_sv), incl_subr_sec, called_sub_secs, excl_subr_sec,
+			SvNV(time_sv)+incl_subr_sec, sub_call_start->fid_line,
 			overhead_ticks);
 
-	sv_setnv(time_sv, SvNV(time_sv)+time_in_sub);
+	sv_setnv(time_sv, SvNV(time_sv)+incl_subr_sec);
 	sv_free(sub_call_start->subname_sv);
+
+	cumulative_subr_secs += excl_subr_sec;
 }
 
 void	/* wrapper called via scope exit due to save_destructor below */
@@ -1068,6 +1076,7 @@ pp_entersub_profiler(pTHX) {
 	if (profile_subs && is_profiling) {
 		get_time_of_day(sub_call_start.sub_call_time);
 		sub_call_start.current_overhead_ticks = cumulative_overhead_ticks;
+		sub_call_start.current_subr_secs = cumulative_subr_secs;
 	}
 
 	/*
@@ -1251,7 +1260,7 @@ static void
 finish_profile(pTHX)
 {
 	if (trace_level)
-		warn("finish_profile (last_pid %d, getpid %d, overhead %fs)\n",
+		warn("finish_profile (last_pid %d, getpid %d, overhead %"NVff"s)\n",
 			last_pid, getpid(), cumulative_overhead_ticks/ticks_per_sec);
 
 	/* write data for final statement, unless DB_leave has already */
@@ -1934,7 +1943,7 @@ load_profile_data_from_stream() {
 	sv_free((SV*)live_pids_hv);
 
 	if (trace_level >= 1)
-			warn("Statement totals: measured %d, discounted %d, time %fs\n",
+			warn("Statement totals: measured %d, discounted %d, time %"NVff"s\n",
 				total_stmt_measures, total_stmt_discounts, total_stmt_seconds);
 
 	profile_hv = newHV();
