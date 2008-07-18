@@ -307,18 +307,19 @@ For example, the Readonly module croaks with an "Invalid tie" when profiled with
 perl versions before 5.8.8. That's because L<Readonly> explicitly checking for
 certain values from caller().  We're not quite sure what the cause is yet.
 
-=head2 Subroutine exclusive time is not (currently) available
+=head2 Calls made via operator overloading
 
-Time spent within a subroutine, exclusive of time spent in any subroutines it
-calls, it not currently avalable. It's planned to be added soon.
+Calls made via operator overloading are not noticed by the subroutine profiler.
 
 =head2 goto
 
-The C<goto &$sub;> isn't recognised as a subroutine call.
+The C<goto &$sub;> isn't recognised as a subroutine call by the subroutine profiler.
 
 =head2 Windows
 
-Currently there's no support for Windows.
+Currently there's no support for Windows. Some work is being done on a port.
+If you'd be interested in helping us port to Windows then please get in touch
+with us.
 
 =head1 BUGS
 

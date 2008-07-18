@@ -5,6 +5,7 @@ use File::Find;
 my $count = shift || 100;
 my $do_io = shift || 0;
 
+
 sub add {
     $a = $a + 1;
     foo();
@@ -34,9 +35,21 @@ timethese( $count, {
 });
 
 
+# --- recursion ---
+
+sub fib {
+    my $n = shift;
+    return $n if $n < 2;
+    fib($n-1) + fib($n-2);
+}
+fib(7);
+
+
+# --- while with slow conditional ---
+
 if ($do_io) {
     print "Enter text. Enter empty line to end.\n";
-    # With all line profilers except NYTProf, the time waiting for the
+    # With all line profilers before NYTProf, the time waiting for the
     # second and subsequent inputs gets assigned to the previous statement,
     # i.e., the last statement executed in the loop!
     while (<>) {
@@ -46,6 +59,7 @@ if ($do_io) {
     }
 }
 
+# --- File::Find ---
 
 sub wanted {
     return 1;
