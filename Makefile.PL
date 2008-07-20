@@ -41,8 +41,6 @@ my $cpp =  $Config{cpp} || do {
 
 print "Looking for header files and functions...\n";
 my $INCLUDE;
-my $fpurge;
-my $fpurge_h_file = '';
 my $clock_gettime;
 
 my $h_files;
@@ -52,48 +50,11 @@ push @h_dirs, split ' ', $Config{libsdirs};
 push @h_dirs, qw(/include /usr/include /usr/local/include);
 @h_dirs = grep { -d $_ } @h_dirs;
 
-SEARCH: {
+$h_files = find_h_files(@h_dirs);
 
-	$h_files = find_h_files(@h_dirs);
-
-	# search for clock_gettime
-	$clock_gettime = search_h_file('time.h', qr/(clock_gettime)\s*\(/)
-		and print "Found $clock_gettime in time.h\n";
-
-	# search for fpurge
-	my @stdio_h_files = qw(stdio.h stdio_ext.h);
-	for my $h (@stdio_h_files) {
-		if ($fpurge = search_h_file($h, qr/(_{0,2}fpurge)\s*\(/)) {
-			my $dir = $h_files->{$h};
-			print "Found $fpurge in $dir/$h\n";
-			$fpurge_h_file = $h;
-			$INCLUDE .= "-I$dir ";
-			last;
-		}
-	}
-
-  if (!$fpurge) {
-		print "\nWarning: Unable to find an fpurge function in your header files.\n";
-		print "I looked for @stdio_h_files in @h_dirs\n";
-		print join "\n",
-			"The fpurge function isn't required, but if you profile code that",
-			"calls fork() you may get corrupt profile data without it.",
-			"If it normally found in stdio_ext.h, and sometimes in stdio.h.",
-			"Try using 'find' or 'locate' to discover where these files reside.",
-			"Enter paths to search here, seperated by ':' (or just press return to not use fpurge)",
-			"\n";
-
-		my $pathstr = prompt("Additional header paths to search for fpurge:", "");
-		if ($pathstr) {
-			my @new = split /:/, $pathstr;
-			print "Adding '$_' for search path\n" for @new;
-			-d $_ or warn "$_ does not exist\n" for @new;
-			push @h_dirs, @new;
-			redo SEARCH;
-		}
-		print "\n";
-	}
-}
+# search for clock_gettime
+$clock_gettime = search_h_file('time.h', qr/(clock_gettime)\s*\(/)
+	and print "Found $clock_gettime in time.h\n";
 
 
 my @LIBS = ();
@@ -103,9 +64,7 @@ push @LIBS, "-lrt" if $clock_gettime;
 # the contents of the Makefile that is written.
 my %mm_opts;
 
-$mm_opts{DEFINE} .= '-DHAS'.uc($fpurge) if $fpurge;
 $mm_opts{DEFINE} .= ' -DHAS_'.uc($clock_gettime) if $clock_gettime;
-$mm_opts{DEFINE} .= ' -DHAS_STDIO_EXT_H' if $fpurge_h_file eq 'stdio_ext.h';
 
 $mm_opts{LICENSE} = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
 $mm_opts{OPTIMIZE} = '-g'  if $opt_g;

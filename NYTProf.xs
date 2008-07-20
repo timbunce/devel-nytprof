@@ -49,30 +49,6 @@
 #include <sys/time.h>
 #endif
 #include <stdio.h>
-#ifdef HAS_STDIO_EXT_H
-#include <stdio_ext.h>
-#else
-#  ifndef WIN32
-#    warning "Not using stdio_ext.h. Add it to INCLUDE path and recompile with -DHAS_STDIO_EXT_H to use it."
-#  endif
-#endif
-
-#ifdef HASFPURGE
-#define FPURGE(file) fpurge(file)
-#define HAS_FPURGE_BOOL 1
-#elif defined(HAS_FPURGE)
-#define FPURGE(file) _fpurge(file)
-#define HAS_FPURGE_BOOL 1
-#elif defined(HAS__FPURGE)
-#define FPURGE(file) __fpurge(file)
-#define HAS_FPURGE_BOOL 1
-#else
-#define FPURGE(file)
-#define HAS_FPURGE_BOOL 0
-#  ifndef WIN32
-#    warning "No fpurge function found -- risk of corrupted profile when forking"
-#  endif
-#endif
 
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
@@ -989,15 +965,13 @@ reinit_if_forked(pTHX) {
 	if (sub_callers_hv)
 		hv_clear(sub_callers_hv);
 
-#if HAS_FPURGE_BOOL
-	FPURGE(out);
-#else
-	warn("NYTProf not built with fpurge support so %s may be corrupted by the fork", PROF_output_file);
-#endif
-  /* we don't bother closing the current out fh so if we don't have fpurge
-	* any old pending data that was duplicated by the fork won't be written
-	* until the program exits and that'll be much easier to handle by the reader
+	/* any data that was unflushed in the parent when it forked
+	* is now duplicated unflushed in this child process.
+	* We need to be a little devious to prevent it getting flushed.
 	*/
+	close(fileno(out)); /* close the underlying fd first */
+	fclose(out);        /* happily, this can't flush now */
+
 	open_output_file(aTHX_ PROF_output_file);
 
 	return 1;		/* have forked */
@@ -2006,7 +1980,6 @@ I32
 constant()
 	PROTOTYPE:
 	ALIAS:
-		HAS_FPURGE = HAS_FPURGE_BOOL
 	CODE:
 	RETVAL = ix;                         
 	OUTPUT:
