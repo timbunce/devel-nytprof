@@ -33,7 +33,7 @@
 /* If we're using DB::DB() instead of opcode redirection with an old perl
  * then PL_curcop in DB() will refer to the DB() wrapper in Devel/NYTProf.pm
  * so we'd have to crawl the stack to find the right cop. However, for some
- * reason that I don't pretend to understand the folowing expression works:
+ * reason that I don't pretend to understand the following expression works:
  */
 #define PL_curcop_nytprof (use_db_sub ? ((cxstack + cxstack_ix)->blk_oldcop) : PL_curcop)
 #else
@@ -95,7 +95,10 @@ static int trace_level = 0;
 /* time tracking */
 static struct tms start_ctime, end_ctime;
 #ifdef HAS_CLOCK_GETTIME
-   /* http://webnews.giga.net.tw/article//mailing.freebsd.performance/710 */
+	/* http://www.freebsd.org/cgi/man.cgi?query=clock_gettime
+  * http://webnews.giga.net.tw/article//mailing.freebsd.performance/710 
+  * http://sean.chittenden.org/news/2008/06/01/
+  */
    typedef struct timespec time_of_day_t;   
 #  ifdef CLOCK_MONOTONIC
 #    define CLOCK_GETTIME(ts) clock_gettime(CLOCK_MONOTONIC, ts)

@@ -337,3 +337,7 @@ the sub that called goto also called the sub that goto went to, or make it look
 like the goto &$sub made the call (but we'd then get the wrong inclusive time,
 probably).
 
+Slow builtins, eg those that make system calls or are otherwise expensive, like crypt,
+could be treated as calls to subroutines in the CORE:: namespace.
+
+Consider use of CLOCK_PROF for (higher-resolution?) cpu time measurement
