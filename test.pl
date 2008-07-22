@@ -37,13 +37,15 @@ my %opts = (
 	html => $ENV{NYTPROF_TEST_HTML},
 );
 GetOptions(\%opts,
-	qw/p=s I=s v|verbose d|debug html open profperlopts=s/
+	qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i/
 ) or exit 1;
 
 $opts{v} ||= $opts{d};
 
 my $opt_perl = $opts{p};
 my $opt_include = $opts{I};
+my $opt_leave = $opts{leave};
+my $opt_use_db_sub = $opts{use_db_sub};
 my $profile_datafile = 'nytprof_t.out'; # non-default to test override works
 
 # note some env vars that might impact the tests
@@ -70,8 +72,8 @@ s:^t/:: for @ARGV; # allow args to use t/ prefix
 # *.x   = result csv dump to verify (should change to .rcv)
 my @tests = @ARGV ? @ARGV : sort <*.p *.rdt *.x>;  # glob-sort, for OS/2
 
-my @test_opt_leave = (1, 0);
-my @test_opt_use_db_sub = (0, 1);
+my @test_opt_leave      = (defined $opt_leave)      ? ($opt_leave)      : (1, 0);
+my @test_opt_use_db_sub = (defined $opt_use_db_sub) ? ($opt_use_db_sub) : (0, 1);
 
 plan tests => 1 + number_of_tests(@tests) * @test_opt_leave * @test_opt_use_db_sub;
 
