@@ -195,15 +195,12 @@ sub add_regexp {
 }
 
 ##
-sub _test_file {
+sub file_has_been_modified {
 	my $self = shift;
 	my $file = shift;
-	unless (-f $file) {
-		carp "Unable to locate source file '$file'";
-		return 0; 
-	}
-	return 1 if (stat $file)[9] > $self->{profile}{attribute}{basetime};
-	0;
+	return undef unless -f $file;
+	my $mtime = (stat $file)[9];
+	return ($mtime > $self->{profile}{attribute}{basetime});
 }
 
 ##
@@ -278,7 +275,7 @@ sub _generate_report {
 		# test file modification date. Files that have been touched after the
 		# profiling was done may very well produce useless output since the source
 		# file might differ from what it looked like before.
-		my $tainted = $self->_test_file($filestr);
+		my $tainted = $self->file_has_been_modified($filestr);
 
 		my %totalsAccum; # holds all line times. used to find median
 		my %totalsByLine; # holds individual line stats
@@ -368,9 +365,13 @@ sub _generate_report {
 
 		if (! open (IN, $filestr)) {
       # the report will not be complete, but this doesn't need to be fatal
-			warn "Unable to open '$filestr' for reading: $!\n"
-			.'Try running again in the same directory as you ran Devel::NYTProf,'
-			."or ensure \@INC is correct.\n";
+			my $hint = '';
+			$hint = " Try running $0 in the same directory as you ran Devel::NYTProf, "
+			        ."or ensure \@INC is correct."
+					unless $filestr eq '-e'
+					or our $_generate_report_inc_hint++;
+			warn "Unable to open '$filestr' for reading: $!.$hint\n"
+				unless our $_generate_report_filestr_warn->{$filestr}++; # only once
 			next;
 		}
 

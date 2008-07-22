@@ -794,7 +794,8 @@ sub profile      { shift->[7] }
 
 sub is_xsub {
 	my $self = shift;
-	return ($self->first_line == 0 && $self->last_line == 0);
+	# XXX should test == 0 but some xsubs still have undef first_line etc
+	return (!$self->first_line && !$self->last_line);
 }
 
 sub fileinfo {
