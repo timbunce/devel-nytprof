@@ -1052,7 +1052,7 @@ incr_sub_inclusive_time_ix(pTHX_ void *save_ix_void) {
 
 
 static SV *
-resolve_sub(pTHX_ SV *sv) {
+resolve_sub(pTHX_ SV *sv, SV *subname_out_sv) {
     GV *gv;
     HV *stash;
     CV *cv;
@@ -1067,7 +1067,9 @@ resolve_sub(pTHX_ SV *sv) {
             STRLEN n_a;
 
             if (sv == &PL_sv_yes) {             /* unfound import, ignore */
-                return sv_2mortal(newSVpvn("import", 6));
+                if (subname_out_sv)
+                    sv_setpvn(subname_out_sv, "import", 6);
+                return NULL;
             }
             if (SvGMAGICAL(sv)) {
                 mg_get(sv);
@@ -1103,9 +1105,9 @@ resolve_sub(pTHX_ SV *sv) {
         if (!(cv = GvCVu((GV*)sv)))
             cv = sv_2cv(sv, &stash, &gv, FALSE);
         if (!cv) { /* would autoload in this situation */
-            SV *sub_name = sv_newmortal();
-            gv_efullname3(sub_name, gv, Nullch);
-            return sub_name;
+            if (subname_out_sv)
+              gv_efullname3(subname_out_sv, gv, Nullch);
+            return NULL;
         }
         break;
     }
@@ -1164,10 +1166,10 @@ pp_entersub_profiler(pTHX) {
 		else { /* have returned from XS so use sub_sv for name */
 			is_xs = 1;
       /* determine the original fully qualified name for sub */
-      cv = (CV *)resolve_sub(aTHX_ sub_sv); /* CV, PV or NULL */
+      cv = (CV *)resolve_sub(aTHX_ sub_sv, subname_sv); /* CV or NULL */
 		}
 
-    if (!cv) {
+    if (!cv && !SvOK(subname_sv)) {
       /* should never get here as pp_entersub would have croaked */
 			const char *what = (is_xs) ? "xs" : "sub";
 			warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
@@ -1175,17 +1177,14 @@ pp_entersub_profiler(pTHX) {
 				sv_dump(sub_sv);
 			sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
     }
-		else if (SvTYPE(cv) == SVt_PVCV && CvGV(cv) && GvSTASH(CvGV(cv))) {
+		else if (cv && CvGV(cv) && GvSTASH(CvGV(cv))) {
 			/* for a plain call of an imported sub the GV is of the current
 				* package, so we dig to find the original package
 				*/
 			GV *gv = CvGV(cv);
 			sv_setpvf(subname_sv, "%s::%s", HvNAME(GvSTASH(gv)), GvNAME(gv));
 		}
-    else if (SvTYPE(cv) == SVt_PV) {
-      subname_sv = (SV *)cv;
-    }
-		else {
+		else if (!SvOK(subname_sv)) {
 			/* unnamed CV, e.g. seen in mod_perl. XXX do better? */
 			sv_setpvn(subname_sv, "__ANON__", 8);
 			if (trace_level) {
