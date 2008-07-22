@@ -1051,6 +1051,68 @@ incr_sub_inclusive_time_ix(pTHX_ void *save_ix_void) {
 }
 
 
+static SV *
+resolve_sub(pTHX_ SV *sv) {
+    GV *gv;
+    HV *stash;
+    CV *cv;
+
+    /* copied from top of perl's pp_entersub */
+    /* modified to return either CV or else a PV containing string to use */
+    /* or a NULL in cases that pp_entersub would croak */
+    switch (SvTYPE(sv)) {
+    default:
+        if (!SvROK(sv)) {
+            char *sym;
+            STRLEN n_a;
+
+            if (sv == &PL_sv_yes) {             /* unfound import, ignore */
+                return sv_2mortal(newSVpvn("import", 6));
+            }
+            if (SvGMAGICAL(sv)) {
+                mg_get(sv);
+                if (SvROK(sv))
+                    goto got_rv;
+                sym = SvPOKp(sv) ? SvPVX(sv) : Nullch;
+            }
+            else
+                sym = SvPV(sv, n_a);
+            if (!sym)
+                return NULL;
+            if (PL_op->op_private & HINT_STRICT_REFS)
+                return NULL;
+            cv = get_cv(sym, TRUE);
+            break;
+        }
+  got_rv:
+        {
+            SV **sp = &sv;              /* Used in tryAMAGICunDEREF macro. */
+            tryAMAGICunDEREF(to_cv);
+        }       
+        cv = (CV*)SvRV(sv);
+        if (SvTYPE(cv) == SVt_PVCV)
+            break;
+        /* FALL THROUGH */
+    case SVt_PVHV:
+    case SVt_PVAV:
+        return NULL;
+    case SVt_PVCV:
+        cv = (CV*)sv;
+        break;
+    case SVt_PVGV:
+        if (!(cv = GvCVu((GV*)sv)))
+            cv = sv_2cv(sv, &stash, &gv, FALSE);
+        if (!cv) { /* would autoload in this situation */
+            SV *sub_name = sv_newmortal();
+            gv_efullname3(sub_name, gv, Nullch);
+            return sub_name;
+        }
+        break;
+    }
+    return (SV *)cv;
+}
+
+
 OP *
 pp_entersub_profiler(pTHX) {
 	OP *op;
@@ -1072,7 +1134,7 @@ pp_entersub_profiler(pTHX) {
 	 * for XS subs pp_entersub executes the entire sub
 	 * and returning the op *after* the sub (PL_op->op_next)
 	 */
-	op = run_original_op(OP_ENTERSUB);
+	op = run_original_op(OP_ENTERSUB);  /* may croak */
 
 	if (is_profiling) {
 
@@ -1096,45 +1158,40 @@ pp_entersub_profiler(pTHX) {
 
 		if (op != next_op) { /* have entered a sub */
 			/* use cv of sub we've just entered to get name */
-			sub_sv = (SV *)cxstack[cxstack_ix].blk_sub.cv;
+			cv = cxstack[cxstack_ix].blk_sub.cv;
 			is_xs = 0;
 		}
 		else { /* have returned from XS so use sub_sv for name */
 			is_xs = 1;
+      /* determine the original fully qualified name for sub */
+      cv = (CV *)resolve_sub(aTHX_ sub_sv); /* CV, PV or NULL */
 		}
 
-		/* determine the original fully qualified name for sub */
-		/* XXX hacky with lots of obscure edge cases */
-		/* basically needs to be clone of first part of pp_entersub, but isn't */
-		if (SvROK(sub_sv))
-			sub_sv = SvRV(sub_sv);
-		cv = (isGV(sub_sv)) ? GvCV(sub_sv) : (SvTYPE(sub_sv) == SVt_PVCV) ? (CV *)sub_sv : NULL;
-		if (cv && CvGV(cv) && GvSTASH(CvGV(cv))) {
+    if (!cv) {
+      /* should never get here as pp_entersub would have croaked */
+			const char *what = (is_xs) ? "xs" : "sub";
+			warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
+			if (trace_level || 1)
+				sv_dump(sub_sv);
+			sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
+    }
+		else if (SvTYPE(cv) == SVt_PVCV && CvGV(cv) && GvSTASH(CvGV(cv))) {
 			/* for a plain call of an imported sub the GV is of the current
 				* package, so we dig to find the original package
 				*/
 			GV *gv = CvGV(cv);
 			sv_setpvf(subname_sv, "%s::%s", HvNAME(GvSTASH(gv)), GvNAME(gv));
 		}
-		else if (isGV(sub_sv)) {
-			gv_efullname3(subname_sv, (GV *)sub_sv, Nullch);
-		}
-		else if (SvTYPE(sub_sv) == SVt_PVCV) {
+    else if (SvTYPE(cv) == SVt_PV) {
+      subname_sv = cv;
+    }
+		else {
 			/* unnamed CV, e.g. seen in mod_perl. XXX do better? */
 			sv_setpvn(subname_sv, "__ANON__", 8);
-		}
-		else if (SvTYPE(sub_sv) == SVt_PV
-				/* Errno.pm does &$errname and sub_sv is PVIV! with POK */
-			|| SvPOK(sub_sv)
-		) {
-			sv_setsv(subname_sv, sub_sv);
-		}
-		else {
-			const char *what = (is_xs) ? "xs" : "sub";
-			warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
-			if (trace_level || 1)
+			if (trace_level) {
+        warn("unknown entersub %s assumed to be anon cv '%s'", (is_xs) ? "xs" : "sub", SvPV_nolen(sub_sv));
 				sv_dump(sub_sv);
-			sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
+      }
 		}
 
 		if (trace_level >= 3)
