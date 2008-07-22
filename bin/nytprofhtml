@@ -154,7 +154,7 @@ sub subroutine_table {
 
 		$sub_links .= determine_severity(undef, $sub->calls     || 0, $dev_calls);
 		$sub_links .= determine_severity(undef, $sub->incl_time || 0, $dev_incl_time);
-		$sub_links .= determine_severity(undef, $sub->excl_time || 0, $dev_incl_time);
+		$sub_links .= determine_severity(undef, $sub->excl_time || 0, $dev_excl_time);
 
 		# package and subname
 		my $subname = $sub->subname;
@@ -171,9 +171,15 @@ sub subroutine_table {
 			$fileinfo   = $outer_fileinfo;
 			$first_line = $outer_line;
 		}
-		$sub_links .= sprintf(qq{<td class="sub_sub"><a href="%s-line.html#%s">%s</a></td>},
-			$fileinfo ? html_safe_filename($fileinfo->filename_without_inc) : "",
-			$first_line || 'UNKNOWN', $subr);
+
+		if ($sub->is_xsub) {
+			$sub_links .= sprintf(qq{<td class="sub_sub">%s (xsub)</td>}, $subr);
+		}
+		else {
+			$sub_links .= sprintf(qq{<td class="sub_sub"><a href="%s-line.html#%s">%s</a></td>},
+				$fileinfo ? html_safe_filename($fileinfo->filename_without_inc) : "",
+				$first_line || 'UNKNOWN', $subr);
+		}
 
 		# callers
 		my $callers = $sub->callers;

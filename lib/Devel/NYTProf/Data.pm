@@ -792,6 +792,11 @@ sub excl_time    { shift->[5] }
 sub subname      { shift->[6] }
 sub profile      { shift->[7] }
 
+sub is_xsub {
+	my $self = shift;
+	return ($self->first_line == 0 && $self->last_line == 0);
+}
+
 sub fileinfo {
 	my $self = shift;
 	my $fid = $self->fid

@@ -153,10 +153,11 @@ sub fmt_incl_excl_time {
 sub calculate_median_absolute_deviation {
 	my $values_ref = shift;
 	my ($ignore_zeros) = @_;
-	return [ 0, 0 ] if @$values_ref == 0; # no data
 
 	my @values = ($ignore_zeros) ? grep { $_ } @$values_ref : @$values_ref;
 	my $median_value = [ sort { $a <=> $b } @values ]->[ @values / 2 ];
+
+	return [ 0, 0 ] if not defined $median_value; # no data
 
 	my @devi = map { abs($_ - $median_value) } @values;
 	my $median_devi = [ sort { $a <=> $b } @devi ]->[ @devi / 2 ];
