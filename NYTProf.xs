@@ -15,7 +15,9 @@
  * $Id$
  * ************************************************************************
  */
+#ifndef WIN32
 #define PERL_NO_GET_CONTEXT		/* we want efficiency */
+#endif
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -172,9 +174,15 @@ OP *pp_leaving_profiler(pTHX);
 HV *sub_callers_hv;
 
 /* macros for outputing profile data */
+#ifdef HAS_GETPPID
 #define OUTPUT_PID() STMT_START { \
 	assert(out != NULL); fputc('P', out); output_int(getpid()); output_int(getppid()); \
 } STMT_END
+#else
+#define OUTPUT_PID() STMT_START { \
+        assert(out != NULL); fputc('P', out); output_int(getpid()); output_int(1); \
+} STMT_END
+#endif
 
 #define END_OUTPUT_PID(pid) STMT_START { \
 	assert(out != NULL); fputc('p', out); output_int(pid); fflush(out); \
