@@ -13,6 +13,7 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
   Improved readability of subroutine caller lists.
   Replaced use of fpurge() with a more portable approach.
 
+  Added recording of xsub filenames (i.e. DBI.c)
   Added exclusive subroutine time (time in sub excluding subs it called).
   Added use of clock_gettime(), if available, for 100ns resolution.
     Uses CLOCK_MONOTONIC or else CLOCK_REALTIME. Thanks to Steve Peters.

@@ -1183,7 +1183,7 @@ pp_entersub_profiler(pTHX) {
 			sv_setpvf(subname_sv, "%s::%s", HvNAME(GvSTASH(gv)), GvNAME(gv));
 		}
     else if (SvTYPE(cv) == SVt_PV) {
-      subname_sv = cv;
+      subname_sv = (SV *)cv;
     }
 		else {
 			/* unnamed CV, e.g. seen in mod_perl. XXX do better? */
@@ -1215,6 +1215,23 @@ pp_entersub_profiler(pTHX) {
 				av_store(av, 3, newSVnv(0.0));
 				av_store(av, 4, newSVnv(0.0));
 				sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
+
+				if (cv && SvTYPE(cv) == SVt_PVCV) {
+					/* inject faked xsub file details into PL_DBsub hash */
+					unsigned int fid = get_file_id(aTHX_ CvFILE(cv), strlen(CvFILE(cv)), 1);
+					SV *sv = *hv_fetch(GvHV(PL_DBsub), SvPV_nolen(subname_sv), SvCUR(subname_sv), 1);
+					if (trace_level >= 2)
+						warn("Adding fake DBsub entry for '%s' (fid %d, file %s)\n", SvPV_nolen(subname_sv), fid, CvFILE(cv));
+					if (!SvOK(sv)) {
+						sv_setpvf(sv, "%s:0-0", CvFILE(cv));
+					}
+					else {
+						warn("PL_DBsub entry for '%s' already exists (fid %d, file %s)",
+							SvPV_nolen(subname_sv), fid, CvFILE(cv));
+						if (trace_level)
+							sv_dump(sv);
+					}
+				}
 			}
 		}
 
