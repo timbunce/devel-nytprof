@@ -361,25 +361,7 @@ sub output_subs_indexpage {
 sub output_indexpage {
 	my ($r, $filename) = @_;
 	my $profile = $reporter->{profile};
-	
 	my $stats = $r->get_file_stats();
-
-	for (values %$stats) {
-		next if not $_;
-		$_->{'time/call'} = ($_->{calls}) ?  $_->{'time'} / $_->{calls} : 0;
-	}
-
-	# Calculate the mean and deviation using a good generic formula.
-  # Note: Using Median Absolute Deviation because it is fairly resistant to 
-  # the extreme values likely to be found in code and therefore provides better
-  # resolution. See http://en.wikipedia.org/wiki/Median_absolute_deviation
-	my $dev_time = calculate_median_absolute_deviation(
-		[ map { $_->{'time'} } values %$stats ]
-	);
-	my $dev_avgt = calculate_median_absolute_deviation(
-		[ map { $_->{'time/call'} } values %$stats ]
-	);
-
 
 	###
 	open (OUT, '>', "$opt{out}/$filename")
@@ -409,6 +391,33 @@ sub output_indexpage {
 		For more information see the <a href="%s">full list of %d subroutines</a>.
 		</div>
 	}, "index-subs.html", scalar keys %{$profile->{sub_subinfo}};
+
+	print OUT file_table($profile, $stats, 1);
+
+	my $footer = get_footer($profile);
+	print OUT "</div>$footer</body></html>";
+	close OUT;
+}
+
+
+sub file_table {
+	my ($profile, $stats, $add_totals) = @_;
+
+	for (values %$stats) {
+		next if not $_;
+		$_->{'time/call'} = ($_->{calls}) ?  $_->{'time'} / $_->{calls} : 0;
+	}
+
+	# Calculate the mean and deviation using a good generic formula.
+  # Note: Using Median Absolute Deviation because it is fairly resistant to 
+  # the extreme values likely to be found in code and therefore provides better
+  # resolution. See http://en.wikipedia.org/wiki/Median_absolute_deviation
+	my $dev_time = calculate_median_absolute_deviation(
+		[ map { $_->{'time'} } values %$stats ]
+	);
+	my $dev_avgt = calculate_median_absolute_deviation(
+		[ map { $_->{'time/call'} } values %$stats ]
+	);
 
 	# generate time-sorted sections for files
 	print OUT qq{
@@ -447,21 +456,21 @@ sub output_indexpage {
 		$allTimes += $filestats->{'time'}; 
 		$allCalls += $filestats->{calls};
 	}
-	my $stats_fmt = qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td style="font-style: italic">%s</td></tr>};
-	print OUT sprintf $stats_fmt,
-		fmt_float($allCalls), fmt_float($allTimes), '', "Total";
-	print OUT sprintf $stats_fmt,
-		int(fmt_float($allCalls/keys %$stats)), fmt_float($allTimes/keys %$stats), '', "Average"
-		if %$stats; # avoid divide by zero
-	print OUT sprintf $stats_fmt,
-		'', fmt_float($dev_time->[1]), fmt_float($dev_avgt->[1]), "Median";
-	print OUT sprintf $stats_fmt,
-		'', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]), "Deviation";
-	print OUT '</table><br/><br/>';
+	if ($add_totals) {
+		my $stats_fmt = qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td style="font-style: italic">%s</td></tr>};
+		print OUT sprintf $stats_fmt,
+			fmt_float($allCalls), fmt_float($allTimes), '', "Total";
+		print OUT sprintf $stats_fmt,
+			int(fmt_float($allCalls/keys %$stats)), fmt_float($allTimes/keys %$stats), '', "Average"
+			if %$stats; # avoid divide by zero
+		print OUT sprintf $stats_fmt,
+			'', fmt_float($dev_time->[1]), fmt_float($dev_avgt->[1]), "Median";
+		print OUT sprintf $stats_fmt,
+			'', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]), "Deviation";
+	}
+	print OUT '</table>';
 
-	my $footer = get_footer($profile);
-	print OUT "</div>$footer</body></html>";
-	close OUT;
+	return "";
 }
 
 # calculates how good or bad the time is for a file based on the others
@@ -545,12 +554,17 @@ sub get_level_buttons {
 sub get_footer {
 	my ($profile) = @_;
 	my $version = $Devel::NYTProf::Core::VERSION;
-	return qq{<div class="footer">Report produced by the
+	# spacing so links to #line near can put right line at top near the bottom of the report
+	my $spacing = "<br />" x 10;
+	return qq{
+		<br />
+		<div class="footer">Report produced by the
 		<a href="http://search.cpan.org/dist/Devel-NYTProf/">NYTProf $version</a>
 		Perl profiler, developed by
 		<a href="http://www.linkedin.com/in/timbunce">Tim Bunce</a> and
 		<a href="http://code.nytimes.com">Adam Kaplan</a>.
 		</div>
+		$spacing
 	};
 }
 
@@ -590,7 +604,7 @@ sub get_header {
 	my $back_link = q//;
 	if ($mode) {
 		$back_link = qq{<div class="header_back">
-			<a href="index$mode.html">&larr; Index</a>
+			<a href="index.html">&larr; Index</a>
 		</div>};
 	}
 
