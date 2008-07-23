@@ -89,6 +89,9 @@ sub new {
 	(my $sub_class = $class) =~ s/\w+$/ProfSub/;
 	$_ and bless $_ => $sub_class for values %$sub_subinfo;
 
+	# XXX merge evals - should become a method optionally called here
+	# (which uses other methods to do the work and those methods
+	# should also be called by Devel::NYTProf::ProfSub::callers())
 	my %anon_eval_subs_merged;
 	while ( my ($subname, $subinfo) = each %$sub_subinfo ) {
 		# add subname into sub_subinfo
@@ -783,6 +786,8 @@ sub _values_for_dump {
 {
 package Devel::NYTProf::ProfSub;	# sub_subinfo
 
+use List::Util qw(sum);
+
 sub fid          { shift->[0] }
 sub first_line   { shift->[1] }
 sub last_line    { shift->[2] }
@@ -827,6 +832,36 @@ sub callers {
 	# XXX should 'collapse' data for calls from eval fids
 	# (with an option to not collapse)
 	return $callers;
+}
+
+sub caller_fids {
+	my ($self, $merge_evals) = @_;
+	my $callers = $self->callers($merge_evals) || {};
+	my @fids = keys %$callers;
+	return @fids; # count in scalar context
+}
+
+sub caller_count {
+	my ($self, $merge_evals) = @_;
+	my $callers = $self->callers($merge_evals) || {};
+	# count of the number of distinct locations sub is called from
+	return sum(map { scalar keys %$_ } values %$callers );
+}
+
+sub caller_places {
+	my ($self, $merge_evals) = @_;
+	my $callers = $self->callers
+		or return 0;
+	# scalar: count of the number of distinct locations sub iss called from
+	# list: array of [ fid, line, @... ]
+	my @callers;
+	warn "caller_places in list context not implemented/tested yet";
+	while ( my ($fid, $lines) = each %$callers ) {
+		push @callers, map {
+			[ $fid, $_, @{ $lines->{$_} } ]
+		} keys %$lines;
+	}
+	return \@callers;
 }
 
 } # end of package

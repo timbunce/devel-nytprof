@@ -111,6 +111,13 @@ $reporter->set_param('taintmsg',
 after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n");
 
 
+sub calc_med_abs_devi {
+	my ($ary, $meth, $ignore_zeros) = @_;
+	return calculate_median_absolute_deviation(
+		[ map { scalar $_->$meth } @$ary ], $ignore_zeros,
+	);
+}
+
 sub subroutine_table {
   my ($profile, $filestr, $max_subs) = @_;
 
@@ -125,15 +132,11 @@ sub subroutine_table {
     $a->subname   cmp $b->subname
   } values %$subs_in_file;
 
-	my $dev_incl_time = calculate_median_absolute_deviation(
-		[ map { $_->incl_time } @subs ], 1,
-	);
-	my $dev_excl_time = calculate_median_absolute_deviation(
-		[ map { $_->excl_time } @subs ], 1,
-	);
-	my $dev_calls = calculate_median_absolute_deviation(
-		[ map { $_->calls } @subs ], 1,
-	);
+	my $dev_incl_time = calc_med_abs_devi(\@subs, 'incl_time', 1);
+	my $dev_excl_time = calc_med_abs_devi(\@subs, 'excl_time', 1);
+	my $dev_calls     = calc_med_abs_devi(\@subs, 'calls', 1);
+	my $dev_call_count= calc_med_abs_devi(\@subs, 'caller_count', 1);
+	my $dev_call_fids = calc_med_abs_devi(\@subs, 'caller_fids', 1);
 
 	my @subs_to_show = ($max_subs) ? splice @subs, 0, $max_subs : @subs;
 	my $qualifier = (@subs > @subs_to_show) ? "Top $max_subs " : "";
@@ -142,10 +145,14 @@ sub subroutine_table {
 
   $sub_links .= qq{<table border=1 cellpadding=0>
 		<caption>${qualifier}Subroutines &mdash; ordered by exclusive time</caption>
-    <tr><th>Calls</th>
+    <tr>
+		<th>Calls</th>
+		<th><span title="Number of Places sub is called from">P</span></th>
+		<th><span title="Number of Files sub is called from">F</span></th>
 		<th>Inclusive<br />Time</th>
 		<th>Exclusive<br />Time</th>
-		<th colspan=2 class="left_indent_header">Subroutine</th></tr>
+		<th colspan=2 class="left_indent_header">Subroutine</th>
+		</tr>
   };
 
 	my @rows;
@@ -153,6 +160,8 @@ sub subroutine_table {
 		$sub_links .= "<tr>";
 
 		$sub_links .= determine_severity(undef, $sub->calls     || 0, $dev_calls);
+		$sub_links .= determine_severity(undef, $sub->caller_count || 0, $dev_call_count);
+		$sub_links .= determine_severity(undef, $sub->caller_fids  || 0, $dev_call_fids);
 		$sub_links .= determine_severity(undef, $sub->incl_time || 0, $dev_incl_time);
 		$sub_links .= determine_severity(undef, $sub->excl_time || 0, $dev_excl_time);
 
@@ -180,21 +189,6 @@ sub subroutine_table {
 				$fileinfo ? html_safe_filename($fileinfo->filename_without_inc) : "",
 				$first_line || 'UNKNOWN', $subr);
 		}
-
-		# callers
-		my $callers = $sub->callers;
-		my $callers_html;
-		if ($callers && %$callers) {
-			# { fid => { line => [ count, incl_time ] } } }
-			my $total_callers = sum(map { scalar keys %$_ } values %$callers);
-			$callers_html = sprintf qq{<td>%d locations in %d files</td>},
-				$total_callers, scalar keys %$callers;
-		}
-		else {
-			$callers_html = sprintf qq{<td>&nbsp;</td>}, $pkg;
-		}
-		# XXX not worth showing till the callers method can merge eval fids together
-		$sub_links .= $callers_html if 0;
 
 		$sub_links .= "<tr>\n";
 	}
