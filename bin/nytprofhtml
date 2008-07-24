@@ -111,10 +111,17 @@ $reporter->set_param('taintmsg',
 after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n");
 
 
-sub calc_med_abs_devi {
+sub calc_mad_from_objects {
 	my ($ary, $meth, $ignore_zeros) = @_;
 	return calculate_median_absolute_deviation(
 		[ map { scalar $_->$meth } @$ary ], $ignore_zeros,
+	);
+}
+
+sub calc_mad_from_hashes {
+	my ($ary, $meth, $ignore_zeros) = @_;
+	return calculate_median_absolute_deviation(
+		[ map { scalar $_->{$meth} } @$ary ], $ignore_zeros,
 	);
 }
 
@@ -132,11 +139,11 @@ sub subroutine_table {
     $a->subname   cmp $b->subname
   } values %$subs_in_file;
 
-	my $dev_incl_time = calc_med_abs_devi(\@subs, 'incl_time', 1);
-	my $dev_excl_time = calc_med_abs_devi(\@subs, 'excl_time', 1);
-	my $dev_calls     = calc_med_abs_devi(\@subs, 'calls', 1);
-	my $dev_call_count= calc_med_abs_devi(\@subs, 'caller_count', 1);
-	my $dev_call_fids = calc_med_abs_devi(\@subs, 'caller_fids', 1);
+	my $dev_incl_time = calc_mad_from_objects(\@subs, 'incl_time', 1);
+	my $dev_excl_time = calc_mad_from_objects(\@subs, 'excl_time', 1);
+	my $dev_calls     = calc_mad_from_objects(\@subs, 'calls', 1);
+	my $dev_call_count= calc_mad_from_objects(\@subs, 'caller_count', 1);
+	my $dev_call_fids = calc_mad_from_objects(\@subs, 'caller_fids', 1);
 
 	my @subs_to_show = ($max_subs) ? splice @subs, 0, $max_subs : @subs;
 	my $qualifier = (@subs > @subs_to_show) ? "Top $max_subs " : "";
@@ -408,16 +415,8 @@ sub file_table {
 		$_->{'time/call'} = ($_->{calls}) ?  $_->{'time'} / $_->{calls} : 0;
 	}
 
-	# Calculate the mean and deviation using a good generic formula.
-  # Note: Using Median Absolute Deviation because it is fairly resistant to 
-  # the extreme values likely to be found in code and therefore provides better
-  # resolution. See http://en.wikipedia.org/wiki/Median_absolute_deviation
-	my $dev_time = calculate_median_absolute_deviation(
-		[ map { $_->{'time'} } values %$stats ]
-	);
-	my $dev_avgt = calculate_median_absolute_deviation(
-		[ map { $_->{'time/call'} } values %$stats ]
-	);
+	my $dev_time = calc_mad_from_hashes([ values %$stats ], 'time', 0);
+	my $dev_avgt = calc_mad_from_hashes([ values %$stats ], 'time/call', 0);
 
 	# generate time-sorted sections for files
 	print OUT qq{
@@ -683,8 +682,8 @@ __DATA__
  */
 
 /* Note: default values use the color-safe web palette. */
+a:visited { color: #6d00E6; }
 a:hover { color: red; }
-a:visited { color: #333333; }
 
 body { font-family: sans-serif; margin: 0px; }
 .body_content { margin: 8px; }
