@@ -4,7 +4,7 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
-=head2 Changes in Devel::NYTProf 2.02
+=head2 Changes in Devel::NYTProf 2.02 (svn r361) 24 Jul 2008
 
   Fixed colors to use the median (not average) deviation from the median value.
   Fixed sub name resolution to work in more, perhaps all, unusual cases.
