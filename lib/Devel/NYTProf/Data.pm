@@ -153,9 +153,21 @@ sub all_fileinfos {
 sub fileinfo_of {
 	my $self = shift;
 	my $arg = shift;
+	if (not defined $arg) {
+		carp "Can't resolve fid of undef value";
+		return undef;
+	}
+
+	# check if already a ProfFile object
 	return $arg if ref $arg and $arg->isa('Devel::NYTProf::ProfFile');
-	$arg = $self->resolve_fid($arg);
-	return $self->{fid_fileinfo}[ $arg ];
+
+	my $fid = $self->resolve_fid($arg);
+	if (not $fid) {
+		carp "Can't resolve fid of '$arg'";
+		return undef;
+	}
+
+	return $self->{fid_fileinfo}[ $fid ];
 }
 
 
@@ -669,6 +681,10 @@ sub resolve_fid {
 	# looks like a fid already
 	return $file
 		if $file =~ m/^\d+$/;
+	
+	# XXX hack needed to because of how _map_new_to_old deals
+	# with .pmc files because of how ::Reporter works
+	return $self->resolve_fid($file) if $file =~ s/\.pmc$/.pm/;
 
 	# unfound absolute path, so we're sure we won't find it
 	return undef	# XXX carp?
@@ -760,6 +776,11 @@ sub outer {
 	my $fileinfo = $self->profile->fileinfo_of($fid);
 	return $fileinfo unless wantarray;
 	return ($fileinfo, $self->eval_line);
+}
+
+
+sub is_pmc {
+	return (shift->flags & 1); # NYTP_FIDf_IS_PMC
 }
 
 

@@ -125,6 +125,10 @@ sub _map_new_to_old {    # convert into old-style data structure
 		my $filename = $fid_fileinfo->[$fid][0]
 				or warn "No filename for fid $fid";
 
+		# if it's a .pmc then assume that's the file we want to look at
+		# (because the main use for .pmc's are related to perl6)
+		$filename .= "c" if $fid_fileinfo->[$fid]->is_pmc;
+
 		my $lines_array = $fid_line_data->[$fid]
 			or next; # ignore fid's with no lines executed
 
@@ -260,6 +264,11 @@ sub _generate_report {
 
 		# discover file path
 		my $fileinfo = $profile->fileinfo_of($filestr);
+		if (not $fileinfo) {
+			warn "Oops. I got confused about '$filestr' so I'll skip it\n";
+			delete $data->{$filestr};
+			next;
+		}
 		my $fname = html_safe_filename($fileinfo->filename_without_inc);
 		$fname .= "-$LEVEL" if $LEVEL;
 

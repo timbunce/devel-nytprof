@@ -52,6 +52,8 @@
 #endif
 #include <stdio.h>
 
+#define NYTP_FIDf_IS_PMC	0x0001; /* .pm probably really loaded as .pmc */
+
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
 
@@ -64,6 +66,7 @@ typedef struct hash_entry {
 	unsigned int eval_line_num;
 	unsigned int file_size;
 	unsigned int file_mtime;
+	unsigned int fid_flags;
 	char *key_abs;
 	void* next_inserted; /* linked list in insertion order */
 } Hash_entry;
@@ -317,23 +320,56 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert) {
 
 
 static void
-emit_fid (Hash_entry *found) {
-	char  *file_name     = found->key;
-	STRLEN file_name_len = found->key_len;
-	if (found->key_abs) {
-		file_name = found->key_abs;
+emit_fid (Hash_entry *fid_info) {
+	char  *file_name     = fid_info->key;
+	STRLEN file_name_len = fid_info->key_len;
+	if (fid_info->key_abs) {
+		file_name = fid_info->key_abs;
 		file_name_len = strlen(file_name);
 	}
 	fputc('@', out);
-	output_int(found->id);
-	output_int(found->eval_fid);
-	output_int(found->eval_line_num);
-	output_int(0); /* flags/future use */
-	output_int(found->file_size);
-	output_int(found->file_mtime);
+	output_int(fid_info->id);
+	output_int(fid_info->eval_fid);
+	output_int(fid_info->eval_line_num);
+	output_int(fid_info->fid_flags);
+	output_int(fid_info->file_size);
+	output_int(fid_info->file_mtime);
 	while (file_name_len--)
 		fputc(*file_name++, out);
 	fputc('\n', out);
+}
+
+
+/* return true if file is a .pm that was actually loaded as a .pmc */
+static int
+fid_is_pmc(Hash_entry *fid_info) {
+	int is_pmc = 0;
+	char  *file_name     = fid_info->key;
+	STRLEN len = fid_info->key_len;
+	if (fid_info->key_abs) {
+		file_name = fid_info->key_abs;
+		len = strlen(file_name);
+	}
+
+	if (len > 3 && strnEQ(&file_name[len-3],".pm", len)) {
+		/* ends in .pm, ok, does a newer .pmc exist? */
+		/* based on doopen_pm() in perl's pp_ctl.c */
+		SV *pmsv  = Perl_newSVpvn(aTHX_ file_name, len);
+		SV *pmcsv = Perl_newSVpvf(aTHX_ "%s%c", SvPV_nolen(pmsv), 'c');
+		Stat_t pmstat;
+		Stat_t pmcstat;
+		if (PerlLIO_lstat(SvPV_nolen(pmcsv), &pmcstat) == 0) {
+			/* .pmc exists, is it newer than the .pm (if that exists) */
+			if (PerlLIO_lstat(SvPV_nolen(pmsv), &pmstat) < 0 ||
+					pmstat.st_mtime < pmcstat.st_mtime) {
+					is_pmc = 1;	/* hey, maybe it's Larry working on the perl6 comiler */
+			}
+		}
+		SvREFCNT_dec(pmcsv);
+		SvREFCNT_dec(pmsv);
+	}
+
+	return is_pmc;
 }
 
 
@@ -413,6 +449,9 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int create_new) {
 				found->key_abs = strdup(file_name_abs);
 			}
 		}
+
+		if (fid_is_pmc(found))
+			found->fid_flags |= NYTP_FIDf_IS_PMC;
 
 		emit_fid(found);
 
@@ -2057,13 +2096,14 @@ load_profile_data_from_stream() {
  * Perl XS Code Below Here         *
  ***********************************/
 
-MODULE = Devel::NYTProf		PACKAGE = Devel::NYTProf		
+MODULE = Devel::NYTProf		PACKAGE = Devel::NYTProf
 PROTOTYPES: DISABLE
 
 I32
 constant()
 	PROTOTYPE:
 	ALIAS:
+		NYTP_FIDf_IS_PMC = NYTP_FIDf_IS_PMC
 	CODE:
 	RETVAL = ix;                         
 	OUTPUT:

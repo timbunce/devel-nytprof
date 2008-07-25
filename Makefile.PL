@@ -32,6 +32,13 @@ GetOptions(
 	'pg!' => \my $opt_pg,
 ) or exit 1;
 
+
+# --- make sure t/test40pmc.pmc is newer than t/test40pmc.pmc
+
+utime time(), time(), "t/test40pmc.pmc"
+	or die "Can't update mod time of t/test40pmc.pmc";
+
+
 # --- Discover how much of stdio is implemented
 
 my $cpp =  $Config{cpp} || do {
