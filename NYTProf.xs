@@ -342,7 +342,7 @@ emit_fid (Hash_entry *fid_info) {
 
 /* return true if file is a .pm that was actually loaded as a .pmc */
 static int
-fid_is_pmc(Hash_entry *fid_info) {
+fid_is_pmc(pTHX_ Hash_entry *fid_info) {
 	int is_pmc = 0;
 	char  *file_name     = fid_info->key;
 	STRLEN len = fid_info->key_len;
@@ -450,7 +450,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int create_new) {
 			}
 		}
 
-		if (fid_is_pmc(found))
+		if (fid_is_pmc(aTHX_ found))
 			found->fid_flags |= NYTP_FIDf_IS_PMC;
 
 		emit_fid(found);
