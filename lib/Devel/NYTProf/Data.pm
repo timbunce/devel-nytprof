@@ -1,10 +1,10 @@
-# vim: ts=2 sw=2 sts=0 noexpandtab:
+# vim: ts=8 sw=4 expandtab:
 ##########################################################
 # This script is part of the Devel::NYTProf distribution
 #
 # Copyright, contact and other information can be found
 # at the bottom of this file, or by going to:
-# http://search.cpan.org/~akaplan/Devel-NYTProf
+# http://search.cpan.org/dist/Devel-NYTProf/
 #
 ###########################################################
 # $Id$
@@ -63,117 +63,125 @@ aggregates the contents, and returns the results as a blessed data structure.
 =cut
 
 sub new {
-	my $class = shift;
-	my $args = shift || { filename => 'nytprof.out' };
+    my $class = shift;
+    my $args = shift || {filename => 'nytprof.out'};
 
-	my $file = $args->{filename}
-		or croak "No filename specified";
-	
-	my $profile = load_profile_data_from_file($file);
-	bless $profile => $class;
+    my $file = $args->{filename}
+        or croak "No filename specified";
 
-	my $fid_fileinfo = $profile->{fid_fileinfo};
-	my $sub_subinfo  = $profile->{sub_subinfo};
-	my $sub_caller   = $profile->{sub_caller};
+    my $profile = load_profile_data_from_file($file);
+    bless $profile => $class;
 
-	# add profile ref so fidinfo & subinfo objects
-	# XXX circular ref, add weaken
-	$_ and $_->[7] = $profile for @$fid_fileinfo;
-	       $_->[7] = $profile for values %$sub_subinfo;
+    my $fid_fileinfo = $profile->{fid_fileinfo};
+    my $sub_subinfo  = $profile->{sub_subinfo};
+    my $sub_caller   = $profile->{sub_caller};
 
-	# bless fid_fileinfo data
-	(my $fid_class = $class) =~ s/\w+$/ProfFile/;
-	$_ and bless $_ => $fid_class for @$fid_fileinfo;
+    # add profile ref so fidinfo & subinfo objects
+    # XXX circular ref, add weaken
+    $_ and $_->[7] = $profile for @$fid_fileinfo;
+    $_->[7] = $profile for values %$sub_subinfo;
 
-	# bless sub_subinfo data
-	(my $sub_class = $class) =~ s/\w+$/ProfSub/;
-	$_ and bless $_ => $sub_class for values %$sub_subinfo;
+    # bless fid_fileinfo data
+    (my $fid_class = $class) =~ s/\w+$/ProfFile/;
+    $_ and bless $_ => $fid_class for @$fid_fileinfo;
 
-	# XXX merge evals - should become a method optionally called here
-	# (which uses other methods to do the work and those methods
-	# should also be called by Devel::NYTProf::ProfSub::callers())
-	my %anon_eval_subs_merged;
-	while ( my ($subname, $subinfo) = each %$sub_subinfo ) {
-		# add subname into sub_subinfo
-		$subinfo->[6] = $subname;
-		if ($subname =~ s/(::__ANON__\[\(\w*eval) \d+\)/$1 0)/) {
-			# sub names like "PPI::Node::	__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
-			# aren't very useful, so we merge them by changing the eval to 0
-			my $oldname = $subinfo->[6];
-			delete $sub_subinfo->{$oldname}; # delete old name
-			if (my $newinfo = $sub_subinfo->{$subname}) {
-				$newinfo->merge_in($subinfo);
-			}
-			else {
-				# is first to change, so just move ref to new name
-				$sub_subinfo->{$subname} = $subinfo;
-				$subinfo->[6] = $subname;
-			}
+    # bless sub_subinfo data
+    (my $sub_class = $class) =~ s/\w+$/ProfSub/;
+    $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
-			# delete sub_caller info and merge into new name
-			my $old_caller_info = delete $sub_caller->{$oldname};
-			# { 'pkg::sub' => { fid => { line => [ count, incl_time ] } } } */
-			if (my $newinfo = $sub_caller->{$subname}) {
-				# iterate over old and merge info new
-				while ( my ($fid, $line_hash) = each %$old_caller_info ) {
-					my $new_line_hash = $newinfo->{$fid};
-					if (!$new_line_hash) {
-						$newinfo->{$fid} = $line_hash;
-						next;
-					}
-					# merge lines in %$line_hash into %$new_line_hash
-					while ( my ($line, $line_info) = each %$line_hash ) {
-						my $new_line_info = $new_line_hash->{$line};
-						if (!$new_line_info) {
-							$new_line_hash->{$line} = $line_info;
-							next;
-						}
-						# merge @$line_info into @$new_line_info
-						$new_line_info->[0] += $line_info->[0];
-						$new_line_info->[1] += $line_info->[1];
-					}
-					
-				}
-			}
-			else {
-				$sub_caller->{$subname} = $old_caller_info;
-			}
-		}
-	}
+    # XXX merge evals - should become a method optionally called here
+    # (which uses other methods to do the work and those methods
+    # should also be called by Devel::NYTProf::ProfSub::callers())
+    my %anon_eval_subs_merged;
+    while (my ($subname, $subinfo) = each %$sub_subinfo) {
 
-	return $profile;
+        # add subname into sub_subinfo
+        $subinfo->[6] = $subname;
+        if ($subname =~ s/(::__ANON__\[\(\w*eval) \d+\)/$1 0)/) {
+
+            # sub names like "PPI::Node::	__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
+            # aren't very useful, so we merge them by changing the eval to 0
+            my $oldname = $subinfo->[6];
+            delete $sub_subinfo->{$oldname};    # delete old name
+            if (my $newinfo = $sub_subinfo->{$subname}) {
+                $newinfo->merge_in($subinfo);
+            }
+            else {
+
+                # is first to change, so just move ref to new name
+                $sub_subinfo->{$subname} = $subinfo;
+                $subinfo->[6] = $subname;
+            }
+
+            # delete sub_caller info and merge into new name
+            my $old_caller_info = delete $sub_caller->{$oldname};
+
+            # { 'pkg::sub' => { fid => { line => [ count, incl_time ] } } } */
+            if (my $newinfo = $sub_caller->{$subname}) {
+
+                # iterate over old and merge info new
+                while (my ($fid, $line_hash) = each %$old_caller_info) {
+                    my $new_line_hash = $newinfo->{$fid};
+                    if (!$new_line_hash) {
+                        $newinfo->{$fid} = $line_hash;
+                        next;
+                    }
+
+                    # merge lines in %$line_hash into %$new_line_hash
+                    while (my ($line, $line_info) = each %$line_hash) {
+                        my $new_line_info = $new_line_hash->{$line};
+                        if (!$new_line_info) {
+                            $new_line_hash->{$line} = $line_info;
+                            next;
+                        }
+
+                        # merge @$line_info into @$new_line_info
+                        $new_line_info->[0] += $line_info->[0];
+                        $new_line_info->[1] += $line_info->[1];
+                    }
+
+                }
+            }
+            else {
+                $sub_caller->{$subname} = $old_caller_info;
+            }
+        }
+    }
+
+    return $profile;
 }
 
 sub all_fileinfos {
-	my @all = @{ shift->{fid_fileinfo} };
-	shift @all; # drop fid 0
-	return @all;
+    my @all = @{shift->{fid_fileinfo}};
+    shift @all;    # drop fid 0
+    return @all;
 }
 
 sub fileinfo_of {
-	my $self = shift;
-	my $arg = shift;
-	if (not defined $arg) {
-		carp "Can't resolve fid of undef value";
-		return undef;
-	}
+    my $self = shift;
+    my $arg  = shift;
+    if (not defined $arg) {
+        carp "Can't resolve fid of undef value";
+        return undef;
+    }
 
-	# check if already a ProfFile object
-	return $arg if ref $arg and $arg->isa('Devel::NYTProf::ProfFile');
+    # check if already a ProfFile object
+    return $arg if ref $arg and $arg->isa('Devel::NYTProf::ProfFile');
 
-	my $fid = $self->resolve_fid($arg);
-	if (not $fid) {
-		carp "Can't resolve fid of '$arg'";
-		return undef;
-	}
+    my $fid = $self->resolve_fid($arg);
+    if (not $fid) {
+        carp "Can't resolve fid of '$arg'";
+        return undef;
+    }
 
-	return $self->{fid_fileinfo}[ $fid ];
+    return $self->{fid_fileinfo}[$fid];
 }
 
 
 sub inc {
-	# XXX should return inc from profile data, when it's there
-	return @INC;
+
+    # XXX should return inc from profile data, when it's there
+    return @INC;
 }
 
 =head2 dump_profile_data
@@ -265,88 +273,88 @@ This format is especially useful for grep'ing and diff'ing.
 =cut
 
 sub dump_profile_data {
-	my $self = shift;
-	my $args = shift;
-	my $separator  = $args->{separator} || '';
-	my $filehandle = $args->{filehandle} || \*STDOUT;
-	my $startnode  = $args->{startnode} || $self; # undocumented
-	croak "Invalid startnode" unless ref $startnode;
-	_dump_elements($startnode, $separator, $filehandle, []);
+    my $self       = shift;
+    my $args       = shift;
+    my $separator  = $args->{separator} || '';
+    my $filehandle = $args->{filehandle} || \*STDOUT;
+    my $startnode  = $args->{startnode} || $self;       # undocumented
+    croak "Invalid startnode" unless ref $startnode;
+    _dump_elements($startnode, $separator, $filehandle, []);
 }
 
 sub _dump_elements {
-	my ($r, $separator, $fh, $path) = @_;
-	my $pad = "    ";
-	my $padN;
+    my ($r, $separator, $fh, $path) = @_;
+    my $pad = "    ";
+    my $padN;
 
-	my $is_hash = (UNIVERSAL::isa($r, 'HASH'));
-	my ($start, $end, $colon, $keys) = ($is_hash)
-		? ('{', '}', ' => ', [ sort keys %$r ])
-		: ('[', ']', ': ',   [ 0..@$r-1 ]);
+    my $is_hash = (UNIVERSAL::isa($r, 'HASH'));
+    my ($start, $end, $colon, $keys) =
+          ($is_hash)
+        ? ('{', '}', ' => ', [sort keys %$r])
+        : ('[', ']', ': ', [0 .. @$r - 1]);
 
-	if ($separator) {
-		($start, $end, $colon) = (undef, undef, $separator);
-		$padN = join $separator, @$path,'';
-	}
-	else {
-		$padN = $pad x (@$path+1);
-	}
+    if ($separator) {
+        ($start, $end, $colon) = (undef, undef, $separator);
+        $padN = join $separator, @$path, '';
+    }
+    else {
+        $padN = $pad x (@$path + 1);
+    }
 
-	my $format = {
-		sub_subinfo => { compact => 1 },
-	};
+    my $format = {sub_subinfo => {compact => 1},};
 
-	print $fh "$start\n" if $start;
-	$path = [ @$path, undef ];
-	my $key1 = $path->[0] || $keys->[0];
-	for my $key (@$keys) {
+    print $fh "$start\n" if $start;
+    $path = [@$path, undef];
+    my $key1 = $path->[0] || $keys->[0];
+    for my $key (@$keys) {
 
-		my $value = ($is_hash) ? $r->{$key} : $r->[$key];
+        my $value = ($is_hash) ? $r->{$key} : $r->[$key];
 
-		# skip undef elements in array
-		next if !defined($value) && !$is_hash;
+        # skip undef elements in array
+        next if !defined($value) && !$is_hash;
 
-		$value = $value->_values_for_dump
-			if blessed $value && $value->can('_values_for_dump');
+        $value = $value->_values_for_dump
+            if blessed $value && $value->can('_values_for_dump');
 
-		# special case some common cases to be more compact:
-		#		fid_*_time   [fid][line] = [N,N]
-		#		sub_subinfo {subname} = [fid,startline,endline,calls,incl_time]
-		my $as_compact = $format->{$key1}{compact};
-		if (not defined $as_compact) { # so guess...
-			$as_compact = (UNIVERSAL::isa($value, 'ARRAY') && @$value <= 9
-										&& !grep { ref or !defined } @$value);
-		}
+        # special case some common cases to be more compact:
+        #		fid_*_time   [fid][line] = [N,N]
+        #		sub_subinfo {subname} = [fid,startline,endline,calls,incl_time]
+        my $as_compact = $format->{$key1}{compact};
+        if (not defined $as_compact) {    # so guess...
+            $as_compact =
+                (UNIVERSAL::isa($value, 'ARRAY') && @$value <= 9 && !grep { ref or !defined }
+                    @$value);
+        }
 
-		# print the value intro
-		print $fh "$padN$key$colon"
-			unless ref $value && !$as_compact;
+        # print the value intro
+        print $fh "$padN$key$colon"
+            unless ref $value && !$as_compact;
 
-		if ($as_compact) {
-			no warnings qw(uninitialized);
-			printf $fh "[ %s ]\n", join(" ", map { defined($_) ? $_ : 'undef' } @$value );
-		}
-		elsif (ref $value) {
-			$path->[-1] = $key;
-			_dump_elements($value, $separator, $fh, $path);
-		}
-		else {
-			print $fh "$value\n";
-		}
-	}
-	printf $fh "%s$end\n", ($pad x (@$path-1)) if $end;
+        if ($as_compact) {
+            no warnings qw(uninitialized);
+            printf $fh "[ %s ]\n", join(" ", map { defined($_) ? $_ : 'undef' } @$value);
+        }
+        elsif (ref $value) {
+            $path->[-1] = $key;
+            _dump_elements($value, $separator, $fh, $path);
+        }
+        else {
+            print $fh "$value\n";
+        }
+    }
+    printf $fh "%s$end\n", ($pad x (@$path - 1)) if $end;
 }
 
 
 sub get_profile_levels {
-	return shift->{profile_modes};
+    return shift->{profile_modes};
 }
 
 sub get_fid_line_data {
-	my ($self, $level) = @_;
-	$level ||= 'line';
-	my $fid_line_data = $self->{"fid_${level}_time"};
-	return $fid_line_data;
+    my ($self, $level) = @_;
+    $level ||= 'line';
+    my $fid_line_data = $self->{"fid_${level}_time"};
+    return $fid_line_data;
 }
 
 
@@ -360,28 +368,28 @@ Data for calls made from outside the file to subroutines defined within it, are 
 =cut
 
 sub remove_internal_data_of {
-	my $self = shift;
-	my $fileinfo = $self->fileinfo_of( shift );
-	my $fid = $fileinfo->fid;
+    my $self     = shift;
+    my $fileinfo = $self->fileinfo_of(shift);
+    my $fid      = $fileinfo->fid;
 
-	# remove any timing data for inside this file
-	for my $level (qw(line block sub)) {
-		my $fid_line_data = $self->get_fid_line_data($level)
-			or next;
-		$fid_line_data->[$fid] = undef;
-	}
+    # remove any timing data for inside this file
+    for my $level (qw(line block sub)) {
+        my $fid_line_data = $self->get_fid_line_data($level)
+            or next;
+        $fid_line_data->[$fid] = undef;
+    }
 
-	# remove all subs defined in this file
-	if (my $sub_subinfo = $self->{sub_subinfo}) {
-		while ( my ($subname, $subinfo) = each %$sub_subinfo ) {
-			delete $sub_subinfo->{$subname} if $subinfo->fid == $fid;
-		}
-	}
+    # remove all subs defined in this file
+    if (my $sub_subinfo = $self->{sub_subinfo}) {
+        while (my ($subname, $subinfo) = each %$sub_subinfo) {
+            delete $sub_subinfo->{$subname} if $subinfo->fid == $fid;
+        }
+    }
 
-	# remove sub_caller info for calls made from within this file
-	if (my $sub_caller = $self->{sub_caller}) {
-		delete $_->{$fid} for values %$sub_caller;
-	}
+    # remove sub_caller info for calls made from within this file
+    if (my $sub_caller = $self->{sub_caller}) {
+        delete $_->{$fid} for values %$sub_caller;
+    }
 }
 
 
@@ -407,108 +415,110 @@ The data normalized is:
 =cut
 
 sub normalize_variables {
-	my $self = shift;
-	my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
+    my $self       = shift;
+    my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
 
-	$self->{attribute}{basetime} = 0;
-	$self->{attribute}{xs_version} = 0;
-	$self->{attribute}{perl_version} = 0;
-	$self->{attribute}{ticks_per_sec} = 0;
+    $self->{attribute}{basetime}      = 0;
+    $self->{attribute}{xs_version}    = 0;
+    $self->{attribute}{perl_version}  = 0;
+    $self->{attribute}{ticks_per_sec} = 0;
 
-	# remove_internal_data_of library files
-	# (the definition of which is quite vague at the moment)
-	my @abs_inc = grep { $_ =~ m:^/: } $self->inc;
-	my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
-	for my $fileinfo ($self->all_fileinfos) {
+    # remove_internal_data_of library files
+    # (the definition of which is quite vague at the moment)
+    my @abs_inc = grep { $_ =~ m:^/: } $self->inc;
+    my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
+    for my $fileinfo ($self->all_fileinfos) {
 
-		# normalize eval sequence numbers in 'file' names to 0
-		$fileinfo->[0] =~ s/$eval_regex/(${1}eval 0)/g;
+        # normalize eval sequence numbers in 'file' names to 0
+        $fileinfo->[0] =~ s/$eval_regex/(${1}eval 0)/g;
 
-		# ignore files not in perl's own lib
-		next if $fileinfo->filename !~ $is_lib_regex;
+        # ignore files not in perl's own lib
+        next if $fileinfo->filename !~ $is_lib_regex;
 
-		$self->remove_internal_data_of($fileinfo);
-	}
+        $self->remove_internal_data_of($fileinfo);
+    }
 
-	# normalize line data
-	for my $level (qw(line block sub)) {
-		my $fid_line_data = $self->get_fid_line_data($level) || [];
+    # normalize line data
+    for my $level (qw(line block sub)) {
+        my $fid_line_data = $self->get_fid_line_data($level) || [];
 
-		# zero the statement timing data
-		for my $of_fid (@$fid_line_data) {
-			_zero_array_elem($of_fid, 0) if $of_fid;
-		}
-	}
+        # zero the statement timing data
+        for my $of_fid (@$fid_line_data) {
+            _zero_array_elem($of_fid, 0) if $of_fid;
+        }
+    }
 
-	# zero subroutine inclusive time
-	my $sub_subinfo = $self->{sub_subinfo};
-	for (values %$sub_subinfo) {
-		$_->[4] = $_->[5] = 0;
-	}
+    # zero subroutine inclusive time
+    my $sub_subinfo = $self->{sub_subinfo};
+    for (values %$sub_subinfo) {
+        $_->[4] = $_->[5] = 0;
+    }
 
-	# zero per-call-location subroutine inclusive time
-	# { 'pkg::sub' => { fid => { line => [ count, incl_time, excl_time, ucpu, scpu ] } } }
-	my $sub_caller = $self->{sub_caller} || {};
-	for (map { values %$_ } map { values %$_ } values %$sub_caller) {
-		$_->[1] = $_->[2] = $_->[3] = $_->[4] = 0;
-	}
+    # zero per-call-location subroutine inclusive time
+    # { 'pkg::sub' => { fid => { line => [ count, incl_time, excl_time, ucpu, scpu ] } } }
+    my $sub_caller = $self->{sub_caller} || {};
+    for (map { values %$_ } map { values %$_ } values %$sub_caller) {
+        $_->[1] = $_->[2] = $_->[3] = $_->[4] = 0;
+    }
 
-	my $inc = [ @INC, '.' ];
+    my $inc = [@INC, '.'];
 
-	$self->make_fid_filenames_relative( $inc );
+    $self->make_fid_filenames_relative($inc);
 
-	for my $info ($self->{sub_subinfo}, $self->{sub_caller}) {
+    for my $info ($self->{sub_subinfo}, $self->{sub_caller}) {
 
-		# normalize paths in sub names like
-		#		AutoLoader::__ANON__[/lib/perl5/5.8.6/AutoLoader.pm:96]
-		strip_prefix_from_paths($inc, $info, '\[');
+        # normalize paths in sub names like
+        #		AutoLoader::__ANON__[/lib/perl5/5.8.6/AutoLoader.pm:96]
+        strip_prefix_from_paths($inc, $info, '\[');
 
-		# normalize eval sequence numbers in sub names to 0
-		for my $subname (keys %$info) {
-			(my $newname = $subname) =~ s/$eval_regex/(${1}eval 0)/g;
-			next if $newname eq $subname;
-			# XXX should merge instead
-			warn "Discarded previous $newname info" if $info->{$newname};
-			$info->{$newname} = delete $info->{$subname};
-		}
-	}
+        # normalize eval sequence numbers in sub names to 0
+        for my $subname (keys %$info) {
+            (my $newname = $subname) =~ s/$eval_regex/(${1}eval 0)/g;
+            next if $newname eq $subname;
 
-	return;
+            # XXX should merge instead
+            warn "Discarded previous $newname info" if $info->{$newname};
+            $info->{$newname} = delete $info->{$subname};
+        }
+    }
+
+    return;
 }
 
 
 sub make_fid_filenames_relative {
-	my ($self, $roots) = @_;
-	$roots ||= [ '.' ]; # e.g. [ @INC, '.' ]
-	strip_prefix_from_paths($roots, $self->{fid_fileinfo}, undef);
+    my ($self, $roots) = @_;
+    $roots ||= ['.'];    # e.g. [ @INC, '.' ]
+    strip_prefix_from_paths($roots, $self->{fid_fileinfo}, undef);
 }
 
 
 sub _zero_array_elem {
-	my ($ary_of_line_data, $index) = @_;
-	for my $line_data (@$ary_of_line_data) {
-		next unless $line_data;
-		$line_data->[$index] = 0;
-		# if line was a string eval
-		# then recurse to zero the times within the eval lines
-		if (my $eval_lines = $line_data->[2]) {
-			_zero_array_elem($eval_lines, $index); # recurse
-		}
-	}
+    my ($ary_of_line_data, $index) = @_;
+    for my $line_data (@$ary_of_line_data) {
+        next unless $line_data;
+        $line_data->[$index] = 0;
+
+        # if line was a string eval
+        # then recurse to zero the times within the eval lines
+        if (my $eval_lines = $line_data->[2]) {
+            _zero_array_elem($eval_lines, $index);    # recurse
+        }
+    }
 }
 
 
 sub _filename_to_fid {
-	my $self = shift;
-	return $self->{_filename_to_fid_cache} ||= do {
-		my $fid_fileinfo = $self->{fid_fileinfo} || [];
-		my $filename_to_fid = {};
-		for my $fid (1..@$fid_fileinfo-1) {
-			my $filename = $fid_fileinfo->[$fid][0];
-			$filename_to_fid->{$filename} = $fid;
-		}
-		$filename_to_fid;
-	};
+    my $self = shift;
+    return $self->{_filename_to_fid_cache} ||= do {
+        my $fid_fileinfo = $self->{fid_fileinfo} || [];
+        my $filename_to_fid = {};
+        for my $fid (1 .. @$fid_fileinfo - 1) {
+            my $filename = $fid_fileinfo->[$fid][0];
+            $filename_to_fid->{$filename} = $fid;
+        }
+        $filename_to_fid;
+    };
 }
 
 
@@ -531,34 +541,35 @@ subroutines defined on that line, typically just one.
 =cut
 
 sub subs_defined_in_file {
-	my ($self, $fid, $incl_lines) = @_;
-	$fid = $self->resolve_fid($fid);
-	$incl_lines ||= 0;
+    my ($self, $fid, $incl_lines) = @_;
+    $fid = $self->resolve_fid($fid);
+    $incl_lines ||= 0;
 
-	my $cache_key = "_cache:subs_defined_in_file:$fid:$incl_lines";
-	return $self->{$cache_key} if $self->{$cache_key};
+    my $cache_key = "_cache:subs_defined_in_file:$fid:$incl_lines";
+    return $self->{$cache_key} if $self->{$cache_key};
 
-	my $sub_subinfo = $self->{sub_subinfo}
-		or return;
+    my $sub_subinfo = $self->{sub_subinfo}
+        or return;
 
-	my %subs;
-	while ( my ($sub, $subinfo) = each %$sub_subinfo) {
-		# XXX should use $subinfo->fid but we need this to be fast so we
-		# break encapsulation till we stop using this brute force method
-		next if $fid && ($subinfo->[0]||0) != $fid;
-		$subs{ $sub } = $subinfo;
-	}
+    my %subs;
+    while (my ($sub, $subinfo) = each %$sub_subinfo) {
 
-	if ($incl_lines) { # add in the first-line-number keys
-		croak "Can't include line numbers without a fid" unless $fid;
-		for (values %subs) {
-			next unless defined(my $first_line = $_->first_line);
-			push @{ $subs{ $first_line } }, $_;
-		}
-	}
+        # XXX should use $subinfo->fid but we need this to be fast so we
+        # break encapsulation till we stop using this brute force method
+        next if $fid && ($subinfo->[0] || 0) != $fid;
+        $subs{$sub} = $subinfo;
+    }
 
-	$self->{$cache_key} = \%subs;
-	return $self->{$cache_key};
+    if ($incl_lines) {    # add in the first-line-number keys
+        croak "Can't include line numbers without a fid" unless $fid;
+        for (values %subs) {
+            next unless defined(my $first_line = $_->first_line);
+            push @{$subs{$first_line}}, $_;
+        }
+    }
+
+    $self->{$cache_key} = \%subs;
+    return $self->{$cache_key};
 }
 
 
@@ -570,42 +581,46 @@ sub subs_defined_in_file {
 =cut
 
 sub subname_at_file_line {
-	my ($self, $fid, $line) = @_;
+    my ($self, $fid, $line) = @_;
 
-	my $subs = $self->subs_defined_in_file($fid, 0);
+    my $subs = $self->subs_defined_in_file($fid, 0);
 
-	# XXX could be done more efficiently
-	my @subname;
-	for my $sub_info (values %$subs) {
-		next if $sub_info->first_line > $line
-				 or $sub_info->last_line  < $line;
-		push @subname, $sub_info->subname;
-	}
-	@subname = sort { length($a) <=> length($b) } @subname;
-	return @subname if wantarray;
-	carp "Multiple subs at $fid line $line (@subname) but subname_at_file_line called in scalar context"
-		if @subname > 1;
-	return $subname[0];
+    # XXX could be done more efficiently
+    my @subname;
+    for my $sub_info (values %$subs) {
+        next
+            if $sub_info->first_line > $line
+                or $sub_info->last_line < $line;
+        push @subname, $sub_info->subname;
+    }
+    @subname = sort { length($a) <=> length($b) } @subname;
+    return @subname if wantarray;
+    carp
+        "Multiple subs at $fid line $line (@subname) but subname_at_file_line called in scalar context"
+        if @subname > 1;
+    return $subname[0];
 }
 
 
 sub fid_filename {
-	my ($self, $fid) = @_;
+    my ($self, $fid) = @_;
 
-	my $fileinfo = $self->{fid_fileinfo}->[$fid]
-		or return undef;
+    my $fileinfo = $self->{fid_fileinfo}->[$fid]
+        or return undef;
 
-	while ($fileinfo->[1]) { # is an eval
-		# eg string eval
-		# eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
-		warn sprintf "fid_fileinfo: fid %d -> %d for %s\n",
-			$fid, $fileinfo->[1], $fileinfo->[0] if $trace;
-		# follow next link in chain
-		my $outer_fid = $fileinfo->[1];
-		$fileinfo = $self->{fid_fileinfo}->[$outer_fid];
-	}
+    while ($fileinfo->[1]) {    # is an eval
 
-	return $fileinfo->[0];
+        # eg string eval
+        # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
+        warn sprintf "fid_fileinfo: fid %d -> %d for %s\n", $fid, $fileinfo->[1], $fileinfo->[0]
+            if $trace;
+
+        # follow next link in chain
+        my $outer_fid = $fileinfo->[1];
+        $fileinfo = $self->{fid_fileinfo}->[$outer_fid];
+    }
+
+    return $fileinfo->[0];
 }
 
 
@@ -632,25 +647,27 @@ don't have an associated file.
 =cut
 
 sub file_line_range_of_sub {
-	my ($self, $sub) = @_;
+    my ($self, $sub) = @_;
 
-	my $sub_subinfo = $self->{sub_subinfo}{$sub}
-			or return; # no such sub
-	my ($fid, $first, $last) = @$sub_subinfo;
+    my $sub_subinfo = $self->{sub_subinfo}{$sub}
+        or return;    # no such sub
+    my ($fid, $first, $last) = @$sub_subinfo;
 
-	my $fileinfo = $fid && $self->{fid_fileinfo}->[$fid];
-	while ($fileinfo->[1]) { # file is an eval
-		# eg string eval
-		# eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
-		warn sprintf "%s: fid %d -> %d for %s\n",
-			$sub, $fid, $fileinfo->[1], $fileinfo->[0] if $trace;
-		$first = $last = $fileinfo->[2] if 1; # XXX control via param?
-		# follow next link in chain
-		my $outer_fid = $fileinfo->[1];
-		$fileinfo = $self->{fid_fileinfo}->[$outer_fid];
-	}
+    my $fileinfo = $fid && $self->{fid_fileinfo}->[$fid];
+    while ($fileinfo->[1]) {    # file is an eval
 
-	return ($fileinfo->[0], $fid, $first, $last);
+        # eg string eval
+        # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
+        warn sprintf "%s: fid %d -> %d for %s\n", $sub, $fid, $fileinfo->[1], $fileinfo->[0]
+            if $trace;
+        $first = $last = $fileinfo->[2] if 1;    # XXX control via param?
+
+        # follow next link in chain
+        my $outer_fid = $fileinfo->[1];
+        $fileinfo = $self->{fid_fileinfo}->[$outer_fid];
+    }
+
+    return ($fileinfo->[0], $fid, $first, $last);
 }
 
 
@@ -670,35 +687,35 @@ then that corresponding fid is returned.
 =cut
 
 sub resolve_fid {
-	my ($self, $file) = @_;
-	Carp::confess("No file specified") unless defined $file;
-	my $resolve_fid_cache = $self->_filename_to_fid;
+    my ($self, $file) = @_;
+    Carp::confess("No file specified") unless defined $file;
+    my $resolve_fid_cache = $self->_filename_to_fid;
 
-	# exact match
-	return $resolve_fid_cache->{$file}
-		if exists $resolve_fid_cache->{$file};
+    # exact match
+    return $resolve_fid_cache->{$file}
+        if exists $resolve_fid_cache->{$file};
 
-	# looks like a fid already
-	return $file
-		if $file =~ m/^\d+$/;
-	
-	# XXX hack needed to because of how _map_new_to_old deals
-	# with .pmc files because of how ::Reporter works
-	return $self->resolve_fid($file) if $file =~ s/\.pmc$/.pm/;
+    # looks like a fid already
+    return $file
+        if $file =~ m/^\d+$/;
 
-	# unfound absolute path, so we're sure we won't find it
-	return undef	# XXX carp?
-		if $file =~ m/^\//;
+    # XXX hack needed to because of how _map_new_to_old deals
+    # with .pmc files because of how ::Reporter works
+    return $self->resolve_fid($file) if $file =~ s/\.pmc$/.pm/;
 
-	# prepend '/' and grep for trailing matches - if just one then use that
-	my $match = qr{/\Q$file\E$};
-	my @matches = grep { m/$match/ } keys %$resolve_fid_cache;
-	return $self->resolve_fid($matches[0])
-		if @matches == 1;
-	carp "Can't resolve '$file' to a unique file id (matches @matches)"
-		if @matches >= 2;
+    # unfound absolute path, so we're sure we won't find it
+    return undef    # XXX carp?
+        if $file =~ m/^\//;
 
-	return undef;
+    # prepend '/' and grep for trailing matches - if just one then use that
+    my $match = qr{/\Q$file\E$};
+    my @matches = grep {m/$match/} keys %$resolve_fid_cache;
+    return $self->resolve_fid($matches[0])
+        if @matches == 1;
+    carp "Can't resolve '$file' to a unique file id (matches @matches)"
+        if @matches >= 2;
+
+    return undef;
 }
 
 
@@ -734,158 +751,164 @@ $profile->line_calls_for_file( 'foo.pl' ) would return something like:
 =cut
 
 sub line_calls_for_file {
-	my ($self, $fid) = @_;
+    my ($self, $fid) = @_;
 
-	$fid = $self->resolve_fid($fid);
-	my $sub_caller = $self->{sub_caller}
-		or return;
+    $fid = $self->resolve_fid($fid);
+    my $sub_caller = $self->{sub_caller}
+        or return;
 
-	my $line_calls = {};
-	while ( my ($sub, $fid_hash) = each %$sub_caller) {
-		my $line_calls_hash = $fid_hash->{$fid}
-			or next;
+    my $line_calls = {};
+    while (my ($sub, $fid_hash) = each %$sub_caller) {
+        my $line_calls_hash = $fid_hash->{$fid}
+            or next;
 
-		while ( my ($line, $calls) = each %$line_calls_hash) {
-			$line_calls->{$line}{$sub} = $calls;
-		}
+        while (my ($line, $calls) = each %$line_calls_hash) {
+            $line_calls->{$line}{$sub} = $calls;
+        }
 
-	}
-	return $line_calls;
+    }
+    return $line_calls;
 }
 
 ## --- will move out to separate files later ---
 # for now these are viewed as private classes
 
-{ package Devel::NYTProf::ProfFile;	# fid_fileinfo
+{
 
-use Devel::NYTProf::Util qw(strip_prefix_from_paths);
+    package Devel::NYTProf::ProfFile;    # fid_fileinfo
 
-sub filename   { shift->[0] }
-sub eval_fid   { shift->[1] }
-sub eval_line  { shift->[2] }
-sub fid        { shift->[3] }
-sub flags      { shift->[4] }
-sub size       { shift->[5] }
-sub mtime      { shift->[6] }
-sub profile    { shift->[7] }
+    use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 
-sub outer {
-	my $self = shift;
-	my $fid = $self->eval_fid
-		or return;
-	my $fileinfo = $self->profile->fileinfo_of($fid);
-	return $fileinfo unless wantarray;
-	return ($fileinfo, $self->eval_line);
-}
+    sub filename  { shift->[0] }
+    sub eval_fid  { shift->[1] }
+    sub eval_line { shift->[2] }
+    sub fid       { shift->[3] }
+    sub flags     { shift->[4] }
+    sub size      { shift->[5] }
+    sub mtime     { shift->[6] }
+    sub profile   { shift->[7] }
+
+    sub outer {
+        my $self = shift;
+        my $fid  = $self->eval_fid
+            or return;
+        my $fileinfo = $self->profile->fileinfo_of($fid);
+        return $fileinfo unless wantarray;
+        return ($fileinfo, $self->eval_line);
+    }
 
 
-sub is_pmc {
-	return (shift->flags & 1); # NYTP_FIDf_IS_PMC
-}
+    sub is_pmc {
+        return (shift->flags & 1);    # NYTP_FIDf_IS_PMC
+    }
 
 
 # should return the filename that the application used
 # when loading the file
-sub filename_without_inc {
-	my $self = shift;
-	my $f = [ $self->filename ];
-	strip_prefix_from_paths( [ $self->profile->inc ], $f );
-	return $f->[0];
-}
+    sub filename_without_inc {
+        my $self = shift;
+        my $f    = [$self->filename];
+        strip_prefix_from_paths([$self->profile->inc], $f);
+        return $f->[0];
+    }
 
-sub _values_for_dump {
-	my $self = shift;
-	my @values = @$self;
-	$values[0] = $self->filename_without_inc;
-	pop @values; # remove profile ref
-	return \@values;
-}
+    sub _values_for_dump {
+        my $self   = shift;
+        my @values = @$self;
+        $values[0] = $self->filename_without_inc;
+        pop @values;    # remove profile ref
+        return \@values;
+    }
 
-} # end of package
+}    # end of package
 
 
 {
-package Devel::NYTProf::ProfSub;	# sub_subinfo
 
-use List::Util qw(sum);
+    package Devel::NYTProf::ProfSub;    # sub_subinfo
 
-sub fid          { shift->[0] }
-sub first_line   { shift->[1] }
-sub last_line    { shift->[2] }
-sub calls        { shift->[3] }
-sub incl_time    { shift->[4] }
-sub excl_time    { shift->[5] }
-sub subname      { shift->[6] }
-sub profile      { shift->[7] }
+    use List::Util qw(sum);
 
-sub is_xsub {
-	my $self = shift;
-	# XXX should test == 0 but some xsubs still have undef first_line etc
-	return (!$self->first_line && !$self->last_line);
-}
+    sub fid        { shift->[0] }
+    sub first_line { shift->[1] }
+    sub last_line  { shift->[2] }
+    sub calls      { shift->[3] }
+    sub incl_time  { shift->[4] }
+    sub excl_time  { shift->[5] }
+    sub subname    { shift->[6] }
+    sub profile    { shift->[7] }
 
-sub fileinfo {
-	my $self = shift;
-	my $fid = $self->fid
-		or return undef; # sub not have a known fid
-	$self->profile->fileinfo_of($fid);
-}
+    sub is_xsub {
+        my $self = shift;
 
-sub merge_in {
-	my $self = shift;
-	my $newinfo = shift;
-	$self->[3] += $newinfo->[3]; # calls
-	$self->[4] += $newinfo->[4]; # calls
-	return;
-}
+        # XXX should test == 0 but some xsubs still have undef first_line etc
+        return (!$self->first_line && !$self->last_line);
+    }
 
-sub _values_for_dump {
-	my $self = shift;
-	my @values = @{$self}[0..5];
-	return \@values;
-}
+    sub fileinfo {
+        my $self = shift;
+        my $fid  = $self->fid
+            or return undef;    # sub not have a known fid
+        $self->profile->fileinfo_of($fid);
+    }
 
-sub callers {
-	my $self = shift;
-	# { fid => { line => [ count, incl_time ] } } }
-	my $callers = $self->profile->{sub_caller}->{$self->subname}
-		or return undef;
-	# XXX should 'collapse' data for calls from eval fids
-	# (with an option to not collapse)
-	return $callers;
-}
+    sub merge_in {
+        my $self    = shift;
+        my $newinfo = shift;
+        $self->[3] += $newinfo->[3];    # calls
+        $self->[4] += $newinfo->[4];    # calls
+        return;
+    }
 
-sub caller_fids {
-	my ($self, $merge_evals) = @_;
-	my $callers = $self->callers($merge_evals) || {};
-	my @fids = keys %$callers;
-	return @fids; # count in scalar context
-}
+    sub _values_for_dump {
+        my $self   = shift;
+        my @values = @{$self}[0 .. 5];
+        return \@values;
+    }
 
-sub caller_count {
-	my ($self, $merge_evals) = @_;
-	my $callers = $self->callers($merge_evals) || {};
-	# count of the number of distinct locations sub is called from
-	return sum(map { scalar keys %$_ } values %$callers );
-}
+    sub callers {
+        my $self = shift;
 
-sub caller_places {
-	my ($self, $merge_evals) = @_;
-	my $callers = $self->callers
-		or return 0;
-	# scalar: count of the number of distinct locations sub iss called from
-	# list: array of [ fid, line, @... ]
-	my @callers;
-	warn "caller_places in list context not implemented/tested yet";
-	while ( my ($fid, $lines) = each %$callers ) {
-		push @callers, map {
-			[ $fid, $_, @{ $lines->{$_} } ]
-		} keys %$lines;
-	}
-	return \@callers;
-}
+        # { fid => { line => [ count, incl_time ] } } }
+        my $callers = $self->profile->{sub_caller}->{$self->subname}
+            or return undef;
 
-} # end of package
+        # XXX should 'collapse' data for calls from eval fids
+        # (with an option to not collapse)
+        return $callers;
+    }
+
+    sub caller_fids {
+        my ($self, $merge_evals) = @_;
+        my $callers = $self->callers($merge_evals) || {};
+        my @fids = keys %$callers;
+        return @fids;    # count in scalar context
+    }
+
+    sub caller_count {
+        my ($self, $merge_evals) = @_;
+        my $callers = $self->callers($merge_evals) || {};
+
+        # count of the number of distinct locations sub is called from
+        return sum(map { scalar keys %$_ } values %$callers);
+    }
+
+    sub caller_places {
+        my ($self, $merge_evals) = @_;
+        my $callers = $self->callers
+            or return 0;
+
+        # scalar: count of the number of distinct locations sub iss called from
+        # list: array of [ fid, line, @... ]
+        my @callers;
+        warn "caller_places in list context not implemented/tested yet";
+        while (my ($fid, $lines) = each %$callers) {
+            push @callers, map { [$fid, $_, @{$lines->{$_}}] } keys %$lines;
+        }
+        return \@callers;
+    }
+
+}    # end of package
 
 1;
 
@@ -915,5 +938,3 @@ it under the same terms as Perl itself, either Perl version 5.8.8 or,
 at your option, any later version of Perl 5 you may have available.
 
 =cut
-
-# vim: ts=2 sw=2 sts=0 noexpandtab:

@@ -1,3 +1,4 @@
+.perltidyrc
 benchmark.pl
 bin/nytprofcsv
 bin/nytprofhtml

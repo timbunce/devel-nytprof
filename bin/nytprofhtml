@@ -19,59 +19,61 @@ use List::Util qw(sum max);
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
 use Devel::NYTProf::Util qw(
-	fmt_float fmt_incl_excl_time
-	calculate_median_absolute_deviation
-	get_abs_paths_alternation_regex
-	html_safe_filename
+    fmt_float fmt_incl_excl_time
+    calculate_median_absolute_deviation
+    get_abs_paths_alternation_regex
+    html_safe_filename
 );
 
 our $VERSION = 1.02;
 
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
-use constant SEVERITY_SEVERE			=> 2.0; # above this deviation, a bottleneck
-use constant SEVERITY_BAD					=> 1.0;
-use constant SEVERITY_GOOD				=> 0.5; # within this deviation, okay
+use constant SEVERITY_SEVERE => 2.0;    # above this deviation, a bottleneck
+use constant SEVERITY_BAD    => 1.0;
+use constant SEVERITY_GOOD   => 0.5;    # within this deviation, okay
 
-use constant NUMERIC_PRECISION    => 5;
+use constant NUMERIC_PRECISION => 5;
 
 my %opt = (
-    file    => 'nytprof.out',
-    out	    => 'nytprof',
+    file => 'nytprof.out',
+    out  => 'nytprof',
 );
-GetOptions(\%opt,
-  qw/file|f=s delete|d out|o=s lib|l=s help|h/
-) or exit 1;
+GetOptions(\%opt, qw/file|f=s delete|d out|o=s lib|l=s help|h/) or exit 1;
 
 if (defined($opt{help})) {
-	&usage;
-	exit 1;
+    &usage;
+    exit 1;
 }
 
 # handle file selection option
-if (! -r $opt{file}) {
-  die "$0: Unable to access $opt{file}\n";
+if (!-r $opt{file}) {
+    die "$0: Unable to access $opt{file}\n";
 }
 
 # handle handle output location
 if (!-e $opt{out}) {
-	# will be created
-} elsif (!-d $opt{out}) {
-  die "$0: Specified output directory `$opt{out}' is a file. whoops!\n";
-} elsif (!-w $opt{out}) {
-  die "$0: Unable to write to output directory `$opt{out}'\n";
+
+    # will be created
+}
+elsif (!-d $opt{out}) {
+    die "$0: Specified output directory `$opt{out}' is a file. whoops!\n";
+}
+elsif (!-w $opt{out}) {
+    die "$0: Unable to write to output directory `$opt{out}'\n";
 }
 
 # handle deleting old db's
 if (defined($opt{'delete'})) {
-	_delete();
+    _delete();
 }
 
 # handle custom lib path
 if (defined($opt{lib})) {
     if (-d $opt{lib}) {
         unshift(@INC, $opt{lib});
-    } else {
+    }
+    else {
         die "$0: Specified lib directory `$opt{lib}' does not exist.\n";
     }
 }
@@ -83,19 +85,26 @@ my $reporter = new Devel::NYTProf::Reader($opt{file});
 $reporter->output_dir($opt{out});
 
 # set formatting for html
-$reporter->set_param('header', sub {
-	my ($profile, $filestr, $output_filestr, $level) = @_;
+$reporter->set_param(
+    'header',
+    sub {
+        my ($profile, $filestr, $output_filestr, $level) = @_;
 
-	my $profile_level_buttons = get_level_buttons($profile->get_profile_levels, $output_filestr, $level);
+        my $profile_level_buttons =
+            get_level_buttons($profile->get_profile_levels, $output_filestr, $level);
 
-	my $subhead = qq{&emsp;&emsp;$profile_level_buttons<br />
-		For ${ \($profile->{attribute}{application}) }
-	};
+        my $subhead = qq{&emsp;&emsp;$profile_level_buttons<br />
+            For ${ \($profile->{attribute}{application}) }
+        };
 
-	get_html_header("Profile: !~FILENAME~!") .
-	get_header(profile => $profile, title => "Performance Profile", subtitle => $subhead, 
-							mode => qq/-$level/) .
-qq{<div class="body_content">
+        get_html_header("Profile: !~FILENAME~!")
+            . get_header(
+            profile  => $profile,
+            title    => "Performance Profile",
+            subtitle => $subhead,
+            mode     => qq/-$level/
+            )
+            . qq{<div class="body_content">
 <br />
 <table><tr>
 <td class='h' align='right'>File</td><td align=\"left\">!~FILENAME~!</td></tr>
@@ -103,227 +112,234 @@ qq{<div class="body_content">
 </td></tr>\n
 <td class='h' align='right'>Total Time</td><td align=\"left\">!~TOTAL_TIME~!
 seconds</td>\n</tr></table><br/>
-}});
+};
+    }
+);
 
-$reporter->set_param('taintmsg', 
-"<div class='warn_title'>WARNING!</div>\n
+$reporter->set_param(
+    'taintmsg',
+    "<div class='warn_title'>WARNING!</div>\n
 <div class='warn'>The source file used to generate this report was modified
-after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n");
+after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n"
+);
 
 
 sub calc_mad_from_objects {
-	my ($ary, $meth, $ignore_zeros) = @_;
-	return calculate_median_absolute_deviation(
-		[ map { scalar $_->$meth } @$ary ], $ignore_zeros,
-	);
+    my ($ary, $meth, $ignore_zeros) = @_;
+    return calculate_median_absolute_deviation([map { scalar $_->$meth } @$ary], $ignore_zeros,);
 }
 
 sub calc_mad_from_hashes {
-	my ($ary, $meth, $ignore_zeros) = @_;
-	return calculate_median_absolute_deviation(
-		[ map { scalar $_->{$meth} } @$ary ], $ignore_zeros,
-	);
+    my ($ary, $meth, $ignore_zeros) = @_;
+    return calculate_median_absolute_deviation([map { scalar $_->{$meth} } @$ary], $ignore_zeros,
+    );
 }
 
 sub subroutine_table {
-  my ($profile, $filestr, $max_subs) = @_;
+    my ($profile, $filestr, $max_subs) = @_;
 
-  my $subs_in_file = $profile->subs_defined_in_file( $filestr, 0 );
-  return "" unless $subs_in_file && %$subs_in_file;
+    my $subs_in_file = $profile->subs_defined_in_file($filestr, 0);
+    return "" unless $subs_in_file && %$subs_in_file;
 
-	my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
+    my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
 
-	# XXX slow - use Schwartzian transform or via XS or Sort::Key
-  my @subs = sort {
-    $b->excl_time <=> $a->excl_time or
-    $a->subname   cmp $b->subname
-  } values %$subs_in_file;
+    # XXX slow - use Schwartzian transform or via XS or Sort::Key
+    my @subs =
+        sort { $b->excl_time <=> $a->excl_time or $a->subname cmp $b->subname }
+        values %$subs_in_file;
 
-	my $dev_incl_time = calc_mad_from_objects(\@subs, 'incl_time', 1);
-	my $dev_excl_time = calc_mad_from_objects(\@subs, 'excl_time', 1);
-	my $dev_calls     = calc_mad_from_objects(\@subs, 'calls', 1);
-	my $dev_call_count= calc_mad_from_objects(\@subs, 'caller_count', 1);
-	my $dev_call_fids = calc_mad_from_objects(\@subs, 'caller_fids', 1);
+    my $dev_incl_time  = calc_mad_from_objects(\@subs, 'incl_time',    1);
+    my $dev_excl_time  = calc_mad_from_objects(\@subs, 'excl_time',    1);
+    my $dev_calls      = calc_mad_from_objects(\@subs, 'calls',        1);
+    my $dev_call_count = calc_mad_from_objects(\@subs, 'caller_count', 1);
+    my $dev_call_fids  = calc_mad_from_objects(\@subs, 'caller_fids',  1);
 
-	my @subs_to_show = ($max_subs) ? splice @subs, 0, $max_subs : @subs;
-	my $qualifier = (@subs > @subs_to_show) ? "Top $max_subs " : "";
+    my @subs_to_show = ($max_subs) ? splice @subs, 0, $max_subs : @subs;
+    my $qualifier = (@subs > @subs_to_show) ? "Top $max_subs " : "";
 
-  my $sub_links;
+    my $sub_links;
 
-  $sub_links .= qq{<table border=1 cellpadding=0>
-		<caption>${qualifier}Subroutines &mdash; ordered by exclusive time</caption>
-    <tr>
-		<th>Calls</th>
-		<th><span title="Number of Places sub is called from">P</span></th>
-		<th><span title="Number of Files sub is called from">F</span></th>
-		<th>Inclusive<br />Time</th>
-		<th>Exclusive<br />Time</th>
-		<th colspan=2 class="left_indent_header">Subroutine</th>
-		</tr>
-  };
+    $sub_links .= qq{<table border=1 cellpadding=0>
+        <caption>${qualifier}Subroutines &mdash; ordered by exclusive time</caption>
+        <tr>
+        <th>Calls</th>
+        <th><span title="Number of Places sub is called from">P</span></th>
+        <th><span title="Number of Files sub is called from">F</span></th>
+        <th>Inclusive<br />Time</th>
+        <th>Exclusive<br />Time</th>
+        <th colspan=2 class="left_indent_header">Subroutine</th>
+        </tr>
+    };
 
-	my @rows;
-	for my $sub (@subs_to_show) {
-		$sub_links .= "<tr>";
+    my @rows;
+    for my $sub (@subs_to_show) {
+        $sub_links .= "<tr>";
 
-		$sub_links .= determine_severity(undef, $sub->calls     || 0, $dev_calls);
-		$sub_links .= determine_severity(undef, $sub->caller_count || 0, $dev_call_count);
-		$sub_links .= determine_severity(undef, $sub->caller_fids  || 0, $dev_call_fids);
-		$sub_links .= determine_severity(undef, $sub->incl_time || 0, $dev_incl_time);
-		$sub_links .= determine_severity(undef, $sub->excl_time || 0, $dev_excl_time);
+        $sub_links .= determine_severity(undef, $sub->calls        || 0, $dev_calls);
+        $sub_links .= determine_severity(undef, $sub->caller_count || 0, $dev_call_count);
+        $sub_links .= determine_severity(undef, $sub->caller_fids  || 0, $dev_call_fids);
+        $sub_links .= determine_severity(undef, $sub->incl_time    || 0, $dev_incl_time);
+        $sub_links .= determine_severity(undef, $sub->excl_time    || 0, $dev_excl_time);
 
-		# package and subname
-		my $subname = $sub->subname;
-		# remove own filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
-		# XXX doesn't work right because $filestr isn't full filename
-		$subname =~ s/\Q$filestr\E:(\d+)/:$1/g;
-		my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1,$2) : ('',$subname);
-		$sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
+        # package and subname
+        my $subname = $sub->subname;
 
-		$subr =~ s/$inc_path_regex//; # for __ANON__[/very/long/path...]
-		my $first_line = $sub->first_line;
-		my $fileinfo = $sub->fileinfo;
-		if ($fileinfo and my ($outer_fileinfo, $outer_line) = $fileinfo->outer) { # eval
-			$fileinfo   = $outer_fileinfo;
-			$first_line = $outer_line;
-		}
+        # remove own filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
+        # XXX doesn't work right because $filestr isn't full filename
+        $subname =~ s/\Q$filestr\E:(\d+)/:$1/g;
+        my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1, $2) : ('', $subname);
+        $sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
 
-		if ($sub->is_xsub) {
-			$sub_links .= sprintf(qq{<td class="sub_sub">%s (xsub)</td>}, $subr);
-		}
-		else {
-			$sub_links .= sprintf(qq{<td class="sub_sub"><a href="%s-line.html#%s">%s</a></td>},
-				$fileinfo ? html_safe_filename($fileinfo->filename_without_inc) : "",
-				$first_line || 'UNKNOWN', $subr);
-		}
+        $subr =~ s/$inc_path_regex//;    # for __ANON__[/very/long/path...]
+        my $first_line = $sub->first_line;
+        my $fileinfo   = $sub->fileinfo;
+        if ($fileinfo and my ($outer_fileinfo, $outer_line) = $fileinfo->outer) {    # eval
+            $fileinfo   = $outer_fileinfo;
+            $first_line = $outer_line;
+        }
 
-		$sub_links .= "<tr>\n";
-	}
-  $sub_links .= "</table>\n";
+        if ($sub->is_xsub) {
+            $sub_links .= sprintf(qq{<td class="sub_sub">%s (xsub)</td>}, $subr);
+        }
+        else {
+            $sub_links .= sprintf(
+                qq{<td class="sub_sub"><a href="%s-line.html#%s">%s</a></td>},
+                $fileinfo ? html_safe_filename($fileinfo->filename_without_inc) : "",
+                $first_line || 'UNKNOWN', $subr
+            );
+        }
 
-  return $sub_links;
+        $sub_links .= "<tr>\n";
+    }
+    $sub_links .= "</table>\n";
+
+    return $sub_links;
 }
 
-$reporter->set_param('datastart', sub {
-    my ($profile, $filestr) = @_;
+$reporter->set_param(
+    'datastart',
+    sub {
+        my ($profile, $filestr) = @_;
 
-    my $sub_links = subroutine_table($profile, $filestr);
+        my $sub_links = subroutine_table($profile, $filestr);
 
-    return qq{$sub_links<br>
+        return qq{$sub_links<br>
       <table border=1 cellpadding=0>
       <tr><th>Line</th><th>Stmts.</th><th>Exclusive<br />Time</th><th>Avg.</th><th class="left_indent_header">Code</th>
       </tr>\n
     };
-});
+    }
+);
 
-$reporter->set_param('footer', sub {
-	my ($profile, $filestr) = @_;
-	my $footer = get_footer($profile);
-	return "</table></div>$footer</body></html>";
-});
+$reporter->set_param(
+    'footer',
+    sub {
+        my ($profile, $filestr) = @_;
+        my $footer = get_footer($profile);
+        return "</table></div>$footer</body></html>";
+    }
+);
 
-$reporter->set_param('linestart', {
-    func => sub { my ($value, $linenum, $linesrc) = @_;
-      sprintf qq{<tr><td class="h"><a name="%d"></a>%d</td>}, $linenum, $linenum;
-    },
-});
+$reporter->set_param(
+    'linestart',
+    {   func => sub {
+            my ($value, $linenum, $linesrc) = @_;
+            sprintf qq{<tr><td class="h"><a name="%d"></a>%d</td>}, $linenum, $linenum;
+        },
+    }
+);
 
-#$reporter->set_param('column1', 
-#	{start => '<td>', value => 'calls', end => '</td>', default => ''});
-#$reporter->set_param('column2', 
-#	{start => '<td>', value => 'time', end => '</td>', default => ''});
-#$reporter->set_param('column3', 
-#	{start => '<td>', value => 'time/call', end => '</td>', default => ''});
-$reporter->set_param('column4', {
-    func => sub {
-      my ($value, $linenum, $linesrc, $profile, $subs, $calls) = @_;
+$reporter->set_param(
+    'column4',
+    {   func => sub {
+            my ($value, $linenum, $linesrc, $profile, $subs, $calls) = @_;
 
-			$linesrc =~ s/&/&amp;/g;
-			$linesrc =~ s/</&lt;/g;
-			$linesrc =~ s/>/&gt;/g;
-			$linesrc =~ s/\t/        /g;
+            $linesrc =~ s/&/&amp;/g;
+            $linesrc =~ s/</&lt;/g;
+            $linesrc =~ s/>/&gt;/g;
+            $linesrc =~ s/\t/        /g;
 
-      my @prologue;
-			# for each of the subs defined on this line, who called them
-      for my $sub_info (@$subs) {
-        my $callers = $sub_info->callers;
-        next unless $callers && %$callers;
+            my @prologue;
 
-        my @callers;
-        while ( my ($fid, $fid_line_info) = each %$callers ) {
-          push @callers, [ $fid, $_, @{$fid_line_info->{$_}} ]
-            for keys %$fid_line_info;
-        }
-        my $total_calls = sum(my @caller_calls = map { $_->[2] } @callers);
-        my $max_calls   = max(@caller_calls);
-				my $avg_per_call = fmt_float($sub_info->incl_time / $total_calls);
+            # for each of the subs defined on this line, who called them
+            for my $sub_info (@$subs) {
+                my $callers = $sub_info->callers;
+                next unless $callers && %$callers;
 
-        push @prologue, sprintf "# spent %s within %s which was called%s:",
-            fmt_incl_excl_time($sub_info->incl_time, $sub_info->excl_time),
-						$sub_info->subname,
-            ($total_calls <= 1) ? ""
-							: " $total_calls times, avg ${avg_per_call}s/call";
+                my @callers;
+                while (my ($fid, $fid_line_info) = each %$callers) {
+                    push @callers, [$fid, $_, @{$fid_line_info->{$_}}] for keys %$fid_line_info;
+                }
+                my $total_calls = sum(my @caller_calls = map { $_->[2] } @callers);
+                my $max_calls = max(@caller_calls);
+                my $avg_per_call = fmt_float($sub_info->incl_time / $total_calls);
 
-        # order by most frequent caller first
-        @callers = sort { $b->[2] <=> $a->[2] } @callers;
-        for my $caller (@callers) {
-          my ($fid, $line, $count, $incl_time, $excl_time) = @$caller;
+                push @prologue, sprintf "# spent %s within %s which was called%s:",
+                    fmt_incl_excl_time($sub_info->incl_time, $sub_info->excl_time),
+                    $sub_info->subname, ($total_calls <= 1)
+                    ? ""
+                    : " $total_calls times, avg ${avg_per_call}s/call";
 
-          my @subnames = $profile->subname_at_file_line($fid, $line);
-          my $subname = (@subnames) ? " by ".join(" or ",@subnames) : "";
-					my $avg_time = ($count <= 1) ? ""
-						: sprintf ", avg %ss/call", fmt_float($incl_time/$count);
-          my $times = sprintf " (%s+%ss)", fmt_float($excl_time), fmt_float($incl_time-$excl_time);
+                # order by most frequent caller first
+                @callers = sort { $b->[2] <=> $a->[2] } @callers;
+                for my $caller (@callers) {
+                    my ($fid, $line, $count, $incl_time, $excl_time) = @$caller;
 
-          my $filename = $profile->fid_filename($fid);
-          my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
-          my $caller_filename = $profile->fid_filename($fid);
+                    my @subnames = $profile->subname_at_file_line($fid, $line);
+                    my $subname = (@subnames) ? " by " . join(" or ", @subnames) : "";
+                    my $avg_time =
+                        ($count <= 1)
+                        ? ""
+                        : sprintf ", avg %ss/call", fmt_float($incl_time / $count);
+                    my $times = sprintf " (%s+%ss)", fmt_float($excl_time),
+                        fmt_float($incl_time - $excl_time);
 
-          push @prologue, sprintf q{# %*s times%s%s at <a href="%s#%d">line %d</a> of %s%s},
-            length($max_calls), $count, $times, $subname,
-						"$href.html", $line, $line, $caller_filename,
-						$avg_time;
-        }
-      }
-      my $prologue = '';
-      $prologue = sprintf qq{<div class="calls">%s</div>}, join("\n",@prologue)
-        if @prologue;
+                    my $filename = $profile->fid_filename($fid);
+                    my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
+                    my $caller_filename = $profile->fid_filename($fid);
 
-			# give details of each of the subs called by this line
-      my $epilogue = '';
-      if (%$calls) {
-				my @calls_to = sort {
-					$calls->{$b}[1] <=> $calls->{$a}[1] or # incl_time
-					$a cmp $b
-				} keys %$calls;
-				my $max_calls_to = max(map { $_->[0] } values %$calls);
-        my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
-        $epilogue = join "\n", map {
-          my ($count, $incl_time) = @{$calls->{$_}};
-          my $href = $reporter->href_for_sub($_);
-					my $html = sprintf qq{%s# spent %ss making %*d calls to },
-						$ws, fmt_float($incl_time), length($max_calls_to), $count;
-					$html .= ($href) ? sprintf(qq{<a href="%s">%s</a>}, $href, $_) : $_;
-          $html .= sprintf qq{, avg %ss/call}, fmt_float($incl_time/$count)
-						if $count > 1;
-					$html;
-        } @calls_to;
-        $epilogue = sprintf qq{<div class="calls">%s</div>}, $epilogue;
-      }
+                    push @prologue,
+                        sprintf q{# %*s times%s%s at <a href="%s#%d">line %d</a> of %s%s},
+                        length($max_calls), $count, $times, $subname,
+                        "$href.html", $line, $line, $caller_filename,
+                        $avg_time;
+                }
+            }
+            my $prologue = '';
+            $prologue = sprintf qq{<div class="calls">%s</div>}, join("\n", @prologue)
+                if @prologue;
 
-      sprintf qq{<td class="s">%s%s%s</td>}, $prologue, $linesrc, $epilogue;
-    },
-});
+            # give details of each of the subs called by this line
+            my $epilogue = '';
+            if (%$calls) {
+                my @calls_to = sort {
+                    $calls->{$b}[1] <=> $calls->{$a}[1] or    # incl_time
+                        $a cmp $b
+                } keys %$calls;
+                my $max_calls_to = max(map { $_->[0] } values %$calls);
+                my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
+                $epilogue = join "\n", map {
+                    my ($count, $incl_time) = @{$calls->{$_}};
+                    my $href = $reporter->href_for_sub($_);
+                    my $html = sprintf qq{%s# spent %ss making %*d calls to },
+                        $ws, fmt_float($incl_time), length($max_calls_to), $count;
+                    $html .= ($href) ? sprintf(qq{<a href="%s">%s</a>}, $href, $_) : $_;
+                    $html .= sprintf qq{, avg %ss/call}, fmt_float($incl_time / $count)
+                        if $count > 1;
+                    $html;
+                } @calls_to;
+                $epilogue = sprintf qq{<div class="calls">%s</div>}, $epilogue;
+            }
+
+            sprintf qq{<td class="s">%s%s%s</td>}, $prologue, $linesrc, $epilogue;
+        },
+    }
+);
 
 
-#$reporter->set_param('linestart', {func => \&myfunc});
-$reporter->set_param('column1', 
-										{value => 'calls', func => \&determine_severity});
-$reporter->set_param('column2', 
-										{value => 'time', func => \&determine_severity});
-$reporter->set_param('column3', 
-										{value => 'time/call', func => \&determine_severity});
-#$reporter->set_param('column4', {func => \&myfunc});
+$reporter->set_param('column1', {value => 'calls',     func => \&determine_severity});
+$reporter->set_param('column2', {value => 'time',      func => \&determine_severity});
+$reporter->set_param('column3', {value => 'time/call', func => \&determine_severity});
 
 $reporter->set_param('lineend', {start => "</tr>\n"});
 
@@ -331,7 +347,7 @@ $reporter->set_param('lineend', {start => "</tr>\n"});
 $reporter->set_param('suffix', '.html');
 
 # output a css file too (optional, but good for pretty pages)
-$reporter->_output_additional('style.css', [ <DATA> ]);
+$reporter->_output_additional('style.css', [<DATA>]);
 
 # generate the files
 $reporter->report();
@@ -345,173 +361,180 @@ output_indexpage($reporter, "index.html");
 
 # output an html indexing page or subroutines
 sub output_subs_indexpage {
-	my ($r, $filename) = @_;
-	my $profile = $reporter->{profile};
-	
-	open (OUT, '>', "$opt{out}/$filename")
-		or croak "Unable to open file $opt{out}/$filename: $!";
+    my ($r, $filename) = @_;
+    my $profile = $reporter->{profile};
 
-	print OUT get_html_header();
-	print OUT get_header(profile => $profile, title => "Performance Profile Subroutine Index");
-	print OUT qq{<div class="body_content"><br/>};
+    open(OUT, '>', "$opt{out}/$filename")
+        or croak "Unable to open file $opt{out}/$filename: $!";
 
-	# Show top subs across all files
-	print OUT subroutine_table($profile, 0, 0);
+    print OUT get_html_header();
+    print OUT get_header(profile => $profile, title => "Performance Profile Subroutine Index");
+    print OUT qq{<div class="body_content"><br/>};
 
-	my $footer = get_footer($profile);
-	print OUT "</div>$footer</body></html>";
-	close OUT;
+    # Show top subs across all files
+    print OUT subroutine_table($profile, 0, 0);
+
+    my $footer = get_footer($profile);
+    print OUT "</div>$footer</body></html>";
+    close OUT;
 }
 
 
 # output an html indexing page with some information to help navigate potential
 # large numbers of profiled files. Optional, recommended
 sub output_indexpage {
-	my ($r, $filename) = @_;
-	my $profile = $reporter->{profile};
-	my $stats = $r->get_file_stats();
+    my ($r, $filename) = @_;
+    my $profile = $reporter->{profile};
+    my $stats   = $r->get_file_stats();
 
-	###
-	open (OUT, '>', "$opt{out}/$filename")
-		or croak "Unable to open file $opt{out}/$filename: $!";
+    ###
+    open(OUT, '>', "$opt{out}/$filename")
+        or croak "Unable to open file $opt{out}/$filename: $!";
 
-	print OUT get_html_header();
-	print OUT get_header(profile => $profile, title => "Performance Profile Index");
-	print OUT qq{
-		<div class="body_content"><br/>
-	};
+    print OUT get_html_header();
+    print OUT get_header(profile => $profile, title => "Performance Profile Index");
+    print OUT qq{
+        <div class="body_content"><br/>
+    };
 
-	# generate name-sorted select options for files, if there are many
-	if (keys %$stats > 30) {
-		print OUT qq{<form name="jump"><select name="file" onChange="location.href=document.jump.file.value;">\n};
-		printf OUT qq{<option disabled>%s</option>\n}, "Jump to file...";
-		foreach (sort keys %$stats) {
-			my $fid = $profile->resolve_fid($_) or warn "Can't find fid for $_";
-			printf OUT qq{<option value="#f%s">%s</option>\n}, $fid, $_;
-		}
-		print OUT "</select><form><br/>\n";
-	}
+    # generate name-sorted select options for files, if there are many
+    if (keys %$stats > 30) {
+        print OUT
+            qq{<form name="jump"><select name="file" onChange="location.href=document.jump.file.value;">\n};
+        printf OUT qq{<option disabled>%s</option>\n}, "Jump to file...";
+        foreach (sort keys %$stats) {
+            my $fid = $profile->resolve_fid($_) or warn "Can't find fid for $_";
+            printf OUT qq{<option value="#f%s">%s</option>\n}, $fid, $_;
+        }
+        print OUT "</select><form><br/>\n";
+    }
 
-	# Show top subs across all files
-	# (keep it less than a page so users can see the file table)
-	print OUT subroutine_table($profile, 0, 15);
-	print OUT sprintf qq{<div class="table_footer">
-		For more information see the <a href="%s">full list of %d subroutines</a>.
-		</div>
-	}, "index-subs.html", scalar keys %{$profile->{sub_subinfo}};
+    # Show top subs across all files
+    # (keep it less than a page so users can see the file table)
+    print OUT subroutine_table($profile, 0, 15);
+    print OUT sprintf qq{<div class="table_footer">
+        For more information see the <a href="%s">full list of %d subroutines</a>.
+        </div>
+    }, "index-subs.html", scalar keys %{$profile->{sub_subinfo}};
 
-	print OUT file_table($profile, $stats, 1);
+    print OUT file_table($profile, $stats, 1);
 
-	my $footer = get_footer($profile);
-	print OUT "</div>$footer</body></html>";
-	close OUT;
+    my $footer = get_footer($profile);
+    print OUT "</div>$footer</body></html>";
+    close OUT;
 }
 
 
 sub file_table {
-	my ($profile, $stats, $add_totals) = @_;
+    my ($profile, $stats, $add_totals) = @_;
 
-	for (values %$stats) {
-		next if not $_;
-		$_->{'time/call'} = ($_->{calls}) ?  $_->{'time'} / $_->{calls} : 0;
-	}
+    for (values %$stats) {
+        next if not $_;
+        $_->{'time/call'} = ($_->{calls}) ? $_->{'time'} / $_->{calls} : 0;
+    }
 
-	my $dev_time = calc_mad_from_hashes([ values %$stats ], 'time', 0);
-	my $dev_avgt = calc_mad_from_hashes([ values %$stats ], 'time/call', 0);
+    my $dev_time = calc_mad_from_hashes([values %$stats], 'time',      0);
+    my $dev_avgt = calc_mad_from_hashes([values %$stats], 'time/call', 0);
 
-	# generate time-sorted sections for files
-	print OUT qq{
-		<table border=1 cellspacing=0>
-		<caption>Source Code Files &mdash; ordered by exclusive time then name</caption>
-	};
-	print OUT "<tr class='index'><th>Stmts</th><th>Exclusive<br />Time</th>"
-						."<th>Avg.</th><th>Reports</th><th>Source File</th></tr>";
+    # generate time-sorted sections for files
+    print OUT qq{
+        <table border=1 cellspacing=0>
+        <caption>Source Code Files &mdash; ordered by exclusive time then name</caption>
+    };
+    print OUT "<tr class='index'><th>Stmts</th><th>Exclusive<br />Time</th>"
+        . "<th>Avg.</th><th>Reports</th><th>Source File</th></tr>";
 
-	my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
+    my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
 
-	my $allTimes = 0; # for stats table at the bottom only
-	my $allCalls = 0; # for stats table at the bottom only
+    my $allTimes = 0;    # for stats table at the bottom only
+    my $allCalls = 0;    # for stats table at the bottom only
 
-	foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
-		print OUT  qq{<tr class="index">};
-		print OUT "<td class='n'>$filestats->{calls}</td>";
-		print OUT determine_severity('time',      $filestats->{'time'},      $dev_time);
-		print OUT determine_severity('time/call', $filestats->{'time/call'}, $dev_avgt);
+    foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
+        print OUT qq{<tr class="index">};
+        print OUT "<td class='n'>$filestats->{calls}</td>";
+        print OUT determine_severity('time',      $filestats->{'time'},      $dev_time);
+        print OUT determine_severity('time/call', $filestats->{'time/call'}, $dev_avgt);
 
-		my $rep_links = join '&nbsp;&bull;&nbsp;', map {
-			my $level_html_safe = $filestats->{$_}->{html_safe};
-			($level_html_safe)
-				? sprintf(qq{<a href="%s.html">%s</a>}, $level_html_safe, $_)
-				: ()
-		} qw(line block sub);
-		print OUT  "<td>$rep_links</td>";
+        my $rep_links = join '&nbsp;&bull;&nbsp;', map {
+            my $level_html_safe = $filestats->{$_}->{html_safe};
+            ($level_html_safe)
+                ? sprintf(qq{<a href="%s.html">%s</a>}, $level_html_safe, $_)
+                : ()
+        } qw(line block sub);
+        print OUT "<td>$rep_links</td>";
 
-		my $filename = $filestats->{filename};
-		my $fid = $profile->resolve_fid($filename) or warn "Can't find fid for $_";
-		(my $shortname = $filename) =~ s/$inc_path_regex//;
-		print OUT  sprintf q{<td><a name="f%s" title="%s">%s</a></td>}, $fid, $filename, $shortname;
-		print OUT  "</tr>\n";
+        my $filename = $filestats->{filename};
+        my $fid = $profile->resolve_fid($filename) or warn "Can't find fid for $_";
+        (my $shortname = $filename) =~ s/$inc_path_regex//;
+        print OUT sprintf q{<td><a name="f%s" title="%s">%s</a></td>}, $fid, $filename,
+            $shortname;
+        print OUT "</tr>\n";
 
-		# stats collection
-		$allTimes += $filestats->{'time'}; 
-		$allCalls += $filestats->{calls};
-	}
-	if ($add_totals) {
-		my $stats_fmt = qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td style="font-style: italic">%s</td></tr>};
-		print OUT sprintf $stats_fmt,
-			fmt_float($allCalls), fmt_float($allTimes), '', "Total";
-		print OUT sprintf $stats_fmt,
-			int(fmt_float($allCalls/keys %$stats)), fmt_float($allTimes/keys %$stats), '', "Average"
-			if %$stats; # avoid divide by zero
-		print OUT sprintf $stats_fmt,
-			'', fmt_float($dev_time->[1]), fmt_float($dev_avgt->[1]), "Median";
-		print OUT sprintf $stats_fmt,
-			'', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]), "Deviation";
-	}
-	print OUT '</table>';
+        # stats collection
+        $allTimes += $filestats->{'time'};
+        $allCalls += $filestats->{calls};
+    }
+    if ($add_totals) {
+        my $stats_fmt =
+            qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td style="font-style: italic">%s</td></tr>};
+        print OUT sprintf $stats_fmt, fmt_float($allCalls), fmt_float($allTimes), '', "Total";
+        print OUT sprintf $stats_fmt,
+            int(fmt_float($allCalls / keys %$stats)), fmt_float($allTimes / keys %$stats), '',
+            "Average"
+            if %$stats;    # avoid divide by zero
+        print OUT sprintf $stats_fmt,
+            '', fmt_float($dev_time->[1]), fmt_float($dev_avgt->[1]), "Median";
+        print OUT sprintf $stats_fmt,
+            '', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]), "Deviation";
+    }
+    print OUT '</table>';
 
-	return "";
+    return "";
 }
 
 # calculates how good or bad the time is for a file based on the others
 sub determine_severity {
-	my (undef, $val, $stats) = @_; # @_[3] is like arrayref (deviation, mean)
-	return "<td></td>" unless defined $val;
+    my (undef, $val, $stats) = @_;    # @_[3] is like arrayref (deviation, mean)
+    return "<td></td>" unless defined $val;
 
-	# normalize the width/precision so that the tables look good.
-	$val = fmt_float($val, NUMERIC_PRECISION);
-	return qq{<td class="n">$val</td>} unless defined $stats;
+    # normalize the width/precision so that the tables look good.
+    $val = fmt_float($val, NUMERIC_PRECISION);
+    return qq{<td class="n">$val</td>} unless defined $stats;
 
-	my $devs = ($val - $stats->[1]); #stats->[1] is the mean.
-	$devs /= $stats->[0] if $stats->[0]; # no divide by zero when all values equal
+    my $devs = ($val - $stats->[1]);    #stats->[1] is the mean.
+    $devs /= $stats->[0] if $stats->[0];    # no divide by zero when all values equal
 
-	my $class;
-	if ($devs < 0) { # fast
-		$class = 'c3';
-	} elsif ($devs < SEVERITY_GOOD) {
-		$class = 'c3';
-	} elsif ($devs < SEVERITY_BAD) {
-		$class = 'c2';
-	} elsif ($devs < SEVERITY_SEVERE) {
-		$class = 'c1';
-	} else {
-		$class = 'c0';
-	}
-	return "<td class='$class'>$val</td>";
+    my $class;
+    if ($devs < 0) {                        # fast
+        $class = 'c3';
+    }
+    elsif ($devs < SEVERITY_GOOD) {
+        $class = 'c3';
+    }
+    elsif ($devs < SEVERITY_BAD) {
+        $class = 'c2';
+    }
+    elsif ($devs < SEVERITY_SEVERE) {
+        $class = 'c1';
+    }
+    else {
+        $class = 'c0';
+    }
+    return "<td class='$class'>$val</td>";
 }
 
 # Delete the previous database/directory if it exists
 sub _delete {
-	if (-d $opt{out}) {
-		print "Deleting $opt{out}\n";
-		unlink glob($opt{out}."/*");
-		unlink glob($opt{out}."/.*");
-		rmdir $opt{out} or confess "Delete of $opt{out} failed: $!\n";
-	}
+    if (-d $opt{out}) {
+        print "Deleting $opt{out}\n";
+        unlink glob($opt{out} . "/*");
+        unlink glob($opt{out} . "/.*");
+        rmdir $opt{out} or confess "Delete of $opt{out} failed: $!\n";
+    }
 }
 
 sub usage {
-	print <<END
+    print <<END
 usage: [perl] nytprofhtml [opts]
  --file <file>, -f <file>  Use the specified file as Devel::NYTProf database
                             file. [default: ./nytprof.out]
@@ -528,50 +551,52 @@ END
 
 # return an html string with buttons for switching between profile levels of detail
 sub get_level_buttons {
-  my $mode_ref = shift;
-  my $file = shift;
-  my $level = shift;
+    my $mode_ref = shift;
+    my $file     = shift;
+    my $level    = shift;
 
-  my $html = join '&emsp;&bull;&emsp;', map { 
-    my $mode = $mode_ref->{$_};
+    my $html = join '&emsp;&bull;&emsp;', map {
+        my $mode = $mode_ref->{$_};
 
-    if ($mode eq $level) {
-      qq{<span class="mode_btn mode_btn_selected">$mode view</span>} 
-    }
-    else {
-			my $mode_file = $file;
-      # replace the mode specifier in the output file name -- file-name-MODE.html
-      $mode_file =~ s/(.*-).*?\.html/$1$mode.html/o;
+        if ($mode eq $level) {
+            qq{<span class="mode_btn mode_btn_selected">$mode view</span>};
+        }
+        else {
+            my $mode_file = $file;
 
-      qq{<span class="mode_btn"><a href="$mode_file">$mode view</a></span>} 
-    }
-  } keys %$mode_ref;
+            # replace the mode specifier in the output file name -- file-name-MODE.html
+            $mode_file =~ s/(.*-).*?\.html/$1$mode.html/o;
 
-  return qq{<span>&laquo;&emsp;$html&emsp;&raquo;</span>};
+            qq{<span class="mode_btn"><a href="$mode_file">$mode view</a></span>};
+        }
+    } keys %$mode_ref;
+
+    return qq{<span>&laquo;&emsp;$html&emsp;&raquo;</span>};
 }
 
 
 sub get_footer {
-	my ($profile) = @_;
-	my $version = $Devel::NYTProf::Core::VERSION;
-	# spacing so links to #line near can put right line at top near the bottom of the report
-	my $spacing = "<br />" x 10;
-	return qq{
-		<br />
-		<div class="footer">Report produced by the
-		<a href="http://search.cpan.org/dist/Devel-NYTProf/">NYTProf $version</a>
-		Perl profiler, developed by
-		<a href="http://www.linkedin.com/in/timbunce">Tim Bunce</a> and
-		<a href="http://code.nytimes.com">Adam Kaplan</a>.
-		</div>
-		$spacing
-	};
+    my ($profile) = @_;
+    my $version = $Devel::NYTProf::Core::VERSION;
+
+    # spacing so links to #line near can put right line at top near the bottom of the report
+    my $spacing = "<br />" x 10;
+    return qq{
+        <br />
+        <div class="footer">Report produced by the
+        <a href="http://search.cpan.org/dist/Devel-NYTProf/">NYTProf $version</a>
+        Perl profiler, developed by
+        <a href="http://www.linkedin.com/in/timbunce">Tim Bunce</a> and
+        <a href="http://code.nytimes.com">Adam Kaplan</a>.
+        </div>
+        $spacing
+    };
 }
 
 # returns the generic header string.  Here only to make the code more readable.
 sub get_html_header {
-	my $title = shift || "Profile Index";
-	return <<EOD
+    my $title = shift || "Profile Index";
+    return <<EOD
 <!DOCTYPE html
      PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
      "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -579,45 +604,46 @@ sub get_html_header {
 <!--
 This file was generated by Devel::NYTProf::Reader HTML Version $VERSION
 using Devel::NYTProf Version $Devel::NYTProf::Core::VERSION
-Devel::NYTProf, Devel::NYTProf::Reader and nytprofhtml are copyright 
-2008, Adam Kaplan, akaplan at cpan dot org, search.cpan.org/~akaplan
 These modules are free. They are licensed under the same terms as Perl itself.
 -->
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"></meta>
     <meta http-equiv="Content-Language" content="en-us"></meta>
-		<link rel="stylesheet" type="text/css" href="style.css"></link>
+    <link rel="stylesheet" type="text/css" href="style.css"></link>
     <title>$title</title>
 </head>
 EOD
 }
 
 sub get_header {
-	my %args = @_;
-	my ($profile, 			$head1, 			$head2, 				 $right1, 			$right2, 					$mode) = 
-		 ($args{profile}, $args{title}, $args{subtitle}, $args{title2}, $args{subtitle2}, $args{mode});
+    my %args = @_;
+    my ($profile, $head1, $head2, $right1, $right2, $mode) = (
+        $args{profile}, $args{title},     $args{subtitle},
+        $args{title2},  $args{subtitle2}, $args{mode}
+    );
 
-  $head2  ||= qq{<br />For ${ \($profile->{attribute}{application}) }};
-	$right1 ||= "&nbsp;";
-	$right2 ||= "Run on ${ \scalar localtime($profile->{attribute}{basetime}) }<br />Reported on ".localtime(time);
+    $head2  ||= qq{<br />For ${ \($profile->{attribute}{application}) }};
+    $right1 ||= "&nbsp;";
+    $right2 ||= "Run on ${ \scalar localtime($profile->{attribute}{basetime}) }<br />Reported on "
+        . localtime(time);
 
-	my $back_link = q//;
-	if ($mode) {
-		$back_link = qq{<div class="header_back">
-			<a href="index.html">&larr; Index</a>
-		</div>};
-	}
+    my $back_link = q//;
+    if ($mode) {
+        $back_link = qq{<div class="header_back">
+            <a href="index.html">&larr; Index</a>
+        </div>};
+    }
 
-	return qq{<body> 
+    return qq{<body> 
 <div class="header" style="position: relative; overflow-x: hidden; overflow-y: hidden; z-index: 0; ">
 $back_link
 <div class="headerForeground" style="float: left">
-	<span class="siteTitle">$head1</span>
-	<span class="siteSubtitle">$head2<span>
+    <span class="siteTitle">$head1</span>
+    <span class="siteSubtitle">$head2<span>
 </div>
 <div class="headerForeground" style="float: right; text-align: right">
-	<span class="siteTitle">$right1</span>
-	<span class="siteSubtitle">$right2</span>
+    <span class="siteTitle">$right1</span>
+    <span class="siteSubtitle">$right2</span>
 </div>
 <div style="position: absolute; left: 0px; top: 0%; width: 100%; height: 101%; z-index: -1; background-color: rgb(17, 136, 255); "></div>
 <div style="position: absolute; left: 0px; top: 2%; width: 100%; height: 99%; z-index: -1; background-color: rgb(16, 134, 253); "></div>
@@ -695,56 +721,56 @@ body { font-family: sans-serif; margin: 0px; }
 .siteSubTitle { font-size: 1.2em; }
 
 .header_back { 
-	position: absolute; 
-	padding: 10px;
+    position: absolute; 
+    padding: 10px;
 }
 .header_back > a:link,
 .header_back > a:visited {
-	color: white; 
-	text-decoration: none;
-	font-size: 0.75em;
+    color: white; 
+    text-decoration: none;
+    font-size: 0.75em;
 }
 
 .footer,
 .footer > a:link,
 .footer > a:visited {
-	color: #cccccc;
-	text-decoration: none;
+    color: #cccccc;
+    text-decoration: none;
 }
 .footer { margin: 8px; }
 
 table { 
-	border-collapse: collapse; 
-	border-spacing: 0px; 
-	margin-top: 20px;
-	margin-botom: 20px;
+    border-collapse: collapse; 
+    border-spacing: 0px; 
+    margin-top: 20px;
+    margin-botom: 20px;
 }
 tr { 
-	text-align : center;
-	vertical-align: top; 
+    text-align : center;
+    vertical-align: top; 
 }
 th,.h {
-	background-color: #dddddd;
-	border: solid 1px #666666;
-	padding: 0em 0.4em 0em 0.4em;
+    background-color: #dddddd;
+    border: solid 1px #666666;
+    padding: 0em 0.4em 0em 0.4em;
 }
 td { 
-	border: solid 1px #cccccc; 
-	padding: 0em 0.4em 0em 0.4em;
+    border: solid 1px #cccccc; 
+    padding: 0em 0.4em 0em 0.4em;
 }
 caption {
-	background-color: #dddddd;
-	text-align: left;
-	text-wrap: none;
-	white-space: pre;
-	padding: 0.4em;
+    background-color: #dddddd;
+    text-align: left;
+    text-wrap: none;
+    white-space: pre;
+    padding: 0.4em;
 }
 
 .table_footer { color: grey; }
 .table_footer > a:link,
 .table_footer > a:visited,
 { color: grey;
-	text-decoration: none;
+    text-decoration: none;
 }
 
 .index { text-align: left; }
@@ -792,9 +818,9 @@ th.left_indent_header {
 }
 
 pre,.s {
-	text-align: left;
-	font-family: monospace;
-	white-space: pre;
+    text-align: left;
+    font-family: monospace;
+    white-space: pre;
 }
 /* plain number */
 .n { text-align: right }
@@ -807,47 +833,47 @@ pre,.s {
  */
 .c0, .c1, .c2, .c3 { text-align: right; }
 .c0 {
-	background-color: #ff9999;
+    background-color: #ff9999;
 }
 .c1 {
-	background-color: #ffcc99;
+    background-color: #ffcc99;
 }
 .c2 {
-	background-color: #ffff99;
+    background-color: #ffff99;
 }
 .c3 {
-	background-color: #99ff99;
+    background-color: #99ff99;
 }
 
 /* warnings */
 .warn {
-	background-color: #FFFFAA;
-	border: 0;
-	width: 96%;
-	text-align: center;
-	padding: 5px 0;
+    background-color: #FFFFAA;
+    border: 0;
+    width: 96%;
+    text-align: center;
+    padding: 5px 0;
 }
 
 .warn_title {
-	background-color: #FFFFAA;
-	border: 0;
-	color: red;
-	width: 96%;
-	font-size: 2em;
-	text-align: center;
-	padding: 5px 0;
+    background-color: #FFFFAA;
+    border: 0;
+    color: red;
+    width: 96%;
+    font-size: 2em;
+    text-align: center;
+    padding: 5px 0;
 }
 
 .calls {
   display: block;
-	color: grey;
+  color: grey;
   padding-top: 5px;
   padding-bottom: 5px;
   text-decoration: none;
 }
 .calls:hover {
-	background-color: #e8e8e8;
-	color: black;
+    background-color: #e8e8e8;
+    color: black;
 }
 .calls       a       { color: grey;  text-decoration: none; }
 .calls:hover a       { color: black; text-decoration: underline; }
@@ -1010,4 +1036,4 @@ at your option, any later version of Perl 5 you may have available.
 
 =cut
 
-# vim:ts=2:sw=2:sts=0:noexpandtab
+# vim:ts=8:sw=4:expandtab

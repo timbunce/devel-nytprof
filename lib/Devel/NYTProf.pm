@@ -13,36 +13,36 @@ package Devel::NYTProf;
 
 our $VERSION = '2.02';
 
-package	# hide the package from the PAUSE indexer
-	DB;
+package    # hide the package from the PAUSE indexer
+    DB;
 
-	# Enable specific perl debugger flags.
-	# Set the flags that influence compilation ASAP so we get full details
-	# (sub line ranges etc) of modules loaded as a side effect of loading
-	# Devel::NYTProf::Core (ie XSLoader, strict, Exporter etc.)
-	# See "perldoc perlvar" for details of the $^P flags
-	$^P = 0x010 # record line range of sub definition
-	    | 0x100 # informative "file" names for evals
-	    | 0x200;# informative names for anonymous subroutines
+# Enable specific perl debugger flags.
+# Set the flags that influence compilation ASAP so we get full details
+# (sub line ranges etc) of modules loaded as a side effect of loading
+# Devel::NYTProf::Core (ie XSLoader, strict, Exporter etc.)
+# See "perldoc perlvar" for details of the $^P flags
+$^P = 0x010     # record line range of sub definition
+    | 0x100     # informative "file" names for evals
+    | 0x200;    # informative names for anonymous subroutines
 
-	# XXX hack, need better option handling
-	my $use_db_sub = ($ENV{NYTPROF} && $ENV{NYTPROF} =~ m/\buse_db_sub=1\b/);
+# XXX hack, need better option handling
+my $use_db_sub = ($ENV{NYTPROF} && $ENV{NYTPROF} =~ m/\buse_db_sub=1\b/);
 
-	$^P |=0x002 # line-by-line profiling (if $DB::single true)
-	    | 0x020 # start (after BEGINs) with single-step on
-			if $use_db_sub;
+$^P |= 0x002    # line-by-line profiling (if $DB::single true)
+    | 0x020     # start (after BEGINs) with single-step on
+    if $use_db_sub;
 
-	require Devel::NYTProf::Core; # loads XS
+require Devel::NYTProf::Core;    # loads XS
 
-	if ($use_db_sub) {	# install DB::DB sub
-		*DB = ($] < 5.008008)
-			? sub { goto &DB_profiler } # workaround bug in old perl versions (slow)
-			: \&DB_profiler;
-	}
+if ($use_db_sub) {               # install DB::DB sub
+    *DB = ($] < 5.008008)
+        ? sub { goto &DB_profiler }    # workaround bug in old perl versions (slow)
+        : \&DB_profiler;
+}
 
-	init_profiler(); # provides true return value for module
+init_profiler();                       # provides true return value for module
 
-	# put nothing here!
+# put nothing here!
 
 __END__
 

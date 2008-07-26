@@ -1,10 +1,10 @@
-# vim: ts=2 sw=2 sts=0 noexpandtab:
+# vim: ts=8 sw=4 expandtab:
 ##########################################################
 # This script is part of the Devel::NYTProf distribution
 #
 # Copyright, contact and other information can be found
 # at the bottom of this file, or by going to:
-# http://search.cpan.org/~akaplan/Devel-NYTProf
+# http://search.cpan.org/dist/Devel-NYTProf/
 #
 ###########################################################
 # $Id$
@@ -20,8 +20,8 @@ BEGIN {
     # of those modules.
 
     if (!$ENV{NYTPROF}) {
-	    $ENV{NYTPROF} = "file=/tmp/nytprof.$$.out";
-	    warn "Defaulting NYTPROF env var to '$ENV{NYTPROF}'";
+        $ENV{NYTPROF} = "file=/tmp/nytprof.$$.out";
+        warn "Defaulting NYTPROF env var to '$ENV{NYTPROF}'";
     }
 
     require Devel::NYTProf;
@@ -29,27 +29,28 @@ BEGIN {
 
 use strict;
 
-use constant MP2 => (exists $ENV{MOD_PERL_API_VERSION} &&
-                     $ENV{MOD_PERL_API_VERSION} == 2) ? 1 : 0;
+use constant MP2 => (exists $ENV{MOD_PERL_API_VERSION} && $ENV{MOD_PERL_API_VERSION} == 2)
+    ? 1
+    : 0;
 
 # arrange for the profile to be enabled in each child
 # and cleanly finished when the child exits
 if (MP2) {
-	require mod_perl2;
-	require Apache2::ServerUtil;
-	my $s = Apache2::ServerUtil->server;
-	$s->push_handlers(PerlChildInitHandler => sub { DB::enable_profile });
-	$s->push_handlers(PerlChildExitHandler => sub { DB::_finish });
+    require mod_perl2;
+    require Apache2::ServerUtil;
+    my $s = Apache2::ServerUtil->server;
+    $s->push_handlers(PerlChildInitHandler => sub {DB::enable_profile});
+    $s->push_handlers(PerlChildExitHandler => sub {DB::_finish});
 }
 else {
-	require Apache;
-	if (Apache->can('push_handlers')) {
-	    Apache->push_handlers(PerlChildInitHandler => sub { DB::enable_profile });
-	    Apache->push_handlers(PerlChildExitHandler => sub { DB::_finish });
-	}
-	else {
-	    Carp::carp("Apache.pm was not loaded");
-	}
+    require Apache;
+    if (Apache->can('push_handlers')) {
+        Apache->push_handlers(PerlChildInitHandler => sub {DB::enable_profile});
+        Apache->push_handlers(PerlChildExitHandler => sub {DB::_finish});
+    }
+    else {
+        Carp::carp("Apache.pm was not loaded");
+    }
 }
 
 1;

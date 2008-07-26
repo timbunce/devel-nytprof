@@ -4,51 +4,55 @@
 #
 # Copyright, contact and other information can be found
 # at the bottom of this file, or by going to:
-# http://search.cpan.org/~akaplan/Devel-NYTProf
+# http://search.cpan.org/dist/Devel-NYTProf/
 #
 ##########################################################
 # $Id$
 ##########################################################
+
 use warnings;
 use strict;
+
 use Carp;
 use Getopt::Long;
+
 use Devel::NYTProf::Reader;
 
 our $VERSION = 1.02;
 
-use constant NUMERIC_PRECISION    => 5;
+use constant NUMERIC_PRECISION => 5;
 
 my %opt = (
-    file    => 'nytprof.out',
-    out	    => 'nytprof',
+    file => 'nytprof.out',
+    out  => 'nytprof',
 );
-GetOptions(\%opt,
-    qw/file|f=s delete|d out|o=s help|h/
-) or exit 1;
+GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h/) or exit 1;
 
 if (defined($opt{help})) {
-  &usage;
-  exit 1;
+    &usage;
+    exit 1;
 }
 
 # handle file selection option
-if (! -r $opt{file}) {
-  die "$0: Unable to access $opt{file}\n";
+if (!-r $opt{file}) {
+    die "$0: Unable to access $opt{file}\n";
 }
 
 # handle handle output location
 if (!-e $opt{out}) {
-	# will be created
-} elsif (!-d $opt{out}) {
-  die "$0: Specified output directory `$opt{out}' is a file. whoops!\n";
-} elsif (!-w $opt{out}) {
-  die "$0: Unable to write to output directory `$opt{out}'\n";
+
+    # will be created
+}
+elsif (!-d $opt{out}) {
+    die "$0: Specified output directory `$opt{out}' is a file. whoops!\n";
+}
+elsif (!-w $opt{out}) {
+    die "$0: Unable to write to output directory `$opt{out}'\n";
 }
 
 # handle deleting old db's
 if (defined($opt{'delete'})) {
-  _delete();
+    _delete();
 }
 
 print "Generating CSV report...\n";
@@ -58,23 +62,23 @@ my $reporter = new Devel::NYTProf::Reader($opt{file});
 $reporter->output_dir($opt{out});
 
 # set output options
-$reporter->add_regexp('^\s*', ''); # trim leading spaces
+$reporter->add_regexp('^\s*', '');    # trim leading spaces
 
 # generate the files
 $reporter->report();
 
 # Delete the previous database if it exists
 sub _delete {
-	if (-d $opt{out}) {
-		print "Deleting $opt{out}\n";
-		unlink glob($opt{out}."/*");
-		unlink glob($opt{out}."/.*");
-		rmdir $opt{out} or confess "Delete of $opt{out} failed: $!\n";
-	}
+    if (-d $opt{out}) {
+        print "Deleting $opt{out}\n";
+        unlink glob($opt{out} . "/*");
+        unlink glob($opt{out} . "/.*");
+        rmdir $opt{out} or confess "Delete of $opt{out} failed: $!\n";
+    }
 }
 
 sub usage {
-	print <<END
+    print <<END
 usage: [perl] nytprofcsv [opts]
  --file <file>, -f <file>  Use the specified file as Devel::NYTProf database
                             file. [default: ./nytprof.out]
