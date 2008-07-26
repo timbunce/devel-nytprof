@@ -1927,7 +1927,7 @@ load_profile_data_from_stream() {
 				unsigned int last_line  = read_int();
 				if (NULL == fgets(text, sizeof(text), in))
 					croak("Profile format error in sub line range"); /* probably EOF */
-				if (trace_level >= 3)
+				if (trace_level >= 2)
 				    warn("Sub %.*s fid %u lines %u..%u\n",
 							(int)strlen(text)-1, text, fid, first_line, last_line);
 				av = lookup_subinfo_av(aTHX_ text, strlen(text)-1, sub_subinfo_hv);

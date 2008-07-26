@@ -296,12 +296,13 @@ $reporter->set_param('column4', {
 					$calls->{$b}[1] <=> $calls->{$a}[1] or # incl_time
 					$a cmp $b
 				} keys %$calls;
+				my $max_calls_to = max(map { $_->[0] } values %$calls);
         my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
         $epilogue = join "\n", map {
           my ($count, $incl_time) = @{$calls->{$_}};
           my $href = $reporter->href_for_sub($_);
-					my $html = sprintf qq{%s# spent %ss making %d calls to },
-						$ws, fmt_float($incl_time), $count;
+					my $html = sprintf qq{%s# spent %ss making %*d calls to },
+						$ws, fmt_float($incl_time), length($max_calls_to), $count;
 					$html .= ($href) ? sprintf(qq{<a href="%s">%s</a>}, $href, $_) : $_;
           $html .= sprintf qq{, avg %ss/call}, fmt_float($incl_time/$count)
 						if $count > 1;
