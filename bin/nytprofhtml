@@ -300,9 +300,8 @@ $reporter->set_param(
 
                     push @prologue,
                         sprintf q{# %*s times%s%s at <a href="%s#%d">line %d</a> of %s%s},
-                        length($max_calls), $count, $times, $subname,
-                        "$href.html", $line, $line, $caller_filename,
-                        $avg_time;
+                        length($max_calls), $count, $times, $subname, "$href.html", $line, $line,
+                        $caller_filename, $avg_time;
                 }
             }
             my $prologue = '';
@@ -321,8 +320,8 @@ $reporter->set_param(
                 $epilogue = join "\n", map {
                     my ($count, $incl_time) = @{$calls->{$_}};
                     my $href = $reporter->href_for_sub($_);
-                    my $html = sprintf qq{%s# spent %ss making %*d calls to },
-                        $ws, fmt_float($incl_time), length($max_calls_to), $count;
+                    my $html = sprintf qq{%s# spent %ss making %*d calls to }, $ws,
+                        fmt_float($incl_time), length($max_calls_to), $count;
                     $html .= ($href) ? sprintf(qq{<a href="%s">%s</a>}, $href, $_) : $_;
                     $html .= sprintf qq{, avg %ss/call}, fmt_float($incl_time / $count)
                         if $count > 1;
@@ -478,14 +477,13 @@ sub file_table {
         my $stats_fmt =
             qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td style="font-style: italic">%s</td></tr>};
         print OUT sprintf $stats_fmt, fmt_float($allCalls), fmt_float($allTimes), '', "Total";
-        print OUT sprintf $stats_fmt,
-            int(fmt_float($allCalls / keys %$stats)), fmt_float($allTimes / keys %$stats), '',
-            "Average"
+        print OUT sprintf $stats_fmt, int(fmt_float($allCalls / keys %$stats)),
+            fmt_float($allTimes / keys %$stats), '', "Average"
             if %$stats;    # avoid divide by zero
-        print OUT sprintf $stats_fmt,
-            '', fmt_float($dev_time->[1]), fmt_float($dev_avgt->[1]), "Median";
-        print OUT sprintf $stats_fmt,
-            '', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]), "Deviation";
+        print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[1]), fmt_float($dev_avgt->[1]),
+            "Median";
+        print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]),
+            "Deviation";
     }
     print OUT '</table>';
 

@@ -39,6 +39,7 @@ rapidly.
 
 =cut
 
+
 use warnings;
 use strict;
 
@@ -61,6 +62,7 @@ Reads the specified file containing profile data written by L<Devel::NYTProf>,
 aggregates the contents, and returns the results as a blessed data structure.
 
 =cut
+
 
 sub new {
     my $class = shift;
@@ -99,7 +101,7 @@ sub new {
         $subinfo->[6] = $subname;
         if ($subname =~ s/(::__ANON__\[\(\w*eval) \d+\)/$1 0)/) {
 
-            # sub names like "PPI::Node::	__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
+            # sub names like "PPI::Node::__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
             # aren't very useful, so we merge them by changing the eval to 0
             my $oldname = $subinfo->[6];
             delete $sub_subinfo->{$oldname};    # delete old name
@@ -272,6 +274,7 @@ This format is especially useful for grep'ing and diff'ing.
 
 =cut
 
+
 sub dump_profile_data {
     my $self       = shift;
     my $args       = shift;
@@ -367,6 +370,7 @@ Data for calls made from outside the file to subroutines defined within it, are 
 
 =cut
 
+
 sub remove_internal_data_of {
     my $self     = shift;
     my $fileinfo = $self->fileinfo_of(shift);
@@ -413,6 +417,7 @@ The data normalized is:
  - calls remove_internal_data_of() for files loaded from absolute paths in @INC
 
 =cut
+
 
 sub normalize_variables {
     my $self       = shift;
@@ -540,6 +545,7 @@ subroutines defined on that line, typically just one.
 
 =cut
 
+
 sub subs_defined_in_file {
     my ($self, $fid, $incl_lines) = @_;
     $fid = $self->resolve_fid($fid);
@@ -580,6 +586,7 @@ sub subs_defined_in_file {
 
 =cut
 
+
 sub subname_at_file_line {
     my ($self, $fid, $line) = @_;
 
@@ -590,7 +597,7 @@ sub subname_at_file_line {
     for my $sub_info (values %$subs) {
         next
             if $sub_info->first_line > $line
-                or $sub_info->last_line < $line;
+            or $sub_info->last_line < $line;
         push @subname, $sub_info->subname;
     }
     @subname = sort { length($a) <=> length($b) } @subname;
@@ -646,6 +653,7 @@ don't have an associated file.
 
 =cut
 
+
 sub file_line_range_of_sub {
     my ($self, $sub) = @_;
 
@@ -685,6 +693,7 @@ If $file can't be found but it uniquely matches the suffix of one of the files
 then that corresponding fid is returned.
 
 =cut
+
 
 sub resolve_fid {
     my ($self, $file) = @_;
@@ -749,6 +758,7 @@ $profile->line_calls_for_file( 'foo.pl' ) would return something like:
 	}
 
 =cut
+
 
 sub line_calls_for_file {
     my ($self, $fid) = @_;

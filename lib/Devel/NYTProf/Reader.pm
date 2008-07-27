@@ -398,7 +398,7 @@ sub _generate_report {
                   " Try running $0 in the same directory as you ran Devel::NYTProf, "
                 . "or ensure \@INC is correct."
                 unless $filestr eq '-e'
-                    or our $_generate_report_inc_hint++;
+                or our $_generate_report_inc_hint++;
             warn "Unable to open '$filestr' for reading: $!.$hint\n"
                 unless our $_generate_report_filestr_warn->{$filestr}++;    # only once
             next;
