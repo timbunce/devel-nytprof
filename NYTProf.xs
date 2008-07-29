@@ -334,8 +334,7 @@ emit_fid (Hash_entry *fid_info) {
 	output_int(fid_info->fid_flags);
 	output_int(fid_info->file_size);
 	output_int(fid_info->file_mtime);
-	while (file_name_len--)
-		fputc(*file_name++, out);
+	fwrite(file_name, file_name_len, 1, out);
 	fputc('\n', out);
 }
 
@@ -520,11 +519,7 @@ output_int(unsigned int i) {
  */
 void
 output_nv(NV nv) {
-	int i = sizeof(NV);
-	unsigned char *p = (unsigned char *)&nv;
-	while (i-- > 0) {
-		fputc(*p++, out);
-	}
+	fwrite((unsigned char *)&nv, sizeof(NV), 1, out);
 }
 
 
