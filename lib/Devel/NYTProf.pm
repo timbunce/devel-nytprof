@@ -69,13 +69,14 @@ Devel::NYTProf is a powerful feature-rich perl source code profiler.
  * Performs per-subroutine statement profiling for overview
  * Performs per-block statement profiling (the first profiler to do so)
  * Accounts correctly for time spent after calls return
- * Performs inclusive timing of subroutines, per calling location
+ * Performs inclusive and exclusive timing of subroutines
+ * Subroutine times are per calling location (a powerful feature)
  * Can profile compile-time activity or just run-time
  * Uses novel techniques for efficient profiling
  * Sub-microsecond (100ns) resolution on systems with clock_gettime()
- * Very fast - the fastest statement-profiler for perl
+ * Very fast - the fastest statement and subroutine profilers for perl
  * Handles applications that fork, with no performance cost
- * Immune from noise caused by profiling overheads and i/o
+ * Immune from noise caused by profiling overheads and I/O
  * Program being profiled can stop/start the profiler
  * Generates richly annotated and cross-linked html reports
  * Trivial to use with mod_perl - add one line to httpd.conf
@@ -309,7 +310,7 @@ certain values from caller().  We're not quite sure what the cause is yet.
 
 =head2 Calls made via operator overloading
 
-Calls made via operator overloading are not noticed by the subroutine profiler.
+Calls made via operator overloading are not noticed by any subroutine profiler.
 
 =head2 goto
 
@@ -327,22 +328,24 @@ Possibly.
 
 =head1 SEE ALSO
 
-Screenshots of L<nytprofhtml> reports can be seen at
+Screenshots of L<nytprofhtml> v2.01 reports can be seen at
 L<http://timbunce.files.wordpress.com/2008/07/nytprof-perlcritic-index.png> and
-L<http://timbunce.files.wordpress.com/2008/07/nytprof-perlcritic-all-perl-files.png>
-plus a writeup of the new features and history of NYTProf v2 at
-L<http://blog.timbunce.org/tag/performance/> (will be soon)
+L<http://timbunce.files.wordpress.com/2008/07/nytprof-perlcritic-all-perl-files.png>.
+A writeup of the new features of NYTProf v2 can be found at
+L<http://blog.timbunce.org/2008/07/15/nytprof-v2-a-major-advance-in-perl-profilers/>
+and the background story, explaining the "why", can be found at
+L<http://blog.timbunce.org/2008/07/16/nytprof-v2-the-background-story/>.
 
 Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
 
 Public SVN Repository and hacking instructions at L<http://code.google.com/p/perl-devel-nytprof/>
 
 L<nytprofhtml> is a script included that produces html reports.
-
 L<nytprofcsv> is another script included that produces plain text CSV reports.
 
 L<Devel::NYTProf::Reader> is the module that powers the report scripts.  You
-might want to check this out if you plan to implement a custom report.
+might want to check this out if you plan to implement a custom report (though
+it may be deprecated in a future release).
 
 =head1 AUTHOR
 
