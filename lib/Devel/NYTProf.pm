@@ -322,6 +322,11 @@ Currently there's no support for Windows. Some work is being done on a port.
 If you'd be interested in helping us port to Windows then please get in touch
 with us.
 
+=head2 #line directives
+
+The reporting code currently doesn't handle #line directives, but at least it
+warns about them. Patches welcome.
+
 =head1 BUGS
 
 Possibly.

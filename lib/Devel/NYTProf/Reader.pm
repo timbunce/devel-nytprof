@@ -421,7 +421,7 @@ sub _generate_report {
             }
             if ($line =~ m/^\# \s* line \b/x) {
                 # XXX we should be smarter about this - patches welcome!
-                warn "Ignoring '$line' directive at line $LINE of $filestr - profile data will be out of sync with source!\n";
+                warn "Ignoring '$line' directive at line $LINE - profile data for $filestr will be out of sync with source!\n";
             }
             my $makes_calls_to = $line_calls_hash->{$LINE}   || {};
             my $subs_defined   = $subs_defined_hash->{$LINE} || [];
