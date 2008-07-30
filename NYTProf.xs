@@ -1802,13 +1802,15 @@ read_int()
 
 /**
  * Read an NV by simple byte copy to memory
- * bit integer. See output_int() for the compression details.
  */
 NV
 read_nv()
 {
     NV nv;
-    fread((unsigned char *)&nv, sizeof(NV), 1, in);
+    /* no error checking on the assumption that a later token read will
+     * detect the error/eof condition
+     */
+    fread((unsigned char *)&nv, 1, sizeof(NV), in);
     return nv;
 }
 
