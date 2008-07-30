@@ -415,6 +415,7 @@ The data normalized is:
  - basetime attribute: set to 0
  - xs_version attribute: set to 0
  - perl_version attribute: set to 0
+ - nv_size attribute: set to 0
  - subroutines: timings are set to 0
  - filenames: path prefixes matching absolute paths in @INC are removed
  - filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
@@ -431,6 +432,7 @@ sub normalize_variables {
     $self->{attribute}{xs_version}    = 0;
     $self->{attribute}{perl_version}  = 0;
     $self->{attribute}{ticks_per_sec} = 0;
+    $self->{attribute}{nv_size}       = 0;
 
     # remove_internal_data_of library files
     # (the definition of which is quite vague at the moment)

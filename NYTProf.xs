@@ -227,7 +227,7 @@ output_header(pTHX)
 
     assert(out != NULL);
     /* File header with "magic" string, with file major and minor version */
-    fprintf(out, "NYTProf %d %d\n", 1, 2);
+    fprintf(out, "NYTProf %d %d\n", 2, 0);
     /* Human readable comments and attributes follow
      * comments start with '#', end with '\n', and are discarded
      * attributes start with ':', a word, '=', then the value, then '\n'
@@ -242,11 +242,11 @@ output_header(pTHX)
     fprintf(out, ":%s=%s\n",       "xs_version",    XS_VERSION);
     fprintf(out, ":%s=%d.%d.%d\n", "perl_version",  PERL_REVISION, PERL_VERSION, PERL_SUBVERSION);
     fprintf(out, ":%s=%u\n",       "ticks_per_sec", ticks_per_sec);
+    fprintf(out, ":%s=%lu\n",      "nv_size", sizeof(NV));
     /* $0 - application name */
     mg_get(sv = get_sv("0",GV_ADDWARN));
     fprintf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
 
-    if (0)fprintf(out, ":%s=%lu\n",       "nv_size", sizeof(NV));
 
     OUTPUT_PID();
 
@@ -289,6 +289,8 @@ read_str(pTHX_ SV *sv) {
             (long)ftell(in)-1, (feof(in)) ? "end of file" : strerror(ferror(in)));
     SvCUR_set(sv, len);
     *SvEND(sv) = '\0';
+    if (trace_level >= 5)
+        warn("  read string '%.*s'\n", len, SvPV_nolen(sv));
 
     return sv;
 }
@@ -401,8 +403,7 @@ emit_fid (Hash_entry *fid_info)
     output_int(fid_info->fid_flags);
     output_int(fid_info->file_size);
     output_int(fid_info->file_mtime);
-    fwrite(file_name, file_name_len, 1, out);
-    fputc('\n', out);
+    output_str(file_name, file_name_len);
 }
 
 
@@ -1697,8 +1698,7 @@ write_sub_line_ranges(pTHX_ int fids_only)
         output_int(fid);
         output_int(first_line);
         output_int(last_line);
-        fputs(sub_name, out);
-        fputc('\n', out);
+        output_str(sub_name, sub_name_len);
     }
 }
 
@@ -1716,8 +1716,7 @@ write_sub_callers(pTHX)
         warn("writing sub callers\n");
 
     hv_iterinit(sub_callers_hv);
-    while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &sub_name,
-    &sub_name_len))) {
+    while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &sub_name, &sub_name_len))) {
         HV *fid_lines_hv = (HV*)SvRV(fid_line_rvhv);
         char *fid_line_string;
         I32 fid_line_len;
@@ -1737,7 +1736,7 @@ write_sub_callers(pTHX)
                     SvNV(AvARRAY(av)[1]), SvNV(AvARRAY(av)[2]),
                     SvNV(AvARRAY(av)[3]), SvNV(AvARRAY(av)[4]) );
 
-            fputc('c', out);
+            fputc(NYTP_TAG_SUB_CALLERS, out);
             output_int(fid);
             output_int(line);
             output_int(count);
@@ -1745,8 +1744,7 @@ write_sub_callers(pTHX)
             output_nv( SvNV(AvARRAY(av)[2]) );
             output_nv( SvNV(AvARRAY(av)[3]) );
             output_nv( SvNV(AvARRAY(av)[4]) );
-            fputs(sub_name, out);
-            fputc('\n', out);
+            output_str(sub_name, sub_name_len);
         }
     }
 }
@@ -1816,16 +1814,14 @@ read_nv()
 
 
 AV *
-lookup_subinfo_av(pTHX_ char *subname, STRLEN len, HV *sub_subinfo_hv)
+lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
 {
-    SV *sv;
-    if (!len)
-        len = strlen(subname);
     /* { 'pkg::sub' => [
      *      fid, first_line, last_line, incl_time
      *    ], ... }
      */
-    sv = *hv_fetch(sub_subinfo_hv, subname, len, 1);
+    HE *he = hv_fetch_ent(sub_subinfo_hv, subname_sv, 1, 0);
+    SV *sv = HeVAL(he);
     if (!SvROK(sv)) {                             /* autoviv */
         AV *av = newAV();
         SV *rv = newRV_noinc((SV *)av);
@@ -1867,7 +1863,6 @@ load_profile_data_from_stream()
     unsigned int file_num = 0;
     unsigned int line_num = 0;
     unsigned int ticks;
-    char text[MAXPATHLEN*2];
     int c;                                        /* for while loop */
     int statement_discount = 0;
     NV total_stmt_seconds = 0.0;
@@ -1890,8 +1885,9 @@ load_profile_data_from_stream()
     if (2 != fscanf(in, "NYTProf %d %d\n", &file_major, &file_minor)) {
         croak("Profile format error while parsing header");
     }
-    if (file_major != 1)
-        croak("Profile format version %d.%d not supported", file_major, file_minor);
+    if (file_major != 2)
+        croak("Profile format version %d.%d not supported by %s %s",
+            file_major, file_minor, __FILE__, XS_VERSION);
 
     while (EOF != (c = fgetc(in))) {
         input_chunk_seqn++;
@@ -1980,6 +1976,7 @@ load_profile_data_from_stream()
             case NYTP_TAG_NEW_FID:                             /* file */
             {
                 AV *av;
+                SV *filename_sv;
                 unsigned int eval_file_num;
                 unsigned int eval_line_num;
                 unsigned int fid_flags = 0;
@@ -1995,16 +1992,14 @@ load_profile_data_from_stream()
                     file_mtime    = read_int();
                 }
 
-                if (NULL == fgets(text, sizeof(text), in))
-                    /* probably EOF */
-                    croak("Profile format error while reading fid declaration");
+                filename_sv = read_str(aTHX_ NULL);
                 if (trace_level) {
                     if (eval_file_num)
-                        warn("Fid %2u is %.*s (is string eval at fid %u line %u)\n",
-                            file_num, (int)strlen(text)-1, text, eval_file_num, eval_line_num);
+                        warn("Fid %2u is %s (is string eval at fid %u line %u)\n",
+                            file_num, SvPV_nolen(filename_sv), eval_file_num, eval_line_num);
                     else
-                        warn("Fid %2u is %.*s\n",
-                            file_num, (int)strlen(text)-1, text);
+                        warn("Fid %2u is %s\n",
+                            file_num, SvPV_nolen(filename_sv));
                 }
 
                 if (av_exists(fid_fileinfo_av, file_num)) {
@@ -2012,14 +2007,14 @@ load_profile_data_from_stream()
                     AV *old_av = (AV *)SvRV(*av_fetch(fid_fileinfo_av, file_num, 1));
                     SV *old_name = *av_fetch(old_av, 0, 1);
                     warn("Fid %d redefined from %s to %s", file_num,
-                        SvPV_nolen(old_name), text);
+                        SvPV_nolen(old_name), SvPV_nolen(filename_sv));
                 }
 
                 /* [ name, eval_file_num, eval_line_num, fid, flags, size, mtime, ... ]
                  */
                 av = newAV();
                 /* drop newline */
-                av_store(av, 0, newSVpvn(text, strlen(text)-1));
+                av_store(av, 0, filename_sv); /* av now owns the sv */
                 av_store(av, 1, (eval_file_num) ? newSVuv(eval_file_num) : &PL_sv_no);
                 av_store(av, 2, (eval_file_num) ? newSVuv(eval_line_num) : &PL_sv_no);
                 av_store(av, 3, newSVuv(file_num));
@@ -2038,13 +2033,12 @@ load_profile_data_from_stream()
                 unsigned int fid        = read_int();
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
-                if (NULL == fgets(text, sizeof(text), in))
-                    /* probably EOF */
-                    croak("Profile format error in sub line range");
+                SV *subname_sv = read_str(aTHX_ NULL);
                 if (trace_level >= 2)
-                    warn("Sub %.*s fid %u lines %u..%u\n",
-                        (int)strlen(text)-1, text, fid, first_line, last_line);
-                av = lookup_subinfo_av(aTHX_ text, strlen(text)-1, sub_subinfo_hv);
+                    warn("Sub %s fid %u lines %u..%u\n",
+                        SvPV_nolen(subname_sv), fid, first_line, last_line);
+                av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
+                sv_free(subname_sv);
                 sv_setuv(*av_fetch(av, 0, 1), fid);
                 sv_setuv(*av_fetch(av, 1, 1), first_line);
                 sv_setuv(*av_fetch(av, 2, 1), last_line);
@@ -2055,7 +2049,10 @@ load_profile_data_from_stream()
 
             case NYTP_TAG_SUB_CALLERS:
             {
+                char text[MAXPATHLEN*2];
                 SV *sv;
+                HE *he;
+                SV *subname_sv;
                 AV *subinfo_av;
                 int len;
                 unsigned int fid   = read_int();
@@ -2070,20 +2067,20 @@ load_profile_data_from_stream()
                     ucpu_time        = read_nv();
                     scpu_time        = read_nv();
                 }
-                if (NULL == fgets(text, sizeof(text), in))
-                    /* probably EOF */
-                    croak("Profile format error in sub line range");
+                subname_sv = read_str(aTHX_ NULL);
 
                 if (trace_level >= 3)
-                    warn("Sub %.*s called by fid %u line %u: count %d\n",
-                        (int)strlen(text)-1, text, fid, line, count);
+                    warn("Sub %s called by fid %u line %u: count %d\n",
+                        SvPV_nolen(subname_sv), fid, line, count);
 
-                subinfo_av = lookup_subinfo_av(aTHX_ text, strlen(text)-1, sub_subinfo_hv);
+                subinfo_av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
 
                 /* { 'pkg::sub' => { fid => { line => [ count, incl_time, excl_time ] } } } */
-                sv = *hv_fetch(sub_callers_hv, text, strlen(text)-1, 1);
+                he = hv_fetch_ent(sub_callers_hv, subname_sv, 1, 0);
+                sv = HeVAL(he);
                 if (!SvROK(sv))                   /* autoviv */
                     sv_setsv(sv, newRV_noinc((SV*)newHV()));
+                sv_free(subname_sv);
 
                 len = my_snprintf(text, sizeof(text), "%u", fid);
                 sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
@@ -2124,6 +2121,7 @@ load_profile_data_from_stream()
 
             case NYTP_TAG_PID_START:
             {
+                char text[MAXPATHLEN*2];
                 unsigned int pid  = read_int();
                 unsigned int ppid = read_int();
                 int len = my_snprintf(text, sizeof(text), "%d", pid);
@@ -2136,6 +2134,7 @@ load_profile_data_from_stream()
 
             case NYTP_TAG_PID_END:
             {
+                char text[MAXPATHLEN*2];
                 unsigned int pid = read_int();
                 int len = my_snprintf(text, sizeof(text), "%d", pid);
                 if (!hv_delete(live_pids_hv, text, len, 0))
@@ -2149,6 +2148,7 @@ load_profile_data_from_stream()
 
             case NYTP_TAG_ATTRIBUTE:
             {
+                char text[MAXPATHLEN*2];
                 char *value, *end;
                 SV *value_sv;
                 if (NULL == fgets(text, sizeof(text), in))
@@ -2166,18 +2166,28 @@ load_profile_data_from_stream()
                 if (trace_level >= 2)
                     /* includes \n */
                     warn(": %s = '%s'\n", text, SvPV_nolen(value_sv));
-                if ('t' == *text && strEQ(text, "ticks_per_sec"))
+                if ('t' == *text && strEQ(text, "ticks_per_sec")) {
                     ticks_per_sec = SvUV(value_sv);
+                }
+                else if ('n' == *text && strEQ(text, "nv_size")) {
+                    if (sizeof(NV) != atoi(value))
+                        croak("Profile data created by incompatible perl config (NV size %d but ours is %d)",
+                            atoi(value), sizeof(NV));
+                }
+                    
                 break;
             }
 
             case NYTP_TAG_COMMENT:
+            {
+                char text[MAXPATHLEN*2];
                 if (NULL == fgets(text, sizeof(text), in))
                     /* probably EOF */
                     croak("Profile format error reading comment");
                 if (trace_level >= 2)
                     warn("# %s", text);           /* includes \n */
                 break;
+            }
 
             default:
                 croak("File format error: token %d ('%c'), chunk %lu", c, c, input_chunk_seqn);
