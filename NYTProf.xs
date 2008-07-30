@@ -1808,11 +1808,7 @@ NV
 read_nv()
 {
     NV nv;
-    int i = sizeof(NV);
-    unsigned char *p = (unsigned char *)&nv;
-    while (i-- > 0) {
-        *p++ = (unsigned char)fgetc(in);
-    }
+    fread((unsigned char *)&nv, sizeof(NV), 1, in);
     return nv;
 }
 
@@ -2226,13 +2222,13 @@ PROTOTYPES: DISABLE
 
 I32
 constant()
-	PROTOTYPE:
-	ALIAS:
-		NYTP_FIDf_IS_PMC = NYTP_FIDf_IS_PMC
-	CODE:
-	RETVAL = ix;
-	OUTPUT:
-	RETVAL
+    PROTOTYPE:
+    ALIAS:
+        NYTP_FIDf_IS_PMC = NYTP_FIDf_IS_PMC
+    CODE:
+    RETVAL = ix;
+    OUTPUT:
+    RETVAL
 
 MODULE = Devel::NYTProf     PACKAGE = DB
 
@@ -2241,37 +2237,37 @@ PROTOTYPES: DISABLE
 void
 DB_profiler(...)
 CODE:
-	/* this sub gets aliased as "DB::DB" by NYTProf.pm if use_db_sub is true */
-	PERL_UNUSED_VAR(items);
-	if (use_db_sub)
-			DB_stmt(aTHX_ PL_op);
-	else if (1||trace_level)
-			warn("DB called needlessly");
+    /* this sub gets aliased as "DB::DB" by NYTProf.pm if use_db_sub is true */
+    PERL_UNUSED_VAR(items);
+    if (use_db_sub)
+        DB_stmt(aTHX_ PL_op);
+    else if (1||trace_level)
+        warn("DB called needlessly");
 
 void
 set_option(const char *opt, const char *value)
 
 int
 init_profiler()
-	C_ARGS:
-	aTHX
+    C_ARGS:
+    aTHX
 
 int
 enable_profile()
-	C_ARGS:
-	aTHX
+    C_ARGS:
+    aTHX
 
 int
 disable_profile()
-	C_ARGS:
-	aTHX
+    C_ARGS:
+    aTHX
 
 void
 finish_profile(...)
-	ALIAS:
-	_finish = 1
-	C_ARGS:
-	aTHX
+    ALIAS:
+    _finish = 1
+    C_ARGS:
+    aTHX
 
 MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Data
 
@@ -2280,14 +2276,14 @@ PROTOTYPES: DISABLE
 HV*
 load_profile_data_from_file(file=NULL)
 char *file;
-	CODE:
-	if (trace_level)
-			warn("reading profile data from file %s\n", file);
-	in = fopen(file, "rb");
-	if (in == NULL) {
-			croak("Failed to open input '%s': %s", file, strerror(errno));
-	}
-	RETVAL = load_profile_data_from_stream();
-	fclose(in);
-	OUTPUT:
-	RETVAL
+    CODE:
+    if (trace_level)
+        warn("reading profile data from file %s\n", file);
+    in = fopen(file, "rb");
+    if (in == NULL) {
+        croak("Failed to open input '%s': %s", file, strerror(errno));
+    }
+    RETVAL = load_profile_data_from_stream();
+    fclose(in);
+    OUTPUT:
+    RETVAL
