@@ -1752,7 +1752,7 @@ load_profile_data_from_stream() {
 	dTHX; 
 	int file_major, file_minor;
 
-	unsigned long input_line = 0L;
+	unsigned long input_chunk_seqn = 0L;
 	unsigned int file_num = 0;
 	unsigned int line_num = 0;
 	unsigned int ticks;
@@ -1783,9 +1783,9 @@ load_profile_data_from_stream() {
 		croak("Profile format version %d.%d not supported", file_major, file_minor);
 
 	while (EOF != (c = fgetc(in))) {
-		input_line++;
+		input_chunk_seqn++;
 		if (trace_level >= 6)
-			warn("Token %lu is %d ('%c') at %ld\n", input_line, c, c, (long)ftell(in)-1);
+			warn("Chunk %lu token is %d ('%c') at %ld\n", input_chunk_seqn, c, c, (long)ftell(in)-1);
 
 		switch (c) {
 			case '-':
@@ -1800,6 +1800,7 @@ load_profile_data_from_stream() {
 			case '*':			/*FALLTHRU*/
 			case '+':
 			{
+				char trace_note[80] = "";
 				SV *filename_sv;
 				NV seconds;
 				unsigned int eval_file_num = 0;
@@ -1822,16 +1823,20 @@ load_profile_data_from_stream() {
 					AV *fid_av = (AV *)SvRV(filename_sv);
 					eval_file_num = SvUV(*av_fetch(fid_av,1,1));
 					eval_line_num = SvUV(*av_fetch(fid_av,2,1));
-					if (eval_file_num) /* fid is an eval */
-						file_num = eval_file_num;
 				}
+
+				if (eval_file_num) { /* fid is an eval */
+					if (trace_level >= 3)
+							sprintf(trace_note," (was string eval fid %u)", file_num);
+					file_num = eval_file_num;
+				}
+				if (trace_level >= 3)
+						warn("Read %d:%-4d %2u ticks%s\n", file_num, line_num, ticks, trace_note);
 
 				add_entry(aTHX_ fid_line_time_av, file_num, line_num,
 						seconds, eval_file_num, eval_line_num,
 						1-statement_discount
 				);
-				if (trace_level >= 3)
-						warn("Read %d:%-4d %2u ticks\n", file_num, line_num, ticks);
 
 				if (c == '*') {
 					unsigned int block_line_num = read_int();
@@ -1883,7 +1888,7 @@ load_profile_data_from_stream() {
 					croak("Profile format error while reading fid declaration"); 
 				if (trace_level) {
 						if (eval_file_num)
-							warn("Fid %2u is %.*s (eval fid %u line %u)\n",
+							warn("Fid %2u is %.*s (is string eval at fid %u line %u)\n",
 									file_num, (int)strlen(text)-1, text, eval_file_num, eval_line_num);
 						else
 							warn("Fid %2u is %.*s\n",
@@ -2054,7 +2059,7 @@ load_profile_data_from_stream() {
 				break;
 
 			default:
-				croak("File format error: token %d ('%c'), line %lu", c, c, input_line);
+				croak("File format error: token %d ('%c'), chunk %lu", c, c, input_chunk_seqn);
 		}
 	}
 

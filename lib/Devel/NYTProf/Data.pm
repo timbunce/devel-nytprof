@@ -52,7 +52,7 @@ use Devel::NYTProf::Util qw(strip_prefix_from_paths get_abs_paths_alternation_re
 
 our $VERSION = '2.02';
 
-my $trace = 0;
+my $trace = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) && $1; # XXX a hack
 
 =head2 new
 
@@ -107,12 +107,14 @@ sub new {
             delete $sub_subinfo->{$oldname};    # delete old name
             if (my $newinfo = $sub_subinfo->{$subname}) {
                 $newinfo->merge_in($subinfo);
+                warn "merged sub_info $oldname into $subname\n" if $trace;
             }
             else {
 
                 # is first to change, so just move ref to new name
                 $sub_subinfo->{$subname} = $subinfo;
                 $subinfo->[6] = $subname;
+                warn "renamed sub_info $oldname into $subname\n" if $trace;
             }
 
             # delete sub_caller info and merge into new name
@@ -126,8 +128,10 @@ sub new {
                     my $new_line_hash = $newinfo->{$fid};
                     if (!$new_line_hash) {
                         $newinfo->{$fid} = $line_hash;
+                        warn "renamed sub_caller $oldname into $subname\n" if $trace;
                         next;
                     }
+                    warn "merged sub_caller $oldname into $subname\n" if $trace;
 
                     # merge lines in %$line_hash into %$new_line_hash
                     while (my ($line, $line_info) = each %$line_hash) {
@@ -619,7 +623,7 @@ sub fid_filename {
 
         # eg string eval
         # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
-        warn sprintf "fid_fileinfo: fid %d -> %d for %s\n", $fid, $fileinfo->[1], $fileinfo->[0]
+        warn sprintf "fid_filename: fid %d -> %d for %s\n", $fid, $fileinfo->[1], $fileinfo->[0]
             if $trace;
 
         # follow next link in chain
@@ -666,7 +670,7 @@ sub file_line_range_of_sub {
 
         # eg string eval
         # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
-        warn sprintf "%s: fid %d -> %d for %s\n", $sub, $fid, $fileinfo->[1], $fileinfo->[0]
+        warn sprintf "file_line_range_of_sub: %s: fid %d -> %d for %s\n", $sub, $fid, $fileinfo->[1], $fileinfo->[0]
             if $trace;
         $first = $last = $fileinfo->[2] if 1;    # XXX control via param?
 
