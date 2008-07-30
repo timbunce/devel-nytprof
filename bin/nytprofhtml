@@ -409,12 +409,13 @@ sub output_indexpage {
     }
 
     # Show top subs across all files
-    # (keep it less than a page so users can see the file table)
-    print OUT subroutine_table($profile, 0, 15);
+    my $max_subs = 15; # keep it less than a page so users can see the file table
+    print OUT subroutine_table($profile, 0, $max_subs);
     print OUT sprintf qq{<div class="table_footer">
         For more information see the <a href="%s">full list of %d subroutines</a>.
         </div>
-    }, "index-subs.html", scalar keys %{$profile->{sub_subinfo}};
+    }, "index-subs.html", scalar keys %{$profile->{sub_subinfo}}
+        if scalar keys %{$profile->{sub_subinfo}} > $max_subs;
 
     print OUT file_table($profile, $stats, 1);
 
