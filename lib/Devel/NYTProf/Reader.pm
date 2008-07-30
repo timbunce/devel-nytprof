@@ -419,6 +419,10 @@ sub _generate_report {
             foreach my $regexp (@{$self->{user_regexp}}) {
                 $line =~ s/$regexp->{pattern}/$regexp->{replace}/g;
             }
+            if ($line =~ m/^\# \s* line \b/x) {
+                # XXX we should be smarter about this - patches welcome!
+                warn "Ignoring '$line' directive at line $LINE of $filestr - profile data will be out of sync with source!\n";
+            }
             my $makes_calls_to = $line_calls_hash->{$LINE}   || {};
             my $subs_defined   = $subs_defined_hash->{$LINE} || [];
 
