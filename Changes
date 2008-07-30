@@ -6,6 +6,8 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf
 
+  Fixed accounting for time spent executing subs that were
+    compiled in string evals.
   Improved formating of stats for subs called by a statement;
   Added support for .pmc files.
 

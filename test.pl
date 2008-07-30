@@ -297,7 +297,7 @@ sub verify_csv_report {
 		my $tc0 = $3;
 
 		if (defined $expected[$index]
-		   and 0 != $expected[$index] =~ s/^\|([0-9.]+)\|(.*)/0$2/
+		   and 0 != $expected[$index] =~ s/^~([0-9.]+)/0/
 		   and $c0 # protect against div-by-0 in some error situations
 		) {
 			push @accuracy_errors, "$test line $index: got $t0 expected ~$1 for time"

@@ -324,16 +324,25 @@ sub _generate_report {
                 $a->[1] = 1;
             }
 
-            push(@{$totalsAccum{'time'}},      $a->[0]);
+            my $time = $a->[0];
+            if (my $eval_lines = $a->[2]) {
+                # line contains a string eval
+                # $eval_lines is a hash of profile data for the lines in the eval
+                # sum up the times and add to $time
+                # but we don't increment the statement count of the eval
+                # as that would be inappropriate and misleading
+                $time += $_->[0] for values %$eval_lines;
+            }
+            push(@{$totalsAccum{'time'}},      $time);
             push(@{$totalsAccum{'calls'}},     $a->[1]);
-            push(@{$totalsAccum{'time/call'}}, $a->[0] / $a->[1]);
+            push(@{$totalsAccum{'time/call'}}, $time / $a->[1]);
 
-            $totalsByLine{$key}->{'time'}  += $a->[0];
+            $totalsByLine{$key}->{'time'}  += $time;
             $totalsByLine{$key}->{'calls'} += $a->[1];
             $totalsByLine{$key}->{'time/call'} =
                 $totalsByLine{$key}->{'time'} / $totalsByLine{$key}->{'calls'};
 
-            $runningTotalTime  += $a->[0];
+            $runningTotalTime  += $time;
             $runningTotalCalls += $a->[1];
         }
 
