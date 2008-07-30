@@ -59,6 +59,18 @@
 
 #define NYTP_FIDf_IS_PMC    0x0001;               /* .pm probably really loaded as .pmc */
 
+#define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
+#define NYTP_TAG_COMMENT         '#'    /* till newline */
+#define NYTP_TAG_TIME_BLOCK      '*'
+#define NYTP_TAG_TIME_LINE       '+'
+#define NYTP_TAG_DISCOUNT        '-'
+#define NYTP_TAG_NEW_FID         '@'
+#define NYTP_TAG_SUB_LINE_RANGE  's'
+#define NYTP_TAG_SUB_CALLERS     'c'
+#define NYTP_TAG_PID_START       'P'
+#define NYTP_TAG_PID_END         'p'
+#define NYTP_TAG_STRING          '$' 
+
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
 
@@ -161,10 +173,12 @@ static NV cumulative_subr_secs = 0.0;
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
 
 /* prototypes */
-static void write_cached_fids();
 void output_header(pTHX);
-unsigned int get_file_id(pTHX_ char*, STRLEN, int);
 void output_int(unsigned int);
+void output_str(char *str, STRLEN len);
+unsigned int read_int();
+SV *read_str(pTHX_ SV *sv);
+unsigned int get_file_id(pTHX_ char*, STRLEN, int);
 void DB_stmt(pTHX_ OP *op);
 void set_option(const char*, const char*);
 static int enable_profile(pTHX);
@@ -172,6 +186,7 @@ static int disable_profile(pTHX);
 static void finish_profile(pTHX);
 void open_output_file(pTHX_ char *);
 int reinit_if_forked(pTHX);
+static void write_cached_fids();
 void write_sub_line_ranges(pTHX_ int fids_only);
 void write_sub_callers(pTHX);
 HV *load_profile_data_from_stream();
@@ -186,18 +201,15 @@ OP *pp_leaving_profiler(pTHX);
 HV *sub_callers_hv;
 
 /* macros for outputing profile data */
-#ifdef HAS_GETPPID
-#define OUTPUT_PID() STMT_START { \
-    assert(out != NULL); fputc('P', out); output_int(getpid()); output_int(getppid()); \
-} STMT_END
-#else
-#define OUTPUT_PID() STMT_START { \
-    assert(out != NULL); fputc('P', out); output_int(getpid()); output_int(1); \
-} STMT_END
+#ifndef HAS_GETPPID
+#define getppid() 0
 #endif
+#define OUTPUT_PID() STMT_START { \
+    assert(out != NULL); fputc(NYTP_TAG_PID_START, out); output_int(getpid()); output_int(getppid()); \
+} STMT_END
 
 #define END_OUTPUT_PID(pid) STMT_START { \
-    assert(out != NULL); fputc('p', out); output_int(pid); fflush(out); \
+    assert(out != NULL); fputc(NYTP_TAG_PID_END, out); output_int(pid); fflush(out); \
 } STMT_END
 
 /***********************************
@@ -241,6 +253,44 @@ output_header(pTHX)
     write_cached_fids();                          /* empty initially, non-empty after fork */
 
     fflush(out);
+}
+
+
+void
+output_str(char *str, STRLEN len) {
+    if (!len)
+        len = strlen(str);
+    fputc(NYTP_TAG_STRING, out);
+    output_int(len);
+    fwrite(str, 1, len, out);
+}
+
+
+SV *
+read_str(pTHX_ SV *sv) {
+    STRLEN len;
+    char *buf;
+    char tag = fgetc(in);
+    if (NYTP_TAG_STRING != tag)
+        croak("File format error at offset %ld, expected string tag but found %d ('%c')",
+            (long)ftell(in)-1, tag, tag);
+
+    len = read_int();
+    if (sv) {
+        SvGROW(sv, len+1);
+    }
+    else {
+        sv = newSV(len);
+        SvPOK_on(sv);
+    }
+    buf = SvPV_nolen(sv);
+    if (fread(buf, 1, len, in) != len)
+        croak("String truncated in file at offset %ld: %s",
+            (long)ftell(in)-1, (feof(in)) ? "end of file" : strerror(ferror(in)));
+    SvCUR_set(sv, len);
+    *SvEND(sv) = '\0';
+
+    return sv;
 }
 
 
@@ -344,7 +394,7 @@ emit_fid (Hash_entry *fid_info)
         file_name = fid_info->key_abs;
         file_name_len = strlen(file_name);
     }
-    fputc('@', out);
+    fputc(NYTP_TAG_NEW_FID, out);
     output_int(fid_info->id);
     output_int(fid_info->eval_fid);
     output_int(fid_info->eval_line_num);
@@ -847,7 +897,7 @@ DB_stmt(pTHX_ OP *op)
     if (last_executed_fid) {
         reinit_if_forked(aTHX);
 
-        fputc( (profile_blocks) ? '*' : '+', out);
+        fputc( (profile_blocks) ? NYTP_TAG_TIME_BLOCK : NYTP_TAG_TIME_LINE, out);
         output_int(elapsed);
         output_int(last_executed_fid);
         output_int(last_executed_line);
@@ -944,7 +994,7 @@ DB_leave(pTHX_ OP *op)
      * increment the count (because the time is not for a new statement but simply
      * a continuation of a previously counted statement).
      */
-    fputc('-', out);
+    fputc(NYTP_TAG_DISCOUNT, out);
 
     if (trace_level >= 4) {
         warn("left %u:%u via %s back to %s at %u:%u (b%u s%u) - discounting next statement%s\n",
@@ -1643,7 +1693,7 @@ write_sub_line_ranges(pTHX_ int fids_only)
             warn("Sub %s fid %u lines %lu..%lu\n",
                 sub_name, fid, (unsigned long)first_line, (unsigned long)last_line);
 
-        fputc('s', out);
+        fputc(NYTP_TAG_SUB_LINE_RANGE, out);
         output_int(fid);
         output_int(first_line);
         output_int(last_line);
@@ -1709,9 +1759,8 @@ write_sub_callers(pTHX)
 unsigned int
 read_int()
 {
-
-    static unsigned char d;
-    static unsigned int newint;
+    unsigned char d;
+    unsigned int newint;
 
     d = fgetc(in);
     if (d < 0x80) {                               /* 7 bits */
@@ -1852,7 +1901,7 @@ load_profile_data_from_stream()
             warn("Chunk %lu token is %d ('%c') at %ld\n", input_chunk_seqn, c, c, (long)ftell(in)-1);
 
         switch (c) {
-            case '-':
+            case NYTP_TAG_DISCOUNT:
             {
                 if (statement_discount)
                     warn("multiple statement discount after %u:%d\n", file_num, line_num);
@@ -1861,8 +1910,8 @@ load_profile_data_from_stream()
                 break;
             }
 
-            case '*':                             /*FALLTHRU*/
-            case '+':
+            case NYTP_TAG_TIME_LINE:                       /*FALLTHRU*/
+            case NYTP_TAG_TIME_BLOCK:
             {
                 char trace_note[80] = "";
                 SV *filename_sv;
@@ -1930,7 +1979,7 @@ load_profile_data_from_stream()
                 break;
             }
 
-            case '@':                             /* file */
+            case NYTP_TAG_NEW_FID:                             /* file */
             {
                 AV *av;
                 unsigned int eval_file_num;
@@ -1985,7 +2034,7 @@ load_profile_data_from_stream()
                 break;
             }
 
-            case 's':                             /* subroutine file line range */
+            case NYTP_TAG_SUB_LINE_RANGE:
             {
                 AV *av;
                 unsigned int fid        = read_int();
@@ -2006,7 +2055,7 @@ load_profile_data_from_stream()
                 break;
             }
 
-            case 'c':                             /* sub callers */
+            case NYTP_TAG_SUB_CALLERS:
             {
                 SV *sv;
                 AV *subinfo_av;
@@ -2075,7 +2124,7 @@ load_profile_data_from_stream()
                 break;
             }
 
-            case 'P':
+            case NYTP_TAG_PID_START:
             {
                 unsigned int pid  = read_int();
                 unsigned int ppid = read_int();
@@ -2087,7 +2136,7 @@ load_profile_data_from_stream()
                 break;
             }
 
-            case 'p':
+            case NYTP_TAG_PID_END:
             {
                 unsigned int pid = read_int();
                 int len = my_snprintf(text, sizeof(text), "%d", pid);
@@ -2100,7 +2149,7 @@ load_profile_data_from_stream()
                 break;
             }
 
-            case ':':                             /* attribute (as text) */
+            case NYTP_TAG_ATTRIBUTE:
             {
                 char *value, *end;
                 SV *value_sv;
@@ -2124,7 +2173,7 @@ load_profile_data_from_stream()
                 break;
             }
 
-            case '#':
+            case NYTP_TAG_COMMENT:
                 if (NULL == fgets(text, sizeof(text), in))
                     /* probably EOF */
                     croak("Profile format error reading comment");
