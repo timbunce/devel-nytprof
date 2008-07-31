@@ -69,7 +69,8 @@
 #define NYTP_TAG_SUB_CALLERS     'c'
 #define NYTP_TAG_PID_START       'P'
 #define NYTP_TAG_PID_END         'p'
-#define NYTP_TAG_STRING          '$' 
+#define NYTP_TAG_STRING          '\'' 
+#define NYTP_TAG_STRING_UTF8     '"' 
 
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
@@ -175,7 +176,7 @@ static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set *
 /* prototypes */
 void output_header(pTHX);
 void output_int(unsigned int);
-void output_str(char *str, STRLEN len);
+void output_str(char *str, I32 len);
 unsigned int read_int();
 SV *read_str(pTHX_ SV *sv);
 unsigned int get_file_id(pTHX_ char*, STRLEN, int);
@@ -257,10 +258,15 @@ output_header(pTHX)
 
 
 void
-output_str(char *str, STRLEN len) {
+output_str(char *str, I32 len) {
+    int tag = NYTP_TAG_STRING;
     if (!len)
         len = strlen(str);
-    fputc(NYTP_TAG_STRING, out);
+    else if (len < 0) {
+        tag = NYTP_TAG_STRING_UTF8;
+        len = -len;
+    }
+    fputc(tag, out);
     output_int(len);
     fwrite(str, 1, len, out);
 }
@@ -271,7 +277,7 @@ read_str(pTHX_ SV *sv) {
     STRLEN len;
     char *buf;
     char tag = fgetc(in);
-    if (NYTP_TAG_STRING != tag)
+    if (NYTP_TAG_STRING != tag && NYTP_TAG_STRING_UTF8 != tag)
         croak("File format error at offset %ld, expected string tag but found %d ('%c')",
             (long)ftell(in)-1, tag, tag);
 
@@ -283,14 +289,20 @@ read_str(pTHX_ SV *sv) {
         sv = newSV(len);
         SvPOK_on(sv);
     }
+
     buf = SvPV_nolen(sv);
     if (fread(buf, 1, len, in) != len)
         croak("String truncated in file at offset %ld: %s",
             (long)ftell(in)-1, (feof(in)) ? "end of file" : strerror(ferror(in)));
     SvCUR_set(sv, len);
     *SvEND(sv) = '\0';
+
+    if (NYTP_TAG_STRING_UTF8 == tag)
+        SvUTF8_on(sv);
+
     if (trace_level >= 5)
-        warn("  read string '%.*s'\n", len, SvPV_nolen(sv));
+        warn("  read string '%.*s'%s\n", len, SvPV_nolen(sv),
+            (SvUTF8(sv)) ? " (utf8)" : "");
 
     return sv;
 }
@@ -1878,6 +1890,7 @@ load_profile_data_from_stream()
     AV* fid_sub_time_av = NULL;
     HV* sub_subinfo_hv = newHV();
     HV* sub_callers_hv = newHV();
+    SV *tmp_str_sv = newSVpvn("",0);
 
     av_extend(fid_fileinfo_av, 64);               /* grow it up front. */
     av_extend(fid_line_time_av, 64);
@@ -2033,12 +2046,11 @@ load_profile_data_from_stream()
                 unsigned int fid        = read_int();
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
-                SV *subname_sv = read_str(aTHX_ NULL);
+                SV *subname_sv = read_str(aTHX_ tmp_str_sv);
                 if (trace_level >= 2)
                     warn("Sub %s fid %u lines %u..%u\n",
                         SvPV_nolen(subname_sv), fid, first_line, last_line);
                 av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
-                sv_free(subname_sv);
                 sv_setuv(*av_fetch(av, 0, 1), fid);
                 sv_setuv(*av_fetch(av, 1, 1), first_line);
                 sv_setuv(*av_fetch(av, 2, 1), last_line);
@@ -2067,7 +2079,7 @@ load_profile_data_from_stream()
                     ucpu_time        = read_nv();
                     scpu_time        = read_nv();
                 }
-                subname_sv = read_str(aTHX_ NULL);
+                subname_sv = read_str(aTHX_ tmp_str_sv);
 
                 if (trace_level >= 3)
                     warn("Sub %s called by fid %u line %u: count %d\n",
@@ -2080,7 +2092,6 @@ load_profile_data_from_stream()
                 sv = HeVAL(he);
                 if (!SvROK(sv))                   /* autoviv */
                     sv_setsv(sv, newRV_noinc((SV*)newHV()));
-                sv_free(subname_sv);
 
                 len = my_snprintf(text, sizeof(text), "%u", fid);
                 sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
@@ -2199,6 +2210,7 @@ load_profile_data_from_stream()
             HvKEYS(live_pids_hv));
     }
     sv_free((SV*)live_pids_hv);
+    sv_free(tmp_str_sv);
 
     if (trace_level >= 1)
         warn("Statement totals: measured %d, discounted %d, time %"NVff"s\n",
