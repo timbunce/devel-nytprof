@@ -57,7 +57,9 @@
 #endif
 #include <stdio.h>
 
-#define NYTP_FIDf_IS_PMC    0x0001;               /* .pm probably really loaded as .pmc */
+#define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
+#define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
+#define NYTP_FIDf_VIA_SUB        0x0004 /* fid first seen by sub profiler */
 
 #define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
 #define NYTP_TAG_COMMENT         '#'    /* till newline */
@@ -179,7 +181,7 @@ void output_int(unsigned int);
 void output_str(char *str, I32 len);
 unsigned int read_int();
 SV *read_str(pTHX_ SV *sv);
-unsigned int get_file_id(pTHX_ char*, STRLEN, int);
+unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
 void DB_stmt(pTHX_ OP *op);
 void set_option(const char*, const char*);
 static int enable_profile(pTHX);
@@ -248,7 +250,6 @@ output_header(pTHX)
     mg_get(sv = get_sv("0",GV_ADDWARN));
     fprintf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
 
-
     OUTPUT_PID();
 
     write_cached_fids();                          /* empty initially, non-empty after fork */
@@ -258,7 +259,7 @@ output_header(pTHX)
 
 
 void
-output_str(char *str, I32 len) {
+output_str(char *str, I32 len) {    /* negative len signifies utf8 */
     int tag = NYTP_TAG_STRING;
     if (!len)
         len = strlen(str);
@@ -467,13 +468,15 @@ write_cached_fids()
 /**
  * Return a unique persistent id number for a file.
  * If file name has not been seen before
- * then, if create_new is false it returns 0 otherwise it
+ * then, if created_via is false it returns 0 otherwise it
  * assigns a new id and outputs the file and id to the stream.
  * If the file name is a synthetic name for an eval then
  * get_file_id recurses to process the 'embedded' file name first.
+ * The created_via flag bit is stored in the fid info
+ * (currently only used as a diagnostic tool)
  */
 unsigned int
-get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int create_new)
+get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 {
 
     Hash_entry entry, *found;
@@ -489,7 +492,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int create_new)
     entry.key_len = file_name_len;
 
     /* inserted new entry */
-    if (1 == hash_op(entry, &found, create_new)) {
+    if (1 == hash_op(entry, &found, created_via)) {
 
         /* if this is a synthetic filename for an 'eval'
          * ie "(eval 42)[/some/filename.pl:line]"
@@ -502,13 +505,13 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int create_new)
             /* can't use strchr here (not nul terminated) so use rninstr */
             char *end = rninstr(file_name, file_name+file_name_len-1, colon, colon+1);
 
-            if (!start || !end || start > end) {
-                warn("Unsupported filename syntax '%s'", file_name);
+            if (!start || !end || start > end) {    /* should never happen */
+                warn("NYTProf unsupported filename syntax '%s'", file_name);
                 return 0;
             }
             ++start;                              /* move past [ */
             /* recurse */
-            found->eval_fid = get_file_id(aTHX_ start, end - start, create_new);
+            found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
             found->eval_line_num = atoi(end+1);
         }
 
@@ -537,20 +540,17 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int create_new)
 
         if (fid_is_pmc(aTHX_ found))
             found->fid_flags |= NYTP_FIDf_IS_PMC;
+        found->fid_flags |= created_via; /* NYTP_FIDf_VIA_STMT or NYTP_FIDf_VIA_SUB */
 
         emit_fid(found);
 
         if (trace_level) {
             /* including last_executed_fid can be handy for tracking down how
              * a file got loaded */
-            if (found->eval_fid)
-                warn("New fid %2u (after %2u:%-4u): %.*s (eval fid %u line %u)\n",
-                    found->id, last_executed_fid, last_executed_line,
-                    found->key_len, found->key, found->eval_fid, found->eval_line_num);
-            else
-                warn("New fid %2u (after %2u:%-4u): %.*s %s\n",
-                    found->id, last_executed_fid, last_executed_line,
-                    found->key_len, found->key, (found->key_abs) ? found->key_abs : "");
+            warn("New fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s\n",
+                found->id, last_executed_fid, last_executed_line,
+                found->fid_flags, found->eval_fid, found->eval_line_num,
+                found->key_len, found->key, (found->key_abs) ? found->key_abs : "");
         }
     }
     else if (trace_level >= 4) {
@@ -949,7 +949,7 @@ DB_stmt(pTHX_ OP *op)
     }
     if (file != last_executed_fileptr) {
         last_executed_fileptr = file;
-        last_executed_fid = get_file_id(aTHX_ file, strlen(file), 1);
+        last_executed_fid = get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_STMT);
     }
 
     if (trace_level >= 4)
@@ -1280,7 +1280,7 @@ pp_entersub_profiler(pTHX)
         char *file = OutCopFILE(prev_cop);
         unsigned int fid = (file == last_executed_fileptr)
             ? last_executed_fid
-            : get_file_id(aTHX_ file, strlen(file), 1);
+            : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
         /* XXX could use same closest_cop as DB_stmt() but it doesn't seem
          * to be needed here. Line is 0 only when call is from embedded
          * C code like mod_perl (at least in my testing so far)
@@ -1354,7 +1354,7 @@ pp_entersub_profiler(pTHX)
 
                 if (cv && SvTYPE(cv) == SVt_PVCV) {
                     /* inject faked xsub file details into PL_DBsub hash */
-                    unsigned int fid = get_file_id(aTHX_ CvFILE(cv), strlen(CvFILE(cv)), 1);
+                    unsigned int fid = get_file_id(aTHX_ CvFILE(cv), strlen(CvFILE(cv)), NYTP_FIDf_VIA_SUB);
                     SV *sv = *hv_fetch(GvHV(PL_DBsub), SvPV_nolen(subname_sv), SvCUR(subname_sv), 1);
                     if (trace_level >= 2)
                         warn("Adding fake DBsub entry for '%s' (fid %d, file %s)\n", SvPV_nolen(subname_sv), fid, CvFILE(cv));
@@ -1735,8 +1735,7 @@ write_sub_callers(pTHX)
         SV *sv;
 
         hv_iterinit(fid_lines_hv);
-        while (NULL != (sv = hv_iternextsv(fid_lines_hv, &fid_line_string,
-        &fid_line_len))) {
+        while (NULL != (sv = hv_iternextsv(fid_lines_hv, &fid_line_string, &fid_line_len))) {
             AV *av = (AV *)SvRV(sv);
             unsigned int count = SvUV(AvARRAY(av)[0]);
             unsigned int fid = 0;
@@ -1872,9 +1871,8 @@ load_profile_data_from_stream()
     int file_major, file_minor;
 
     unsigned long input_chunk_seqn = 0L;
-    unsigned int file_num = 0;
-    unsigned int line_num = 0;
-    unsigned int ticks;
+    unsigned int last_file_num = 0;
+    unsigned int last_line_num = 0;
     int c;                                        /* for while loop */
     int statement_discount = 0;
     NV total_stmt_seconds = 0.0;
@@ -1911,7 +1909,7 @@ load_profile_data_from_stream()
             case NYTP_TAG_DISCOUNT:
             {
                 if (statement_discount)
-                    warn("multiple statement discount after %u:%d\n", file_num, line_num);
+                    warn("multiple statement discount after %u:%d\n", last_file_num, last_line_num);
                 ++statement_discount;
                 ++total_stmt_discounts;
                 break;
@@ -1921,27 +1919,26 @@ load_profile_data_from_stream()
             case NYTP_TAG_TIME_BLOCK:
             {
                 char trace_note[80] = "";
-                SV *filename_sv;
+                SV *fid_info_rvav;
                 NV seconds;
                 unsigned int eval_file_num = 0;
                 unsigned int eval_line_num = 0;
+                unsigned int ticks    = read_int();
+                unsigned int file_num = read_int();
+                unsigned int line_num = read_int();
 
-                ticks    = read_int();
                 seconds  = (NV)ticks / ticks_per_sec;
-                total_stmt_seconds += seconds;
-                file_num = read_int();
-                line_num = read_int();
 
-                filename_sv = *av_fetch(fid_fileinfo_av, file_num, 1);
-                if (!SvROK(filename_sv)) {
+                fid_info_rvav = *av_fetch(fid_fileinfo_av, file_num, 1);
+                if (!SvROK(fid_info_rvav)) {
                     /* only warn once */
-                    if (!SvOK(filename_sv)) {
+                    if (!SvOK(fid_info_rvav)) {
                         warn("Fid %u used but not defined", file_num);
-                        sv_setsv(filename_sv, &PL_sv_no);
+                        sv_setsv(fid_info_rvav, &PL_sv_no);
                     }
                 }
                 else {
-                    AV *fid_av = (AV *)SvRV(filename_sv);
+                    AV *fid_av = (AV *)SvRV(fid_info_rvav);
                     eval_file_num = SvUV(*av_fetch(fid_av,1,1));
                     eval_line_num = SvUV(*av_fetch(fid_av,2,1));
                 }
@@ -1951,13 +1948,18 @@ load_profile_data_from_stream()
                         sprintf(trace_note," (was string eval fid %u)", file_num);
                     file_num = eval_file_num;
                 }
-                if (trace_level >= 3)
-                    warn("Read %d:%-4d %2u ticks%s\n", file_num, line_num, ticks, trace_note);
+                if (trace_level >= 3) {
+                    char *new_file_name = "";
+                    if (file_num != last_file_num && SvOK(fid_info_rvav))
+                        new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), 0, 1));
+                    warn("Read %d:%-4d %2u ticks%s%s\n",
+                        file_num, line_num, ticks, trace_note, new_file_name);
+                }
 
                 add_entry(aTHX_ fid_line_time_av, file_num, line_num,
                     seconds, eval_file_num, eval_line_num,
                     1-statement_discount
-                    );
+                );
 
                 if (c == '*') {
                     unsigned int block_line_num = read_int();
@@ -1968,21 +1970,23 @@ load_profile_data_from_stream()
                     add_entry(aTHX_ fid_block_time_av, file_num, block_line_num,
                         seconds, eval_file_num, eval_line_num,
                         1-statement_discount
-                        );
+                    );
 
                     if (!fid_sub_time_av)
                         fid_sub_time_av = newAV();
                     add_entry(aTHX_ fid_sub_time_av, file_num, sub_line_num,
                         seconds, eval_file_num, eval_line_num,
                         1-statement_discount
-                        );
+                    );
 
                     if (trace_level >= 3)
                         warn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
                 }
 
                 total_stmt_measures++;
+                total_stmt_seconds += seconds;
                 statement_discount = 0;
+                last_file_num = file_num;
                 break;
             }
 
@@ -1990,29 +1994,18 @@ load_profile_data_from_stream()
             {
                 AV *av;
                 SV *filename_sv;
-                unsigned int eval_file_num;
-                unsigned int eval_line_num;
-                unsigned int fid_flags = 0;
-                unsigned int file_size = 0;
-                unsigned int file_mtime = 0;
-
-                file_num  = read_int();
-                eval_file_num = read_int();
-                eval_line_num = read_int();
-                if (file_major > 1 || (file_major == 1 && file_minor >= 1)) {
-                    fid_flags     = read_int();
-                    file_size     = read_int();
-                    file_mtime    = read_int();
-                }
+                unsigned int file_num      = read_int();
+                unsigned int eval_file_num = read_int();
+                unsigned int eval_line_num = read_int();
+                unsigned int fid_flags     = read_int();
+                unsigned int file_size     = read_int();
+                unsigned int file_mtime    = read_int();
 
                 filename_sv = read_str(aTHX_ NULL);
                 if (trace_level) {
-                    if (eval_file_num)
-                        warn("Fid %2u is %s (is string eval at fid %u line %u)\n",
-                            file_num, SvPV_nolen(filename_sv), eval_file_num, eval_line_num);
-                    else
-                        warn("Fid %2u is %s\n",
-                            file_num, SvPV_nolen(filename_sv));
+                    warn("Fid %2u is %s (eval %u:%u) 0x%x sz%u mt%u\n",
+                        file_num, SvPV_nolen(filename_sv), eval_file_num, eval_line_num,
+                        fid_flags, file_size, file_mtime);
                 }
 
                 if (av_exists(fid_fileinfo_av, file_num)) {
@@ -2074,11 +2067,9 @@ load_profile_data_from_stream()
                 NV excl_time       = 0.0;
                 NV ucpu_time       = 0.0;
                 NV scpu_time       = 0.0;
-                if (file_major > 1 || (file_major == 1 && file_minor >= 2)) {
-                    excl_time        = read_nv();
-                    ucpu_time        = read_nv();
-                    scpu_time        = read_nv();
-                }
+                excl_time        = read_nv();
+                ucpu_time        = read_nv();
+                scpu_time        = read_nv();
                 subname_sv = read_str(aTHX_ tmp_str_sv);
 
                 if (trace_level >= 3)
