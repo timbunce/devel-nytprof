@@ -302,7 +302,7 @@ read_str(pTHX_ SV *sv) {
         SvUTF8_on(sv);
 
     if (trace_level >= 5)
-        warn("  read string '%.*s'%s\n", len, SvPV_nolen(sv),
+        warn("  read string '%.*s'%s\n", (int)len, SvPV_nolen(sv),
             (SvUTF8(sv)) ? " (utf8)" : "");
 
     return sv;
@@ -2173,7 +2173,7 @@ load_profile_data_from_stream()
                 }
                 else if ('n' == *text && strEQ(text, "nv_size")) {
                     if (sizeof(NV) != atoi(value))
-                        croak("Profile data created by incompatible perl config (NV size %d but ours is %d)",
+                        croak("Profile data created by incompatible perl config (NV size %d but ours is %lu)",
                             atoi(value), sizeof(NV));
                 }
                     
