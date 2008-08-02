@@ -277,6 +277,14 @@ Specify the output file to write profile data to (default: './nytprof.out').
 
 =back
 
+=head1 SELECTIVE PROFILING
+
+You can profile only parts of an application by calling DB::enable_profile()
+and DB::disable_profile() at the appropriate moments.
+
+Using the C<start=no> option let's you leave the profiler disabled until the
+right moment, or circumstances, are reached.
+
 =head1 REPORTS
 
 The L<Devel::NYTProf::Data> module provides a low-level interface for loading
