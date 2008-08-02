@@ -57,6 +57,12 @@
 #endif
 #include <stdio.h>
 
+#define NYTP_START_NO            0
+#define NYTP_START_BEGIN         1
+#define NYTP_START_CHECK_unused  2  /* not used */
+#define NYTP_START_INIT          3
+#define NYTP_START_END           4
+
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
 #define NYTP_FIDf_VIA_SUB        0x0004 /* fid first seen by sub profiler */
@@ -112,7 +118,7 @@ static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static bool embed_fid_line = 0;
 static bool usecputime = 0;
 static int use_db_sub = 0;
-static int profile_begin = 0;                     /* profile at once, ie compile time */
+static int profile_start = NYTP_START_INIT;       /* when to start profiling */
 static int profile_blocks = 1;                    /* block and sub *exclusive* times */
 static int profile_subs = 1;                      /* sub *inclusive* times */
 static int profile_leave = 1;                     /* correct block end timing */
@@ -933,7 +939,7 @@ DB_stmt(pTHX_ OP *op)
         if (!cop)
             cop = PL_curcop_nytprof;
         last_executed_line = CopLINE(cop);
-        if (!last_executed_line) {                /* typically when _finish called by END */
+        if (!last_executed_line) {                /* i.e. finish_profile called by END */
             if (op)                               /* should never happen */
                 warn("Unable to determine line number in %s", OutCopFILE(cop));
             last_executed_line = 1;               /* don't want zero line numbers in data */
@@ -994,7 +1000,7 @@ DB_leave(pTHX_ OP *op)
      * PL_curcop has already been updated.
      */
 
-    if (!is_profiling)
+    if (!is_profiling || !out)
         return;
 
     /* measure and output end time of previous statement
@@ -1033,8 +1039,12 @@ set_option(const char* option, const char* value)
     else if (strEQ(option, "usecputime")) {
         usecputime = atoi(value);
     }
-    else if (strEQ(option, "begin")) {
-        profile_begin = atoi(value);
+    else if (strEQ(option, "start")) {
+        if      (strEQ(value,"begin")) profile_start = NYTP_START_BEGIN;
+        else if (strEQ(value,"init"))  profile_start = NYTP_START_INIT;
+        else if (strEQ(value,"end"))   profile_start = NYTP_START_END;
+        else if (strEQ(value,"no"))    profile_start = NYTP_START_NO;
+        else croak("NYTProf option begin has invalid value '%s'\n", value);
     }
     else if (strEQ(option, "subs")) {
         profile_subs = atoi(value);
@@ -1055,7 +1065,7 @@ set_option(const char* option, const char* value)
         use_db_sub = atoi(value);
     }
     else {
-        warn("Unknown option: %s\n", option);
+        warn("Unknown NYTProf option: %s\n", option);
         return;
     }
     if (trace_level)
@@ -1477,7 +1487,7 @@ disable_profile(pTHX)
 static void
 finish_profile(pTHX)
 {
-    if (trace_level)
+    if (trace_level >= 1)
         warn("finish_profile (last_pid %d, getpid %d, overhead %"NVff"s)\n",
             last_pid, getpid(), cumulative_overhead_ticks/ticks_per_sec);
 
@@ -1571,24 +1581,15 @@ init_profiler(pTHX)
         sub_callers_hv = newHV();
     PL_ppaddr[OP_ENTERSUB] = pp_entersub_profiler;
 
-    if (profile_begin) {
+    if (!PL_checkav) PL_checkav = newAV();
+    if (!PL_initav)  PL_initav  = newAV();
+    if (!PL_endav)   PL_endav   = newAV();
+    if (profile_start == NYTP_START_BEGIN) {
         enable_profile(aTHX);
     }
-    else {
-        SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
-        if (trace_level >= 2)
-            warn("enable_profile defered to INIT phase");
-        /* INIT { enable_profile() } */
-        if (!PL_initav)
-            PL_initav = newAV();
-        av_unshift(PL_initav, 1);                 /* we want to be first */
-        av_store(PL_initav, 0, SvREFCNT_inc(enable_profile_sv));
-    }
-
-    /* END { _finish() } */
-    if (!PL_endav)
-        PL_endav = newAV();
-    av_push(PL_endav, (SV *)get_cv("DB::_finish", GV_ADDWARN));
+    /* else handled by _INIT */
+    /* defer some init until INIT phase */
+    av_push(PL_initav, SvREFCNT_inc(get_cv("DB::_INIT", GV_ADDWARN)));
 
     /* seed first run time */
     if (usecputime) {
@@ -2283,6 +2284,28 @@ finish_profile(...)
     _finish = 1
     C_ARGS:
     aTHX
+
+void
+_INIT()
+    CODE:
+    if (profile_start == NYTP_START_INIT)  {
+        enable_profile(aTHX);
+    }
+    else if (profile_start == NYTP_START_END) {
+        SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
+        AV *queue = NULL;
+        if (trace_level >= 2)
+            warn("enable_profile defered until END");
+        av_unshift(PL_endav, 1);  /* we want to be first */
+        av_store(PL_endav, 0, SvREFCNT_inc(enable_profile_sv));
+    }
+    /* we want to END { finish_profile() } but we want it to be the last END
+     * block run so we don't push it into PL_endav until INIT phase.
+     * so it's likely to be the last thing run.
+     */
+    av_push(PL_endav, (SV *)get_cv("DB::finish_profile", GV_ADDWARN));
+
+
 
 MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Data
 

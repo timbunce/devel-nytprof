@@ -29,6 +29,11 @@ sub foo {
     1;
 }
 
+END {
+    warn "END!\n";
+    add()
+}
+
 timethese( $count, {
     add => \&add,
     bar => \&inc,

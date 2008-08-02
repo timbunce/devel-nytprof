@@ -2,13 +2,24 @@
 use strict;
 
 my %runs = (
-    plain => {
+    start_begin => {
+        skip => 0,
+        NYTPROF => 'start=begin',
+    },
+    start_check => {
+        skip => 0,
+        NYTPROF => 'start=init',
+    },
+    start_end => {
+        skip => 0,
+        NYTPROF => 'start=end',
     },
 );
 
 
 for my $run (keys %runs) {
 
+    next if $runs{$run}{skip};
     $ENV{NYTPROF}      = $runs{$run}{NYTPROF} || '';
     $ENV{NYTPROF_HTML} = $runs{$run}{NYTPROF_HTML} || '';
 

@@ -71,7 +71,7 @@ Devel::NYTProf is a powerful feature-rich perl source code profiler.
  * Accounts correctly for time spent after calls return
  * Performs inclusive and exclusive timing of subroutines
  * Subroutine times are per calling location (a powerful feature)
- * Can profile compile-time activity or just run-time
+ * Can profile compile-time activity, just run-time, or just END time
  * Uses novel techniques for efficient profiling
  * Sub-microsecond (100ns) resolution on systems with clock_gettime()
  * Very fast - the fastest statement and subroutine profilers for perl
@@ -201,7 +201,7 @@ environment variable C<NYTPROF>.  It is possible to use this environment
 variable to effect multiple setting by separating the values with a C<:>.  For
 example:
 
-    export NYTPROF=trace=2:begin=1:file=/tmp/nytprof.out
+    export NYTPROF=trace=2:start=init:file=/tmp/nytprof.out
 
 =over 4
 
@@ -209,10 +209,19 @@ example:
 
 Set trace level to N. 0 is off (the default). Higher values cause more detailed trace output.
 
-=item begin=1
+=item start=...
 
-Include compile-time activity in the profile. Currently that's not the default,
-but that's likely to change in future.
+Specify at which phase of program execution the profiler should be enabled:
+
+  start=begin - start immediately
+  start=init  - start at begining of INIT phase (after compilation)
+  start=end   - start at begining of END phase
+  start=no    - don't automatically start
+
+Currently start=init is the default, but that's likely to change in future.
+
+The start=no option is handy if you want to explicitly control profiling
+by calling DB::enable_profile() and DB::disable_profile() yourself.
 
 =item subs=0
 
