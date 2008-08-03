@@ -231,7 +231,7 @@ The tricky/clever/new idea is that by nesting a span inside another and using
 the :before or :after on the inner one the text of the popup can reside in css
 and not html. Mind you, I've not seen anyone do this so I may be crazy :)
 
-The data file includes the information mapping a line-level live to the
+The data file includes the information mapping a line-level line to the
 corresponding block-level and sub-level lines. This should be added to the data
 structure. It would enable a much richer visualization of which lines have
 contributed to the 'rolled up' counts. That's especially tricky to work out
@@ -306,3 +306,20 @@ Replace DB::enable_profiling() and DB::disable_profiling() with $DB::profile = 1
 That a more consistent API with $DB::single etc., but more importantly it lets
 users leave the code in place when NYTProf is not loaded. It'll just do nothing,
 whereas currently the user will get a fatal error if NYTProf isn't loaded.
+It also allows smart things like use of local for temporary overrides.
+
+Combine current profile_* globals into a single global int using bit fields.
+That way assigning to $DB::profile can offer a finer degree of control.
+
+Add mechanism to enable control of profiling on a per-sub-name and/or
+per-package-name basis. For example, specify a regex and whenever a sub is
+entered (for the first time, to make it cheap) check if the sub name matches
+the regex. If it does then save the current $DB::profile value and set a new one.
+When the sub exits restore the previous $DB::profile value.
+
+Could optionally track resource usage per sub. Data sources could be perl sv
+arenas (clone visit() function from sv.c) to measure number of SVs & total SV
+memory, plus getrusage()). Abstract those into a structure with functions to
+subtract the difference. Then use the same logic to get inclusive and exclusive
+values as we use for inclusive and exclusive subroutine times.
+
