@@ -6,7 +6,9 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf
 
-  NOTE: File format changed. Old profiles can't be read.
+  NOTES:
+  1. File format changed. Old profiles can't be read.
+  2. Perl 5.8.1 is the oldest perl version supported.
 
   Fixed accounting for time spent executing subs that were
     compiled in string evals.
