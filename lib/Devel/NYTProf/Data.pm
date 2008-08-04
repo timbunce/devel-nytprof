@@ -157,6 +157,11 @@ sub new {
     return $profile;
 }
 
+sub all_subinfos {
+    my @all = values %{ shift->{sub_subinfo} };
+    return @all;
+}
+
 sub all_fileinfos {
     my @all = @{shift->{fid_fileinfo}};
     shift @all;    # drop fid 0
@@ -803,6 +808,35 @@ sub line_calls_for_file {
     sub size      { shift->[5] }
     sub mtime     { shift->[6] }
     sub profile   { shift->[7] }
+
+    sub line_time_data {
+        my ($self, $levels) = @_;
+        $levels ||= [ 'line' ];
+        # XXX this can be optimized once the fidinfo contains directs refs to the data
+        my $profile = $self->profile;
+        my $fid = $self->fid;
+        for my $level (@$levels) {
+            my $line_data = $profile->get_fid_line_data($level)->[$fid];
+            return $line_data if $line_data;
+        }
+        return undef;
+    }
+
+    sub excl_time { # total exclusive time for fid
+        my $self = shift;
+        my $line_data = $self->line_time_data([qw(sub block line)])
+            || return undef;
+        my $excl_time = 0;
+        for (@$line_data) {
+            next unless $_;
+            $excl_time += $_->[0];
+            if (my $eval_lines = $_->[2]) {
+                # line contains a string eval
+                $excl_time += $_->[0] for values %$eval_lines;
+            }
+        }
+        return $excl_time;
+    }
 
     sub outer {
         my $self = shift;
