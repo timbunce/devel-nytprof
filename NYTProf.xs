@@ -2193,7 +2193,8 @@ load_profile_data_from_stream()
             }
 
             default:
-                croak("File format error: token %d ('%c'), chunk %lu", c, c, input_chunk_seqn);
+                croak("File format error: token %d ('%c'), chunk %lu, pos %lu",
+		      c, c, input_chunk_seqn, ftell(in));
         }
     }
 
