@@ -20,6 +20,20 @@ use Config;
 
 my $is_developer = (-d '.svn');
 
+# This lets me build it under ext/Devel, and profile parts of the core in place
+unless($ENV{PERL_CORE}) {
+    $ENV{PERL_CORE} = 1 if grep { $_ eq 'PERL_CORE=1' } @ARGV;
+}
+my @man;
+if ($ENV{PERL_CORE}) {
+  @man = ( MAN1PODS => {}, MAN3PODS => {} );
+} else {
+  @man = ( MAN1PODS  => {
+        'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
+        'bin/nytprofcsv'  => '$(INST_MAN1DIR)/nytprofcsv.1'
+  } );
+}
+
 # --- Bail out on Windows
 if ($^O eq 'MSWin32') {
     print "This module does not currently support Windows.\n"
@@ -105,10 +119,7 @@ WriteMakefile(
     },
     LIBS      => \@LIBS,
     EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv'],
-    MAN1PODS  => {
-        'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
-        'bin/nytprofcsv'  => '$(INST_MAN1DIR)/nytprofcsv.1'
-    },
+    @man,
     INC   => $INCLUDE,
     clean => {FILES => "t/nytprof_t.out nytprof t/nytprof.out t/*.outdir t/test*.*.new t/auto"},
     dist  => {
