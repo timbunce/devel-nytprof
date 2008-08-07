@@ -112,6 +112,9 @@ sub new {
 
     $self->{profile}->make_fid_filenames_relative($opts->{relative_paths});
 
+    # a hack for testing/debugging
+    exit $ENV{NYTPROF_EXIT_AFTER_LOAD} if defined $ENV{NYTPROF_EXIT_AFTER_LOAD};
+
     return $self;
 }
 
@@ -421,7 +424,8 @@ sub _generate_report {
             }
             if ($line =~ m/^\# \s* line \b/x) {
                 # XXX we should be smarter about this - patches welcome!
-                warn "Ignoring '$line' directive at line $LINE - profile data for $filestr will be out of sync with source!\n";
+                warn "Ignoring '$line' directive at line $LINE - profile data for $filestr will be out of sync with source!\n"
+                    unless our $line_directive_warn->{$filestr}++; # once per file
             }
             my $makes_calls_to = $line_calls_hash->{$LINE}   || {};
             my $subs_defined   = $subs_defined_hash->{$LINE} || [];
