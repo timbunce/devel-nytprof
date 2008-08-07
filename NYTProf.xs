@@ -63,6 +63,8 @@
 #define NYTP_START_INIT          3
 #define NYTP_START_END           4
 
+#define NYTP_OPTf_ADDPID         0x0001
+
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
 #define NYTP_FIDf_VIA_SUB        0x0004 /* fid first seen by sub profiler */
@@ -118,6 +120,7 @@ static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static bool embed_fid_line = 0;
 static bool usecputime = 0;
 static int use_db_sub = 0;
+static unsigned int profile_opts;
 static int profile_start = NYTP_START_INIT;       /* when to start profiling */
 static int profile_blocks = 1;                    /* block and sub *exclusive* times */
 static int profile_subs = 1;                      /* sub *inclusive* times */
@@ -1067,6 +1070,11 @@ set_option(const char* option, const char* value)
     else if (strEQ(option, "leave")) {
         profile_leave = atoi(value);
     }
+    else if (strEQ(option, "addpid")) {
+        profile_opts = (atoi(value))
+            ? profile_opts |  NYTP_OPTf_ADDPID
+            : profile_opts & ~NYTP_OPTf_ADDPID;
+    }
     else if (strEQ(option, "expand")) {
         embed_fid_line = atoi(value);
     }
@@ -1092,19 +1100,26 @@ set_option(const char* option, const char* value)
 void
 open_output_file(pTHX_ char *filename)
 {
-
     char filename_buf[MAXPATHLEN];
 
-    if (out) {                                    /* already opened so assume forking */
+    if (profile_opts & NYTP_OPTf_ADDPID
+    || out /* already opened so assume forking */
+    ) {  
         sprintf(filename_buf, "%s.%d", filename, getpid());
         filename = filename_buf;
         /* caller is expected to have purged/closed old out if appropriate */
     }
 
-    out = fopen(filename, "wb");
+    /* some protection against multiple processes writing to the same file */
+    unlink(filename);   /* throw away any previous file */
+    out = fopen(filename, "wbx");
     if (!out) {
+        int fopen_errno = errno;
+        char *hint = "";
+        if (fopen_errno==EEXIST && !(profile_opts & NYTP_OPTf_ADDPID))
+            hint = " (enable addpid mode to protect against concurrent writes)";
         disable_profile(aTHX);
-        croak("Failed to open output '%s': %s", filename, strerror(errno));
+        croak("Failed to open output '%s': %s%s", filename, strerror(fopen_errno), hint);
     }
     if (trace_level)
         warn("Opened %s\n", filename);
@@ -2206,7 +2221,7 @@ load_profile_data_from_stream()
 
             default:
                 croak("File format error: token %d ('%c'), chunk %lu, pos %lu",
-		      c, c, input_chunk_seqn, ftell(in));
+		      c, c, input_chunk_seqn, (unsigned long)ftell(in)-1);
         }
     }
 
@@ -2306,7 +2321,6 @@ _INIT()
     }
     else if (profile_start == NYTP_START_END) {
         SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
-        AV *queue = NULL;
         if (trace_level >= 2)
             warn("enable_profile defered until END");
         av_unshift(PL_endav, 1);  /* we want to be first */

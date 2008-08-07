@@ -194,7 +194,7 @@ Or you can avoid the need to add the -d option at all by using the C<PERL5OPT> e
 That's also very handy when you can't alter the perl command line being used to
 run the script you want to profile.
 
-=head1 ENVIRONMENT VARIABLES
+=head1 NYTPROF ENVIRONMENT VARIABLE
 
 The behavior of Devel::NYTProf may be modified by setting the 
 environment variable C<NYTPROF>.  It is possible to use this environment
@@ -203,13 +203,17 @@ example:
 
     export NYTPROF=trace=2:start=init:file=/tmp/nytprof.out
 
-=over 4
+=head2 addpid=1
 
-=item trace=N
+Append the current process id to the end of the filename.
+
+This avoids concurrent, or consecutive, processes from overwriting the same file.
+
+=head2 trace=N
 
 Set trace level to N. 0 is off (the default). Higher values cause more detailed trace output.
 
-=item start=...
+=head2 start=...
 
 Specify at which phase of program execution the profiler should be enabled:
 
@@ -223,11 +227,11 @@ Currently start=init is the default, but that's likely to change in future.
 The start=no option is handy if you want to explicitly control profiling
 by calling DB::enable_profile() and DB::disable_profile() yourself.
 
-=item subs=0
+=head2 subs=0
 
 Set to 0 to disable the collection of subroutine inclusive timings.
 
-=item blocks=0
+=head2 blocks=0
 
 Set to 0 to disable the determination of block and subroutine location per statement.
 This makes the profiler about 50% faster (as of July 2008) but you loose some
@@ -235,7 +239,7 @@ valuable information. The extra cost is likely to be reduced in later versions
 anyway, as little optimization has been done on that part of the code.
 The profiler is fast enough that you shouldn't need to do this.
 
-=item leave=0
+=head2 leave=0
 
 Set to 0 to disable the extra work done to allocate times accurately when
 returning into the middle of statement. For example leaving a subroutine
@@ -247,7 +251,7 @@ the last statement executed doesn't accumulate the time spent 'outside perl'.
 NYTProf is the only line-level profiler to measure these times correctly.
 The profiler is fast enough that you shouldn't need to disable this feature.
 
-=item use_db_sub=1
+=head2 use_db_sub=1
 
 Set to 1 to enable use of the traditional DB::DB() subroutine to perform
 profiling, instead of the faster 'opcode redirection' technique that's used by
@@ -257,7 +261,7 @@ results for things like the last statements in subroutines.
 If you find a use, or need, for use_db_sub=1 then please let us know,
 otherwise this vestige of old slower ways is likely to be removed.
 
-=item usecputime=1
+=head2 usecputime=1
 
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
 time (which is the default).
@@ -271,11 +275,9 @@ gigahertz clocks, 0.01 seconds is like a lifetime. The cpu time clock 'ticks'
 happen so rarely relative to the activity of a most applications that you'd
 have to run the code for many hours to have any hope of reasonably useful results.
 
-=item file=...
+=head2 file=...
 
 Specify the output file to write profile data to (default: './nytprof.out').
-
-=back
 
 =head1 SELECTIVE PROFILING
 

@@ -15,6 +15,7 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
   Fixed risk of file corruption by names containing newlines.
   Improved formating of stats for subs called by a statement.
   Added support for .pmc files.
+  Added addpid=1 option to NYTPROF env var.
   Added detection of #line directives in source code
     currently just warns that they are not handled.
 
