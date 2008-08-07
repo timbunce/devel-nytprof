@@ -530,8 +530,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             while (len-- > 0) {
                 if (isprint(*p++))
                     continue;
-                warn("Fid %d filename contains strange characters '%.*s' (please report this possible corruption)",
-                    found->id, entry.key_len, entry.key);
+                warn("Fid %d filename contains strange characters '%.*s' (please report this possible corruption, %d)",
+                    found->id, entry.key_len, entry.key, created_via);
                 break;
             }
         }
@@ -1310,7 +1310,7 @@ pp_entersub_profiler(pTHX)
      */
     op = run_original_op(OP_ENTERSUB);            /* may croak */
 
-    if (is_profiling) {
+    if (profile_subs && is_profiling) {
 
         /* get line, file, and fid for statement *before* the call */
 
