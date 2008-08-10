@@ -254,7 +254,7 @@ output_header(pTHX)
     fprintf(out, ":%s=%s\n",       "xs_version",    XS_VERSION);
     fprintf(out, ":%s=%d.%d.%d\n", "perl_version",  PERL_REVISION, PERL_VERSION, PERL_SUBVERSION);
     fprintf(out, ":%s=%u\n",       "ticks_per_sec", ticks_per_sec);
-    fprintf(out, ":%s=%lu\n",      "nv_size", sizeof(NV));
+    fprintf(out, ":%s=%lu\n",      "nv_size", (long unsigned int)sizeof(NV));
     /* $0 - application name */
     mg_get(sv = get_sv("0",GV_ADDWARN));
     fprintf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
@@ -950,7 +950,7 @@ DB_stmt(pTHX_ OP *op)
          * cop by searching through the optree starting from the sibling of PL_curcop.
          * See Perl_vmess in perl's util.c for how warn("...") finds the line number.
          */
-        cop = closest_cop(aTHX_ cop, cop->op_sibling);
+        cop = (COP*)closest_cop(aTHX_ cop, cop->op_sibling);
         if (!cop)
             cop = PL_curcop_nytprof;
         last_executed_line = CopLINE(cop);
@@ -1576,7 +1576,7 @@ init_profiler(pTHX)
     open_output_file(aTHX_ PROF_output_file);
 
     /* redirect opcodes for statement profiling */
-    New(0, PL_ppaddr_orig, OP_max, void *);
+    Newx(PL_ppaddr_orig, OP_max, void *);
     Copy(PL_ppaddr, PL_ppaddr_orig, OP_max, void *);
     if (!use_db_sub) {
         PL_ppaddr[OP_NEXTSTATE]  = pp_stmt_profiler;
