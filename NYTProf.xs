@@ -592,33 +592,36 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 void
 output_int(unsigned int i)
 {
+    U8 buffer[5];
+    U8 *p = buffer;
 
     /* general case. handles all integers */
     if (i < 0x80) {                               /* < 8 bits */
-        fputc( (char)i, out);
+	*p++ = (U8)i;
     }
     else if (i < 0x4000) {                        /* < 15 bits */
-        fputc( (char)((i >> 8) | 0x80), out);
-        fputc( (char)i, out);
+	*p++ = (U8)((i >> 8) | 0x80);
+        *p++ = (U8)i;
     }
     else if (i < 0x200000) {                      /* < 22 bits */
-        fputc( (char)((i >> 16) | 0xC0), out);
-        fputc( (char)(i >> 8), out);
-        fputc( (char)i, out);
+        *p++ = (U8)((i >> 16) | 0xC0);
+        *p++ = (U8)(i >> 8);
+        *p++ = (U8)i;
     }
     else if (i < 0x10000000) {                    /* 32 bits */
-        fputc( (char)((i >> 24) | 0xE0), out);
-        fputc( (char)(i >> 16), out);
-        fputc( (char)(i >> 8), out);
-        fputc( (char)i, out);
+        *p++ = (U8)((i >> 24) | 0xE0);
+        *p++ = (U8)(i >> 16);
+        *p++ = (U8)(i >> 8);
+        *p++ = (U8)i;
     }
     else {                                        /* need all the bytes. */
-        fputc( 0xFF, out);
-        fputc( (char)(i >> 24), out);
-        fputc( (char)(i >> 16), out);
-        fputc( (char)(i >> 8), out);
-        fputc( (char)i, out);
+        *p++ = 0xFF;
+        *p++ = (U8)(i >> 24);
+        *p++ = (U8)(i >> 16);
+        *p++ = (U8)(i >> 8);
+        *p++ = (U8)i;
     }
+    fwrite(buffer, p - buffer, 1, out);
 }
 
 
