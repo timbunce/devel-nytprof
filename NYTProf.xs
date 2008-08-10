@@ -82,6 +82,10 @@
 #define NYTP_TAG_STRING          '\'' 
 #define NYTP_TAG_STRING_UTF8     '"' 
 
+#define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
+
+#define output_int(i)            output_tag_int(NYTP_TAG_NO_TAG, (i))
+
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
 
@@ -186,7 +190,7 @@ static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set *
 
 /* prototypes */
 void output_header(pTHX);
-void output_int(unsigned int);
+void output_tag_int(unsigned char tag, unsigned int);
 void output_str(char *str, I32 len);
 unsigned int read_int();
 SV *read_str(pTHX_ SV *sv);
@@ -585,15 +589,20 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 
 
 /**
- * Output an integer in bytes. That is, output the number in binary, using the
- * least number of bytes possible.  All numbers are positive. Use sign slot as
- * a marker
+ * Output an integer in bytes, optionally preceded by a tag. Use the special tag
+ * NYTP_TAG_NO_TAG to suppress the tag output. A wrapper macro output_int(i)
+ * does tHis for you.
+ * "In bytes" means output the number in binary, using the least number of bytes
+ * possible.  All numbers are positive. Use sign slot as a marker
  */
 void
-output_int(unsigned int i)
+output_tag_int(unsigned char tag, unsigned int i)
 {
-    U8 buffer[5];
+    U8 buffer[6];
     U8 *p = buffer;
+
+    if (tag != NYTP_TAG_NO_TAG)
+	*p++ = tag;
 
     /* general case. handles all integers */
     if (i < 0x80) {                               /* < 8 bits */
