@@ -189,32 +189,32 @@ static NV cumulative_subr_secs = 0.0;
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
 
 /* prototypes */
-void output_header(pTHX);
-void output_tag_int(unsigned char tag, unsigned int);
-void output_str(char *str, I32 len);
-unsigned int read_int();
-SV *read_str(pTHX_ SV *sv);
-unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
-void DB_stmt(pTHX_ OP *op);
-void set_option(const char*, const char*);
+static void output_header(pTHX);
+static void output_tag_int(unsigned char tag, unsigned int);
+static void output_str(char *str, I32 len);
+static unsigned int read_int();
+static SV *read_str(pTHX_ SV *sv);
+static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
+static void DB_stmt(pTHX_ OP *op);
+static void set_option(const char*, const char*);
 static int enable_profile(pTHX);
 static int disable_profile(pTHX);
 static void finish_profile(pTHX);
-void open_output_file(pTHX_ char *);
-int reinit_if_forked(pTHX);
+static void open_output_file(pTHX_ char *);
+static int reinit_if_forked(pTHX);
 static void write_cached_fids();
-void write_sub_line_ranges(pTHX_ int fids_only);
-void write_sub_callers(pTHX);
-HV *load_profile_data_from_stream();
-AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num,
-NV time, int count, unsigned int fid);
+static void write_sub_line_ranges(pTHX_ int fids_only);
+static void write_sub_callers(pTHX);
+static HV *load_profile_data_from_stream();
+static AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num,
+				    NV time, int count, unsigned int fid);
 
 /* copy of original contents of PL_ppaddr */
 OP * (CPERLscope(**PL_ppaddr_orig))(pTHX);
 #define run_original_op(type) CALL_FPTR(PL_ppaddr_orig[type])(aTHX)
-OP *pp_entersub_profiler(pTHX);
-OP *pp_leaving_profiler(pTHX);
-HV *sub_callers_hv;
+static OP *pp_entersub_profiler(pTHX);
+static OP *pp_leaving_profiler(pTHX);
+static HV *sub_callers_hv;
 
 /* macros for outputing profile data */
 #ifndef HAS_GETPPID
@@ -235,7 +235,7 @@ HV *sub_callers_hv;
 /**
  * output file header
  */
-void
+static void
 output_header(pTHX)
 {
     SV *sv;
@@ -271,7 +271,7 @@ output_header(pTHX)
 }
 
 
-void
+static void
 output_str(char *str, I32 len) {    /* negative len signifies utf8 */
     int tag = NYTP_TAG_STRING;
     if (!len)
@@ -285,7 +285,7 @@ output_str(char *str, I32 len) {    /* negative len signifies utf8 */
 }
 
 
-SV *
+static SV *
 read_str(pTHX_ SV *sv) {
     STRLEN len;
     char *buf;
@@ -324,7 +324,7 @@ read_str(pTHX_ SV *sv) {
 /**
  * An implementation of the djb2 hash function by Dan Bernstein.
  */
-unsigned long
+static unsigned long
 hash (char* _str, unsigned int len)
 {
     char* str = _str;
@@ -345,7 +345,7 @@ hash (char* _str, unsigned int len)
  * hash_entry not in table, insert is true: inserts hash_entry and returns hash_entry
  * hash_entry in table, insert IGNORED: returns pointer to the actual hash entry
  */
-char
+static char
 hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
 {
     static int next_fid = 1;                      /* 0 is reserved */
@@ -486,7 +486,7 @@ write_cached_fids()
  * The created_via flag bit is stored in the fid info
  * (currently only used as a diagnostic tool)
  */
-unsigned int
+static unsigned int
 get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 {
 
@@ -593,7 +593,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
  * "In bytes" means output the number in binary, using the least number of bytes
  * possible.  All numbers are positive. Use sign slot as a marker
  */
-void
+static void
 output_tag_int(unsigned char tag, unsigned int i)
 {
     U8 buffer[6];
@@ -636,7 +636,7 @@ output_tag_int(unsigned char tag, unsigned int i)
  * Output a double precision float via a simple binary write of the memory.
  * (Minor portbility issues are seen as less important than speed and space.)
  */
-void
+static void
 output_nv(NV nv)
 {
     fwrite((unsigned char *)&nv, sizeof(NV), 1, out);
@@ -812,7 +812,7 @@ _cop_in_same_file(COP *a, COP *b)
 }
 
 
-int
+static int
 _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
 {
     COP *near_cop;
@@ -911,7 +911,7 @@ closest_cop(pTHX_ const COP *cop, const OP *o)
 /**
  * Main statement profiling function. Called before each breakable statement.
  */
-void
+static void
 DB_stmt(pTHX_ OP *op)
 {
     char *file;
@@ -1054,7 +1054,7 @@ DB_leave(pTHX_ OP *op)
 /**
  * Sets or toggles the option specified by 'option'.
  */
-void
+static void
 set_option(const char* option, const char* value)
 {
 
@@ -1107,7 +1107,7 @@ set_option(const char* option, const char* value)
  * Open the output file. This is encapsulated because the code can be reused
  * without the environment parsing overhead after each fork.
  */
-void
+static void
 open_output_file(pTHX_ char *filename)
 {
     char filename_buf[MAXPATHLEN];
@@ -1138,7 +1138,7 @@ open_output_file(pTHX_ char *filename)
 }
 
 
-int
+static int
 reinit_if_forked(pTHX)
 {
     if (getpid() == last_pid)
@@ -1179,7 +1179,7 @@ typedef struct sub_call_start_st
     NV current_subr_secs;
 } sub_call_start_t;
 
-void
+static void
 incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
 {
     AV *av = sub_call_start->sub_av;
@@ -1222,7 +1222,7 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
 }
 
 
-void                                              /* wrapper called via scope exit due to save_destructor below */
+static void                                              /* wrapper called via scope exit due to save_destructor below */
 incr_sub_inclusive_time_ix(pTHX_ void *save_ix_void)
 {
     I32 save_ix = (I32)save_ix_void;
@@ -1296,7 +1296,7 @@ resolve_sub(pTHX_ SV *sv, SV *subname_out_sv)
 }
 
 
-OP *
+static OP *
 pp_entersub_profiler(pTHX)
 {
     OP *op;
@@ -1461,7 +1461,7 @@ pp_entersub_profiler(pTHX)
 }
 
 
-OP *
+static OP *
 pp_stmt_profiler(pTHX)                            /* handles OP_DBSTATE, OP_SETSTATE, etc */
 {
     OP *op = run_original_op(PL_op->op_type);
@@ -1470,7 +1470,7 @@ pp_stmt_profiler(pTHX)                            /* handles OP_DBSTATE, OP_SETS
 }
 
 
-OP *
+static OP *
 pp_leaving_profiler(pTHX)                         /* handles OP_LEAVESUB, OP_LEAVEEVAL, etc */
 {
     OP *op = run_original_op(PL_op->op_type);
@@ -1479,7 +1479,7 @@ pp_leaving_profiler(pTHX)                         /* handles OP_LEAVESUB, OP_LEA
 }
 
 
-OP *
+static OP *
 pp_exit_profiler(pTHX)                            /* handles OP_EXIT, OP_EXEC, etc */
 {
     DB_leave(aTHX_ NULL);                         /* call DB_leave *before* run_original_op() */
@@ -1549,7 +1549,7 @@ finish_profile(pTHX)
 
 
 /* Initial setup */
-int
+static int
 init_profiler(pTHX)
 {
     unsigned int hashtable_memwidth;
@@ -1643,7 +1643,7 @@ init_profiler(pTHX)
  * Devel::NYTProf::Reader Functions *
  ************************************/
 
-void
+static void
 add_entry(pTHX_ AV *dest_av, unsigned int file_num, unsigned int line_num,
 NV time, unsigned int eval_file_num, unsigned int eval_line_num, int count)
 {
@@ -1674,7 +1674,7 @@ NV time, unsigned int eval_file_num, unsigned int eval_line_num, int count)
 }
 
 
-AV *
+static AV *
 store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num, NV time,
 int count, unsigned int fid)
 {
@@ -1705,7 +1705,7 @@ int count, unsigned int fid)
 }
 
 
-void
+static void
 write_sub_line_ranges(pTHX_ int fids_only)
 {
     char *sub_name;
@@ -1752,7 +1752,7 @@ write_sub_line_ranges(pTHX_ int fids_only)
 }
 
 
-void
+static void
 write_sub_callers(pTHX)
 {
     char *sub_name;
@@ -1801,7 +1801,7 @@ write_sub_callers(pTHX)
  * Read an integer by decompressing the next 1 to 4 bytes of binary into a 32-
  * bit integer. See output_int() for the compression details.
  */
-unsigned int
+static unsigned int
 read_int()
 {
     unsigned char d;
@@ -1850,7 +1850,7 @@ read_int()
 /**
  * Read an NV by simple byte copy to memory
  */
-NV
+static NV
 read_nv()
 {
     NV nv;
@@ -1862,7 +1862,7 @@ read_nv()
 }
 
 
-AV *
+static AV *
 lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
 {
     /* { 'pkg::sub' => [
@@ -1902,7 +1902,7 @@ lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
  * which is an reference to an array containing the [calls,time]
  * data for each line of the string eval.
  */
-HV*
+static HV*
 load_profile_data_from_stream()
 {
     dTHX;
