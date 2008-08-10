@@ -221,11 +221,11 @@ HV *sub_callers_hv;
 #define getppid() 0
 #endif
 #define OUTPUT_PID() STMT_START { \
-    assert(out != NULL); fputc(NYTP_TAG_PID_START, out); output_int(getpid()); output_int(getppid()); \
+    assert(out != NULL); output_tag_int(NYTP_TAG_PID_START, getpid()); output_int(getppid()); \
 } STMT_END
 
 #define END_OUTPUT_PID(pid) STMT_START { \
-    assert(out != NULL); fputc(NYTP_TAG_PID_END, out); output_int(pid); fflush(out); \
+    assert(out != NULL); output_tag_int(NYTP_TAG_PID_END, pid); fflush(out); \
 } STMT_END
 
 /***********************************
@@ -280,8 +280,7 @@ output_str(char *str, I32 len) {    /* negative len signifies utf8 */
         tag = NYTP_TAG_STRING_UTF8;
         len = -len;
     }
-    fputc(tag, out);
-    output_int(len);
+    output_tag_int(tag, len);
     fwrite(str, 1, len, out);
 }
 
@@ -422,8 +421,7 @@ emit_fid (Hash_entry *fid_info)
         file_name = fid_info->key_abs;
         file_name_len = strlen(file_name);
     }
-    fputc(NYTP_TAG_NEW_FID, out);
-    output_int(fid_info->id);
+    output_tag_int(NYTP_TAG_NEW_FID, fid_info->id);
     output_int(fid_info->eval_fid);
     output_int(fid_info->eval_line_num);
     output_int(fid_info->fid_flags);
@@ -943,8 +941,8 @@ DB_stmt(pTHX_ OP *op)
     if (last_executed_fid) {
         reinit_if_forked(aTHX);
 
-        fputc( (profile_blocks) ? NYTP_TAG_TIME_BLOCK : NYTP_TAG_TIME_LINE, out);
-        output_int(elapsed);
+        output_tag_int(((profile_blocks)
+			? NYTP_TAG_TIME_BLOCK : NYTP_TAG_TIME_LINE), elapsed);
         output_int(last_executed_fid);
         output_int(last_executed_line);
         if (profile_blocks) {
@@ -1746,8 +1744,7 @@ write_sub_line_ranges(pTHX_ int fids_only)
             warn("Sub %s fid %u lines %lu..%lu\n",
                 sub_name, fid, (unsigned long)first_line, (unsigned long)last_line);
 
-        fputc(NYTP_TAG_SUB_LINE_RANGE, out);
-        output_int(fid);
+        output_tag_int(NYTP_TAG_SUB_LINE_RANGE, fid);
         output_int(first_line);
         output_int(last_line);
         output_str(sub_name, sub_name_len);
@@ -1787,8 +1784,7 @@ write_sub_callers(pTHX)
                     SvNV(AvARRAY(av)[1]), SvNV(AvARRAY(av)[2]),
                     SvNV(AvARRAY(av)[3]), SvNV(AvARRAY(av)[4]) );
 
-            fputc(NYTP_TAG_SUB_CALLERS, out);
-            output_int(fid);
+            output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
             output_int(line);
             output_int(count);
             output_nv( SvNV(AvARRAY(av)[1]) );
