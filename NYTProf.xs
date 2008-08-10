@@ -1811,35 +1811,37 @@ read_int()
     if (d < 0x80) {                               /* 7 bits */
         newint = d;
     }
-    else if (d < 0xC0) {                          /* 14 bits */
-        newint = d & 0x7F;
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
-    }
-    else if (d < 0xE0) {                          /* 21 bits */
-        newint = d & 0x1F;
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
-    }
-    else if (d < 0xFF) {                          /* 28 bits */
-        newint = d & 0xF;
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
-    }
-    else if (d == 0xFF) {                         /* 32 bits */
-        newint = (unsigned char)fgetc(in);
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
-        newint <<= 8;
-        newint |= (unsigned char)fgetc(in);
+    else {
+	unsigned char buffer[4];
+	unsigned char *p = buffer;
+	unsigned int length;
+	size_t got;
+
+	if (d < 0xC0) {                          /* 14 bits */
+	    newint = d & 0x7F;
+	    length = 1;
+	}
+	else if (d < 0xE0) {                          /* 21 bits */
+	    newint = d & 0x1F;
+	    length = 2;
+	}
+	else if (d < 0xFF) {                          /* 28 bits */
+	    newint = d & 0xF;
+	    length = 3;
+	}
+	else if (d == 0xFF) {                         /* 32 bits */
+	    newint = 0;
+	    length = 4;
+	}
+	got = fread(buffer, length, 1, in);
+	if (got != 1) {
+	    croak("Profile format error whilst reading integer at %ld",
+		  (long)ftell(in));
+	}
+	while (length--) {
+	    newint <<= 8;
+	    newint |= *p++;
+	}
     }
     return newint;
 }
