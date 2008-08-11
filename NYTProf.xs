@@ -2322,6 +2322,9 @@ finish_profile(...)
     _finish = 1
     C_ARGS:
     aTHX
+    INIT:
+    PERL_UNUSED_ARG(ix);
+    PERL_UNUSED_ARG(items);
 
 void
 _INIT()
