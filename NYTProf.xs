@@ -210,7 +210,8 @@ static AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num,
 				    NV time, int count, unsigned int fid);
 
 /* copy of original contents of PL_ppaddr */
-OP * (CPERLscope(**PL_ppaddr_orig))(pTHX);
+typedef OP * (CPERLscope(*orig_ppaddr_t))(pTHX);
+orig_ppaddr_t *PL_ppaddr_orig;
 #define run_original_op(type) CALL_FPTR(PL_ppaddr_orig[type])(aTHX)
 static OP *pp_entersub_profiler(pTHX);
 static OP *pp_leaving_profiler(pTHX);
@@ -1586,7 +1587,7 @@ init_profiler(pTHX)
     open_output_file(aTHX_ PROF_output_file);
 
     /* redirect opcodes for statement profiling */
-    Newx(PL_ppaddr_orig, OP_max, void *);
+    Newxc(PL_ppaddr_orig, OP_max, void *, orig_ppaddr_t);
     Copy(PL_ppaddr, PL_ppaddr_orig, OP_max, void *);
     if (!use_db_sub) {
         PL_ppaddr[OP_NEXTSTATE]  = pp_stmt_profiler;
