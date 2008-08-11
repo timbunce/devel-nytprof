@@ -121,12 +121,6 @@ Add time to begin and end pid markers in data file.
 Add marker with timestamp for phases BEGIN, CHECK, INIT, END
 (could combine with pid marker)
 
-Add option to specify when profiling should start
-start=begin, start=check, start=init, start=end, start=no
-start=end would enable profiling of just the destruction phase.
-start=no would allow profiling only sections between explict
-calls to enable_profile() and disable_profile()
-
 Add actual size and mtime of fid to data file. (Already in data file as zero,
 just needs the stat() call.)
 
@@ -147,10 +141,6 @@ so that the .rdt tests aren't affected by variations between versions of library
 Support profiling programs which use threads:
 	- move all relevant globals into a structure
 	- add lock around output to file
-
-Add functions to read & write strings to the profile data file that uses an
-integer length prefix.  Replace all current newline-terminated strings with the
-new code, so we're safe from embedded newlines and can also store multi-line strings.
 
 Support optionally generating a compressed data file (using popen("zip -c > $file"))
 But the problem with that approach is that the zip would drain cpu time from
@@ -187,13 +177,6 @@ Record $AUTOLOAD when AUTOLOAD() called
 Perhaps as ...::AUTOLOAD[$AUTOLOAD]
 
 Refactor this HACKING file!
-
-Add docs for new options
-
-Add docs for use_db_sub and explain pros & cons. Especially that opcode
-redirection can't profile code that was loaded before NYTProf because
-it only affects code that is *compiled* after it takes effect.
-(Unless we want to traverse the existing compiled code and edit the ops in place :-)
 
 Add file format backwards compatibility tests.
 
@@ -252,11 +235,6 @@ at 25: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /
 at 37: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 37.
 Unable to determine line number in -e.
 Unable to determine line number in -e.
-
-Add way for user to ask for pid to be embedded into the data file name
-so that using PERL5OPT=-d:NYTProf and running multiple scripts
-won't overwrite the same profile file each time. (Could also add way to embed
-basename($0) into the filename)
 
 Add option to disable statement based profiling, so you're left with subroutine
 inclusive timing. That's *really* fast and would be handy for a quick check on

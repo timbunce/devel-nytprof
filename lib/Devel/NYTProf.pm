@@ -256,8 +256,11 @@ profiling, instead of the faster 'opcode redirection' technique that's used by
 default. It also disables some extra mechanisms that help ensure more accurate
 results for things like the last statements in subroutines.
 
-If you find a use, or need, for use_db_sub=1 then please let us know,
-otherwise this vestige of old slower ways is likely to be removed.
+The default 'opcode redirection' technique can't profile subroutines that were
+compiled before NYTProf was loaded. So using use_db_sub=1 can be useful in
+cases where you can't load the profiler early in the life of the application.
+If this proves to be useful to you then please let us know, otherwise this
+vestige of old slower ways is likely to be removed.
 
 =head2 usecputime=1
 
