@@ -217,12 +217,10 @@ Set trace level to N. 0 is off (the default). Higher values cause more detailed 
 
 Specify at which phase of program execution the profiler should be enabled:
 
-  start=begin - start immediately
+  start=begin - start immediately (the default)
   start=init  - start at begining of INIT phase (after compilation)
   start=end   - start at begining of END phase
   start=no    - don't automatically start
-
-Currently start=init is the default, but that's likely to change in future.
 
 The start=no option is handy if you want to explicitly control profiling
 by calling DB::enable_profile() and DB::disable_profile() yourself.

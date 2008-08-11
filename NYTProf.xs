@@ -125,7 +125,7 @@ static bool embed_fid_line = 0;
 static bool usecputime = 0;
 static int use_db_sub = 0;
 static unsigned int profile_opts;
-static int profile_start = NYTP_START_INIT;       /* when to start profiling */
+static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
 static int profile_blocks = 1;                    /* block and sub *exclusive* times */
 static int profile_subs = 1;                      /* sub *inclusive* times */
 static int profile_leave = 1;                     /* correct block end timing */

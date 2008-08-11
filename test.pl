@@ -103,6 +103,7 @@ ok(-x $nytprofcsv, "Where's nytprofcsv?");
 for my $leave (@test_opt_leave) {
 	for my $use_db_sub (@test_opt_use_db_sub) {
 		run_all_tests( {
+			start => 'init',
 			leave => $leave,
 			use_db_sub => $use_db_sub,
 		} );

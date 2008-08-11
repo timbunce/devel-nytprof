@@ -13,9 +13,13 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
   Fixed accounting for time spent executing subs that were
     compiled in string evals.
   Fixed risk of file corruption by names containing newlines.
+
+  Changed to also profile compile-time activity by default.
   Improved formating of stats for subs called by a statement.
-  Added support for .pmc files.
+
+  Added start=begin|init|end|no option to NYTPROF env var.
   Added addpid=1 option to NYTPROF env var.
+  Added support for .pmc files.
   Added detection of #line directives in source code
     currently just warns that they are not handled.
 
