@@ -2236,7 +2236,8 @@ load_profile_data_from_stream()
         }
     }
 
-    if (EOF == c && HvKEYS(live_pids_hv)) {
+    assert (EOF == c);
+    if (HvKEYS(live_pids_hv)) {
         warn("profile data possibly truncated, no terminator for %"IVdf" pids",
             HvKEYS(live_pids_hv));
     }
