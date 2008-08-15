@@ -121,7 +121,7 @@ WriteMakefile(
     EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv'],
     @man,
     INC   => $INCLUDE,
-    clean => {FILES => "t/nytprof_t.out nytprof t/nytprof.out t/*.outdir t/test*.*.new t/auto"},
+    clean => {FILES => "t/nytprof_t.out nytprof t/nytprof.out t/*.outdir t/test*.*.new t/auto demo-out"},
     dist  => {
         DIST_DEFAULT => 'clean distcheck disttest tardist',
         PREOP        => '$(MAKE) -f Makefile.old distdir',

@@ -4,7 +4,7 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
-=head2 Changes in Devel::NYTProf
+=head2 Changes in Devel::NYTProf 2.03 (svn r405) 15 Aug 2008
 
   NOTES:
   1. File format changed. Old profiles can't be read.
@@ -22,6 +22,13 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
   Added support for .pmc files.
   Added detection of #line directives in source code
     currently just warns that they are not handled.
+
+  Known issues:
+  Perl 5.8.8 can report garbage file names for XS subs.
+  (Perl 5.8.6 and 5.10 don't seem to have this problem.)
+	Where a subroutine is called from code compiled in a string
+  evals, the artificial "eval file names" are not yet merged.
+  (You're unlikely to notice this obscure case anyway.)
 
 =head2 Changes in Devel::NYTProf 2.02 (svn r361) 24 Jul 2008
 
