@@ -132,6 +132,8 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 typedef struct {
     FILE *file;
     int state;
+    int stdio_at_eof;
+    int zlib_at_eof;
     unsigned int count;
     /* For output, the count of the bytes written into the buffer - space used
        up.  */
@@ -293,13 +295,12 @@ compressed_io_croak(NYTP_file file, const char *function) {
 #ifdef HAS_ZLIB
 static void
 NYTP_start_deflate(NYTP_file file) {
-    int err;
+    int status;
 
     if (file->state != NYTP_FILE_STDIO) {
 	compressed_io_croak(in, "NYTP_start_deflate");
     }
     file->state = NYTP_FILE_DEFLATE;
-
     file->zs.next_in = (Bytef *) file->large_buffer;
     file->zs.avail_in = 0;
     file->zs.next_out = (Bytef *) file->small_buffer;
@@ -308,19 +309,33 @@ NYTP_start_deflate(NYTP_file file) {
     file->zs.zfree = (free_func) 0;
     file->zs.opaque = 0;
 
-    err = deflateInit2(&(file->zs), Z_BEST_COMPRESSION, Z_DEFLATED, MAX_WBITS + 16,
+    status = deflateInit2(&(file->zs), Z_BEST_COMPRESSION, Z_DEFLATED, 15,
 		       9 /* memLevel */, Z_DEFAULT_STRATEGY);
-    if (err != Z_OK) {
-	croak("deflateInit2 failed, error %d (%s)", err, file->zs.msg);
+    if (status != Z_OK) {
+	croak("deflateInit2 failed, error %d (%s)", status, file->zs.msg);
     }
 }
 
 static void
 NYTP_start_inflate(NYTP_file file) {
+    int status;
     if (file->state != NYTP_FILE_STDIO) {
 	compressed_io_croak(in, "NYTP_start_inflate");
     }
     file->state = NYTP_FILE_INFLATE;
+
+    file->zs.next_in = (Bytef *) file->small_buffer;
+    file->zs.avail_in = 0;
+    file->zs.next_out = (Bytef *) file->large_buffer;
+    file->zs.avail_out = NYTP_FILE_LARGE_BUFFER_SIZE;
+    file->zs.zalloc = (alloc_func) 0;
+    file->zs.zfree = (free_func) 0;
+    file->zs.opaque = 0;
+
+    status = inflateInit2(&(file->zs), 15);
+    if (status != Z_OK) {
+	croak("inflateInit2 failed, error %d (%s)", status, file->zs.msg);
+    }
 }
 #endif
 
@@ -337,6 +352,8 @@ NYTP_open(const char *name, const char *mode) {
     file->state = NYTP_FILE_STDIO;
     file->end = file->large_buffer;
     file->count = 0;
+    file->stdio_at_eof = 0;
+    file->zlib_at_eof = 0;
 
     file->zs.msg = "[Oops. zlib hasn't updated this error string]";
 
@@ -369,24 +386,61 @@ NYTP_scanf(NYTP_file ifile, const char *format, ...) {
 
 static unsigned int
 grab_input(NYTP_file ifile) {
-    const unsigned char *end;
-    unsigned char *p = ifile->small_buffer;
-    unsigned char *s = ifile->large_buffer;
-    unsigned int got = fread(p, 1, NYTP_FILE_SMALL_BUFFER_SIZE, ifile->file);
-
-    end = ifile->small_buffer + got;
     ifile->count = 0;
+    ifile->zs.next_out = (Bytef *) ifile->large_buffer;
+    ifile->zs.avail_out = NYTP_FILE_LARGE_BUFFER_SIZE;
 
+#ifdef DEBUG_INFLATE
+    fprintf(stderr, "grab_input enter\n");
+#endif
 
-    while (p < end) {
-	*s = *p ^ 0xFF;
-	++p;
-	++s;
+    while (1) {
+	int status;
+
+	if (ifile->zs.avail_in == 0 && !ifile->stdio_at_eof) {
+	    size_t got = fread(ifile->small_buffer, 1,
+			       NYTP_FILE_SMALL_BUFFER_SIZE, ifile->file);
+
+	    if (got == 0) {
+		if (!feof(ifile->file)) {
+		    croak("grab_input failed: %d (%s)", errno, strerror(errno));
+		}
+		ifile->stdio_at_eof = 1;
+	    }
+
+	    ifile->zs.avail_in = got;
+	    ifile->zs.next_in = (Bytef *) ifile->small_buffer;
+	}
+
+#ifdef DEBUG_INFLATE
+	fprintf(stderr, "grab_input predef  next_in= %p avail_in= %08x\n"
+	                "                   next_out=%p avail_out=%08x"
+		" eof=%d,%d\n", ifile->zs.next_in, ifile->zs.avail_in,
+		ifile->zs.next_out, ifile->zs.avail_out, ifile->stdio_at_eof,
+		ifile->zlib_at_eof);
+#endif
+
+	status = inflate(&(ifile->zs), Z_NO_FLUSH);
+
+#ifdef DEBUG_INFLATE
+	fprintf(stderr, "grab_input postdef next_in= %p avail_in= %08x\n"
+	                "                   next_out=%p avail_out=%08x "
+		"status=%d\n", ifile->zs.next_in, ifile->zs.avail_in,
+		ifile->zs.next_out, ifile->zs.avail_out, status);
+#endif
+
+	if (!(status == Z_OK || status == Z_STREAM_END)) {
+	    croak("inflate failed, error %d (%s)", status, ifile->zs.msg);
+	}
+
+	if (ifile->zs.avail_out == 0 || status == Z_STREAM_END) {
+	    if (status == Z_STREAM_END) {
+		ifile->zlib_at_eof = 1;
+	    }
+	    ifile->end = (unsigned char *) ifile->zs.next_out;
+	    return 1;
+	}
     }
-
-    ifile->end = ifile->large_buffer + got;
-
-    return got;
 }
 
 static unsigned int
@@ -414,6 +468,8 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	    result += remaining;
 	    len -= remaining;
 	    buffer = (void *)(remaining + (char *)buffer);
+	    if (ifile->zlib_at_eof)
+		return result;
 	    if (!grab_input(ifile))
 		return 0;
 	}
@@ -423,20 +479,63 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 /* flush has values as described for "allowed flush values" in zlib.h  */
 static unsigned int
 flush_output(NYTP_file ofile, int flush) {
-    const unsigned char *p = ofile->large_buffer;
-    unsigned char *s = ofile->small_buffer;
-    const unsigned int used = ofile->count;
-    const unsigned char *const end = p + used;
+    ofile->zs.next_in = (Bytef *) ofile->large_buffer;
+    ofile->zs.avail_in = ofile->count;
 
-    while (p < end) {
-	*s = *p ^ 0xFF;
-	++p;
-	++s;
+#ifdef DEBUG_DEFLATE
+    fprintf(stderr, "flush_output enter   flush = %d\n", flush);
+#endif
+    while (1) {
+	int status;
+#ifdef DEBUG_DEFLATE
+	fprintf(stderr, "flush_output predef  next_in= %p avail_in= %08x\n"
+	                "                     next_out=%p avail_out=%08x"
+		" flush=%d\n", ofile->zs.next_in, ofile->zs.avail_in,
+		ofile->zs.next_out, ofile->zs.avail_out, flush);
+#endif
+	status = deflate(&(ofile->zs), flush);
+
+#ifdef DEBUG_DEFLATE
+	fprintf(stderr, "flush_output postdef next_in= %p avail_in= %08x\n"
+	                "                     next_out=%p avail_out=%08x "
+		"status=%d\n", ofile->zs.next_in, ofile->zs.avail_in,
+		ofile->zs.next_out, ofile->zs.avail_out, status);
+#endif
+      
+	if (status == Z_OK || status == Z_STREAM_END) {
+	    if (ofile->zs.avail_out == 0 || flush != Z_NO_FLUSH) {
+		int terminate
+		    = ofile->zs.avail_in == 0 && ofile->zs.avail_out > 0;
+		size_t avail
+		    = NYTP_FILE_SMALL_BUFFER_SIZE - ofile->zs.avail_out;
+		const unsigned char *where = ofile->small_buffer;
+
+		while (avail > 0) {
+		    size_t count = fwrite(where, 1, avail, ofile->file);
+
+		    if (count > 0) {
+			where += count;
+			avail -= count;
+		    } else {
+			croak("fwrite in flush, error %d (%s)", errno,
+			      strerror(errno));
+		    }
+		}
+		ofile->zs.next_out = (Bytef *) ofile->small_buffer;
+		ofile->zs.avail_out = NYTP_FILE_SMALL_BUFFER_SIZE;
+		if (terminate) {
+		    ofile->count = 0;
+		    return 1;
+		}
+	    } else {
+		ofile->count = 0;
+		return 1;
+	    }
+	} else {
+	    croak("deflate failed, error %d (%s) in %d", status, ofile->zs.msg,
+		  getpid());
+	}
     }
-
-    ofile->count = 0;
-
-    return fwrite(ofile->small_buffer, 1, used, ofile->file);
 }
 
 static unsigned int
@@ -490,12 +589,16 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
 static int
 NYTP_flush(NYTP_file file) {
     if (file->state == NYTP_FILE_DEFLATE) {
+	flush_output(file, Z_SYNC_FLUSH);
     }
     return fflush(file->file);
 }
 
 static int
 NYTP_eof(NYTP_file ifile) {
+    if (ifile->state == NYTP_FILE_INFLATE) {
+	return ifile->zlib_at_eof;
+    }
     return feof(ifile->file);
 }
 
@@ -516,9 +619,23 @@ NYTP_close(NYTP_file file, int discard) {
     }
 
     if (file->state == NYTP_FILE_DEFLATE) {
-	int err = deflateEnd(&(file->zs));
+	int status = deflateEnd(&(file->zs));
+	if (status != Z_OK) {
+	    if (discard && status == Z_DATA_ERROR) {
+		/* deflateEnd returns Z_OK if success, Z_STREAM_ERROR if the
+		   stream state was inconsistent, Z_DATA_ERROR if the stream
+		   was freed prematurely (some input or output was discarded).
+		*/
+	    } else {
+		croak("deflateEnd failed, error %d (%s) in %d", status,
+		      file->zs.msg, getpid());
+	    }
+	}
+    }
+    else if (file->state == NYTP_FILE_INFLATE) {
+	int err = inflateEnd(&(file->zs));
 	if (err != Z_OK) {
-	    croak("deflateEnd failed, error %d (%s)", err, file->zs.msg);
+	    croak("inflateEnd failed, error %d (%s)", err, file->zs.msg);
 	}
     }
 
