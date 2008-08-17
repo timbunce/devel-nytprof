@@ -131,7 +131,7 @@ typedef struct {
     /* For output, the count of the bytes written into the buffer - space used
        up.  */
     const unsigned char *end;
-    unsigned char buffer[NYTP_FILE_BUFFER_SIZE];
+    unsigned char small_buffer[NYTP_FILE_BUFFER_SIZE];
 } NYTP_file_t;
 
 typedef NYTP_file_t *NYTP_file;
@@ -313,7 +313,7 @@ NYTP_open(const char *name, const char *mode) {
     Newx(file, 1, NYTP_file_t);
     file->file = raw_file;
     file->state = NYTP_FILE_STDIO;
-    file->end = file->buffer;
+    file->end = file->small_buffer;
     return file;
 }
 
@@ -344,10 +344,10 @@ NYTP_scanf(NYTP_file ifile, const char *format, ...) {
 static unsigned int
 grab_input(NYTP_file ifile) {
     const unsigned char *end;
-    unsigned char *p = ifile->buffer;
+    unsigned char *p = ifile->small_buffer;
     unsigned int got = fread(p, 1, NYTP_FILE_BUFFER_SIZE, ifile->file);
 
-    end = ifile->end = ifile->buffer + got;
+    end = ifile->end = ifile->small_buffer + got;
     ifile->count = 0;
 
     while (p < end) {
@@ -369,7 +369,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	return 0;
     }
     while (1) {
-	unsigned char *p = ifile->buffer + ifile->count;
+	unsigned char *p = ifile->small_buffer + ifile->count;
 	unsigned int remaining = ifile->end - p;
 
 	if (remaining >= len) {
@@ -391,7 +391,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 
 static unsigned int
 flush_output(NYTP_file ofile) {
-    unsigned char *p = ofile->buffer;
+    unsigned char *p = ofile->small_buffer;
     const unsigned int used = ofile->count;
     const unsigned char *const end = p + used;
 
@@ -402,7 +402,7 @@ flush_output(NYTP_file ofile) {
 
     ofile->count = 0;
 
-    return fwrite(ofile->buffer, 1, used, ofile->file);
+    return fwrite(ofile->small_buffer, 1, used, ofile->file);
 }
 
 static unsigned int
@@ -417,7 +417,7 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
     }
     while (1) {
 	unsigned int remaining = NYTP_FILE_BUFFER_SIZE - ofile->count;
-	unsigned char *p = ofile->buffer + ofile->count;
+	unsigned char *p = ofile->small_buffer + ofile->count;
 
 	if (remaining >= len) {
 	    Copy(buffer, p, len, unsigned char);
