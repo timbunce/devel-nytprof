@@ -332,7 +332,7 @@ NYTP_printf(NYTP_file out, const char *format, ...) {
     va_list args;
 
     if (out->state != NYTP_FILE_STDIO) {
-	compressed_io_croak(in, "NYTP_prinf");
+	compressed_io_croak(in, "NYTP_printf");
     }
 
     va_start(args, format);
