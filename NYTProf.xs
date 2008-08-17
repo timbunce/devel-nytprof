@@ -464,8 +464,12 @@ NYTP_eof(NYTP_file ifile) {
 }
 
 static const char *
-NYTP_fstrerror(NYTP_file ifile) {
-    return strerror(ferror(ifile->file));
+NYTP_fstrerror(NYTP_file file) {
+    if (file->state == NYTP_FILE_DEFLATE || file->state == NYTP_FILE_INFLATE) {
+	/* Irritatingly there is no public function to convert zlib error
+	   messages to strings, despite their being a table in zutil.c */
+    }
+    return strerror(errno);
 }
 
 static int
