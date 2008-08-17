@@ -256,8 +256,24 @@ NYTP_tell(NYTP_file file) {
 
 static void
 compressed_io_croak(NYTP_file file, const char *function) {
-    croak("Can't use function %s() on a compressed stream at offset %ld",
-	  NYTP_tell(file));
+    const char *what;
+
+    switch (file->state) {
+    case NYTP_FILE_STDIO:
+	what = "stdio";
+	break;
+    case NYTP_FILE_DEFLATE:
+	what = "compressed output";
+	break;
+    case NYTP_FILE_INFLATE:
+	what = "compressed input";
+	break;
+    default:
+	croak("Can't use function %s() on a stream of type %d at offset %ld",
+	      function, file->state, NYTP_tell(file));
+    }
+    croak("Can't use function %s() on a %s stream at offset %ld", function,
+	  what, NYTP_tell(file));
 }
 
 #ifdef HAS_ZLIB
@@ -318,11 +334,25 @@ NYTP_scanf(NYTP_file in, const char *format, ...) {
 
 static unsigned int
 NYTP_read(NYTP_file in, void *buffer, unsigned int len) {
+    if (in->state == NYTP_FILE_STDIO) {
+	return fread(buffer, 1, len, in->file);
+    }
+    else if (in->state != NYTP_FILE_INFLATE) {
+	compressed_io_croak(in, "NYTP_read");
+	return 0;
+    }
     return fread(buffer, 1, len, in->file);
 }
 
 static unsigned int
 NYTP_write(NYTP_file out, const void *buffer, unsigned int len) {
+    if (out->state == NYTP_FILE_STDIO) {
+	return fwrite(buffer, 1, len, out->file);
+    }
+    else if (out->state != NYTP_FILE_DEFLATE) {
+	compressed_io_croak(in, "NYTP_write");
+	return 0;
+    }
     return fwrite(buffer, 1, len, out->file);
 }
 
