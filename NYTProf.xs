@@ -122,9 +122,12 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 #define NYTP_FILE_DEFLATE       1
 #define NYTP_FILE_INFLATE       2
 
+#define NYTP_FILE_BUFFER_SIZE   4
+
 typedef struct {
     FILE *file;
     int state;
+    unsigned char buffer[NYTP_FILE_BUFFER_SIZE];
 } NYTP_file_t;
 
 typedef NYTP_file_t *NYTP_file;
@@ -334,6 +337,7 @@ NYTP_scanf(NYTP_file ifile, const char *format, ...) {
 
 static unsigned int
 NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
+    unsigned int result = 0;
     if (ifile->state == NYTP_FILE_STDIO) {
 	return fread(buffer, 1, len, ifile->file);
     }
@@ -341,11 +345,12 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	compressed_io_croak(ifile, "NYTP_read");
 	return 0;
     }
-    return fread(buffer, 1, len, ifile->file);
+    return fread(buffer, 1, len, ifile->file);;
 }
 
 static unsigned int
 NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
+    unsigned int result = 0;
     if (ofile->state == NYTP_FILE_STDIO) {
 	return fwrite(buffer, 1, len, ofile->file);
     }
@@ -353,7 +358,27 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	compressed_io_croak(ofile, "NYTP_write");
 	return 0;
     }
-    return fwrite(buffer, 1, len, ofile->file);
+    while (len) {
+	unsigned int copy
+	    = len > NYTP_FILE_BUFFER_SIZE ? NYTP_FILE_BUFFER_SIZE : len;
+	unsigned char *p = ofile->buffer;
+	const unsigned char *const end = p + copy;
+	unsigned int written;
+
+	Copy(buffer, ofile->buffer, copy, unsigned char);
+	while (p < end) {
+	    // *p = *p ^ 0xFF;
+	    ++p;
+	}
+	written = fwrite(ofile->buffer, 1, copy, ofile->file);
+	result += written;
+	if (written != copy) {
+	    return written ? result : 0;
+	}
+	len -= written;
+	buffer = (void *)(written + (char *)buffer);
+    }
+    return result;
 }
 
 static unsigned int
