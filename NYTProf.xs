@@ -345,7 +345,30 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	compressed_io_croak(ifile, "NYTP_read");
 	return 0;
     }
-    return fread(buffer, 1, len, ifile->file);;
+    while (len) {
+	unsigned int copy
+	    = len > NYTP_FILE_BUFFER_SIZE ? NYTP_FILE_BUFFER_SIZE : len;
+	unsigned char *p = ifile->buffer;
+	const unsigned char *const end = p + copy;
+	unsigned int got;
+
+	got = fread(ifile->buffer, 1, copy, ifile->file);
+
+	while (p < end) {
+	    // *p = *p ^ 0xFF;
+	    ++p;
+	}
+
+	Copy(ifile->buffer, buffer, copy, unsigned char);
+
+	result += got;
+	if (got != copy) {
+	    return got ? result : 0;
+	}
+	len -= got;
+	buffer = (void *)(got + (char *)buffer);
+    }
+    return result;
 }
 
 static unsigned int
