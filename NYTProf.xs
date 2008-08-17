@@ -130,6 +130,7 @@ typedef struct {
     unsigned int count;
     /* For output, the count of the bytes written into the buffer - space used
        up.  */
+    const unsigned char *end;
     unsigned char buffer[NYTP_FILE_BUFFER_SIZE];
 } NYTP_file_t;
 
@@ -312,6 +313,7 @@ NYTP_open(const char *name, const char *mode) {
     Newx(file, 1, NYTP_file_t);
     file->file = raw_file;
     file->state = NYTP_FILE_STDIO;
+    file->end = file->buffer;
     return file;
 }
 
@@ -340,6 +342,23 @@ NYTP_scanf(NYTP_file ifile, const char *format, ...) {
 }
 
 static unsigned int
+grab_input(NYTP_file ifile) {
+    const unsigned char *end;
+    unsigned char *p = ifile->buffer;
+    unsigned int got = fread(p, 1, NYTP_FILE_BUFFER_SIZE, ifile->file);
+
+    end = ifile->end = ifile->buffer + got;
+    ifile->count = 0;
+
+    while (p < end) {
+	*p = *p ^ 0xFF;
+	++p;
+    }
+
+    return got;
+}
+
+static unsigned int
 NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
     unsigned int result = 0;
     if (ifile->state == NYTP_FILE_STDIO) {
@@ -349,30 +368,25 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	compressed_io_croak(ifile, "NYTP_read");
 	return 0;
     }
-    while (len) {
-	unsigned int copy
-	    = len > NYTP_FILE_BUFFER_SIZE ? NYTP_FILE_BUFFER_SIZE : len;
-	unsigned char *p = ifile->buffer;
-	const unsigned char *const end = p + copy;
-	unsigned int got;
+    while (1) {
+	unsigned char *p = ifile->buffer + ifile->count;
+	unsigned int remaining = ifile->end - p;
 
-	got = fread(ifile->buffer, 1, copy, ifile->file);
-
-	while (p < end) {
-	    *p = *p ^ 0xFF;
-	    ++p;
+	if (remaining >= len) {
+	    Copy(p, buffer, len, unsigned char);
+	    ifile->count += len;
+	    result += len;
+	    return result;
+	} else {
+	    Copy(p, buffer, remaining, unsigned char);
+	    ifile->count = NYTP_FILE_BUFFER_SIZE;
+	    result += remaining;
+	    len -= remaining;
+	    buffer = (void *)(remaining + (char *)buffer);
+	    if (!grab_input(ifile))
+		return 0;
 	}
-
-	Copy(ifile->buffer, buffer, copy, unsigned char);
-
-	result += got;
-	if (got != copy) {
-	    return got ? result : 0;
-	}
-	len -= got;
-	buffer = (void *)(got + (char *)buffer);
     }
-    return result;
 }
 
 static unsigned int
