@@ -122,11 +122,12 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 #define NYTP_FILE_DEFLATE       1
 #define NYTP_FILE_INFLATE       2
 
-#define NYTP_FILE_BUFFER_SIZE   4
+#define NYTP_FILE_BUFFER_SIZE   64
 
 typedef struct {
     FILE *file;
     int state;
+    unsigned int used;
     unsigned char buffer[NYTP_FILE_BUFFER_SIZE];
 } NYTP_file_t;
 
@@ -286,6 +287,7 @@ NYTP_start_deflate(NYTP_file file) {
 	compressed_io_croak(in, "NYTP_start_deflate");
     }
     file->state = NYTP_FILE_DEFLATE;
+    file->used = 0;
 }
 
 static void
@@ -372,6 +374,22 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 }
 
 static unsigned int
+flush_output(NYTP_file ofile) {
+    unsigned char *p = ofile->buffer;
+    const unsigned int used = ofile->used;
+    const unsigned char *const end = p + used;
+
+    while (p < end) {
+	*p = *p ^ 0xFF;
+	++p;
+    }
+
+    ofile->used = 0;
+
+    return fwrite(ofile->buffer, 1, used, ofile->file);
+}
+
+static unsigned int
 NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
     unsigned int result = 0;
     if (ofile->state == NYTP_FILE_STDIO) {
@@ -381,27 +399,30 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	compressed_io_croak(ofile, "NYTP_write");
 	return 0;
     }
-    while (len) {
-	unsigned int copy
-	    = len > NYTP_FILE_BUFFER_SIZE ? NYTP_FILE_BUFFER_SIZE : len;
-	unsigned char *p = ofile->buffer;
-	const unsigned char *const end = p + copy;
-	unsigned int written;
+    //fprintf(stderr, "E len=%u used=%u\n", len, ofile->used);
+    while (1) {
+	unsigned int remaining = NYTP_FILE_BUFFER_SIZE - ofile->used;
+	unsigned char *p = ofile->buffer + ofile->used;
 
-	Copy(buffer, ofile->buffer, copy, unsigned char);
-	while (p < end) {
-	    *p = *p ^ 0xFF;
-	    ++p;
+	if (remaining >= len) {
+	    //fprintf(stderr, "C len=%u used=%u, remaining=%u\n", len, ofile->used, remaining);
+	    Copy(buffer, p, len, unsigned char);
+	    ofile->used += len;
+	    result += len;
+	    return result;
+	} else {
+	    //fprintf(stderr, "F len=%u used=%u, remaining=%u\n", len, ofile->used, remaining);
+	    /* Copy what we can, then flush the buffer. Lather, rinse, repeat.
+	     */
+	    Copy(buffer, p, remaining, unsigned char);
+	    ofile->used = NYTP_FILE_BUFFER_SIZE;
+	    result += remaining;
+	    len -= remaining;
+	    buffer = (void *)(remaining + (char *)buffer);
+	    if (!flush_output(ofile))
+		return 0;
 	}
-	written = fwrite(ofile->buffer, 1, copy, ofile->file);
-	result += written;
-	if (written != copy) {
-	    return written ? result : 0;
-	}
-	len -= written;
-	buffer = (void *)(written + (char *)buffer);
     }
-    return result;
 }
 
 static unsigned int
@@ -437,6 +458,10 @@ NYTP_fstrerror(NYTP_file ifile) {
 static int
 NYTP_close(NYTP_file file, int discard) {
     FILE *raw_file = file->file;
+
+    if (!discard && file->state == NYTP_FILE_DEFLATE) {
+	flush_output(file);
+    }
 
     Safefree(file);
 
