@@ -268,6 +268,14 @@ NYTP_start_deflate(NYTP_file file) {
     }
     file->state = NYTP_FILE_DEFLATE;
 }
+
+static void
+NYTP_start_inflate(NYTP_file file) {
+    if (file->state != NYTP_FILE_STDIO) {
+	compressed_io_croak(in, "NYTP_start_inflate");
+    }
+    file->state = NYTP_FILE_INFLATE;
+}
 #endif
 
 static NYTP_file_t *
@@ -2383,6 +2391,7 @@ load_profile_data_from_stream()
 #ifdef HAS_ZLIB
 	    case NYTP_TAG_START_DEFLATE:
 	    {
+		NYTP_start_inflate(in);
 		break;
 	    }
 #endif
