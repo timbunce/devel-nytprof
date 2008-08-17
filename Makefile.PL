@@ -76,7 +76,7 @@ $h_files = find_h_files(@h_dirs);
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 my %mm_opts;
-my @LIBS = ();
+my @libs = ();
 
 foreach (['time.h', qr/(clock_gettime)\s*\(/, '-DHAS_CLOCK_GETTIME', '-lrt'],
 	 ['zlib.h', qr/(deflateInit2)(?:_)?\s*\(/, '-DHAS_ZLIB', '-lz'],
@@ -84,7 +84,7 @@ foreach (['time.h', qr/(clock_gettime)\s*\(/, '-DHAS_CLOCK_GETTIME', '-lrt'],
     my ($header, $regexp, $define, $libs) = @$_;
     if (my $result = search_h_file($header, $regexp)) {
 	print "Found $result in $header\n";
-	push @LIBS, $libs;
+	push @libs, $libs;
 	$mm_opts{DEFINE} .= " $define";
     }
 }
@@ -118,7 +118,7 @@ WriteMakefile(
         'XSLoader'     => 0,
         'Getopt::Long' => 0,
     },
-    LIBS      => \@LIBS,
+    LIBS      => [join ' ', @libs],
     EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv'],
     @man,
     INC   => $INCLUDE,
