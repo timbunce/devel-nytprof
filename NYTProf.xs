@@ -159,6 +159,9 @@ static int profile_subs = 1;                      /* sub *inclusive* times */
 static int profile_leave = 1;                     /* correct block end timing */
 static int profile_zero = 0;                      /* don't do timing, all times are zero */
 static int trace_level = 0;
+#ifdef HAS_ZLIB
+static int compression_level = Z_BEST_COMPRESSION;
+#endif
 
 /* time tracking */
 static struct tms start_ctime, end_ctime;
@@ -307,7 +310,7 @@ NYTP_start_deflate(NYTP_file file) {
     file->zs.zfree = (free_func) 0;
     file->zs.opaque = 0;
 
-    status = deflateInit2(&(file->zs), Z_BEST_COMPRESSION, Z_DEFLATED, 15,
+    status = deflateInit2(&(file->zs), compression_level, Z_DEFLATED, 15,
 		       9 /* memLevel */, Z_DEFAULT_STRATEGY);
     if (status != Z_OK) {
 	croak("deflateInit2 failed, error %d (%s)", status, file->zs.msg);
