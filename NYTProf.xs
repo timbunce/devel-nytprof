@@ -268,7 +268,27 @@ static long
 NYTP_tell(NYTP_file file) {
     /* This has to work with compressed files as it's used in the croaking
        routine.  */
-    return ftell(file->file);
+    if (file->state == NYTP_FILE_STDIO) {
+	return ftell(file->file);
+    }
+    return file->state == NYTP_FILE_INFLATE
+	? file->zs.total_out : file->zs.total_in;
+}
+
+static const char *
+NYTP_type_of_offset(NYTP_file file) {
+    switch (file->state) {
+    case NYTP_FILE_STDIO:
+	return "";
+    case NYTP_FILE_DEFLATE:
+	return " in compressed output data";
+	break;
+    case NYTP_FILE_INFLATE:
+	return " in compressed input data";
+	break;
+    default:
+	return Perl_form(" in stream in unknown state %d", file->state);
+    }
 }
 
 static void
@@ -721,8 +741,8 @@ read_str(pTHX_ SV *sv) {
     NYTP_read(in, &tag, sizeof(tag));
 
     if (NYTP_TAG_STRING != tag && NYTP_TAG_STRING_UTF8 != tag)
-        croak("File format error at offset %ld, expected string tag but found %d ('%c')",
-            NYTP_tell(in)-1, tag, tag);
+        croak("File format error at offset %ld%s, expected string tag but found %d ('%c')",
+	      NYTP_tell(in)-1, NYTP_type_of_offset(in), tag, tag);
 
     len = read_int();
     if (sv) {
@@ -735,8 +755,8 @@ read_str(pTHX_ SV *sv) {
 
     buf = SvPV_nolen(sv);
     if (NYTP_read(in, buf, len) != len)
-        croak("String truncated in file at offset %ld: %s",
-	      NYTP_tell(in)-1, (NYTP_eof(in)) ? "end of file" : NYTP_fstrerror(in));
+        croak("String truncated in file at offset %ld%s: %s",
+	      NYTP_tell(in)-1, NYTP_type_of_offset(in), (NYTP_eof(in)) ? "end of file" : NYTP_fstrerror(in));
     SvCUR_set(sv, len);
     *SvEND(sv) = '\0';
 
@@ -2266,8 +2286,8 @@ read_int()
 	}
 	got = NYTP_read(in, buffer, length);
 	if (got != length) {
-	    croak("Profile format error whilst reading integer at %ld",
-		  NYTP_tell(in));
+	    croak("Profile format error whilst reading integer at %ld%s",
+		  NYTP_tell(in), NYTP_type_of_offset(in));
 	}
 	while (length--) {
 	    newint <<= 8;
@@ -2382,7 +2402,7 @@ load_profile_data_from_stream()
 
         input_chunk_seqn++;
         if (trace_level >= 6)
-            warn("Chunk %lu token is %d ('%c') at %ld\n", input_chunk_seqn, c, c, NYTP_tell(in)-1);
+            warn("Chunk %lu token is %d ('%c') at %ld%s\n", input_chunk_seqn, c, c, NYTP_tell(in)-1, NYTP_type_of_offset(in));
 
         switch (c) {
             case NYTP_TAG_DISCOUNT:
@@ -2679,8 +2699,8 @@ load_profile_data_from_stream()
 #endif
 
             default:
-                croak("File format error: token %d ('%c'), chunk %lu, pos %ld",
-		      c, c, input_chunk_seqn, NYTP_tell(in)-1);
+                croak("File format error: token %d ('%c'), chunk %lu, pos %ld%s",
+		      c, c, input_chunk_seqn, NYTP_tell(in)-1, NYTP_type_of_offset(in));
         }
     }
 
