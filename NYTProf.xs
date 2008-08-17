@@ -59,6 +59,10 @@
 
 #define HAS_ZLIB        /* For now, pretend we always have it */
 
+#ifdef HAS_ZLIB
+#include <zlib.h>
+#endif
+
 #define NYTP_START_NO            0
 #define NYTP_START_BEGIN         1
 #define NYTP_START_CHECK_unused  2  /* not used */
@@ -132,6 +136,7 @@ typedef struct {
     /* For output, the count of the bytes written into the buffer - space used
        up.  */
     const unsigned char *end;
+    z_stream zs;
     unsigned char small_buffer[NYTP_FILE_SMALL_BUFFER_SIZE];
     unsigned char large_buffer[NYTP_FILE_LARGE_BUFFER_SIZE];
 } NYTP_file_t;
@@ -288,10 +293,26 @@ compressed_io_croak(NYTP_file file, const char *function) {
 #ifdef HAS_ZLIB
 static void
 NYTP_start_deflate(NYTP_file file) {
+    int err;
+
     if (file->state != NYTP_FILE_STDIO) {
 	compressed_io_croak(in, "NYTP_start_deflate");
     }
     file->state = NYTP_FILE_DEFLATE;
+
+    file->zs.next_in = (Bytef *) file->large_buffer;
+    file->zs.avail_in = 0;
+    file->zs.next_out = (Bytef *) file->small_buffer;
+    file->zs.avail_out = NYTP_FILE_SMALL_BUFFER_SIZE;
+    file->zs.zalloc = (alloc_func) 0;
+    file->zs.zfree = (free_func) 0;
+    file->zs.opaque = 0;
+
+    err = deflateInit2(&(file->zs), Z_BEST_COMPRESSION, Z_DEFLATED, MAX_WBITS + 16,
+		       9 /* memLevel */, Z_DEFAULT_STRATEGY);
+    if (err != Z_OK) {
+	croak("deflateInit2 failed, error %d (%s)", err, file->zs.msg);
+    }
 }
 
 static void
@@ -316,6 +337,9 @@ NYTP_open(const char *name, const char *mode) {
     file->state = NYTP_FILE_STDIO;
     file->end = file->large_buffer;
     file->count = 0;
+
+    file->zs.msg = "[Oops. zlib hasn't updated this error string]";
+
     return file;
 }
 
@@ -396,8 +420,9 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
     }
 }
 
+/* flush has values as described for "allowed flush values" in zlib.h  */
 static unsigned int
-flush_output(NYTP_file ofile) {
+flush_output(NYTP_file ofile, int flush) {
     const unsigned char *p = ofile->large_buffer;
     unsigned char *s = ofile->small_buffer;
     const unsigned int used = ofile->count;
@@ -441,7 +466,7 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	    result += remaining;
 	    len -= remaining;
 	    buffer = (void *)(remaining + (char *)buffer);
-	    if (!flush_output(ofile))
+	    if (!flush_output(ofile, Z_NO_FLUSH))
 		return 0;
 	}
     }
@@ -464,6 +489,8 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
 
 static int
 NYTP_flush(NYTP_file file) {
+    if (file->state == NYTP_FILE_DEFLATE) {
+    }
     return fflush(file->file);
 }
 
@@ -475,8 +502,7 @@ NYTP_eof(NYTP_file ifile) {
 static const char *
 NYTP_fstrerror(NYTP_file file) {
     if (file->state == NYTP_FILE_DEFLATE || file->state == NYTP_FILE_INFLATE) {
-	/* Irritatingly there is no public function to convert zlib error
-	   messages to strings, despite their being a table in zutil.c */
+	return file->zs.msg;
     }
     return strerror(errno);
 }
@@ -486,7 +512,14 @@ NYTP_close(NYTP_file file, int discard) {
     FILE *raw_file = file->file;
 
     if (!discard && file->state == NYTP_FILE_DEFLATE) {
-	flush_output(file);
+	flush_output(file, Z_FINISH);
+    }
+
+    if (file->state == NYTP_FILE_DEFLATE) {
+	int err = deflateEnd(&(file->zs));
+	if (err != Z_OK) {
+	    croak("deflateEnd failed, error %d (%s)", err, file->zs.msg);
+	}
     }
 
     Safefree(file);

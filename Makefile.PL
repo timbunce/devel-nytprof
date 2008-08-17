@@ -81,6 +81,7 @@ $clock_gettime = search_h_file('time.h', qr/(clock_gettime)\s*\(/)
 
 my @LIBS = ();
 push @LIBS, "-lrt" if $clock_gettime;
+push @LIBS, "-lz";
 
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
