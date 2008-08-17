@@ -309,64 +309,64 @@ NYTP_open(const char *name, const char *mode) {
 }
 
 static char *
-NYTP_gets(NYTP_file in, char *buffer, unsigned int len) {
-    if (in->state != NYTP_FILE_STDIO) {
-	compressed_io_croak(in, "NYTP_gets");
+NYTP_gets(NYTP_file ifile, char *buffer, unsigned int len) {
+    if (ifile->state != NYTP_FILE_STDIO) {
+	compressed_io_croak(ifile, "NYTP_gets");
     }
 
-    return fgets(buffer, len, in->file);
+    return fgets(buffer, len, ifile->file);
 }
 
 static unsigned int
-NYTP_scanf(NYTP_file in, const char *format, ...) {
+NYTP_scanf(NYTP_file ifile, const char *format, ...) {
     unsigned int retval;
     va_list args;
 
-    if (in->state != NYTP_FILE_STDIO) {
-	compressed_io_croak(in, "NYTP_scanf");
+    if (ifile->state != NYTP_FILE_STDIO) {
+	compressed_io_croak(ifile, "NYTP_scanf");
     }
 
     va_start(args, format);
-    retval = vfscanf(in->file, format, args);
+    retval = vfscanf(ifile->file, format, args);
     va_end(args);
     return retval;
 }
 
 static unsigned int
-NYTP_read(NYTP_file in, void *buffer, unsigned int len) {
-    if (in->state == NYTP_FILE_STDIO) {
-	return fread(buffer, 1, len, in->file);
+NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
+    if (ifile->state == NYTP_FILE_STDIO) {
+	return fread(buffer, 1, len, ifile->file);
     }
-    else if (in->state != NYTP_FILE_INFLATE) {
-	compressed_io_croak(in, "NYTP_read");
+    else if (ifile->state != NYTP_FILE_INFLATE) {
+	compressed_io_croak(ifile, "NYTP_read");
 	return 0;
     }
-    return fread(buffer, 1, len, in->file);
+    return fread(buffer, 1, len, ifile->file);
 }
 
 static unsigned int
-NYTP_write(NYTP_file out, const void *buffer, unsigned int len) {
-    if (out->state == NYTP_FILE_STDIO) {
-	return fwrite(buffer, 1, len, out->file);
+NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
+    if (ofile->state == NYTP_FILE_STDIO) {
+	return fwrite(buffer, 1, len, ofile->file);
     }
-    else if (out->state != NYTP_FILE_DEFLATE) {
-	compressed_io_croak(in, "NYTP_write");
+    else if (ofile->state != NYTP_FILE_DEFLATE) {
+	compressed_io_croak(ofile, "NYTP_write");
 	return 0;
     }
-    return fwrite(buffer, 1, len, out->file);
+    return fwrite(buffer, 1, len, ofile->file);
 }
 
 static unsigned int
-NYTP_printf(NYTP_file out, const char *format, ...) {
+NYTP_printf(NYTP_file ofile, const char *format, ...) {
     unsigned int retval;
     va_list args;
 
-    if (out->state != NYTP_FILE_STDIO) {
-	compressed_io_croak(in, "NYTP_printf");
+    if (ofile->state != NYTP_FILE_STDIO) {
+	compressed_io_croak(ofile, "NYTP_printf");
     }
 
     va_start(args, format);
-    retval = vfprintf(out->file, format, args);
+    retval = vfprintf(ofile->file, format, args);
     va_end(args);
     return retval;
 }
@@ -377,13 +377,13 @@ NYTP_flush(NYTP_file file) {
 }
 
 static int
-NYTP_eof(NYTP_file in) {
-    return feof(in->file);
+NYTP_eof(NYTP_file ifile) {
+    return feof(ifile->file);
 }
 
 static const char *
-NYTP_fstrerror(NYTP_file in) {
-    return strerror(ferror(in->file));
+NYTP_fstrerror(NYTP_file ifile) {
+    return strerror(ferror(ifile->file));
 }
 
 static int
