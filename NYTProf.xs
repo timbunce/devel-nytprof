@@ -421,7 +421,7 @@ NYTP_scanf(NYTP_file ifile, const char *format, ...) {
 
 #ifdef HAS_ZLIB
 
-static unsigned int
+static void
 grab_input(NYTP_file ifile) {
     ifile->count = 0;
     ifile->zs.next_out = (Bytef *) ifile->large_buffer;
@@ -475,7 +475,7 @@ grab_input(NYTP_file ifile) {
 		ifile->zlib_at_eof = 1;
 	    }
 	    ifile->end = (unsigned char *) ifile->zs.next_out;
-	    return 1;
+	    return;
 	}
     }
 }
@@ -512,8 +512,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	    buffer = (void *)(remaining + (char *)buffer);
 	    if (ifile->zlib_at_eof)
 		return result;
-	    if (!grab_input(ifile))
-		return 0;
+	    grab_input(ifile);
 	}
     }
 #endif
@@ -521,7 +520,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 
 #ifdef HAS_ZLIB
 /* flush has values as described for "allowed flush values" in zlib.h  */
-static unsigned int
+static void
 flush_output(NYTP_file ofile, int flush) {
     ofile->zs.next_in = (Bytef *) ofile->large_buffer;
     ofile->zs.avail_in = ofile->count;
@@ -569,11 +568,11 @@ flush_output(NYTP_file ofile, int flush) {
 		ofile->zs.avail_out = NYTP_FILE_SMALL_BUFFER_SIZE;
 		if (terminate) {
 		    ofile->count = 0;
-		    return 1;
+		    return;
 		}
 	    } else {
 		ofile->count = 0;
-		return 1;
+		return;
 	    }
 	} else {
 	    croak("deflate failed, error %d (%s) in %d", status, ofile->zs.msg,
@@ -613,8 +612,7 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	    result += remaining;
 	    len -= remaining;
 	    buffer = (void *)(remaining + (char *)buffer);
-	    if (!flush_output(ofile, Z_NO_FLUSH))
-		return 0;
+	    flush_output(ofile, Z_NO_FLUSH);
 	}
     }
 #endif
