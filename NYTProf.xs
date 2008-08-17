@@ -292,7 +292,6 @@ NYTP_start_deflate(NYTP_file file) {
 	compressed_io_croak(in, "NYTP_start_deflate");
     }
     file->state = NYTP_FILE_DEFLATE;
-    file->count = 0;
 }
 
 static void
