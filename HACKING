@@ -142,11 +142,8 @@ Support profiling programs which use threads:
 	- move all relevant globals into a structure
 	- add lock around output to file
 
-Support optionally generating a compressed data file (using popen("zip -c > $file"))
-But the problem with that approach is that the zip would drain cpu time from
-the application in a way we can't predict or compensate for. It would be best to
-embed the zip library into NYTProf itself so the zip can happen in in the same
-process and we can measure and discount the cost. (Zip's >90%, by the way.)
+Support optionally generating a compressed data file. Right now you always get
+compression if zlib is detected at Makefile.PL time.
 
 Support optionally saving eval strings (from @{"_<$filename"}, see perldoc perldebguts)
 Should always save the first eval string at each distinct eval (fid:line)
