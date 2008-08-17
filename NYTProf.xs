@@ -135,6 +135,7 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 
 typedef struct {
     FILE *file;
+#ifdef HAS_ZLIB
     int state;
     int stdio_at_eof;
     int zlib_at_eof;
@@ -145,6 +146,7 @@ typedef struct {
     z_stream zs;
     unsigned char small_buffer[NYTP_FILE_SMALL_BUFFER_SIZE];
     unsigned char large_buffer[NYTP_FILE_LARGE_BUFFER_SIZE];
+#endif
 } NYTP_file_t;
 
 typedef NYTP_file_t *NYTP_file;
@@ -272,13 +274,15 @@ static HV *sub_callers_hv;
 
 static long
 NYTP_tell(NYTP_file file) {
+#ifdef HAS_ZLIB
     /* This has to work with compressed files as it's used in the croaking
        routine.  */
-    if (FILE_STATE(file) == NYTP_FILE_STDIO) {
-	return ftell(file->file);
+    if (FILE_STATE(file) != NYTP_FILE_STDIO) {
+	return FILE_STATE(file) == NYTP_FILE_INFLATE
+	    ? file->zs.total_out : file->zs.total_in;
     }
-    return FILE_STATE(file) == NYTP_FILE_INFLATE
-	? file->zs.total_out : file->zs.total_in;
+#endif
+    return ftell(file->file);
 }
 
 static const char *
@@ -376,13 +380,16 @@ NYTP_open(const char *name, const char *mode) {
 
     Newx(file, 1, NYTP_file_t);
     file->file = raw_file;
-    FILE_STATE(file) = NYTP_FILE_STDIO;
+
+#ifdef HAS_ZLIB
+    file->state = NYTP_FILE_STDIO;
     file->end = file->large_buffer;
     file->count = 0;
     file->stdio_at_eof = 0;
     file->zlib_at_eof = 0;
 
     file->zs.msg = "[Oops. zlib hasn't updated this error string]";
+#endif
 
     return file;
 }
@@ -410,6 +417,8 @@ NYTP_scanf(NYTP_file ifile, const char *format, ...) {
     va_end(args);
     return retval;
 }
+
+#ifdef HAS_ZLIB
 
 static unsigned int
 grab_input(NYTP_file ifile) {
@@ -470,9 +479,13 @@ grab_input(NYTP_file ifile) {
     }
 }
 
+#endif
+
 static unsigned int
 NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
+#ifdef HAS_ZLIB
     unsigned int result = 0;
+#endif
     if (FILE_STATE(ifile) == NYTP_FILE_STDIO) {
 	return fread(buffer, 1, len, ifile->file);
     }
@@ -480,6 +493,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	compressed_io_croak(ifile, "NYTP_read");
 	return 0;
     }
+#ifdef HAS_ZLIB
     while (1) {
 	unsigned char *p = ifile->large_buffer + ifile->count;
 	unsigned int remaining = ifile->end - p;
@@ -501,8 +515,10 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 		return 0;
 	}
     }
+#endif
 }
 
+#ifdef HAS_ZLIB
 /* flush has values as described for "allowed flush values" in zlib.h  */
 static unsigned int
 flush_output(NYTP_file ofile, int flush) {
@@ -564,10 +580,13 @@ flush_output(NYTP_file ofile, int flush) {
 	}
     }
 }
+#endif
 
 static unsigned int
 NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
+#ifdef HAS_ZLIB
     unsigned int result = 0;
+#endif
     if (FILE_STATE(ofile) == NYTP_FILE_STDIO) {
 	return fwrite(buffer, 1, len, ofile->file);
     }
@@ -575,6 +594,7 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	compressed_io_croak(ofile, "NYTP_write");
 	return 0;
     }
+#ifdef HAS_ZLIB
     while (1) {
 	unsigned int remaining = NYTP_FILE_LARGE_BUFFER_SIZE - ofile->count;
 	unsigned char *p = ofile->large_buffer + ofile->count;
@@ -596,6 +616,7 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 		return 0;
 	}
     }
+#endif
 }
 
 static unsigned int
@@ -615,25 +636,31 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
 
 static int
 NYTP_flush(NYTP_file file) {
+#ifdef HAS_ZLIB
     if (FILE_STATE(file) == NYTP_FILE_DEFLATE) {
 	flush_output(file, Z_SYNC_FLUSH);
     }
+#endif
     return fflush(file->file);
 }
 
 static int
 NYTP_eof(NYTP_file ifile) {
+#ifdef HAS_ZLIB
     if (FILE_STATE(ifile) == NYTP_FILE_INFLATE) {
 	return ifile->zlib_at_eof;
     }
+#endif
     return feof(ifile->file);
 }
 
 static const char *
 NYTP_fstrerror(NYTP_file file) {
+#ifdef HAS_ZLIB
     if (FILE_STATE(file) == NYTP_FILE_DEFLATE || FILE_STATE(file) == NYTP_FILE_INFLATE) {
 	return file->zs.msg;
     }
+#endif
     return strerror(errno);
 }
 
@@ -641,6 +668,7 @@ static int
 NYTP_close(NYTP_file file, int discard) {
     FILE *raw_file = file->file;
 
+#ifdef HAS_ZLIB
     if (!discard && FILE_STATE(file) == NYTP_FILE_DEFLATE) {
 	flush_output(file, Z_FINISH);
     }
@@ -665,6 +693,7 @@ NYTP_close(NYTP_file file, int discard) {
 	    croak("inflateEnd failed, error %d (%s)", err, file->zs.msg);
 	}
     }
+#endif
 
     Safefree(file);
 
