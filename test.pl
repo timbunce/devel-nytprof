@@ -137,12 +137,7 @@ sub run_test {
 
 		my $test_datafile = (profile_datafiles($profile_datafile))[ $fork_seqn ];
 
-		if (!defined $test_datafile) {
-		    my $tests = number_of_tests($test);
-		    fail "\$test_datafile undefined for \$test=$test, $profile_datafile=$profile_datafile, \$fork_seqn=$fork_seqn"
-			foreach 1 .. $tests;
-		}
-		elsif ($type eq 'p') {
+		if ($type eq 'p') {
 			unlink_old_profile_datafiles($profile_datafile);
 			profile($test, $profile_datafile);
 		}
