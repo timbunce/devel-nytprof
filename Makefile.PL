@@ -63,7 +63,6 @@ my $cpp = $Config{cpp} || do {
 
 print "Looking for header files and functions...\n";
 my $INCLUDE;
-my $clock_gettime;
 
 my $h_files;
 my @h_dirs;
@@ -74,20 +73,23 @@ push @h_dirs, qw(/include /usr/include /usr/local/include);
 
 $h_files = find_h_files(@h_dirs);
 
-# search for clock_gettime
-$clock_gettime = search_h_file('time.h', qr/(clock_gettime)\s*\(/)
-    and print "Found $clock_gettime in time.h\n";
-
-
-my @LIBS = ();
-push @LIBS, "-lrt" if $clock_gettime;
-push @LIBS, "-lz";
-
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 my %mm_opts;
+my @LIBS = ();
 
-$mm_opts{DEFINE} .= ' -DHAS_' . uc($clock_gettime) if $clock_gettime;
+foreach (['time.h', qr/(clock_gettime)\s*\(/, '-DHAS_CLOCK_GETTIME', '-lrt'],
+	 ['zlib.h', qr/(deflateInit2)(?:_)?\s*\(/, '-DHAS_ZLIB', '-lz'],
+	) {
+    my ($header, $regexp, $define, $libs) = @$_;
+    if (my $result = search_h_file($header, $regexp)) {
+	print "Found $result in $header\n";
+	push @LIBS, $libs;
+	$mm_opts{DEFINE} .= " $define";
+    }
+}
+
+push @LIBS, "-lz";
 
 $mm_opts{LICENSE}  = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
 $mm_opts{OPTIMIZE} = '-g'   if $opt_g;

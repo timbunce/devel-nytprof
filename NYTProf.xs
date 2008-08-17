@@ -57,8 +57,6 @@
 #endif
 #include <stdio.h>
 
-#define HAS_ZLIB        /* For now, pretend we always have it */
-
 #ifdef HAS_ZLIB
 #include <zlib.h>
 #endif
