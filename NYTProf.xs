@@ -440,6 +440,7 @@ grab_input(NYTP_file ifile) {
 
 	    if (got == 0) {
 		if (!feof(ifile->file)) {
+		    dTHX;
 		    croak("grab_input failed: %d (%s)", errno, strerror(errno));
 		}
 		ifile->stdio_at_eof = 1;
@@ -560,6 +561,7 @@ flush_output(NYTP_file ofile, int flush) {
 			where += count;
 			avail -= count;
 		    } else {
+			dTHX;
 			croak("fwrite in flush, error %d (%s)", errno,
 			      strerror(errno));
 		    }
@@ -655,6 +657,7 @@ NYTP_eof(NYTP_file ifile) {
 
 static const char *
 NYTP_fstrerror(NYTP_file file) {
+    dTHX;
 #ifdef HAS_ZLIB
     if (FILE_STATE(file) == NYTP_FILE_DEFLATE || FILE_STATE(file) == NYTP_FILE_INFLATE) {
 	return file->zs.msg;
