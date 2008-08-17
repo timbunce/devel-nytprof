@@ -124,8 +124,8 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 #define NYTP_FILE_DEFLATE       1
 #define NYTP_FILE_INFLATE       2
 
-#define NYTP_FILE_SMALL_BUFFER_SIZE   64
-#define NYTP_FILE_LARGE_BUFFER_SIZE   NYTP_FILE_SMALL_BUFFER_SIZE
+#define NYTP_FILE_SMALL_BUFFER_SIZE   4096
+#define NYTP_FILE_LARGE_BUFFER_SIZE   16384
 
 typedef struct {
     FILE *file;
