@@ -399,19 +399,16 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	compressed_io_croak(ofile, "NYTP_write");
 	return 0;
     }
-    //fprintf(stderr, "E len=%u used=%u\n", len, ofile->used);
     while (1) {
 	unsigned int remaining = NYTP_FILE_BUFFER_SIZE - ofile->used;
 	unsigned char *p = ofile->buffer + ofile->used;
 
 	if (remaining >= len) {
-	    //fprintf(stderr, "C len=%u used=%u, remaining=%u\n", len, ofile->used, remaining);
 	    Copy(buffer, p, len, unsigned char);
 	    ofile->used += len;
 	    result += len;
 	    return result;
 	} else {
-	    //fprintf(stderr, "F len=%u used=%u, remaining=%u\n", len, ofile->used, remaining);
 	    /* Copy what we can, then flush the buffer. Lather, rinse, repeat.
 	     */
 	    Copy(buffer, p, remaining, unsigned char);
