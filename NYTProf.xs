@@ -127,6 +127,12 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 #define NYTP_FILE_SMALL_BUFFER_SIZE   4096
 #define NYTP_FILE_LARGE_BUFFER_SIZE   16384
 
+#ifdef HAS_ZLIB
+#  define FILE_STATE(f)         ((f)->state)
+#else
+#  define FILE_STATE(f)         NYTP_FILE_STDIO
+#endif
+
 typedef struct {
     FILE *file;
     int state;
@@ -268,16 +274,16 @@ static long
 NYTP_tell(NYTP_file file) {
     /* This has to work with compressed files as it's used in the croaking
        routine.  */
-    if (file->state == NYTP_FILE_STDIO) {
+    if (FILE_STATE(file) == NYTP_FILE_STDIO) {
 	return ftell(file->file);
     }
-    return file->state == NYTP_FILE_INFLATE
+    return FILE_STATE(file) == NYTP_FILE_INFLATE
 	? file->zs.total_out : file->zs.total_in;
 }
 
 static const char *
 NYTP_type_of_offset(NYTP_file file) {
-    switch (file->state) {
+    switch (FILE_STATE(file)) {
     case NYTP_FILE_STDIO:
 	return "";
     case NYTP_FILE_DEFLATE:
@@ -287,7 +293,7 @@ NYTP_type_of_offset(NYTP_file file) {
 	return " in compressed input data";
 	break;
     default:
-	return Perl_form(" in stream in unknown state %d", file->state);
+	return Perl_form(" in stream in unknown state %d", FILE_STATE(file));
     }
 }
 
@@ -295,7 +301,7 @@ static void
 compressed_io_croak(NYTP_file file, const char *function) {
     const char *what;
 
-    switch (file->state) {
+    switch (FILE_STATE(file)) {
     case NYTP_FILE_STDIO:
 	what = "stdio";
 	break;
@@ -307,7 +313,7 @@ compressed_io_croak(NYTP_file file, const char *function) {
 	break;
     default:
 	croak("Can't use function %s() on a stream of type %d at offset %ld",
-	      function, file->state, NYTP_tell(file));
+	      function, FILE_STATE(file), NYTP_tell(file));
     }
     croak("Can't use function %s() on a %s stream at offset %ld", function,
 	  what, NYTP_tell(file));
@@ -318,10 +324,10 @@ static void
 NYTP_start_deflate(NYTP_file file) {
     int status;
 
-    if (file->state != NYTP_FILE_STDIO) {
+    if (FILE_STATE(file) != NYTP_FILE_STDIO) {
 	compressed_io_croak(in, "NYTP_start_deflate");
     }
-    file->state = NYTP_FILE_DEFLATE;
+    FILE_STATE(file) = NYTP_FILE_DEFLATE;
     file->zs.next_in = (Bytef *) file->large_buffer;
     file->zs.avail_in = 0;
     file->zs.next_out = (Bytef *) file->small_buffer;
@@ -340,10 +346,10 @@ NYTP_start_deflate(NYTP_file file) {
 static void
 NYTP_start_inflate(NYTP_file file) {
     int status;
-    if (file->state != NYTP_FILE_STDIO) {
+    if (FILE_STATE(file) != NYTP_FILE_STDIO) {
 	compressed_io_croak(in, "NYTP_start_inflate");
     }
-    file->state = NYTP_FILE_INFLATE;
+    FILE_STATE(file) = NYTP_FILE_INFLATE;
 
     file->zs.next_in = (Bytef *) file->small_buffer;
     file->zs.avail_in = 0;
@@ -370,7 +376,7 @@ NYTP_open(const char *name, const char *mode) {
 
     Newx(file, 1, NYTP_file_t);
     file->file = raw_file;
-    file->state = NYTP_FILE_STDIO;
+    FILE_STATE(file) = NYTP_FILE_STDIO;
     file->end = file->large_buffer;
     file->count = 0;
     file->stdio_at_eof = 0;
@@ -383,7 +389,7 @@ NYTP_open(const char *name, const char *mode) {
 
 static char *
 NYTP_gets(NYTP_file ifile, char *buffer, unsigned int len) {
-    if (ifile->state != NYTP_FILE_STDIO) {
+    if (FILE_STATE(ifile) != NYTP_FILE_STDIO) {
 	compressed_io_croak(ifile, "NYTP_gets");
     }
 
@@ -395,7 +401,7 @@ NYTP_scanf(NYTP_file ifile, const char *format, ...) {
     unsigned int retval;
     va_list args;
 
-    if (ifile->state != NYTP_FILE_STDIO) {
+    if (FILE_STATE(ifile) != NYTP_FILE_STDIO) {
 	compressed_io_croak(ifile, "NYTP_scanf");
     }
 
@@ -467,10 +473,10 @@ grab_input(NYTP_file ifile) {
 static unsigned int
 NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
     unsigned int result = 0;
-    if (ifile->state == NYTP_FILE_STDIO) {
+    if (FILE_STATE(ifile) == NYTP_FILE_STDIO) {
 	return fread(buffer, 1, len, ifile->file);
     }
-    else if (ifile->state != NYTP_FILE_INFLATE) {
+    else if (FILE_STATE(ifile) != NYTP_FILE_INFLATE) {
 	compressed_io_croak(ifile, "NYTP_read");
 	return 0;
     }
@@ -562,10 +568,10 @@ flush_output(NYTP_file ofile, int flush) {
 static unsigned int
 NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
     unsigned int result = 0;
-    if (ofile->state == NYTP_FILE_STDIO) {
+    if (FILE_STATE(ofile) == NYTP_FILE_STDIO) {
 	return fwrite(buffer, 1, len, ofile->file);
     }
-    else if (ofile->state != NYTP_FILE_DEFLATE) {
+    else if (FILE_STATE(ofile) != NYTP_FILE_DEFLATE) {
 	compressed_io_croak(ofile, "NYTP_write");
 	return 0;
     }
@@ -597,7 +603,7 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
     unsigned int retval;
     va_list args;
 
-    if (ofile->state != NYTP_FILE_STDIO) {
+    if (FILE_STATE(ofile) != NYTP_FILE_STDIO) {
 	compressed_io_croak(ofile, "NYTP_printf");
     }
 
@@ -609,7 +615,7 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
 
 static int
 NYTP_flush(NYTP_file file) {
-    if (file->state == NYTP_FILE_DEFLATE) {
+    if (FILE_STATE(file) == NYTP_FILE_DEFLATE) {
 	flush_output(file, Z_SYNC_FLUSH);
     }
     return fflush(file->file);
@@ -617,7 +623,7 @@ NYTP_flush(NYTP_file file) {
 
 static int
 NYTP_eof(NYTP_file ifile) {
-    if (ifile->state == NYTP_FILE_INFLATE) {
+    if (FILE_STATE(ifile) == NYTP_FILE_INFLATE) {
 	return ifile->zlib_at_eof;
     }
     return feof(ifile->file);
@@ -625,7 +631,7 @@ NYTP_eof(NYTP_file ifile) {
 
 static const char *
 NYTP_fstrerror(NYTP_file file) {
-    if (file->state == NYTP_FILE_DEFLATE || file->state == NYTP_FILE_INFLATE) {
+    if (FILE_STATE(file) == NYTP_FILE_DEFLATE || FILE_STATE(file) == NYTP_FILE_INFLATE) {
 	return file->zs.msg;
     }
     return strerror(errno);
@@ -635,11 +641,11 @@ static int
 NYTP_close(NYTP_file file, int discard) {
     FILE *raw_file = file->file;
 
-    if (!discard && file->state == NYTP_FILE_DEFLATE) {
+    if (!discard && FILE_STATE(file) == NYTP_FILE_DEFLATE) {
 	flush_output(file, Z_FINISH);
     }
 
-    if (file->state == NYTP_FILE_DEFLATE) {
+    if (FILE_STATE(file) == NYTP_FILE_DEFLATE) {
 	int status = deflateEnd(&(file->zs));
 	if (status != Z_OK) {
 	    if (discard && status == Z_DATA_ERROR) {
@@ -653,7 +659,7 @@ NYTP_close(NYTP_file file, int discard) {
 	    }
 	}
     }
-    else if (file->state == NYTP_FILE_INFLATE) {
+    else if (FILE_STATE(file) == NYTP_FILE_INFLATE) {
 	int err = inflateEnd(&(file->zs));
 	if (err != Z_OK) {
 	    croak("inflateEnd failed, error %d (%s)", err, file->zs.msg);
