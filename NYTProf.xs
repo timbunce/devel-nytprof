@@ -355,7 +355,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	got = fread(ifile->buffer, 1, copy, ifile->file);
 
 	while (p < end) {
-	    // *p = *p ^ 0xFF;
+	    *p = *p ^ 0xFF;
 	    ++p;
 	}
 
@@ -390,7 +390,7 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 
 	Copy(buffer, ofile->buffer, copy, unsigned char);
 	while (p < end) {
-	    // *p = *p ^ 0xFF;
+	    *p = *p ^ 0xFF;
 	    ++p;
 	}
 	written = fwrite(ofile->buffer, 1, copy, ofile->file);
