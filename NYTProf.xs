@@ -123,6 +123,8 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 #define NYTP_FILE_INFLATE       2
 
 #define NYTP_FILE_BUFFER_SIZE   64
+#define NYTP_FILE_SMALL_BUFFER_SIZE   NYTP_FILE_BUFFER_SIZE
+#define NYTP_FILE_LARGE_BUFFER_SIZE   NYTP_FILE_BUFFER_SIZE
 
 typedef struct {
     FILE *file;
@@ -131,7 +133,8 @@ typedef struct {
     /* For output, the count of the bytes written into the buffer - space used
        up.  */
     const unsigned char *end;
-    unsigned char small_buffer[NYTP_FILE_BUFFER_SIZE];
+    unsigned char small_buffer[NYTP_FILE_SMALL_BUFFER_SIZE];
+    unsigned char large_buffer[NYTP_FILE_LARGE_BUFFER_SIZE];
 } NYTP_file_t;
 
 typedef NYTP_file_t *NYTP_file;
@@ -313,7 +316,8 @@ NYTP_open(const char *name, const char *mode) {
     Newx(file, 1, NYTP_file_t);
     file->file = raw_file;
     file->state = NYTP_FILE_STDIO;
-    file->end = file->small_buffer;
+    file->end = file->large_buffer;
+    file->count = 0;
     return file;
 }
 
@@ -345,15 +349,20 @@ static unsigned int
 grab_input(NYTP_file ifile) {
     const unsigned char *end;
     unsigned char *p = ifile->small_buffer;
-    unsigned int got = fread(p, 1, NYTP_FILE_BUFFER_SIZE, ifile->file);
+    unsigned char *s = ifile->large_buffer;
+    unsigned int got = fread(p, 1, NYTP_FILE_SMALL_BUFFER_SIZE, ifile->file);
 
-    end = ifile->end = ifile->small_buffer + got;
+    end = ifile->small_buffer + got;
     ifile->count = 0;
 
+
     while (p < end) {
-	*p = *p ^ 0xFF;
+	*s = *p ^ 0xFF;
 	++p;
+	++s;
     }
+
+    ifile->end = ifile->large_buffer + got;
 
     return got;
 }
@@ -369,7 +378,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	return 0;
     }
     while (1) {
-	unsigned char *p = ifile->small_buffer + ifile->count;
+	unsigned char *p = ifile->large_buffer + ifile->count;
 	unsigned int remaining = ifile->end - p;
 
 	if (remaining >= len) {
@@ -379,7 +388,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 	    return result;
 	} else {
 	    Copy(p, buffer, remaining, unsigned char);
-	    ifile->count = NYTP_FILE_BUFFER_SIZE;
+	    ifile->count = NYTP_FILE_LARGE_BUFFER_SIZE;
 	    result += remaining;
 	    len -= remaining;
 	    buffer = (void *)(remaining + (char *)buffer);
@@ -391,13 +400,15 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 
 static unsigned int
 flush_output(NYTP_file ofile) {
-    unsigned char *p = ofile->small_buffer;
+    const unsigned char *p = ofile->large_buffer;
+    unsigned char *s = ofile->small_buffer;
     const unsigned int used = ofile->count;
     const unsigned char *const end = p + used;
 
     while (p < end) {
-	*p = *p ^ 0xFF;
+	*s = *p ^ 0xFF;
 	++p;
+	++s;
     }
 
     ofile->count = 0;
@@ -416,8 +427,8 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	return 0;
     }
     while (1) {
-	unsigned int remaining = NYTP_FILE_BUFFER_SIZE - ofile->count;
-	unsigned char *p = ofile->small_buffer + ofile->count;
+	unsigned int remaining = NYTP_FILE_LARGE_BUFFER_SIZE - ofile->count;
+	unsigned char *p = ofile->large_buffer + ofile->count;
 
 	if (remaining >= len) {
 	    Copy(buffer, p, len, unsigned char);
@@ -428,7 +439,7 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	    /* Copy what we can, then flush the buffer. Lather, rinse, repeat.
 	     */
 	    Copy(buffer, p, remaining, unsigned char);
-	    ofile->count = NYTP_FILE_BUFFER_SIZE;
+	    ofile->count = NYTP_FILE_LARGE_BUFFER_SIZE;
 	    result += remaining;
 	    len -= remaining;
 	    buffer = (void *)(remaining + (char *)buffer);
