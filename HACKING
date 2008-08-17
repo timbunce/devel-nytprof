@@ -129,6 +129,11 @@ Intercept all opcodes that may fork and run perl code in the child
 	and fflush before executing the op (so fpurge isn't strictly required)
   and reinit_if_forked() afterwards
 	add option to force reinit_if_forked check per stmt just-in-case
+Alternatively it might be better to use pthread_atfork() [if available] with a
+child handler. The man page says "Remember: only async-cancel-safe functions
+are allowed on the child side of fork()" so it seems that the safe thing to do
+is to use a volatile flag variable, and change its value in the handler to
+signal to the main code.
 
 Add way to merge profile data. Merging could be done in perl.
 
