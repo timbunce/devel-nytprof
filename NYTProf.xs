@@ -297,7 +297,8 @@ NYTP_type_of_offset(NYTP_file file) {
 	return " in compressed input data";
 	break;
     default:
-	return Perl_form(" in stream in unknown state %d", FILE_STATE(file));
+	return Perl_form_nocontext(" in stream in unknown state %d",
+				   FILE_STATE(file));
     }
 }
 
