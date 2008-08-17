@@ -57,6 +57,8 @@
 #endif
 #include <stdio.h>
 
+#define HAS_ZLIB        /* For now, pretend we always have it */
+
 #define NYTP_START_NO            0
 #define NYTP_START_BEGIN         1
 #define NYTP_START_CHECK_unused  2  /* not used */
@@ -81,6 +83,7 @@
 #define NYTP_TAG_PID_END         'p'
 #define NYTP_TAG_STRING          '\'' 
 #define NYTP_TAG_STRING_UTF8     '"' 
+#define NYTP_TAG_START_DEFLATE   'z' 
 
 #define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
 
@@ -115,8 +118,15 @@ typedef struct hash_table
 static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 /* END Hash table definitions */
 
+#define NYT_FILE_STDIO          0
+#define NYT_FILE_DEFLATE        1
+#define NYT_FILE_INFLATE        2
+
+#define NYT_FILE_BUFFER_SIZE    4096
 typedef struct {
-     FILE *file;
+    FILE *file;
+    int state;
+    char buffer[NYT_FILE_BUFFER_SIZE];
 } NYT_file_t;
 
 typedef NYT_file_t *NYT_file;
@@ -239,6 +249,19 @@ static HV *sub_callers_hv;
  * Devel::NYTProf Functions        *
  ***********************************/
 
+static long
+NYT_tell(NYT_file file) {
+    /* This has to work with compressed files as it's used in the croaking
+       routine.  */
+    return ftell(file->file);
+}
+
+static void
+compressed_io_croak(NYT_file file, const char *function) {
+    croak("Can't use function %s() on a compressed stream at offset %ld",
+	  NYT_tell(file));
+}
+
 static NYT_file_t *
 NYT_open(const char *name, const char *mode) {
     FILE *raw_file = fopen(name, mode);
@@ -249,11 +272,16 @@ NYT_open(const char *name, const char *mode) {
 
     Newx(file, 1, NYT_file_t);
     file->file = raw_file;
+    file->state = NYT_FILE_STDIO;
     return file;
 }
 
 static char *
 NYT_gets(NYT_file in, char *buffer, unsigned int len) {
+    if (in->state != NYT_FILE_STDIO) {
+	compressed_io_croak(in, "NYT_gets");
+    }
+
     return fgets(buffer, len, in->file);
 }
 
@@ -261,6 +289,11 @@ static unsigned int
 NYT_scanf(NYT_file in, const char *format, ...) {
     unsigned int retval;
     va_list args;
+
+    if (in->state != NYT_FILE_STDIO) {
+	compressed_io_croak(in, "NYT_scanf");
+    }
+
     va_start(args, format);
     retval = vfscanf(in->file, format, args);
     va_end(args);
@@ -281,15 +314,15 @@ static unsigned int
 NYT_printf(NYT_file out, const char *format, ...) {
     unsigned int retval;
     va_list args;
+
+    if (out->state != NYT_FILE_STDIO) {
+	compressed_io_croak(in, "NYT_prinf");
+    }
+
     va_start(args, format);
     retval = vfprintf(out->file, format, args);
     va_end(args);
     return retval;
-}
-
-static long
-NYT_tell(NYT_file file) {
-    return ftell(file->file);
 }
 
 static int
@@ -351,6 +384,13 @@ output_header(pTHX)
     mg_get(sv = get_sv("0",GV_ADDWARN));
     NYT_printf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
 
+#ifdef HAS_ZLIB
+    {
+        const char tag = NYTP_TAG_START_DEFLATE;
+	NYT_write(out, &tag, sizeof(tag));
+    }
+#endif
+	
     OUTPUT_PID();
 
     write_cached_fids();                          /* empty initially, non-empty after fork */
@@ -2330,6 +2370,13 @@ load_profile_data_from_stream()
                     warn("# %s", text);           /* includes \n */
                 break;
             }
+
+#ifdef HAS_ZLIB
+	    case NYTP_TAG_START_DEFLATE:
+	    {
+		break;
+	    }
+#endif
 
             default:
                 croak("File format error: token %d ('%c'), chunk %lu, pos %ld",
