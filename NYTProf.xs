@@ -127,7 +127,9 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 typedef struct {
     FILE *file;
     int state;
-    unsigned int used;
+    unsigned int count;
+    /* For output, the count of the bytes written into the buffer - space used
+       up.  */
     unsigned char buffer[NYTP_FILE_BUFFER_SIZE];
 } NYTP_file_t;
 
@@ -287,7 +289,7 @@ NYTP_start_deflate(NYTP_file file) {
 	compressed_io_croak(in, "NYTP_start_deflate");
     }
     file->state = NYTP_FILE_DEFLATE;
-    file->used = 0;
+    file->count = 0;
 }
 
 static void
@@ -376,7 +378,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 static unsigned int
 flush_output(NYTP_file ofile) {
     unsigned char *p = ofile->buffer;
-    const unsigned int used = ofile->used;
+    const unsigned int used = ofile->count;
     const unsigned char *const end = p + used;
 
     while (p < end) {
@@ -384,7 +386,7 @@ flush_output(NYTP_file ofile) {
 	++p;
     }
 
-    ofile->used = 0;
+    ofile->count = 0;
 
     return fwrite(ofile->buffer, 1, used, ofile->file);
 }
@@ -400,19 +402,19 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
 	return 0;
     }
     while (1) {
-	unsigned int remaining = NYTP_FILE_BUFFER_SIZE - ofile->used;
-	unsigned char *p = ofile->buffer + ofile->used;
+	unsigned int remaining = NYTP_FILE_BUFFER_SIZE - ofile->count;
+	unsigned char *p = ofile->buffer + ofile->count;
 
 	if (remaining >= len) {
 	    Copy(buffer, p, len, unsigned char);
-	    ofile->used += len;
+	    ofile->count += len;
 	    result += len;
 	    return result;
 	} else {
 	    /* Copy what we can, then flush the buffer. Lather, rinse, repeat.
 	     */
 	    Copy(buffer, p, remaining, unsigned char);
-	    ofile->used = NYTP_FILE_BUFFER_SIZE;
+	    ofile->count = NYTP_FILE_BUFFER_SIZE;
 	    result += remaining;
 	    len -= remaining;
 	    buffer = (void *)(remaining + (char *)buffer);
