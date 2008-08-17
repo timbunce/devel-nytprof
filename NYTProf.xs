@@ -123,7 +123,7 @@ typedef NYT_file_t *NYT_file;
 
 /* defaults */
 static NYT_file out;
-static FILE* in;
+static NYT_file in;
 
 /* options and overrides */
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
@@ -252,6 +252,26 @@ NYT_open(const char *name, const char *mode) {
     return file;
 }
 
+static char *
+NYT_gets(NYT_file in, char *buffer, unsigned int len) {
+    return fgets(buffer, len, in->file);
+}
+
+static unsigned int
+NYT_scanf(NYT_file in, const char *format, ...) {
+    unsigned int retval;
+    va_list args;
+    va_start(args, format);
+    retval = vfscanf(in->file, format, args);
+    va_end(args);
+    return retval;
+}
+
+static unsigned int
+NYT_read(NYT_file in, void *buffer, unsigned int len) {
+    return fread(buffer, 1, len, in->file);
+}
+
 static unsigned int
 NYT_write(NYT_file out, const void *buffer, unsigned int len) {
     return fwrite(buffer, 1, len, out->file);
@@ -267,9 +287,24 @@ NYT_printf(NYT_file out, const char *format, ...) {
     return retval;
 }
 
+static long
+NYT_tell(NYT_file file) {
+    return ftell(file->file);
+}
+
 static int
 NYT_flush(NYT_file file) {
     return fflush(file->file);
+}
+
+static int
+NYT_eof(NYT_file in) {
+    return feof(in->file);
+}
+
+static const char *
+NYT_fstrerror(NYT_file in) {
+    return strerror(ferror(in->file));
 }
 
 static int
@@ -342,10 +377,13 @@ static SV *
 read_str(pTHX_ SV *sv) {
     STRLEN len;
     char *buf;
-    char tag = fgetc(in);
+    char tag;
+
+    NYT_read(in, &tag, sizeof(tag));
+
     if (NYTP_TAG_STRING != tag && NYTP_TAG_STRING_UTF8 != tag)
         croak("File format error at offset %ld, expected string tag but found %d ('%c')",
-            (long)ftell(in)-1, tag, tag);
+            NYT_tell(in)-1, tag, tag);
 
     len = read_int();
     if (sv) {
@@ -357,9 +395,9 @@ read_str(pTHX_ SV *sv) {
     }
 
     buf = SvPV_nolen(sv);
-    if (fread(buf, 1, len, in) != len)
+    if (NYT_read(in, buf, len) != len)
         croak("String truncated in file at offset %ld: %s",
-            (long)ftell(in)-1, (feof(in)) ? "end of file" : strerror(ferror(in)));
+	      NYT_tell(in)-1, (NYT_eof(in)) ? "end of file" : NYT_fstrerror(in));
     SvCUR_set(sv, len);
     *SvEND(sv) = '\0';
 
@@ -1860,7 +1898,8 @@ read_int()
     unsigned char d;
     unsigned int newint;
 
-    d = fgetc(in);
+    NYT_read(in, &d, sizeof(d));
+
     if (d < 0x80) {                               /* 7 bits */
         newint = d;
     }
@@ -1886,10 +1925,10 @@ read_int()
 	    newint = 0;
 	    length = 4;
 	}
-	got = fread(buffer, length, 1, in);
-	if (got != 1) {
+	got = NYT_read(in, buffer, length);
+	if (got != length) {
 	    croak("Profile format error whilst reading integer at %ld",
-		  (long)ftell(in));
+		  NYT_tell(in));
 	}
 	while (length--) {
 	    newint <<= 8;
@@ -1910,7 +1949,7 @@ read_nv()
     /* no error checking on the assumption that a later token read will
      * detect the error/eof condition
      */
-    fread((unsigned char *)&nv, 1, sizeof(NV), in);
+    NYT_read(in, (unsigned char *)&nv, sizeof(NV));
     return nv;
 }
 
@@ -1964,7 +2003,6 @@ load_profile_data_from_stream()
     unsigned long input_chunk_seqn = 0L;
     unsigned int last_file_num = 0;
     unsigned int last_line_num = 0;
-    int c;                                        /* for while loop */
     int statement_discount = 0;
     NV total_stmt_seconds = 0.0;
     int total_stmt_measures = 0;
@@ -1984,17 +2022,28 @@ load_profile_data_from_stream()
     av_extend(fid_fileinfo_av, 64);               /* grow it up front. */
     av_extend(fid_line_time_av, 64);
 
-    if (2 != fscanf(in, "NYTProf %d %d\n", &file_major, &file_minor)) {
+    if (2 != NYT_scanf(in, "NYTProf %d %d\n", &file_major, &file_minor)) {
         croak("Profile format error while parsing header");
     }
     if (file_major != 2)
         croak("Profile format version %d.%d not supported by %s %s",
             file_major, file_minor, __FILE__, XS_VERSION);
 
-    while (EOF != (c = fgetc(in))) {
+    while (1) {
+	/* Loop "forever" until EOF. We can only check the EOF flag *after* we
+	   attempt a read.  */
+	char c;
+
+	if (NYT_read(in, &c, sizeof(c)) != sizeof(c)) {
+	  if (NYT_eof(in))
+	    break;
+	  croak("Profile format error '%s' whilst reading tag at %ld",
+		NYT_fstrerror(in), NYT_tell(in));
+	}
+
         input_chunk_seqn++;
         if (trace_level >= 6)
-            warn("Chunk %lu token is %d ('%c') at %ld\n", input_chunk_seqn, c, c, (long)ftell(in)-1);
+            warn("Chunk %lu token is %d ('%c') at %ld\n", input_chunk_seqn, c, c, NYT_tell(in)-1);
 
         switch (c) {
             case NYTP_TAG_DISCOUNT:
@@ -2244,7 +2293,7 @@ load_profile_data_from_stream()
                 char text[MAXPATHLEN*2];
                 char *value, *end;
                 SV *value_sv;
-                if (NULL == fgets(text, sizeof(text), in))
+                if (NULL == NYT_gets(in, text, sizeof(text)))
                     /* probably EOF */
                     croak("Profile format error reading attribute");
                 if ((NULL == (value = strchr(text, '=')))
@@ -2274,7 +2323,7 @@ load_profile_data_from_stream()
             case NYTP_TAG_COMMENT:
             {
                 char text[MAXPATHLEN*2];
-                if (NULL == fgets(text, sizeof(text), in))
+                if (NULL == NYT_gets(in, text, sizeof(text)))
                     /* probably EOF */
                     croak("Profile format error reading comment");
                 if (trace_level >= 2)
@@ -2283,12 +2332,11 @@ load_profile_data_from_stream()
             }
 
             default:
-                croak("File format error: token %d ('%c'), chunk %lu, pos %lu",
-		      c, c, input_chunk_seqn, (unsigned long)ftell(in)-1);
+                croak("File format error: token %d ('%c'), chunk %lu, pos %ld",
+		      c, c, input_chunk_seqn, NYT_tell(in)-1);
         }
     }
 
-    assert (EOF == c);
     if (HvKEYS(live_pids_hv)) {
         warn("profile data possibly truncated, no terminator for %"IVdf" pids",
             HvKEYS(live_pids_hv));
@@ -2411,11 +2459,11 @@ char *file;
     CODE:
     if (trace_level)
         warn("reading profile data from file %s\n", file);
-    in = fopen(file, "rb");
+    in = NYT_open(file, "rb");
     if (in == NULL) {
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
     RETVAL = load_profile_data_from_stream();
-    fclose(in);
+    NYT_close(in, 0);
     OUTPUT:
     RETVAL
