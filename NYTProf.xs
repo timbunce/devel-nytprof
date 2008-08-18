@@ -136,9 +136,9 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 typedef struct {
     FILE *file;
 #ifdef HAS_ZLIB
-    int state;
-    int stdio_at_eof;
-    int zlib_at_eof;
+    unsigned char state;
+    bool stdio_at_eof;
+    bool zlib_at_eof;
     /* For input only, the position we are in large_buffer.  */
     unsigned int count;
     z_stream zs;
@@ -383,8 +383,8 @@ NYTP_open(const char *name, const char *mode) {
 #ifdef HAS_ZLIB
     file->state = NYTP_FILE_STDIO;
     file->count = 0;
-    file->stdio_at_eof = 0;
-    file->zlib_at_eof = 0;
+    file->stdio_at_eof = FALSE;
+    file->zlib_at_eof = FALSE;
 
     file->zs.msg = "[Oops. zlib hasn't updated this error string]";
 #endif
@@ -440,7 +440,7 @@ grab_input(NYTP_file ifile) {
 		    dTHX;
 		    croak("grab_input failed: %d (%s)", errno, strerror(errno));
 		}
-		ifile->stdio_at_eof = 1;
+		ifile->stdio_at_eof = TRUE;
 	    }
 
 	    ifile->zs.avail_in = got;
@@ -470,7 +470,7 @@ grab_input(NYTP_file ifile) {
 
 	if (ifile->zs.avail_out == 0 || status == Z_STREAM_END) {
 	    if (status == Z_STREAM_END) {
-		ifile->zlib_at_eof = 1;
+		ifile->zlib_at_eof = TRUE;
 	    }
 	    return;
 	}
