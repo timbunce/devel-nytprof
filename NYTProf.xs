@@ -139,9 +139,8 @@ typedef struct {
     int state;
     int stdio_at_eof;
     int zlib_at_eof;
+    /* For input only, the position we are in large_buffer.  */
     unsigned int count;
-    /* For output, the count of the bytes written into the buffer - space used
-       up.  */
     z_stream zs;
     unsigned char small_buffer[NYTP_FILE_SMALL_BUFFER_SIZE];
     unsigned char large_buffer[NYTP_FILE_LARGE_BUFFER_SIZE];
@@ -537,7 +536,6 @@ sync_avail_out_to_ftell(NYTP_file ofile) {
 static void
 flush_output(NYTP_file ofile, int flush) {
     ofile->zs.next_in = (Bytef *) ofile->large_buffer;
-    ofile->zs.avail_in = ofile->count;
 
 #ifdef DEBUG_DEFLATE
     fprintf(stderr, "flush_output enter   flush = %d\n", flush);
@@ -582,14 +580,14 @@ flush_output(NYTP_file ofile, int flush) {
 		ofile->zs.next_out = (Bytef *) ofile->small_buffer;
 		ofile->zs.avail_out = NYTP_FILE_SMALL_BUFFER_SIZE;
 		if (terminate) {
-		    ofile->count = 0;
+		    ofile->zs.avail_in = 0;
 		    if (flush == Z_SYNC_FLUSH) {
 			sync_avail_out_to_ftell(ofile);
 		    }
 		    return;
 		}
 	    } else {
-		ofile->count = 0;
+		ofile->zs.avail_in = 0;
 		return;
 	    }
 	} else {
@@ -614,19 +612,20 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
     }
 #ifdef HAS_ZLIB
     while (1) {
-	unsigned int remaining = NYTP_FILE_LARGE_BUFFER_SIZE - ofile->count;
-	unsigned char *p = ofile->large_buffer + ofile->count;
+	unsigned int remaining
+	    = NYTP_FILE_LARGE_BUFFER_SIZE - ofile->zs.avail_in;
+	unsigned char *p = ofile->large_buffer + ofile->zs.avail_in;
 
 	if (remaining >= len) {
 	    Copy(buffer, p, len, unsigned char);
-	    ofile->count += len;
+	    ofile->zs.avail_in += len;
 	    result += len;
 	    return result;
 	} else {
 	    /* Copy what we can, then flush the buffer. Lather, rinse, repeat.
 	     */
 	    Copy(buffer, p, remaining, unsigned char);
-	    ofile->count = NYTP_FILE_LARGE_BUFFER_SIZE;
+	    ofile->zs.avail_in = NYTP_FILE_LARGE_BUFFER_SIZE;
 	    result += remaining;
 	    len -= remaining;
 	    buffer = (void *)(remaining + (char *)buffer);
