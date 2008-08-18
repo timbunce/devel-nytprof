@@ -550,8 +550,8 @@ flush_output(NYTP_file ofile, int flush) {
 	    if (ofile->zs.avail_out == 0 || flush != Z_NO_FLUSH) {
 		int terminate
 		    = ofile->zs.avail_in == 0 && ofile->zs.avail_out > 0;
-		size_t avail
-		    = NYTP_FILE_SMALL_BUFFER_SIZE - ofile->zs.avail_out;
+		size_t avail = ((unsigned char *) ofile->zs.next_out)
+		    - ofile->small_buffer;
 		const unsigned char *where = ofile->small_buffer;
 
 		while (avail > 0) {
