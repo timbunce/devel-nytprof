@@ -520,6 +520,22 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 }
 
 #ifdef HAS_ZLIB
+/* Cheat, by telling zlib about a reduced amount of available output space,
+   such that our next write of the (slightly underused) output buffer will
+   align the underlying file pointer back with the size of our output buffer
+   (and hopefully the underlying OS block writes).  */
+static void
+sync_avail_out_to_ftell(NYTP_file ofile) {
+    const long result = ftell(ofile->file);
+    const unsigned long where = result < 0 ? 0 : result;
+    ofile->zs.avail_out =
+	NYTP_FILE_SMALL_BUFFER_SIZE - where % NYTP_FILE_SMALL_BUFFER_SIZE;
+#ifdef DEBUG_DEFLATE
+    fprintf(stderr, "sync_avail_out_to_ftell pos=%ld, avail_out=%lu\n",
+	    result, (unsigned long) ofile->zs.avail_out);
+#endif
+}
+
 /* flush has values as described for "allowed flush values" in zlib.h  */
 static void
 flush_output(NYTP_file ofile, int flush) {
@@ -570,6 +586,9 @@ flush_output(NYTP_file ofile, int flush) {
 		ofile->zs.avail_out = NYTP_FILE_SMALL_BUFFER_SIZE;
 		if (terminate) {
 		    ofile->count = 0;
+		    if (flush == Z_SYNC_FLUSH) {
+			sync_avail_out_to_ftell(ofile);
+		    }
 		    return;
 		}
 	    } else {
@@ -751,6 +770,11 @@ output_header(pTHX)
 		    compression_level, zlibVersion());
 	NYTP_write(out, &tag, sizeof(tag));
 	NYTP_start_deflate(out);
+
+	/* If the next action stops being OUTPUT_PID(), or it stops having
+	   a flush() built in, consider adding a call to
+	   sync_avail_out_to_ftell() "here" instead, most logically by putting
+	   it in NYTP_start_deflate(out).  */
     }
 #endif
 	
