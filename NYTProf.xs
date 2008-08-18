@@ -142,7 +142,6 @@ typedef struct {
     unsigned int count;
     /* For output, the count of the bytes written into the buffer - space used
        up.  */
-    const unsigned char *end;
     z_stream zs;
     unsigned char small_buffer[NYTP_FILE_SMALL_BUFFER_SIZE];
     unsigned char large_buffer[NYTP_FILE_LARGE_BUFFER_SIZE];
@@ -384,7 +383,6 @@ NYTP_open(const char *name, const char *mode) {
 
 #ifdef HAS_ZLIB
     file->state = NYTP_FILE_STDIO;
-    file->end = file->large_buffer;
     file->count = 0;
     file->stdio_at_eof = 0;
     file->zlib_at_eof = 0;
@@ -475,7 +473,6 @@ grab_input(NYTP_file ifile) {
 	    if (status == Z_STREAM_END) {
 		ifile->zlib_at_eof = 1;
 	    }
-	    ifile->end = (unsigned char *) ifile->zs.next_out;
 	    return;
 	}
     }
@@ -498,7 +495,7 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
 #ifdef HAS_ZLIB
     while (1) {
 	unsigned char *p = ifile->large_buffer + ifile->count;
-	unsigned int remaining = ifile->end - p;
+	unsigned int remaining = ((unsigned char *) ifile->zs.next_out) - p;
 
 	if (remaining >= len) {
 	    Copy(p, buffer, len, unsigned char);
