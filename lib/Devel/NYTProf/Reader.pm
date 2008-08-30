@@ -351,7 +351,9 @@ sub _generate_report {
 
         $self->{filestats}->{$filestr}->{'time'}      = $runningTotalTime;
         $self->{filestats}->{$filestr}->{'calls'}     = $runningTotalCalls;
-        $self->{filestats}->{$filestr}->{'time/call'} = $runningTotalTime / $runningTotalCalls;
+        $self->{filestats}->{$filestr}->{'time/call'} = eval { $runningTotalTime / $runningTotalCalls };
+        warn "Um, that's odd, the count of executed statements is zero for '$filestr'\n"
+            unless $runningTotalCalls;
 
         # Use Median Absolute Deviation Formula to get file deviations for each of
         # calls, time and time/call values

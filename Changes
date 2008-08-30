@@ -4,6 +4,10 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
+=head2 Changes in Devel::NYTProf 2.04 (svn rXXX) XXX
+
+  Fixed rare divide-by-zero error in reporting code.
+
 =head2 Changes in Devel::NYTProf 2.03 (svn r405) 15 Aug 2008
 
   NOTES:
