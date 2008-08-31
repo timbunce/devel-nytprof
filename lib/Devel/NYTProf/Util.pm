@@ -129,11 +129,13 @@ sub strip_prefix_from_paths {
 # eg normalize the width/precision so that the tables look good.
 sub fmt_float {
     my ($val, $precision) = @_;
-    if ($val < 0.00001 and $val > 0) {
-        $val = sprintf("%.0e", $val);
+    $precision ||= 5;
+    if ($val < 10 ** -$precision and $val > 0) {
+	# Give the same width as a larger value formatted with the %f below.
+	# This gives us 2 digits of precision for $precision == 5
+        $val = sprintf("%." . ($precision - 4) . "e", $val);
     }
     elsif ($val != int($val)) {
-        $precision ||= 5;
         $val = sprintf("%.${precision}f", $val);
     }
     return $val;
