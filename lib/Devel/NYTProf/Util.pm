@@ -130,10 +130,14 @@ sub strip_prefix_from_paths {
 sub fmt_float {
     my ($val, $precision) = @_;
     $precision ||= 5;
-    if ($val < 10 ** -$precision and $val > 0) {
+    if ($val < 10 ** -($precision - 1) and $val > 0) {
 	# Give the same width as a larger value formatted with the %f below.
 	# This gives us 2 digits of precision for $precision == 5
         $val = sprintf("%." . ($precision - 4) . "e", $val);
+	# But our exponents will always be e-05 to e-09, never e-10 or smaller
+	# so remove the leading zero to make these small numbers stand out less
+	# on the table.
+	$val =~ s/e-0/e-/;
     }
     elsif ($val != int($val)) {
         $val = sprintf("%.${precision}f", $val);
