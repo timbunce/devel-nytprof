@@ -760,7 +760,7 @@ output_header(pTHX)
     NYTP_printf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
 
 #ifdef HAS_ZLIB
-    {
+    if (compression_level) {
         const char tag = NYTP_TAG_START_DEFLATE;
 	NYTP_printf(out, "# Compressed at level %d with zlib %s\n",
 		    compression_level, zlibVersion());
