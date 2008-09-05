@@ -149,6 +149,9 @@ typedef struct {
 
 typedef NYTP_file_t *NYTP_file;
 
+static int NYTP_eof(NYTP_file ifile);
+static const char * NYTP_fstrerror(NYTP_file file);
+
 /* defaults */
 static NYTP_file out;
 static NYTP_file in;
@@ -479,8 +482,9 @@ grab_input(NYTP_file ifile) {
 
 #endif
 
+
 static unsigned int
-NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
+NYTP_read_unchecked(NYTP_file ifile, void *buffer, unsigned int len) {
 #ifdef HAS_ZLIB
     unsigned int result = 0;
 #endif
@@ -514,6 +518,19 @@ NYTP_read(NYTP_file ifile, void *buffer, unsigned int len) {
     }
 #endif
 }
+
+
+static unsigned int
+NYTP_read(NYTP_file ifile, void *buffer, unsigned int len, char *what) {
+    unsigned int got = NYTP_read_unchecked(ifile, buffer, len);
+    if (got != len) {
+        croak("Profile format error whilst reading %s at %ld%s: expected %d got %d, %s",
+                what, NYTP_tell(ifile), NYTP_type_of_offset(ifile), len, got,
+                (NYTP_eof(in)) ? "end of file" : NYTP_fstrerror(in));
+    }
+    return len;
+}
+
 
 #ifdef HAS_ZLIB
 /* Cheat, by telling zlib about a reduced amount of available output space,
@@ -573,7 +590,7 @@ flush_output(NYTP_file ofile, int flush) {
 			avail -= count;
 		    } else {
 			dTHX;
-			croak("fwrite in flush, error %d (%s)", errno,
+			croak("fwrite in flush error %d: %s", errno,
 			      strerror(errno));
 		    }
 		}
@@ -604,7 +621,10 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
     unsigned int result = 0;
 #endif
     if (FILE_STATE(ofile) == NYTP_FILE_STDIO) {
-	return fwrite(buffer, 1, len, ofile->file);
+	if (fwrite(buffer, 1, len, ofile->file) < 1)
+            croak("fwrite error %d: %s", errno,
+                    strerror(errno));
+        return len;
     }
     else if (FILE_STATE(ofile) != NYTP_FILE_DEFLATE) {
 	compressed_io_croak(ofile, "NYTP_write");
@@ -802,7 +822,7 @@ read_str(pTHX_ SV *sv) {
     char *buf;
     char tag;
 
-    NYTP_read(in, &tag, sizeof(tag));
+    NYTP_read(in, &tag, sizeof(tag), "string prefix");
 
     if (NYTP_TAG_STRING != tag && NYTP_TAG_STRING_UTF8 != tag)
         croak("File format error at offset %ld%s, expected string tag but found %d ('%c')",
@@ -818,9 +838,7 @@ read_str(pTHX_ SV *sv) {
     }
 
     buf = SvPV_nolen(sv);
-    if (NYTP_read(in, buf, len) != len)
-        croak("String truncated in file at offset %ld%s: %s",
-	      NYTP_tell(in)-1, NYTP_type_of_offset(in), (NYTP_eof(in)) ? "end of file" : NYTP_fstrerror(in));
+    NYTP_read(in, buf, len, "string");
     SvCUR_set(sv, len);
     *SvEND(sv) = '\0';
 
@@ -2321,7 +2339,7 @@ read_int()
     unsigned char d;
     unsigned int newint;
 
-    NYTP_read(in, &d, sizeof(d));
+    NYTP_read(in, &d, sizeof(d), "integer prefix");
 
     if (d < 0x80) {                               /* 7 bits */
         newint = d;
@@ -2329,8 +2347,8 @@ read_int()
     else {
 	unsigned char buffer[4];
 	unsigned char *p = buffer;
-	unsigned int length;
-	size_t got;
+        unsigned int length;
+        size_t got;
 
 	if (d < 0xC0) {                          /* 14 bits */
 	    newint = d & 0x7F;
@@ -2348,11 +2366,7 @@ read_int()
 	    newint = 0;
 	    length = 4;
 	}
-	got = NYTP_read(in, buffer, length);
-	if (got != length) {
-	    croak("Profile format error whilst reading integer at %ld%s: expected %d got %d (file truncated?)",
-		  NYTP_tell(in), NYTP_type_of_offset(in), length, got);
-	}
+	NYTP_read(in, buffer, length, "integer");
 	while (length--) {
 	    newint <<= 8;
 	    newint |= *p++;
@@ -2372,7 +2386,7 @@ read_nv()
     /* no error checking on the assumption that a later token read will
      * detect the error/eof condition
      */
-    NYTP_read(in, (unsigned char *)&nv, sizeof(NV));
+    NYTP_read(in, (unsigned char *)&nv, sizeof(NV), "float");
     return nv;
 }
 
@@ -2457,7 +2471,7 @@ load_profile_data_from_stream()
 	   attempt a read.  */
 	char c;
 
-	if (NYTP_read(in, &c, sizeof(c)) != sizeof(c)) {
+	if (NYTP_read_unchecked(in, &c, sizeof(c)) != sizeof(c)) {
 	  if (NYTP_eof(in))
 	    break;
 	  croak("Profile format error '%s' whilst reading tag at %ld",
