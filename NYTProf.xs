@@ -2350,8 +2350,8 @@ read_int()
 	}
 	got = NYTP_read(in, buffer, length);
 	if (got != length) {
-	    croak("Profile format error whilst reading integer at %ld%s",
-		  NYTP_tell(in), NYTP_type_of_offset(in));
+	    croak("Profile format error whilst reading integer at %ld%s: expected %d got %d (file truncated?)",
+		  NYTP_tell(in), NYTP_type_of_offset(in), length, got);
 	}
 	while (length--) {
 	    newint <<= 8;
