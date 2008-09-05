@@ -621,9 +621,11 @@ NYTP_write(NYTP_file ofile, const void *buffer, unsigned int len) {
     unsigned int result = 0;
 #endif
     if (FILE_STATE(ofile) == NYTP_FILE_STDIO) {
-	if (fwrite(buffer, 1, len, ofile->file) < 1)
+	if (fwrite(buffer, 1, len, ofile->file) < 1) {
+            dTHX;
             croak("fwrite error %d: %s", errno,
                     strerror(errno));
+        }
         return len;
     }
     else if (FILE_STATE(ofile) != NYTP_FILE_DEFLATE) {
@@ -2348,7 +2350,6 @@ read_int()
 	unsigned char buffer[4];
 	unsigned char *p = buffer;
         unsigned int length;
-        size_t got;
 
 	if (d < 0xC0) {                          /* 14 bits */
 	    newint = d & 0x7F;
