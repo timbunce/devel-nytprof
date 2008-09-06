@@ -468,7 +468,11 @@ grab_input(NYTP_file ifile) {
 #endif
 
 	if (!(status == Z_OK || status == Z_STREAM_END)) {
-	    croak("inflate failed, error %d (%s)", status, ifile->zs.msg);
+	    if (ifile->stdio_at_eof)
+		croak("inflate failed, error %d (%s) at end of input file - is"
+		      " it truncated?", status, ifile->zs.msg);
+	    croak("inflate failed, error %d (%s) at offset %ld in input file",
+		  status, ifile->zs.msg, ftell(ifile->file));
 	}
 
 	if (ifile->zs.avail_out == 0 || status == Z_STREAM_END) {
