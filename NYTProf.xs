@@ -1633,6 +1633,9 @@ set_option(const char* option, const char* value)
     else if (strEQ(option, "use_db_sub")) {
         use_db_sub = atoi(value);
     }
+    else if (strEQ(option, "compress")) {
+        compression_level = atoi(value);
+    }
     else {
         warn("Unknown NYTProf option: %s\n", option);
         return;

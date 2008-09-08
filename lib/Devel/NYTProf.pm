@@ -280,6 +280,12 @@ have to run the code for many hours to have any hope of reasonably useful result
 
 Specify the output file to write profile data to (default: './nytprof.out').
 
+=head2 compress=...
+
+Specify the compression level to use, if NYTProf is compiled with compression
+support. Valid values are 0 to 9, with 0 disabling compression. If NYTProf was
+not compiled with compression support, this option is ignored.
+
 =head1 SELECTIVE PROFILING
 
 You can profile only parts of an application by calling DB::enable_profile()
