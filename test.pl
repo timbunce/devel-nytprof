@@ -287,11 +287,8 @@ sub verify_csv_report {
 	while ($index < $limit) {
 		$_ = shift @got;
 
-    if (m/^# Version/) {
-			next;
-    }
+    next if m/^# Version/; # Ignore version numbers
 
-    # Ignore version numbers
 		s/^([0-9.]+),([0-9.]+),([0-9.]+),(.*)$/0,$2,0,$4/o;
 		my $t0 = $1;
 		my $c0 = $2;
@@ -301,8 +298,16 @@ sub verify_csv_report {
 		   and 0 != $expected[$index] =~ s/^~([0-9.]+)/0/
 		   and $c0 # protect against div-by-0 in some error situations
 		) {
-			push @accuracy_errors, "$test line $index: got $t0 expected ~$1 for time"
-				if abs($1 - $t0) > 0.2; # Test times. expected to be within 200ms
+			my $expected = $1;
+			my $percent = ($t0 / $expected) * 100; # <100 if faster, >100 if slower
+			# Test aproximate times
+			push @accuracy_errors, "$test line $index: got $t0 expected approx $expected for time ($percent%%)"
+				# if it was faster than expected then it should only be slightly faster
+				if ($percent < 95)
+				# if it was slower than expected then we're much more generous, to allow for
+				# slow systems, e.g. cpan-testers running in cpu-starved virtual machines.
+				or ($percent > 200);
+
 			my $tc = $t0 / $c0;
 			push @accuracy_errors, "$test line $index: got $tc0 expected ~$tc for time/calls"
 				if abs($tc - $tc0) > 0.00002; # expected to be very close (rounding errors only)
