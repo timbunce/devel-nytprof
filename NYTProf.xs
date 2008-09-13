@@ -158,19 +158,37 @@ static NYTP_file in;
 
 /* options and overrides */
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
-static bool embed_fid_line = 0;
-static bool usecputime = 0;
-static int use_db_sub = 0;
 static unsigned int profile_opts;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
-static int profile_blocks = 1;                    /* block and sub *exclusive* times */
-static int profile_subs = 1;                      /* sub *inclusive* times */
-static int profile_leave = 1;                     /* correct block end timing */
 static int profile_zero = 0;                      /* don't do timing, all times are zero */
-static int trace_level = 0;
+
+struct NYTP_int_options_t {
+  const char *option_name;
+  int option_value;
+};
+
+static struct NYTP_int_options_t options[] = {
+#define usecputime options[0].option_value
+    { "usecputime", 0 },
+#define profile_subs options[1].option_value
+    { "subs", 1 },                                /* sub *inclusive* times */
+#define profile_blocks options[2].option_value
+    { "blocks", 1 },                              /* block and sub *exclusive* times */
+#define profile_leave options[3].option_value
+    { "leave", 1 },                               /* correct block end timing */
+#define embed_fid_line options[4].option_value
+    { "expand", 0 },
+#define trace_level options[5].option_value
+    { "trace", 0 },
+#define use_db_sub options[6].option_value
+    { "use_db_sub", 0 },
+#define compression_level options[7].option_value
 #ifdef HAS_ZLIB
-static int compression_level = Z_BEST_COMPRESSION;
+    { "compress", Z_BEST_COMPRESSION }
+#else
+    { "compress", 0 }
 #endif
+};
 
 /* time tracking */
 static struct tms start_ctime, end_ctime;
@@ -1600,9 +1618,6 @@ set_option(const char* option, const char* value)
     if (strEQ(option, "file")) {
         strncpy(PROF_output_file, value, MAXPATHLEN);
     }
-    else if (strEQ(option, "usecputime")) {
-        usecputime = atoi(value);
-    }
     else if (strEQ(option, "start")) {
         if      (strEQ(value,"begin")) profile_start = NYTP_START_BEGIN;
         else if (strEQ(value,"init"))  profile_start = NYTP_START_INIT;
@@ -1610,35 +1625,27 @@ set_option(const char* option, const char* value)
         else if (strEQ(value,"no"))    profile_start = NYTP_START_NO;
         else croak("NYTProf option begin has invalid value '%s'\n", value);
     }
-    else if (strEQ(option, "subs")) {
-        profile_subs = atoi(value);
-    }
-    else if (strEQ(option, "blocks")) {
-        profile_blocks = atoi(value);
-    }
-    else if (strEQ(option, "leave")) {
-        profile_leave = atoi(value);
-    }
     else if (strEQ(option, "addpid")) {
         profile_opts = (atoi(value))
             ? profile_opts |  NYTP_OPTf_ADDPID
             : profile_opts & ~NYTP_OPTf_ADDPID;
     }
-    else if (strEQ(option, "expand")) {
-        embed_fid_line = atoi(value);
-    }
-    else if (strEQ(option, "trace")) {
-        trace_level = atoi(value);
-    }
-    else if (strEQ(option, "use_db_sub")) {
-        use_db_sub = atoi(value);
-    }
-    else if (strEQ(option, "compress")) {
-        compression_level = atoi(value);
-    }
     else {
-        warn("Unknown NYTProf option: %s\n", option);
-        return;
+	struct NYTP_int_options_t *opt_p = options;
+	const struct NYTP_int_options_t *const opt_end
+	    = options + sizeof(options) / sizeof (struct NYTP_int_options_t);
+	bool found = FALSE;
+	do {
+	    if (strEQ(option, opt_p->option_name)) {
+		opt_p->option_value = atoi(value);
+		found = TRUE;
+		break;
+	    }
+	} while (++opt_p < opt_end);
+	if (!found) {
+	    warn("Unknown NYTProf option: %s\n", option);
+	    return;
+	}
     }
     if (trace_level)
         warn("# %s=%s\n", option, value);
