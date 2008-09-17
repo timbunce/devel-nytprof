@@ -286,6 +286,12 @@ Specify the compression level to use, if NYTProf is compiled with compression
 support. Valid values are 0 to 9, with 0 disabling compression. If NYTProf was
 not compiled with compression support, this option is ignored.
 
+=head2 xsfile=0
+
+Don't try to determine the file XS subroutines were defined in, just record it
+as "XSFILE". Only useful for perl5.8.8 which has a bug which causes the
+filename to be corrupted sometimes.
+
 =head1 SELECTIVE PROFILING
 
 You can profile only parts of an application by calling DB::enable_profile()

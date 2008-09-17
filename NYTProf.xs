@@ -67,7 +67,8 @@
 #define NYTP_START_INIT          3
 #define NYTP_START_END           4
 
-#define NYTP_OPTf_ADDPID         0x0001
+#define NYTP_OPTf_ADDPID         0x0001 /* append .pid to output filename */
+#define NYTP_OPTf_XSFILE         0x0002 /* find filename for xsubs */
 
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
@@ -158,7 +159,7 @@ static NYTP_file in;
 
 /* options and overrides */
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
-static unsigned int profile_opts;
+static unsigned int profile_opts = NYTP_OPTf_XSFILE;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
 static int profile_zero = 0;                      /* don't do timing, all times are zero */
 
@@ -490,7 +491,7 @@ grab_input(NYTP_file ifile) {
 		croak("inflate failed, error %d (%s) at end of input file - is"
 		      " it truncated?", status, ifile->zs.msg);
 	    croak("inflate failed, error %d (%s) at offset %ld in input file",
-		  status, ifile->zs.msg, ftell(ifile->file));
+		  status, ifile->zs.msg, (long)ftell(ifile->file));
 	}
 
 	if (ifile->zs.avail_out == 0 || status == Z_STREAM_END) {
@@ -1630,6 +1631,11 @@ set_option(const char* option, const char* value)
             ? profile_opts |  NYTP_OPTf_ADDPID
             : profile_opts & ~NYTP_OPTf_ADDPID;
     }
+    else if (strEQ(option, "xsfile")) {
+        profile_opts = (atoi(value))
+            ? profile_opts |  NYTP_OPTf_XSFILE
+            : profile_opts & ~NYTP_OPTf_XSFILE;
+    }
     else {
 	struct NYTP_int_options_t *opt_p = options;
 	const struct NYTP_int_options_t *const opt_end
@@ -1948,17 +1954,20 @@ pp_entersub_profiler(pTHX)
                 sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
 
                 if (cv && SvTYPE(cv) == SVt_PVCV) {
-                    /* inject faked xsub file details into PL_DBsub hash */
-                    unsigned int fid = get_file_id(aTHX_ CvFILE(cv), strlen(CvFILE(cv)), NYTP_FIDf_VIA_SUB);
+                    /* The NYTP_OPTf_XSFILE exists only because perl5.8.8 */
+                    /* CvFILE(cv) can produce garbage so we need a way avoid it. */
+                    char *cvfile = (profile_opts & NYTP_OPTf_XSFILE) ? CvFILE(cv) : "XSFILE";
+                    unsigned int fid = get_file_id(aTHX_ cvfile, strlen(cvfile), NYTP_FIDf_VIA_SUB);
+                    /* Inject faked xsub file details into PL_DBsub hash. */
                     SV *sv = *hv_fetch(GvHV(PL_DBsub), SvPV_nolen(subname_sv), SvCUR(subname_sv), 1);
                     if (trace_level >= 2)
-                        warn("Adding fake DBsub entry for '%s' (fid %d, file %s)\n", SvPV_nolen(subname_sv), fid, CvFILE(cv));
+                        warn("Adding fake DBsub entry for '%s' (fid %d, file %s)\n", SvPV_nolen(subname_sv), fid, cvfile);
                     if (!SvOK(sv)) {
-                        sv_setpvf(sv, "%s:0-0", CvFILE(cv));
+                        sv_setpvf(sv, "%s:0-0", cvfile);
                     }
                     else {
                         warn("PL_DBsub entry for '%s' already exists (fid %d, file %s)",
-                            SvPV_nolen(subname_sv), fid, CvFILE(cv));
+                            SvPV_nolen(subname_sv), fid, cvfile);
                         if (trace_level)
                             sv_dump(sv);
                     }

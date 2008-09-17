@@ -8,6 +8,11 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 
   Fixed rare divide-by-zero error in reporting code.
 
+  Added on-the-fly zip compression of the output file
+    thanks to Nicholas Clark.
+  Added xsfile=0 option to NYTPROF env var for perl5.8.8 users affected
+    by CvFILE bug causing corrupt filename for xsubs, sometimes.
+
 =head2 Changes in Devel::NYTProf 2.03 (svn r405) 15 Aug 2008
 
   NOTES:
