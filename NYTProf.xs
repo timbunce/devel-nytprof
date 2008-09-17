@@ -168,6 +168,7 @@ struct NYTP_int_options_t {
   int option_value;
 };
 
+/* XXX boolean options should be moved into profile_opts */
 static struct NYTP_int_options_t options[] = {
 #define usecputime options[0].option_value
     { "usecputime", 0 },
@@ -185,7 +186,7 @@ static struct NYTP_int_options_t options[] = {
     { "use_db_sub", 0 },
 #define compression_level options[7].option_value
 #ifdef HAS_ZLIB
-    { "compress", Z_BEST_COMPRESSION }
+    { "compress", 6 }
 #else
     { "compress", 0 }
 #endif

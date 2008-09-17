@@ -283,8 +283,11 @@ Specify the output file to write profile data to (default: './nytprof.out').
 =head2 compress=...
 
 Specify the compression level to use, if NYTProf is compiled with compression
-support. Valid values are 0 to 9, with 0 disabling compression. If NYTProf was
-not compiled with compression support, this option is ignored.
+support. Valid values are 0 to 9, with 0 disabling compression. The default is
+6 as higher values yield little extra compression but the cpu cost starts to
+rise significantly. Using level 1 still gives you a significant reduction in file size.
+
+If NYTProf was not compiled with compression support, this option is silently ignored.
 
 =head2 xsfile=0
 
