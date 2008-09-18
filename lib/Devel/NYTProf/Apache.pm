@@ -33,20 +33,30 @@ use constant MP2 => (exists $ENV{MOD_PERL_API_VERSION} && $ENV{MOD_PERL_API_VERS
     ? 1
     : 0;
 
+
+sub child_init {
+    DB::enable_profile() unless $ENV{NYTPROF} =~ m/\b start = (?: no | end ) \b/x;
+}
+
+sub child_exit {
+    DB::_finish();
+}
+
+
 # arrange for the profile to be enabled in each child
 # and cleanly finished when the child exits
 if (MP2) {
     require mod_perl2;
     require Apache2::ServerUtil;
     my $s = Apache2::ServerUtil->server;
-    $s->push_handlers(PerlChildInitHandler => sub {DB::enable_profile});
-    $s->push_handlers(PerlChildExitHandler => sub {DB::_finish});
+    $s->push_handlers(PerlChildInitHandler => \&child_init);
+    $s->push_handlers(PerlChildExitHandler => \&child_exit);
 }
 else {
     require Apache;
     if (Apache->can('push_handlers')) {
-        Apache->push_handlers(PerlChildInitHandler => sub {DB::enable_profile});
-        Apache->push_handlers(PerlChildExitHandler => sub {DB::_finish});
+        Apache->push_handlers(PerlChildInitHandler => \&child_init);
+        Apache->push_handlers(PerlChildExitHandler => \&child_exit);
     }
     else {
         Carp::carp("Apache.pm was not loaded");
