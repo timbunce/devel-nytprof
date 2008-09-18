@@ -856,12 +856,12 @@ read_str(pTHX_ SV *sv) {
 
     len = read_int();
     if (sv) {
-        SvGROW(sv, len+1);
+        SvGROW(sv, len+1);  /* forces SVt_PV */
     }
     else {
-        sv = newSV(len);
-        SvPOK_on(sv);
+        sv = newSV(len+1); /* +1 to force SVt_PV even for 0 length string */
     }
+    SvPOK_on(sv);
 
     buf = SvPV_nolen(sv);
     NYTP_read(in, buf, len, "string");
