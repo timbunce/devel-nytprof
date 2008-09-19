@@ -8,6 +8,7 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
 
   Fixed rare divide-by-zero error in reporting code.
   Fixed rare core dump in reporting code.
+  Fixed detection of #line directives to be more picky.
 
   Added on-the-fly zip compression thanks to Nicholas Clark.
     Reduces data file size per million statements executed

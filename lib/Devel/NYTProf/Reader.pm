@@ -424,7 +424,7 @@ sub _generate_report {
             foreach my $regexp (@{$self->{user_regexp}}) {
                 $line =~ s/$regexp->{pattern}/$regexp->{replace}/g;
             }
-            if ($line =~ m/^\# \s* line \b/x) {
+            if ($line =~ m/^\# \s* line \s+ (\d+) \b/x) {
                 # XXX we should be smarter about this - patches welcome!
                 warn "Ignoring '$line' directive at line $LINE - profile data for $filestr will be out of sync with source!\n"
                     unless our $line_directive_warn->{$filestr}++; # once per file
