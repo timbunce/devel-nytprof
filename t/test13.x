@@ -13,12 +13,12 @@
 0,0,0,
 0,0,0,sub baz {
 0,1,0,print "in sub baz\n";
-0,2,0,eval { foo();  # counts as two executions
-0,1,0,foo(); }; # counts as one execution
-0,2,0,eval { x(); # counts as two executions, fails out of eval
-0,0,0,x(); }; # 0 executions. never gets here
+0,2,0,eval { foo();    # two stmts executed on this line (eval + foo() call)
+0,1,0,foo(); }; # one stmt  executed on this line
+0,2,0,eval { x();      # two stmts executed on this line (eval + x() call), fails out of eval
+0,0,0,x(); };   # zero stmts because previous statement threw an exception
 0,0,0,}
 0,0,0,
-0,1,0,eval "foo();";  # one vanilla execution, one eval execution
-0,2,0,eval { bar(); };  # two executions
+0,1,0,eval "foo();";     # one stmt in this fid, one statement in eval fid
+0,2,0,eval { bar(); };   # two stmts
 0,1,0,baz();
