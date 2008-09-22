@@ -529,16 +529,15 @@ NYTP_read_unchecked(NYTP_file ifile, void *buffer, unsigned int len) {
 	    ifile->count += len;
 	    result += len;
 	    return result;
-	} else {
-	    Copy(p, buffer, remaining, unsigned char);
-	    ifile->count = NYTP_FILE_LARGE_BUFFER_SIZE;
-	    result += remaining;
-	    len -= remaining;
-	    buffer = (void *)(remaining + (char *)buffer);
-	    if (ifile->zlib_at_eof)
-		return result;
-	    grab_input(ifile);
 	}
+        Copy(p, buffer, remaining, unsigned char);
+        ifile->count = NYTP_FILE_LARGE_BUFFER_SIZE;
+        result += remaining;
+        len -= remaining;
+        buffer = (void *)(remaining + (char *)buffer);
+        if (ifile->zlib_at_eof)
+            return result;
+        grab_input(ifile);
     }
 #endif
 }
