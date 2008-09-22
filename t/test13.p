@@ -10,12 +10,12 @@ sub bar {
 
 sub baz {
   print "in sub baz\n";
-  eval { foo();  # counts as two executions
-         foo(); }; # counts as one execution
-  eval { x(); # counts as two executions, fails out of eval
-         x(); }; # 0 executions. never gets here
+  eval { foo();    # two stmts executed on this line (eval + foo() call)
+         foo(); }; # one stmt  executed on this line
+  eval { x();      # two stmts executed on this line (eval + x() call), fails out of eval
+         x(); };   # zero stmts because previous statement threw an exception
 }
 
-eval "foo();";  # one vanilla execution, one eval execution
-eval { bar(); };  # two executions
+eval "foo();";     # one stmt in this fid, one statement in eval fid
+eval { bar(); };   # two stmts
 baz();
