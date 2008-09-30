@@ -505,7 +505,9 @@ sub normalize_variables {
 sub make_fid_filenames_relative {
     my ($self, $roots) = @_;
     $roots ||= ['.'];    # e.g. [ @INC, '.' ]
-    strip_prefix_from_paths($roots, $self->{fid_fileinfo}, undef);
+    # strip prefix from start of string and also when embeded
+    # e.g., "(eval 42)[/foo/bar/...]"
+    strip_prefix_from_paths($roots, $self->{fid_fileinfo}, qr{^|\[});
 }
 
 

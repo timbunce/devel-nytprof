@@ -104,7 +104,7 @@ sub strip_prefix_from_paths {
                 strip_prefix_from_paths($inc_ref, $path, $anchor);
             }
             elsif ($path) {
-                $path =~ s{$inc_regex}{};
+                $path =~ s{$inc_regex}{$1};
             }
         }
     }
