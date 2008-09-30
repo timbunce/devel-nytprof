@@ -80,6 +80,7 @@
 #define NYTP_TAG_TIME_LINE       '+'
 #define NYTP_TAG_DISCOUNT        '-'
 #define NYTP_TAG_NEW_FID         '@'
+#define NYTP_TAG_SRC_LINE        'S'    /* fid, line, str */
 #define NYTP_TAG_SUB_LINE_RANGE  's'
 #define NYTP_TAG_SUB_CALLERS     'c'
 #define NYTP_TAG_PID_START       'P'
@@ -1061,6 +1062,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 
     /* inserted new entry */
     if (1 == hash_op(entry, &found, created_via)) {
+        AV *src_av = Nullav;
 
         /* if this is a synthetic filename for an 'eval'
          * ie "(eval 42)[/some/filename.pl:line]"
@@ -1124,13 +1126,44 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 
         emit_fid(found);
 
+        /* if it's a string eval or a synthetic filename from CODE ref in @INC
+         * then think about writing out the source code */
+        if (found->eval_fid || (found->key_len > 10 && strnEQ(found->key, "/loader/0x", 10))) {
+            src_av = GvAV(gv_fetchfile(found->key));
+            if (!src_av && trace_level >= 4)
+                /* source lines are only saved if PERLDB_LINE is true */
+                warn("No source available for fid %d%s\n",
+                    found->id, use_db_sub ? "" : ", set use_db_sub=1 option");
+        }
+
         if (trace_level) {
             /* including last_executed_fid can be handy for tracking down how
              * a file got loaded */
-            warn("New fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s\n",
+            warn("New fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s%s\n",
                 found->id, last_executed_fid, last_executed_line,
                 found->fid_flags, found->eval_fid, found->eval_line_num,
-                found->key_len, found->key, (found->key_abs) ? found->key_abs : "");
+                found->key_len, found->key, (found->key_abs) ? found->key_abs : "",
+                src_av ? ", with src" : ""
+            );
+        }
+
+        if (src_av) {
+            I32 lines = av_len(src_av);
+            I32 line;
+            for (line = 1; line < lines; ++line) { /* lines start at 1 */
+                SV **svp = av_fetch(src_av, line, 0);
+                STRLEN len = 0;
+                char *src = (svp) ? SvPV(*svp, len) : "";
+                if (!*src)  /* skip empty lines */
+                    continue;
+                /* outputting the tag and fid for each (non empty) line
+                 * is a little inefficient, but not enough to worry about */
+                output_tag_int(NYTP_TAG_SRC_LINE, found->id);
+                output_int(line);
+                output_str(src, len);    /* includes newline */
+                if (trace_level >= 5)
+                    warn("fid %d src line %d: %s", found->id, line, src);
+            }
         }
     }
     else if (trace_level >= 4) {
@@ -1232,7 +1265,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
 {
     OP *start_op, *o;
     int type;
-    int trace = 4;
+    int trace = 6;
 
     switch (CxTYPE(cx)) {
         case CXt_EVAL:
@@ -1291,13 +1324,13 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
                     OutCopFILE((COP*)o));
             return (COP*)o;
         }
-        /* should never get here? */
-        if (trace_level) {
+        /* should never get here but we do */
+        if (trace_level >= trace) {
             warn("\tstart_cop_of_context %s op '%s' isn't a cop",
                 block_type[CxTYPE(cx)], OP_NAME(o));
+            if (trace_level >  trace)
+                do_op_dump(1, PerlIO_stderr(), o);
         }
-        if (trace_level >= 4)
-            do_op_dump(1, PerlIO_stderr(), o);
         o = o->op_next;
     }
     if (trace_level >= 1) {
@@ -1319,7 +1352,7 @@ UV *stop_at_ptr))
     register PERL_CONTEXT *ccstack = cxstack;
     PERL_SI *top_si = PL_curstackinfo;
 
-    if (trace_level >= 4)
+    if (trace_level >= 6)
         warn("visit_contexts: \n");
 
     while (1) {
@@ -1327,7 +1360,7 @@ UV *stop_at_ptr))
         /* XXX so we'll miss code in sort blocks and signals?   */
         /* callback should perhaps be moved to dopopcx_at */
         while (cxix < 0 && top_si->si_type != PERLSI_MAIN) {
-            if (trace_level >= 3)
+            if (trace_level >= 6)
                 warn("Not on main stack (type %d); digging top_si %p->%p, ccstack %p->%p\n",
                     (int)top_si->si_type, top_si, top_si->si_prev, ccstack, top_si->si_cxstack);
             top_si  = top_si->si_prev;
@@ -1336,12 +1369,12 @@ UV *stop_at_ptr))
         }
         if (cxix < 0 || (cxix == 0 && !top_si->si_prev)) {
             /* cxix==0 && !top_si->si_prev => top-level BLOCK */
-            if (trace_level >= 4)
+            if (trace_level >= 5)
                 warn("visit_contexts: reached top of context stack\n");
             return NULL;
         }
         cx = &ccstack[cxix];
-        if (trace_level >= 4)
+        if (trace_level >= 5)
             warn("visit_context: %s cxix %d (si_prev %p)\n",
                 block_type[CxTYPE(cx)], (int)cxix, top_si->si_prev);
         if (callback(aTHX_ cx, &stop_at))
@@ -1389,7 +1422,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
                 last_block_line = last_sub_line;
         }
 
-        if (trace_level >= 4) {
+        if (trace_level >= 6) {
             GV *sv = CvGV(cx->blk_sub.cv);
             warn("\tat %d: block %d sub %d for %s %s\n",
                 last_executed_line, last_block_line, last_sub_line,
@@ -1402,7 +1435,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
     }
 
     /* NULL, EVAL, LOOP, SUBST, BLOCK context */
-    if (trace_level >= 4)
+    if (trace_level >= 6)
         warn("\t%s\n", block_type[CxTYPE(cx)]);
 
     /* if we've got a block line, skip this context and keep looking for a sub */
@@ -1422,7 +1455,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
             return 1;
         }
         /* shouldn't happen! */
-        if (trace_level >= 1)
+        if (trace_level >= 2)
             warn("at %d: %s in different file (%s, %s)",
                 last_executed_line, block_type[CxTYPE(cx)],
                 OutCopFILE(near_cop), OutCopFILE(PL_curcop_nytprof));
@@ -1430,7 +1463,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
     }
 
     last_block_line = CopLINE(near_cop);
-    if (trace_level >= 4)
+    if (trace_level >= 5)
         warn("\tat %d: block %d for %s\n",
             last_executed_line, last_block_line, block_type[CxTYPE(cx)]);
     return 0;
@@ -1540,7 +1573,7 @@ DB_stmt(pTHX_ OP *op)
         last_executed_fid = get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_STMT);
     }
 
-    if (trace_level >= 4)
+    if (trace_level >= 6)
         warn("     @%d:%-4d %s", last_executed_fid, last_executed_line,
             (profile_blocks) ? "looking for block and sub lines" : "");
 
@@ -1910,7 +1943,7 @@ pp_entersub_profiler(pTHX)
             /* should never get here as pp_entersub would have croaked */
             const char *what = (is_xs) ? "xs" : "sub";
             warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
-            if (trace_level || 1)
+            if (trace_level)
                 sv_dump(sub_sv);
             sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
         }
@@ -2631,6 +2664,17 @@ load_profile_data_from_stream()
                 /* 7: profile ref */
 
                 av_store(fid_fileinfo_av, file_num, newRV_noinc((SV*)av));
+                break;
+            }
+
+            case NYTP_TAG_SRC_LINE:
+            {
+                unsigned int file_num = read_int();
+                unsigned int line_num = read_int();
+                SV *src = read_str(aTHX_ NULL);
+                if (trace_level >= 4) {
+                    warn("Fid %2u:%u: %s\n", file_num, line_num, SvPV_nolen(src));
+                }
                 break;
             }
 
