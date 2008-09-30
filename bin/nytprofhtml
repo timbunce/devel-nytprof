@@ -136,7 +136,8 @@ sub calc_mad_from_hashes {
 }
 
 sub subroutine_table {
-    my ($profile, $filestr, $max_subs) = @_;
+    my ($profile, $filestr, $max_subs, $sortby) = @_;
+    $sortby ||= 'excl_time';
 
     my $subs_in_file = $profile->subs_defined_in_file($filestr, 0);
     return "" unless $subs_in_file && %$subs_in_file;
@@ -145,7 +146,7 @@ sub subroutine_table {
 
     # XXX slow - use Schwartzian transform or via XS or Sort::Key
     my @subs =
-        sort { $b->excl_time <=> $a->excl_time or $a->subname cmp $b->subname }
+        sort { $b->$sortby <=> $a->$sortby or $a->subname cmp $b->subname }
         values %$subs_in_file;
 
     my $dev_incl_time  = calc_mad_from_objects(\@subs, 'incl_time',    1);
@@ -159,8 +160,9 @@ sub subroutine_table {
 
     my $sub_links;
 
+    my $sortby_desc = ($sortby eq 'excl_time') ? "exclusive time" : "inclusive time";
     $sub_links .= qq{<table border=1 cellpadding=0>
-        <caption>${qualifier}Subroutines &mdash; ordered by exclusive time</caption>
+        <caption>${qualifier}Subroutines &mdash; ordered by $sortby_desc</caption>
         <tr>
         <th>Calls</th>
         <th><span title="Number of Places sub is called from">P</span></th>
@@ -221,7 +223,7 @@ $reporter->set_param(
     sub {
         my ($profile, $filestr) = @_;
 
-        my $sub_links = subroutine_table($profile, $filestr);
+        my $sub_links = subroutine_table($profile, $filestr, undef, undef);
 
         return qq{$sub_links<br>
       <table border=1 cellpadding=0>
@@ -351,7 +353,8 @@ $reporter->_output_additional('style.css', [<DATA>]);
 # generate the files
 $reporter->report();
 
-output_subs_indexpage($reporter, "index-subs.html");
+output_subs_indexpage($reporter, "index-subs-excl.html", 'excl_time');
+output_subs_indexpage($reporter, "index-subs-incl.html", 'incl_time');
 output_indexpage($reporter, "index.html");
 
 #
@@ -360,7 +363,7 @@ output_indexpage($reporter, "index.html");
 
 # output an html indexing page or subroutines
 sub output_subs_indexpage {
-    my ($r, $filename) = @_;
+    my ($r, $filename, $sortby) = @_;
     my $profile = $reporter->{profile};
 
     open(OUT, '>', "$opt{out}/$filename")
@@ -371,7 +374,7 @@ sub output_subs_indexpage {
     print OUT qq{<div class="body_content"><br/>};
 
     # Show top subs across all files
-    print OUT subroutine_table($profile, 0, 0);
+    print OUT subroutine_table($profile, 0, 0, $sortby);
 
     my $footer = get_footer($profile);
     print OUT "</div>$footer</body></html>";
@@ -410,12 +413,16 @@ sub output_indexpage {
 
     # Show top subs across all files
     my $max_subs = 15; # keep it less than a page so users can see the file table
-    print OUT subroutine_table($profile, 0, $max_subs);
-    print OUT sprintf qq{<div class="table_footer">
-        For more information see the <a href="%s">full list of %d subroutines</a>.
-        </div>
-    }, "index-subs.html", scalar keys %{$profile->{sub_subinfo}}
-        if scalar keys %{$profile->{sub_subinfo}} > $max_subs;
+    my $all_subs = keys %{$profile->{sub_subinfo}};
+    print OUT subroutine_table($profile, 0, $max_subs, undef);
+    if ($all_subs > $max_subs) {
+        print OUT sprintf qq{<div class="table_footer">
+            For more information see all %d subroutines
+            <a href="%s">sorted by exclusive time</a>,
+            or <a href="%s">sorted by inclusive time</a>.
+            </div>
+        }, $all_subs, "index-subs-excl.html", "index-subs-incl.html";
+    }
 
     print OUT file_table($profile, $stats, 1);
 

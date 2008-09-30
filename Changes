@@ -14,6 +14,8 @@ Devel::NYTProf:Changes - List of significant changes to Devel::NYTProf
     Reduces data file size per million statements executed
     from approx ~13MB to ~1MB (depends on code being profiled).
 
+  Added extra table of all subs sorted by inclusive time.
+
   Added xsfile=0 option to NYTPROF env var for perl5.8.8 users affected
     by CvFILE bug causing corrupt filename for xsubs, sometimes.
 
