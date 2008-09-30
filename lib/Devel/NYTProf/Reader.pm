@@ -406,6 +406,10 @@ sub _generate_report {
 
         if (!open(IN, $filestr)) {
 
+            # ignore synthetic file names that perl assigns when reading
+            # code returned by a CODE ref in @INC
+            next if $filestr =~ m{^/loader/0x[0-9a-zA-Z]+/};
+
             # the report will not be complete, but this doesn't need to be fatal
             my $hint = '';
             $hint =
