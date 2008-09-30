@@ -15,6 +15,7 @@ use strict;
 use Carp;
 use Getopt::Long;
 use List::Util qw(sum max);
+use File::Copy;
 
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
@@ -357,6 +358,9 @@ output_subs_indexpage($reporter, "index-subs-excl.html", 'excl_time');
 output_subs_indexpage($reporter, "index-subs-incl.html", 'incl_time');
 output_indexpage($reporter, "index.html");
 
+output_js_files($reporter);
+
+
 #
 # SUBROUTINES
 #
@@ -429,6 +433,18 @@ sub output_indexpage {
     my $footer = get_footer($profile);
     print OUT "</div>$footer</body></html>";
     close OUT;
+}
+
+
+sub output_js_files {
+    my ($profile) = @_;
+    # find the js files installed with Devel::NYTProf
+    (my $lib = $INC{"Devel/NYTProf/Data.pm"}) =~ s/Data\.pm$//;
+    for my $src (<$lib/js/*.js>) {
+        (my $file = $src) =~ s/.*\///;
+        copy($src, "$opt{out}/$file")
+            or warn "Unable to copy $src to $opt{out}/$file: $!";
+    }
 }
 
 

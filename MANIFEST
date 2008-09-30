@@ -16,6 +16,8 @@ lib/Devel/NYTProf/Data.pm
 lib/Devel/NYTProf.pm
 lib/Devel/NYTProf/Reader.pm
 lib/Devel/NYTProf/Util.pm
+lib/Devel/NYTProf/js/jquery.min.js
+lib/Devel/NYTProf/js/jquery.tablesorter.min.js
 Makefile.PL
 MANIFEST
 NYTProf.xs
