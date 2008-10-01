@@ -2818,8 +2818,8 @@ load_profile_data_from_stream()
                 }
                 else if ('n' == *text && strEQ(text, "nv_size")) {
                     if (sizeof(NV) != atoi(value))
-                        croak("Profile data created by incompatible perl config (NV size %d but ours is %lu)",
-                            atoi(value), sizeof(NV));
+                        croak("Profile data created by incompatible perl config (NV size %d but ours is %d)",
+                            atoi(value), (int)sizeof(NV));
                 }
                     
                 break;
