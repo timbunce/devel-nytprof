@@ -1149,7 +1149,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 
         if (src_av) {
             I32 lines = av_len(src_av);
-            I32 line;
+            int line;
             for (line = 1; line < lines; ++line) { /* lines start at 1 */
                 SV **svp = av_fetch(src_av, line, 0);
                 STRLEN len = 0;
@@ -2772,7 +2772,7 @@ load_profile_data_from_stream()
                 unsigned int pid  = read_int();
                 unsigned int ppid = read_int();
                 int len = my_snprintf(text, sizeof(text), "%d", pid);
-                hv_store(live_pids_hv, text, len, newSVuv(ppid), 0);
+                (void)hv_store(live_pids_hv, text, len, newSVuv(ppid), 0);
                 if (trace_level)
                     warn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live)\n",
                         text, ppid, HvKEYS(live_pids_hv));
@@ -2809,7 +2809,7 @@ load_profile_data_from_stream()
                 }
                 *value++ = '\0';
                 value_sv = newSVpvn(value, end-value);
-                hv_store(attr_hv, text, strlen(text), value_sv, 0);
+                (void)hv_store(attr_hv, text, strlen(text), value_sv, 0);
                 if (trace_level >= 2)
                     /* includes \n */
                     warn(": %s = '%s'\n", text, SvPV_nolen(value_sv));
@@ -2862,21 +2862,21 @@ load_profile_data_from_stream()
             total_stmt_measures, total_stmt_discounts, total_stmt_seconds);
 
     profile_hv = newHV();
-    hv_stores(profile_hv, "attribute",          newRV_noinc((SV*)attr_hv));
-    hv_stores(profile_hv, "fid_fileinfo",       newRV_noinc((SV*)fid_fileinfo_av));
-    hv_stores(profile_hv, "fid_line_time",      newRV_noinc((SV*)fid_line_time_av));
-    hv_stores(profile_modes, "fid_line_time", newSVpvf("line"));
+    (void)hv_stores(profile_hv, "attribute",          newRV_noinc((SV*)attr_hv));
+    (void)hv_stores(profile_hv, "fid_fileinfo",       newRV_noinc((SV*)fid_fileinfo_av));
+    (void)hv_stores(profile_hv, "fid_line_time",      newRV_noinc((SV*)fid_line_time_av));
+    (void)hv_stores(profile_modes, "fid_line_time", newSVpvf("line"));
     if (fid_block_time_av) {
-        hv_stores(profile_hv, "fid_block_time",      newRV_noinc((SV*)fid_block_time_av));
-        hv_stores(profile_modes, "fid_block_time", newSVpvf("block"));
+        (void)hv_stores(profile_hv, "fid_block_time",      newRV_noinc((SV*)fid_block_time_av));
+        (void)hv_stores(profile_modes, "fid_block_time", newSVpvf("block"));
     }
     if (fid_sub_time_av) {
-        hv_stores(profile_hv, "fid_sub_time",    newRV_noinc((SV*)fid_sub_time_av));
-        hv_stores(profile_modes, "fid_sub_time", newSVpvf("sub"));
+        (void)hv_stores(profile_hv, "fid_sub_time",    newRV_noinc((SV*)fid_sub_time_av));
+        (void)hv_stores(profile_modes, "fid_sub_time", newSVpvf("sub"));
     }
-    hv_stores(profile_hv, "sub_subinfo",      newRV_noinc((SV*)sub_subinfo_hv));
-    hv_stores(profile_hv, "sub_caller",       newRV_noinc((SV*)sub_callers_hv));
-    hv_stores(profile_hv, "profile_modes",    newRV_noinc((SV*)profile_modes));
+    (void)hv_stores(profile_hv, "sub_subinfo",      newRV_noinc((SV*)sub_subinfo_hv));
+    (void)hv_stores(profile_hv, "sub_caller",       newRV_noinc((SV*)sub_callers_hv));
+    (void)hv_stores(profile_hv, "profile_modes",    newRV_noinc((SV*)profile_modes));
     return profile_hv;
 }
 
