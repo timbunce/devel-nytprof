@@ -150,9 +150,9 @@ Support profiling programs which use threads:
 Support optionally generating a compressed data file. Right now you always get
 compression if zlib is detected at Makefile.PL time.
 
-Support optionally saving eval strings (from @{"_<$filename"}, see perldoc perldebguts)
-Should always save the first eval string at each distinct eval (fid:line)
-and require an option to save them all (which could make the data file very large).
+We now save eval strings (from @{"_<$filename"}, see perldoc perldebguts)
+but it requires use_db_subs=1 due to perl internals. Currently unused.
+Add source code of first string eval at each fid:line to report.
 
 Add % of total time to file table on index page.
 Add % of total time to exclusive time column in subs table as a tooltip.
