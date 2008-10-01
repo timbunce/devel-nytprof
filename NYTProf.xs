@@ -68,7 +68,6 @@
 #define NYTP_START_END           4
 
 #define NYTP_OPTf_ADDPID         0x0001 /* append .pid to output filename */
-#define NYTP_OPTf_XSFILE         0x0002 /* find filename for xsubs */
 
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
@@ -160,7 +159,7 @@ static NYTP_file in;
 
 /* options and overrides */
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
-static unsigned int profile_opts = NYTP_OPTf_XSFILE;
+static unsigned int profile_opts = 0;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
 static int profile_zero = 0;                      /* don't do timing, all times are zero */
 
@@ -1663,11 +1662,6 @@ set_option(const char* option, const char* value)
         profile_opts = (atoi(value))
             ? profile_opts |  NYTP_OPTf_ADDPID
             : profile_opts & ~NYTP_OPTf_ADDPID;
-    }
-    else if (strEQ(option, "xsfile")) {
-        profile_opts = (atoi(value))
-            ? profile_opts |  NYTP_OPTf_XSFILE
-            : profile_opts & ~NYTP_OPTf_XSFILE;
     }
     else {
 	struct NYTP_int_options_t *opt_p = options;
