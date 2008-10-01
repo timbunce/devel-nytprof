@@ -1455,7 +1455,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
             return 1;
         }
         /* shouldn't happen! */
-        if (trace_level >= 2)
+        if (trace_level >= 5)
             warn("at %d: %s in different file (%s, %s)",
                 last_executed_line, block_type[CxTYPE(cx)],
                 OutCopFILE(near_cop), OutCopFILE(PL_curcop_nytprof));
@@ -1972,11 +1972,12 @@ pp_entersub_profiler(pTHX)
         /* { subname => { "fid:line" => [ count, incl_time ] } } */
         sv_tmp = *hv_fetch(sub_callers_hv, SvPV_nolen(subname_sv),
             SvCUR(subname_sv), 1);
-        if (!SvROK(sv_tmp)) {                     /* autoviv hash ref */
+
+        if (!SvROK(sv_tmp)) {   /* autoviv hash ref - is first call */
             HV *hv = newHV();
             sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
-            /* create dummy item to hold flag to indicate xs */
-            if (is_xs) {
+
+            if (is_xs) { /* create dummy item to hold flag to indicate xs */
                 AV *av = newAV();
                 /* flag to indicate xs */
                 av_store(av, 0, newSVuv(1));
@@ -1987,22 +1988,19 @@ pp_entersub_profiler(pTHX)
                 sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
 
                 if (cv && SvTYPE(cv) == SVt_PVCV) {
-                    /* The NYTP_OPTf_XSFILE exists only because perl5.8.8 */
-                    /* CvFILE(cv) can produce garbage so we need a way avoid it. */
-                    char *cvfile = (profile_opts & NYTP_OPTf_XSFILE) ? CvFILE(cv) : "XSFILE";
-                    unsigned int fid = get_file_id(aTHX_ cvfile, strlen(cvfile), NYTP_FIDf_VIA_SUB);
+                    /* We just use an empty string as the filename for xsubs
+                     * because CvFILE() isn't reliable on perl 5.8.[78]
+                     * and the name of the .c file isn't very useful anyway.
+                     * The reader can try to associate the xsubs with the
+                     * corresonding .pm file using the package part of the subname.
+                     */
                     /* Inject faked xsub file details into PL_DBsub hash. */
                     SV *sv = *hv_fetch(GvHV(PL_DBsub), SvPV_nolen(subname_sv), SvCUR(subname_sv), 1);
-                    if (trace_level >= 2)
-                        warn("Adding fake DBsub entry for '%s' (fid %d, file %s)\n", SvPV_nolen(subname_sv), fid, cvfile);
+
                     if (!SvOK(sv)) {
-                        sv_setpvf(sv, "%s:0-0", cvfile);
-                    }
-                    else {
-                        warn("PL_DBsub entry for '%s' already exists (fid %d, file %s)",
-                            SvPV_nolen(subname_sv), fid, cvfile);
-                        if (trace_level)
-                            sv_dump(sv);
+                        if (trace_level >= 2)
+                            warn("Adding fake DBsub entry for '%s' xsub\n", SvPV_nolen(subname_sv));
+                        sv_setpv(sv, ":0-0");
                     }
                 }
             }
