@@ -323,6 +323,9 @@ NYTP_type_of_offset(NYTP_file file) {
     }
 }
 
+#ifdef HASATTRIBUTE_NORETURN
+__attribute__noreturn__
+#endif 
 static void
 compressed_io_croak(NYTP_file file, const char *function) {
     const char *what;
