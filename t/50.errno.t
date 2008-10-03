@@ -1,7 +1,8 @@
-use Test::More tests => 3;
+use Test::More tests => 4;
 
 my $nytprof_out;
 BEGIN {
+    $ENV{NYTPROF} = "start=init";
     $nytprof_out = "nytprof.out";
     unlink $nytprof_out;
 }
@@ -21,6 +22,12 @@ is 0+$!, 9999, '$! should not be altered by NYTProf';
 my $size1 = -s $nytprof_out;
 ok $size1, "$nytprof_out should be non-empty";
 
+$! = 9999;
+new Benchmark;
+fill("", "", ("foo bar baz") x 100);
+is 0+$!, 9999, '$! should not be altered by assigning fids to previously unprofiled modules';
+
+$! = 9999;
 while (-s $nytprof_out == $size1) {
     # execute lots of statements to force some i/o even if zipping
     # none of this should alter $!
@@ -29,7 +36,6 @@ while (-s $nytprof_out == $size1) {
     fill("", "", ("foo bar baz") x 100);
     pack_sockaddr_un("foo"); # call xs sub
 }
-
 is 0+$!, 9999, '$! should not be altered by NYTProf i/o';
 
 exit 0;

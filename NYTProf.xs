@@ -1007,6 +1007,7 @@ fid_is_pmc(pTHX_ Hash_entry *fid_info)
         SV *pmcsv = Perl_newSVpvf(aTHX_ "%s%c", SvPV_nolen(pmsv), 'c');
         Stat_t pmstat;
         Stat_t pmcstat;
+        int saved_errno = errno;
         if (PerlLIO_lstat(SvPV_nolen(pmcsv), &pmcstat) == 0) {
             /* .pmc exists, is it newer than the .pm (if that exists) */
             if (PerlLIO_lstat(SvPV_nolen(pmsv), &pmstat) < 0 ||
@@ -1014,6 +1015,7 @@ fid_is_pmc(pTHX_ Hash_entry *fid_info)
                 is_pmc = 1;                       /* hey, maybe it's Larry working on the perl6 comiler */
             }
         }
+        SETERRNO(saved_errno, 0);
         SvREFCNT_dec(pmcsv);
         SvREFCNT_dec(pmsv);
     }
