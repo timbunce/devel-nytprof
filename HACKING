@@ -303,3 +303,6 @@ memory, plus getrusage()). Abstract those into a structure with functions to
 subtract the difference. Then use the same logic to get inclusive and exclusive
 values as we use for inclusive and exclusive subroutine times.
 
+Remove vfscanf (and NYTP_scanf) as it's not portable and only used in one place
+that easily changed to fscanf. See
+http://www.nntp.perl.org/group/perl.cpan.testers/2008/10/msg2362873.html
