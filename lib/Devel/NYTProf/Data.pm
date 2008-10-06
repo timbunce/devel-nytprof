@@ -328,6 +328,8 @@ sub _dump_elements {
         $value = $value->_values_for_dump
             if blessed $value && $value->can('_values_for_dump');
 
+        next if $key eq 'fid_filecontents';
+
         # special case some common cases to be more compact:
         #		fid_*_time   [fid][line] = [N,N]
         #		sub_subinfo {subname} = [fid,startline,endline,calls,incl_time]

@@ -1154,7 +1154,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         if (src_av) {
             I32 lines = av_len(src_av);
             int line;
-            for (line = 1; line < lines; ++line) { /* lines start at 1 */
+            for (line = 1; line <= lines; ++line) { /* lines start at 1 */
                 SV **svp = av_fetch(src_av, line, 0);
                 STRLEN len = 0;
                 char *src = (svp) ? SvPV(*svp, len) : "";
@@ -2503,6 +2503,7 @@ load_profile_data_from_stream()
     HV *live_pids_hv = newHV();
     HV *attr_hv = newHV();
     AV* fid_fileinfo_av = newAV();
+    AV* fid_filecontents_av = newAV();
     AV* fid_line_time_av = newAV();
     AV* fid_block_time_av = NULL;
     AV* fid_sub_time_av = NULL;
@@ -2511,6 +2512,7 @@ load_profile_data_from_stream()
     SV *tmp_str_sv = newSVpvn("",0);
 
     av_extend(fid_fileinfo_av, 64);               /* grow it up front. */
+    av_extend(fid_filecontents_av, 64);
     av_extend(fid_line_time_av, 64);
 
     if (2 != NYTP_scanf(in, "NYTProf %d %d\n", &file_major, &file_minor)) {
@@ -2669,6 +2671,19 @@ load_profile_data_from_stream()
                 unsigned int file_num = read_int();
                 unsigned int line_num = read_int();
                 SV *src = read_str(aTHX_ NULL);
+                AV *file_av;
+
+                /* first line in the file seen */
+                if (!av_exists(fid_filecontents_av, file_num)) {
+                    file_av = newAV();
+                    av_store(fid_filecontents_av, file_num, newRV_noinc((SV*)file_av));
+                }
+                else {
+                    file_av = (AV *)SvRV(*av_fetch(fid_filecontents_av, file_num, 1));
+                }
+
+                av_store(file_av, line_num, src);
+
                 if (trace_level >= 4) {
                     warn("Fid %2u:%u: %s\n", file_num, line_num, SvPV_nolen(src));
                 }
@@ -2861,6 +2876,7 @@ load_profile_data_from_stream()
     profile_hv = newHV();
     (void)hv_stores(profile_hv, "attribute",          newRV_noinc((SV*)attr_hv));
     (void)hv_stores(profile_hv, "fid_fileinfo",       newRV_noinc((SV*)fid_fileinfo_av));
+    (void)hv_stores(profile_hv, "fid_filecontents",   newRV_noinc((SV*)fid_filecontents_av));
     (void)hv_stores(profile_hv, "fid_line_time",      newRV_noinc((SV*)fid_line_time_av));
     (void)hv_stores(profile_modes, "fid_line_time", newSVpvf("line"));
     if (fid_block_time_av) {
