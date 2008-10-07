@@ -11,7 +11,7 @@
 ###########################################################
 package Devel::NYTProf::Apache;
 
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 BEGIN {
 
@@ -89,6 +89,26 @@ will issue a warning and default it to:
 
 See L<Devel::NYTProf/"ENVIRONMENT VARIABLES"> for 
 more details on the settings effected by this environment variable.
+
+Each profiled mod_perl process will need to have terminated before you can
+successfully read the profile data file. The simplest approach is to start the
+httpd, make some requests (e.g., 100 of the same request), then stop it and
+process the profile data.
+
+=head2 Example httpd.conf
+
+It's often a good idea to use just one child process when profiling, which you
+can do by setting the C<MaxClients> to 1 in httpd.conf.
+
+Using an C<IfDefine> blocks lets you leave the profile configuration in place
+and enable it whenever it's needed by adding C<-D NYTPROF> to the httpd startup
+command line.
+
+    <IfDefine NYTPROF>
+        MaxClients 1
+        PerlModule Devel::NYTProf::Apache
+    </IfDefine>
+
 
 =head1 SEE ALSO
 
