@@ -95,6 +95,10 @@ successfully read the profile data file. The simplest approach is to start the
 httpd, make some requests (e.g., 100 of the same request), then stop it and
 process the profile data.
 
+Alternatively you could send a TERM signal to the httpd worker process to
+terminate that one process. The parent httpd process will start up another one
+for you ready for more profiling.
+
 =head2 Example httpd.conf
 
 It's often a good idea to use just one child process when profiling, which you
