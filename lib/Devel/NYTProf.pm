@@ -253,14 +253,11 @@ The profiler is fast enough that you shouldn't need to disable this feature.
 
 Set to 1 to enable use of the traditional DB::DB() subroutine to perform
 profiling, instead of the faster 'opcode redirection' technique that's used by
-default. It also disables some extra mechanisms that help ensure more accurate
-results for things like the last statements in subroutines.
+default. Also effectively sets C<leave=0> (see above).
 
 The default 'opcode redirection' technique can't profile subroutines that were
 compiled before NYTProf was loaded. So using use_db_sub=1 can be useful in
 cases where you can't load the profiler early in the life of the application.
-If this proves to be useful to you then please let us know, otherwise this
-vestige of old slower ways is likely to be removed.
 
 =head2 usecputime=1
 
@@ -288,6 +285,16 @@ support. Valid values are 0 to 9, with 0 disabling compression. The default is
 rise significantly. Using level 1 still gives you a significant reduction in file size.
 
 If NYTProf was not compiled with compression support, this option is silently ignored.
+
+=head2 clock=N
+
+Systems which support the C<clock_gettime()> system call typically
+support several clocks. By default NYTProf uses CLOCK_MONOTONIC.
+This option enables you to select a different clock by specifying the
+integer id of the clock (which may vary between systems). If the clock
+you select isn't available then CLOCK_REALTIME is used.
+This is a wizardly option and best avoided unless you really know what
+you're doing.
 
 =head1 SELECTIVE PROFILING
 

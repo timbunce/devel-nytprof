@@ -2163,7 +2163,7 @@ init_profiler(pTHX)
         /* check CLOCK_REALTIME as well, just in case */
         if (clock_gettime(profile_clock, &start_time) != 0)
             croak("clock_gettime CLOCK_REALTIME not available (%s), aborting",
-                strerror(errno);
+                strerror(errno));
     }
 #endif
 
