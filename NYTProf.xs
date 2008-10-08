@@ -2751,8 +2751,8 @@ load_profile_data_from_stream()
                 subname_sv = read_str(aTHX_ tmp_str_sv);
 
                 if (trace_level >= 3)
-                    warn("Sub %s called by fid %u line %u: count %d\n",
-                        SvPV_nolen(subname_sv), fid, line, count);
+                    warn("Sub %s called by fid %u line %u: count %d, incl %f, excl %f, ucpu %f scpu %f\n",
+                        SvPV_nolen(subname_sv), fid, line, count, incl_time, excl_time, ucpu_time, scpu_time);
 
                 subinfo_av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
 
