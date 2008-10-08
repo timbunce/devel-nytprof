@@ -14,7 +14,7 @@ package Devel::NYTProf::Core;
 
 use XSLoader;
 
-our $VERSION = '2.04';    # increment with XS changes too
+our $VERSION = '2.05';    # increment with XS changes too
 
 XSLoader::load('Devel::NYTProf', $VERSION);
 
