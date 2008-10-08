@@ -186,10 +186,12 @@ static struct NYTP_int_options_t options[] = {
     { "use_db_sub", 0 },
 #define compression_level options[7].option_value
 #ifdef HAS_ZLIB
-    { "compress", 6 }
+    { "compress", 6 },
 #else
-    { "compress", 0 }
+    { "compress", 0 },
 #endif
+#define profile_clock options[8].option_value
+    { "clock", -1 }
 };
 
 /* time tracking */
@@ -200,11 +202,7 @@ static struct tms start_ctime, end_ctime;
  * http://sean.chittenden.org/news/2008/06/01/
  */
 typedef struct timespec time_of_day_t;
-#  ifdef CLOCK_MONOTONIC
-#    define CLOCK_GETTIME(ts) clock_gettime(CLOCK_MONOTONIC, ts)
-#  else
-#    define CLOCK_GETTIME(ts) clock_gettime(CLOCK_REALTIME, ts)
-#  endif
+#  define CLOCK_GETTIME(ts) clock_gettime(profile_clock, ts)
 #  define CLOCKS_PER_TICK 10000000                /* 10 million - 100ns */
 #  define get_time_of_day(into) if (!profile_zero) CLOCK_GETTIME(&into)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
@@ -2148,8 +2146,30 @@ init_profiler(pTHX)
     last_pid = getpid();
     ticks_per_sec = (usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
 
+#ifdef HAS_CLOCK_GETTIME
+    if (profile_clock == -1) { /* auto select */
+#  ifdef CLOCK_MONOTONIC
+        profile_clock = CLOCK_MONOTONIC;
+#  else
+        profile_clock = CLOCK_REALTIME;
+#  endif
+    }
+    /* downgrade to CLOCK_REALTIME if desired clock not available */
+    if (clock_gettime(profile_clock, &start_time) != 0) {
+        if (trace_level)
+            warn("clock_gettime clock %d not available (%s) using CLOCK_REALTIME instead",
+                profile_clock, strerror(errno));
+        profile_clock = CLOCK_REALTIME;
+        /* check CLOCK_REALTIME as well, just in case */
+        if (clock_gettime(profile_clock, &start_time) != 0)
+            croak("clock_gettime CLOCK_REALTIME not available (%s), aborting",
+                strerror(errno);
+    }
+#endif
+
     if (trace_level || profile_zero)
-        warn("NYTProf init pid %d%s\n", last_pid, profile_zero ? ", zero=1" : "");
+        warn("NYTProf init pid %d, clock %d%s\n", last_pid, profile_clock,
+            profile_zero ? ", zero=1" : "");
 
     if (get_hv("DB::sub", 0) == NULL) {
         warn("NYTProf internal error - perl not in debug mode");
