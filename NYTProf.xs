@@ -2097,12 +2097,15 @@ static int
 disable_profile(pTHX)
 {
     int prev_is_profiling = is_profiling;
-    sv_setiv(PL_DBsingle, 0);
-    is_profiling = 0;
-    if (out)
-        NYTP_flush(out);
+    if (is_profiling) {
+        if (use_db_sub)
+            sv_setiv(PL_DBsingle, 0);
+        if (out)
+            NYTP_flush(out);
+        is_profiling = 0;
+    }
     if (trace_level)
-        warn("NYTProf disable_profile");
+        warn("NYTProf disable_profile %d->%d", prev_is_profiling, is_profiling);
     return prev_is_profiling;
 }
 
@@ -2111,8 +2114,8 @@ static void
 finish_profile(pTHX)
 {
     if (trace_level >= 1)
-        warn("finish_profile (last_pid %d, getpid %d, overhead %"NVff"s)\n",
-            last_pid, getpid(), cumulative_overhead_ticks/ticks_per_sec);
+        warn("finish_profile (last_pid %d, getpid %d, overhead %"NVff"s, is_profiling %d)\n",
+            last_pid, getpid(), cumulative_overhead_ticks/ticks_per_sec, is_profiling);
 
     /* write data for final statement, unless DB_leave has already */
     if (!profile_leave || use_db_sub)
