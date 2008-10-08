@@ -293,8 +293,9 @@ support several clocks. By default NYTProf uses CLOCK_MONOTONIC.
 This option enables you to select a different clock by specifying the
 integer id of the clock (which may vary between systems). If the clock
 you select isn't available then CLOCK_REALTIME is used.
+
 This is a wizardly option and best avoided unless you really know what
-you're doing.
+you're doing and understand the subtle differences between the clocks.
 
 =head1 SELECTIVE PROFILING
 

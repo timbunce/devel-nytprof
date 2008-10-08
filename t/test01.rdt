@@ -1,5 +1,6 @@
 attribute	application	test01.p
 attribute	basetime	0
+attribute	clock_id	0
 attribute	nv_size	0
 attribute	perl_version	0
 attribute	ticks_per_sec	0

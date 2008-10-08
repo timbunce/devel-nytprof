@@ -419,11 +419,8 @@ for example, by the test suite.
 The data normalized is:
 
  - profile timing data: set to 0
- - basetime attribute: set to 0
- - xs_version attribute: set to 0
- - perl_version attribute: set to 0
- - nv_size attribute: set to 0
  - subroutines: timings are set to 0
+ - attributes, like basetime, xs_version, etc., are set to 0
  - filenames: path prefixes matching absolute paths in @INC are removed
  - filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
  - calls remove_internal_data_of() for files loaded from absolute paths in @INC
@@ -438,6 +435,7 @@ sub normalize_variables {
     $self->{attribute}{basetime}      = 0;
     $self->{attribute}{xs_version}    = 0;
     $self->{attribute}{perl_version}  = 0;
+    $self->{attribute}{clock_id}      = 0;
     $self->{attribute}{ticks_per_sec} = 0;
     $self->{attribute}{nv_size}       = 0;
 

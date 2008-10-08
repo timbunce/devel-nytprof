@@ -799,6 +799,7 @@ output_header(pTHX)
     NYTP_printf(out, ":%s=%lu\n",      "basetime",      (unsigned long)PL_basetime);
     NYTP_printf(out, ":%s=%s\n",       "xs_version",    XS_VERSION);
     NYTP_printf(out, ":%s=%d.%d.%d\n", "perl_version",  PERL_REVISION, PERL_VERSION, PERL_SUBVERSION);
+    NYTP_printf(out, ":%s=%d\n",       "clock_id",      profile_clock);
     NYTP_printf(out, ":%s=%u\n",       "ticks_per_sec", ticks_per_sec);
     NYTP_printf(out, ":%s=%lu\n",      "nv_size", (long unsigned int)sizeof(NV));
     /* $0 - application name */

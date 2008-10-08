@@ -7,8 +7,11 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 =head2 Changes in Devel::NYTProf 2.05 XXX
 
   Fixed alteration of $! during profiling thanks to Slaven Rezic.
+  Fixed clock_gettime() clock selection to fallback to CLOCK_REALTIME
+    if CLOCK_MONOTONIC is not available, e.g, on linux 2.4.
 
   Added some docs to Devel::NYTProf::Apache
+  Added clock=N option to enable user to select the clock.
 
 =head2 Changes in Devel::NYTProf 2.04 (svn r483) 1st Oct 2008
 
