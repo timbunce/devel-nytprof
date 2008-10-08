@@ -9,7 +9,7 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
   Fixed alteration of $! during profiling thanks to Slaven Rezic.
   Fixed clock_gettime() clock selection to fallback to CLOCK_REALTIME
     if CLOCK_MONOTONIC is not available, e.g, on linux 2.4.
-  Fixed error when application ended after DB::disable_profile.
+  Fixed error when application ends after DB::disable_profile().
 
   Added some docs to Devel::NYTProf::Apache
   Added clock=N option to enable user to select the clock.
