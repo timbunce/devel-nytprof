@@ -4,6 +4,11 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
+=head2 Changes in Devel::NYTProf 2.06
+
+  Changed subroutine inclusive time to not count time
+    spent recursed into the same subroutine.
+
 =head2 Changes in Devel::NYTProf 2.05 (svn r498) 8th Oct 2008
 
   Fixed alteration of $! during profiling thanks to Slaven Rezic.

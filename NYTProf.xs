@@ -1760,6 +1760,7 @@ typedef struct sub_call_start_st
     char fid_line[50];
     SV *subname_sv;
     AV *sub_av;
+    CV *sub_cv;
     NV current_overhead_ticks;
     NV current_subr_secs;
 } sub_call_start_t;
@@ -1777,6 +1778,7 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     NV called_sub_secs = (cumulative_subr_secs      - sub_call_start->current_subr_secs);
     NV incl_subr_sec;
     NV excl_subr_sec;
+    UV call_depth = (sub_call_start->sub_cv) ? CvDEPTH(sub_call_start->sub_cv) : 0;
 
     if (profile_zero) {
         incl_subr_sec = 0.0;
@@ -1794,20 +1796,24 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     }
 
     if (trace_level >= 3)
-        warn("exited %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, oh %g-%g=%dt)\n",
+        warn("exited %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, oh %g-%g=%dt) d%d\n",
             SvPV_nolen(subname_sv), incl_subr_sec, called_sub_secs, excl_subr_sec,
             SvNV(incl_time_sv)+incl_subr_sec, sub_call_start->fid_line,
-            cumulative_overhead_ticks, sub_call_start->current_overhead_ticks, overhead_ticks);
+            cumulative_overhead_ticks, sub_call_start->current_overhead_ticks,
+            overhead_ticks, (int)call_depth);
 
-    sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
+    /* only count inclusive time for the outer-most calls */
+    if (call_depth == 1)
+        sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
+
     sv_free(sub_call_start->subname_sv);
 
     cumulative_subr_secs += excl_subr_sec;
 }
 
 
-static void                                              /* wrapper called via scope exit due to save_destructor below */
+static void                                       /* wrapper called via scope exit due to save_destructor below */
 incr_sub_inclusive_time_ix(pTHX_ void *save_ix_void)
 {
     I32 save_ix = (I32)save_ix_void;
@@ -1961,12 +1967,6 @@ pp_entersub_profiler(pTHX)
             }
         }
 
-        if (trace_level >= 3)
-            fprintf(stderr, "fid %d:%d called %s %s (oh %gt, sub %gs)\n", fid, line,
-                SvPV_nolen(subname_sv), (is_xs) ? "xs" : "sub",
-            sub_call_start.current_overhead_ticks,
-            sub_call_start.current_subr_secs);
-
         /* { subname => { "fid:line" => [ count, incl_time ] } } */
         sv_tmp = *hv_fetch(sub_callers_hv, SvPV_nolen(subname_sv),
             SvCUR(subname_sv), 1);
@@ -2004,27 +2004,34 @@ pp_entersub_profiler(pTHX)
             }
         }
 
+        /* drill-down to array of sub call information for this fid_line_key */
         sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
         if (!SvROK(sv_tmp)) {                     /* autoviv array ref */
             AV *av = newAV();
-            av_store(av, 0, newSVuv(1));          /* count of call to sub */
-            /* inclusive time in sub */
-            av_store(av, 1, newSVnv(0.0));
-            /* exclusive time in sub */
-            av_store(av, 2, newSVnv(0.0));
-            /* incl user cpu time in sub */
-            av_store(av, 3, newSVnv(0.0));
-            /* incl sys  cpu time in sub */
-            av_store(av, 4, newSVnv(0.0));
+            av_store(av, 0, newSVuv(1));   /* count of calls to sub */
+            av_store(av, 1, newSVnv(0.0)); /* inclusive time in sub */
+            av_store(av, 2, newSVnv(0.0)); /* exclusive time in sub */
+            av_store(av, 3, newSVnv(0.0)); /* incl user cpu time in sub */
+            av_store(av, 4, newSVnv(0.0)); /* incl sys  cpu time in sub */
             sv_setsv(sv_tmp, newRV_noinc((SV *)av));
+            sub_call_start.sub_av = av;
         }
         else {
-            sv_inc(AvARRAY(SvRV(sv_tmp))[0]);
+            sub_call_start.sub_av = (AV *)SvRV(sv_tmp);
+            sv_inc(AvARRAY(sub_call_start.sub_av)[0]); /* ++call count */
         }
 
+        if (trace_level >= 3)
+            fprintf(stderr, "fid %d:%d called %s %s (d%d, oh %gt, sub %gs)\n", fid, line,
+                SvPV_nolen(subname_sv), (is_xs) ? "xs" : "sub",
+                (cv) ? (int)CvDEPTH(cv) : 0,
+                sub_call_start.current_overhead_ticks,
+                sub_call_start.current_subr_secs
+            );
+
         if (profile_subs) {
+            sub_call_start.sub_cv = cv;
             sub_call_start.subname_sv = subname_sv;
-            sub_call_start.sub_av = (AV *)SvRV(sv_tmp);
             strcpy(sub_call_start.fid_line, fid_line_key);
             if (is_xs) {
                 /* acculumate now time we've just spent in the xs sub */
