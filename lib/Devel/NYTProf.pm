@@ -302,7 +302,7 @@ you're doing and understand the subtle differences between the clocks.
 You can profile only parts of an application by calling DB::enable_profile()
 and DB::disable_profile() at the appropriate moments.
 
-Using the C<start=no> option let's you leave the profiler disabled until the
+Using the C<start=no> option lets you leave the profiler disabled until the
 right moment, or circumstances, are reached.
 
 =head1 REPORTS
