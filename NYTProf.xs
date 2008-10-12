@@ -425,21 +425,6 @@ NYTP_gets(NYTP_file ifile, char *buffer, unsigned int len) {
     return fgets(buffer, len, ifile->file);
 }
 
-static unsigned int
-NYTP_scanf(NYTP_file ifile, const char *format, ...) {
-    unsigned int retval;
-    va_list args;
-
-    if (FILE_STATE(ifile) != NYTP_FILE_STDIO) {
-	compressed_io_croak(ifile, "NYTP_scanf");
-    }
-
-    va_start(args, format);
-    retval = vfscanf(ifile->file, format, args);
-    va_end(args);
-    return retval;
-}
-
 #ifdef HAS_ZLIB
 
 static void
@@ -2546,7 +2531,10 @@ load_profile_data_from_stream()
     av_extend(fid_filecontents_av, 64);
     av_extend(fid_line_time_av, 64);
 
-    if (2 != NYTP_scanf(in, "NYTProf %d %d\n", &file_major, &file_minor)) {
+    if (FILE_STATE(in) != NYTP_FILE_STDIO) {
+	compressed_io_croak(in, "load_profile_data_from_stream");
+    }
+    if (2 != fscanf(in->file, "NYTProf %d %d\n", &file_major, &file_minor)) {
         croak("Profile format error while parsing header");
     }
     if (file_major != 2)
