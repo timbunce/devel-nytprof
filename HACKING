@@ -103,6 +103,10 @@ Fix Reader
 Then rework bin/ntyprof* to use the new subclasses
 Ideally end up with a single nytprof command.
 
+The whole reporting framework needs a rewrite to use a single 'thin' command
+line and classes for the Model (lines, files, subs), View (html, csv etc),
+and Controller (composing views to form reports).
+
 Add (very) basic nytprofhtml test (ie it runs and produces output)
 
 Rework option parsing so options can be implemented in perl, accessed from
@@ -122,7 +126,7 @@ Add marker with timestamp for phases BEGIN, CHECK, INIT, END
 (could combine with pid marker)
 
 Add actual size and mtime of fid to data file. (Already in data file as zero,
-just needs the stat() call.)
+just needs the stat() call.) Don't alter errno.
 
 Intercept all opcodes that may fork and run perl code in the child
 	ie fork, open, entersub (ie xs), others?
@@ -140,28 +144,25 @@ Add way to merge profile data. Merging could be done in perl.
 Add constants to Data.pm for the array indexes
 0=time_spent, 1=exe_count, 2=eval_line_data, etc
 
-Add method to remove data (like sub_fid_lines) relating to specific files
-so that the .rdt tests aren't affected by variations between versions of library modules.
-
 Support profiling programs which use threads:
 	- move all relevant globals into a structure
 	- add lock around output to file
 
-Support optionally generating a compressed data file. Right now you always get
-compression if zlib is detected at Makefile.PL time.
-
 We now save eval strings (from @{"_<$filename"}, see perldoc perldebguts)
 but it requires use_db_subs=1 due to perl internals. Currently unused.
 Add source code of first string eval at each fid:line to report.
+Add option to control saving of source code. Perhaps
+savesrc=0 - don't save any source
+savesrc=1 - save only first string eval src per distinct fid:line (default)
+savesrc=2 - save all string eval src
+savesrc=3 - save all source code, not just string evals
+Also option to delete @{"_<$filename"} to release memory could be useful
+for programs that doo a lot of string evals.
 
 Add % of total time to file table on index page.
 Add % of total time to exclusive time column in subs table as a tooltip.
 To do these we need accurate total time - based on sum of times between enable_profile()
 and disable_profile().
-
-The whole reporting framework needs a rewrite to use a single 'thin' command
-line and classes for the Model (lines, files, subs), View (html, csv etc),
-and Controller (composing views to form reports).
 
 Add resolution of __ANON__ sub names (eg imported 'constants') where possible.
 
@@ -194,7 +195,9 @@ alternative option syntax. Also perl gives special meaning to 't' option
 Problem with this is that the import() call happens late so
 limits the usefulness.
 
-Add help option which would print a summary of the options and exit
+Add help option which would print a summary of the options and exit.
+Could also print list of available clocks for the clock=N option
+(using a set of #ifdef's)
 
 Add mechanism to specify options inside the .p file, such as
 # NYTPROF=...
@@ -254,15 +257,8 @@ Profile and optimize report generation
 Add title/tooltip to inclusive times (ie subroutine times) showing the percentage
 of the total runtime it represents.
 
-Subroutines that recurse directly or indirectly, such as Error::try, show
-higher subroutine inclusive times because the time spent recuring is
-double-counted. Could add an extra attribute that measures time spent when
-recursing (based on CvDEPTH(cv)) wich would be 0 for subs that didn't recurse
-(a handy boolean) and could be subtracted from the inclusive time to get the
-'outer' inclusive time.
-
 The sub_caller information is currently one level deep. It would be good to
-make it two levels that. Especially because it would allow you to "see through"
+make it two levels. Especially because it would allow you to "see through"
 AUTOLOADs and other kinds of 'dispatch' subs.
 
 Currently goto isn't explicitly noticed by the sub profiler. Need to intercept pp_goto.
@@ -272,7 +268,7 @@ like the goto &$sub made the call (but we'd then get the wrong inclusive time,
 probably).
 
 Slow builtins, eg those that make system calls or are otherwise expensive, like crypt,
-could be treated as calls to subroutines in the CORE:: namespace.
+could be treated as calls to xsubs in the CORE:: namespace.
 
 Consider use of CLOCK_PROF for (higher-resolution?) cpu time measurement
 
@@ -303,6 +299,6 @@ memory, plus getrusage()). Abstract those into a structure with functions to
 subtract the difference. Then use the same logic to get inclusive and exclusive
 values as we use for inclusive and exclusive subroutine times.
 
-Remove vfscanf (and NYTP_scanf) as it's not portable and only used in one place
-that easily changed to fscanf. See
-http://www.nntp.perl.org/group/perl.cpan.testers/2008/10/msg2362873.html
+Could add an extra attribute that measures time spent when recursing (based on
+CvDEPTH(cv)) wich would be 0 for subs that didn't recurse (a handy boolean) and
+could be subtracted from the inclusive time to get the 'outer' inclusive time.

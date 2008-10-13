@@ -1073,18 +1073,6 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             found->eval_line_num = atoi(end+1);
         }
 
-        if (1) { /* XXX sanity check for OutCopFILE/CvFILE corruption */
-            char *p = entry.key;
-            STRLEN len = entry.key_len;
-            while (len-- > 0) {
-                if (isprint(*p++))
-                    continue;
-                warn("Fid %d filename contains strange characters '%.*s' (please report this possible corruption, %d)",
-                    found->id, entry.key_len, entry.key, created_via);
-                break;
-            }
-        }
-
         /* determine absolute path if file_name is relative */
         found->key_abs = NULL;
         if (!found->eval_fid && *file_name != '/') {
