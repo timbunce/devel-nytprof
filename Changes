@@ -8,6 +8,9 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
   Changed subroutine inclusive time to not count time
     spent recursed into the same subroutine.
+  XS subs are now automatically associated with a source file that
+    defines non-xsubs in the same package as the xsub.
+  Global subroutine index pages no longer list subs that were never called.
 
   Removed use of vfscanf() to improve portability,
     thanks to Jan Dubois.

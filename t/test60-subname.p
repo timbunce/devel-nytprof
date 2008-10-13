@@ -1,21 +1,22 @@
+#package foo;
 # test sub name resolution
-use Socket;
+use Devel::NYTProf::Test qw(example_xsub);
 
 # call XS sub directly
-Socket::pack_sockaddr_un("foo");
+Devel::NYTProf::Test::example_xsub("foo");
 
 # call XS sub imported into main
-# (should still be reported as a call to Socket::pack_sockaddr_un)
-pack_sockaddr_un("foo");
+# (should still be reported as a call to Devel::NYTProf::Test::example_xsub)
+example_xsub("foo");
 
-# call XS sub as a method (ignore the invalid argument)
-Socket->pack_sockaddr_un();
+# call XS sub as a method (ignore the extra arg)
+Devel::NYTProf::Test->example_xsub();
 
-# call XS sub as a method via subclass (ignore the invalid argument)
-@Subclass::ISA = qw(Socket);
-Subclass->pack_sockaddr_un();
+# call XS sub as a method via subclass (ignore the extra arg)
+@Subclass::ISA = qw(Devel::NYTProf::Test);
+Subclass->example_xsub();
 
-my $subname = "Socket::pack_sockaddr_un";
+my $subname = "Devel::NYTProf::Test::example_xsub";
 &$subname("foo");
 
 # XXX currently goto isn't noticed by the profiler

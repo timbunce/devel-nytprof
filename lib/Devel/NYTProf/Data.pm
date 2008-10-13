@@ -397,7 +397,7 @@ sub remove_internal_data_of {
     # remove all subs defined in this file
     if (my $sub_subinfo = $self->{sub_subinfo}) {
         while (my ($subname, $subinfo) = each %$sub_subinfo) {
-            delete $sub_subinfo->{$subname} if $subinfo->fid == $fid;
+            delete $sub_subinfo->{$subname} if (($subinfo->fid||0) == $fid);
         }
     }
 
@@ -545,11 +545,14 @@ sub _filename_to_fid {
   $subs_defined_hash = $profile->subs_defined_in_file( $file, $include_lines );
 
 Returns a reference to a hash containing information about subroutines defined
-in a source file.  The $file argument can be an integer file id (fid) or a file path.
+in a source file.  The $file argument can be an integer file id (fid) or a file
+path. If $file is 0 then details for all known subroutines are returned.
+
 Returns undef if the profile contains no C<sub_caller> data for the $file.
 
-The keys are fully qualifies subroutine names and the corresponding value is a
-hash reference containing L<Devel::NYTProf::ProfSub> objects..
+The keys of the returned hash are fully qualified subroutine names and the
+corresponding value is a hash reference containing L<Devel::NYTProf::ProfSub>
+objects.
 
 If $include_lines is true then the hash also contains integer keys
 corresponding to the first line of the subroutine. The corresponding value is a
@@ -563,6 +566,7 @@ sub subs_defined_in_file {
     my ($self, $fid, $incl_lines) = @_;
     $fid = $self->resolve_fid($fid);
     $incl_lines ||= 0;
+    $incl_lines = 0 if $fid == 0;
 
     my $cache_key = "_cache:subs_defined_in_file:$fid:$incl_lines";
     return $self->{$cache_key} if $self->{$cache_key};
@@ -573,9 +577,7 @@ sub subs_defined_in_file {
     my %subs;
     while (my ($sub, $subinfo) = each %$sub_subinfo) {
 
-        # XXX should use $subinfo->fid but we need this to be fast so we
-        # break encapsulation till we stop using this brute force method
-        next if $fid && ($subinfo->[0] || 0) != $fid;
+        next if $fid && ($subinfo->fid||0) != $fid;
         $subs{$sub} = $subinfo;
     }
 
@@ -793,6 +795,18 @@ sub line_calls_for_file {
     return $line_calls;
 }
 
+
+sub package_fids {
+    my ($self, $package) = @_;
+    my @fids;
+    #warn "package_fids '$package'";
+    return @fids if wantarray;
+    warn "Package 'package' has items defined in multiple fids: @fids\n"
+        if @fids > 1;
+    return $fids[0];
+}
+
+
 ## --- will move out to separate files later ---
 # for now these are viewed as private classes
 
@@ -881,7 +895,7 @@ sub line_calls_for_file {
 
     use List::Util qw(sum);
 
-    sub fid        { shift->[0] }
+    sub fid        { $_[0]->[0] ||= $_[0]->profile->package_fids($_[0]->package) }
     sub first_line { shift->[1] }
     sub last_line  { shift->[2] }
     sub calls      { shift->[3] }
@@ -889,6 +903,7 @@ sub line_calls_for_file {
     sub excl_time  { shift->[5] }
     sub subname    { shift->[6] }
     sub profile    { shift->[7] }
+    sub package    { (my $pkg = shift->subname) =~ s/::.*?$//; return $pkg }
 
     sub is_xsub {
         my $self = shift;
@@ -899,8 +914,10 @@ sub line_calls_for_file {
 
     sub fileinfo {
         my $self = shift;
-        my $fid  = $self->fid
-            or return undef;    # sub not have a known fid
+        my $fid  = $self->fid;
+        if (!$fid) {
+            return undef;    # sub not have a known fid
+        }
         $self->profile->fileinfo_of($fid);
     }
 

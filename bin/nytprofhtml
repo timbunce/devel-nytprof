@@ -176,6 +176,10 @@ sub subroutine_table {
 
     my @rows;
     for my $sub (@subs_to_show) {
+
+        # in the overall summary, don't list subs that were never called
+        next if !$filestr and $sub->calls == 0;
+
         $sub_links .= "<tr>";
 
         $sub_links .= determine_severity(undef, $sub->calls        || 0, $dev_calls);
@@ -201,16 +205,10 @@ sub subroutine_table {
             $first_line = $outer_line;
         }
 
-        if ($sub->is_xsub) {
-            $sub_links .= sprintf(qq{<td class="sub_sub">%s (xsub)</td>}, $subr);
-        }
-        else {
-            $sub_links .= sprintf(
-                qq{<td class="sub_sub"><a href="%s-line.html#%s">%s</a></td>},
-                $fileinfo ? html_safe_filename($fileinfo->filename_without_inc) : "",
-                $first_line || 'UNKNOWN', $subr
-            );
-        }
+        my $href = $reporter->href_for_sub($subname);
+        $sub_links .= sprintf( qq{<td class="sub_sub"><a %s>%s</a>%s</td>},
+            $href, $subr, $sub->is_xsub ? " (xsub)" : ""
+        );
 
         $sub_links .= "<tr>\n";
     }
@@ -322,10 +320,9 @@ $reporter->set_param(
                 my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
                 $epilogue = join "\n", map {
                     my ($count, $incl_time) = @{$calls->{$_}};
-                    my $href = $reporter->href_for_sub($_);
                     my $html = sprintf qq{%s# spent %ss making %*d calls to }, $ws,
                         fmt_float($incl_time), length($max_calls_to), $count;
-                    $html .= ($href) ? sprintf(qq{<a href="%s">%s</a>}, $href, $_) : $_;
+                    $html .= sprintf qq{<a %s>%s</a>}, $reporter->href_for_sub($_), $_;
                     $html .= sprintf qq{, avg %ss/call}, fmt_float($incl_time / $count)
                         if $count > 1;
                     $html;

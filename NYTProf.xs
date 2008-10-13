@@ -261,7 +261,7 @@ static void finish_profile(pTHX);
 static void open_output_file(pTHX_ char *);
 static int reinit_if_forked(pTHX);
 static void write_cached_fids();
-static void write_sub_line_ranges(pTHX_ int fids_only);
+static void write_sub_line_ranges(pTHX);
 static void write_sub_callers(pTHX);
 static HV *load_profile_data_from_stream();
 static AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num,
@@ -274,6 +274,8 @@ orig_ppaddr_t *PL_ppaddr_orig;
 static OP *pp_entersub_profiler(pTHX);
 static OP *pp_leaving_profiler(pTHX);
 static HV *sub_callers_hv;
+static HV *sub_xsubs_hv;    /* like PL_DBsub but for xsubs only */
+static HV *pkg_fids_hv;     /* currently just package names */
 
 /* macros for outputing profile data */
 #ifndef HAS_GETPPID
@@ -1734,6 +1736,7 @@ typedef struct sub_call_start_st
     SV *subname_sv;
     AV *sub_av;
     CV *sub_cv;
+    int call_depth;
     NV current_overhead_ticks;
     NV current_subr_secs;
 } sub_call_start_t;
@@ -1751,7 +1754,6 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     NV called_sub_secs = (cumulative_subr_secs      - sub_call_start->current_subr_secs);
     NV incl_subr_sec;
     NV excl_subr_sec;
-    UV call_depth = (sub_call_start->sub_cv) ? CvDEPTH(sub_call_start->sub_cv) : 0;
 
     if (profile_zero) {
         incl_subr_sec = 0.0;
@@ -1769,14 +1771,14 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     }
 
     if (trace_level >= 3)
-        warn("exited %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, oh %g-%g=%dt) d%d\n",
+        warn(" <-     %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, oh %g-%g=%dt) d%d\n",
             SvPV_nolen(subname_sv), incl_subr_sec, called_sub_secs, excl_subr_sec,
             SvNV(incl_time_sv)+incl_subr_sec, sub_call_start->fid_line,
             cumulative_overhead_ticks, sub_call_start->current_overhead_ticks,
-            overhead_ticks, (int)call_depth);
+            overhead_ticks, (int)sub_call_start->call_depth);
 
     /* only count inclusive time for the outer-most calls */
-    if (call_depth == 1)
+    if (sub_call_start->call_depth == 1)
         sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
 
@@ -1901,6 +1903,7 @@ pp_entersub_profiler(pTHX)
         int fid_line_key_len = my_snprintf(fid_line_key, sizeof(fid_line_key), "%u:%d", fid, line);
         SV *subname_sv = newSV(0);
         SV *sv_tmp;
+        char *stash_name = NULL;
         CV *cv;
         int is_xs;
 
@@ -1929,7 +1932,8 @@ pp_entersub_profiler(pTHX)
              * package, so we dig to find the original package
              */
             GV *gv = CvGV(cv);
-            sv_setpvf(subname_sv, "%s::%s", HvNAME(GvSTASH(gv)), GvNAME(gv));
+            stash_name = HvNAME(GvSTASH(gv));
+            sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
         }
         else if (!SvOK(subname_sv)) {
             /* unnamed CV, e.g. seen in mod_perl. XXX do better? */
@@ -1944,7 +1948,7 @@ pp_entersub_profiler(pTHX)
         sv_tmp = *hv_fetch(sub_callers_hv, SvPV_nolen(subname_sv),
             SvCUR(subname_sv), 1);
 
-        if (!SvROK(sv_tmp)) {   /* autoviv hash ref - is first call */
+        if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this subname from anywhere */
             HV *hv = newHV();
             sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
 
@@ -1965,14 +1969,10 @@ pp_entersub_profiler(pTHX)
                      * The reader can try to associate the xsubs with the
                      * corresonding .pm file using the package part of the subname.
                      */
-                    /* Inject faked xsub file details into PL_DBsub hash. */
                     SV *sv = *hv_fetch(GvHV(PL_DBsub), SvPV_nolen(subname_sv), SvCUR(subname_sv), 1);
-
-                    if (!SvOK(sv)) {
-                        if (trace_level >= 2)
-                            warn("Adding fake DBsub entry for '%s' xsub\n", SvPV_nolen(subname_sv));
-                        sv_setpv(sv, ":0-0");
-                    }
+                    sv_setpv(sv, ":0-0"); /* empty file name */
+                    if (trace_level >= 2)
+                        warn("Adding fake DBsub entry for '%s' xsub\n", SvPV_nolen(subname_sv));
                 }
             }
         }
@@ -1988,22 +1988,30 @@ pp_entersub_profiler(pTHX)
             av_store(av, 4, newSVnv(0.0)); /* incl sys  cpu time in sub */
             sv_setsv(sv_tmp, newRV_noinc((SV *)av));
             sub_call_start.sub_av = av;
+
+            if (stash_name) /* note that a sub in this package was called */
+                hv_fetch(pkg_fids_hv, stash_name, strlen(stash_name), 1);
         }
         else {
             sub_call_start.sub_av = (AV *)SvRV(sv_tmp);
             sv_inc(AvARRAY(sub_call_start.sub_av)[0]); /* ++call count */
         }
 
+        /* record call_depth, adjust for xs since, in that case, we
+         * have already left the sub, unlike the non-xs case.        */
+        sub_call_start.call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
+
         if (trace_level >= 3)
-            fprintf(stderr, "fid %d:%d called %s %s (d%d, oh %gt, sub %gs)\n", fid, line,
-                SvPV_nolen(subname_sv), (is_xs) ? "xs" : "sub",
-                (cv) ? (int)CvDEPTH(cv) : 0,
+            fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %gt, sub %gs)\n",
+                (is_xs) ? "xsub" : " sub",
+                SvPV_nolen(subname_sv),
+                fid, line,
+                sub_call_start.call_depth,
                 sub_call_start.current_overhead_ticks,
                 sub_call_start.current_subr_secs
             );
 
         if (profile_subs) {
-            sub_call_start.sub_cv = cv;
             sub_call_start.subname_sv = subname_sv;
             strcpy(sub_call_start.fid_line, fid_line_key);
             if (is_xs) {
@@ -2104,7 +2112,7 @@ finish_profile(pTHX)
     disable_profile(aTHX);
 
     if (out) {
-        write_sub_line_ranges(aTHX_ 0);
+        write_sub_line_ranges(aTHX);
         write_sub_callers(aTHX);
         /* mark end of profile data for last_pid pid
          * (which is the pid that relates to the out filehandle)
@@ -2207,6 +2215,10 @@ init_profiler(pTHX)
     /* redirect opcodes for caller tracking */
     if (!sub_callers_hv)
         sub_callers_hv = newHV();
+    if (!pkg_fids_hv)
+        pkg_fids_hv = newHV();
+    if (!sub_xsubs_hv)
+        sub_xsubs_hv = newHV();
     PL_ppaddr[OP_ENTERSUB] = pp_entersub_profiler;
 
     if (!PL_checkav) PL_checkav = newAV();
@@ -2296,40 +2308,102 @@ int count, unsigned int fid)
 }
 
 
+static SV *
+sub_pkg_filename_sv(pTHX_ char *sub_name)
+{
+    SV **svp;
+    char *colon = strrchr(sub_name, ':'); /* end of package name */
+    if (!colon || colon == sub_name || *--colon != ':')
+        return Nullsv;   /* no :: delimiter */
+    svp = hv_fetch(pkg_fids_hv, sub_name, colon-sub_name, 0);
+    if (!svp)
+        return Nullsv;   /* not a package we've profiled sub calls into */
+    return *svp;
+}
+
+
 static void
-write_sub_line_ranges(pTHX_ int fids_only)
+write_sub_line_ranges(pTHX)
 {
     char *sub_name;
     I32 sub_name_len;
     SV *file_lines_sv;
     HV *hv = GvHV(PL_DBsub);
+    unsigned int fid;
 
     if (trace_level >= 2)
         warn("writing sub line ranges\n");
 
+    /* Skim through PL_DBsub hash to build a package to filename hash
+     * by associating the package part of the sub_name in the key
+     * with the filename part of the value.
+     * but only for packages we already know we're interested in
+     */
     hv_iterinit(hv);
     while (NULL != (file_lines_sv = hv_iternextsv(hv, &sub_name, &sub_name_len))) {
+        char *filename = SvPV_nolen(file_lines_sv);
+        char *first = strrchr(filename, ':');
+        STRLEN filename_len = (first) ? first - filename : 0;
+
+        /* get sv for package-of-subname to filename mapping */
+        SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name);
+
+        /* ignore is package is not of interest, or filename is empty (xs) */
+        if (!pkg_filename_sv || !filename_len)
+            continue;
+
+        /* ignore if we've already got a filename for this package XXX should allow multiple */
+        if (SvOK(pkg_filename_sv))
+            continue;
+
+        /* associate the filename with the package */
+        sv_setpvn(pkg_filename_sv, filename, filename_len);
+
+        /* ensure a fid is assigned since we don't allow it below */
+        fid = get_file_id(aTHX_ filename, filename_len, NYTP_FIDf_VIA_SUB);
+
+        if (trace_level >= 3)
+            warn("Associating package of %s with %.*s (fid %d)\n",
+                sub_name, filename_len, filename, fid );
+    }
+
+    /* Iterate over PL_DBsub writing out fid and source line range of subs.
+     * If filename is missing (i.e., because it's an xsub so has no source file)
+     * then use the filename of another sub in the same package.
+     */
+    while (NULL != (file_lines_sv = hv_iternextsv(hv, &sub_name, &sub_name_len))) {
         /* "filename:first-last" */
-        char *file_lines = SvPV_nolen(file_lines_sv);
-        char *first = strrchr(file_lines, ':');
+        char *filename = SvPV_nolen(file_lines_sv);
+        char *first = strrchr(filename, ':');
         char *last = (first) ? strchr(first, '-') : NULL;
-        unsigned int fid;
+        STRLEN filename_len = first - filename;
         UV first_line, last_line;
 
         if (!first || !last || !grok_number(first+1, last-first-1, &first_line)) {
-            warn("Can't parse %%DB::sub entry for %s '%s'\n", sub_name, file_lines);
+            warn("Can't parse %%DB::sub entry for %s '%s'\n", sub_name, filename);
             continue;
         }
         last_line = atoi(++last);
 
         if (!first_line && !last_line && strstr(sub_name, "::BEGIN"))
-            continue;                             /* no point writing these */
+            continue;                             /* no point writing these XXX? */
 
-        fid = get_file_id(aTHX_ file_lines, first - file_lines, 0);
-        if (!fid)                                 /* no point in writing subs in files we've not profiled */
-            continue;
-        if (fids_only)                            /* caller just wants fids assigned */
-            continue;
+        if (!filename_len) {    /* no filename, so presumably a fake entry for xsub */
+            /* do we know a filename that contains subs in the same package */
+            SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name);
+            if (SvOK(pkg_filename_sv)) {
+                filename = SvPV(pkg_filename_sv, filename_len);
+            if (trace_level >= 2)
+                warn("Sub %s is xsub, we'll associate it with filename %.*s\n", sub_name, filename_len, filename);
+            }
+        }
+
+        fid = get_file_id(aTHX_ filename, filename_len, 0);
+        if (!fid) {
+            if (trace_level >= 4)
+                warn("Sub %s not profiled\n", sub_name);
+            continue; /* no point in writing subs in files we've not profiled */
+        }
 
         if (trace_level >= 2)
             warn("Sub %s fid %u lines %lu..%lu\n",
@@ -2362,6 +2436,7 @@ write_sub_callers(pTHX)
         I32 fid_line_len;
         SV *sv;
 
+        /* iterate over callers to this sub ({ "fid:line" => [ ... ] })  */
         hv_iterinit(fid_lines_hv);
         while (NULL != (sv = hv_iternextsv(fid_lines_hv, &fid_line_string, &fid_line_len))) {
             AV *av = (AV *)SvRV(sv);
@@ -2918,6 +2993,16 @@ constant()
     RETVAL = ix;
     OUTPUT:
     RETVAL
+
+
+MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Test
+
+PROTOTYPES: DISABLE
+
+void
+example_xsub(...)
+    CODE:
+
 
 MODULE = Devel::NYTProf     PACKAGE = DB
 

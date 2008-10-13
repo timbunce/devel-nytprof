@@ -259,7 +259,7 @@ sub report {
     my $level_additional_sub = $opts->{level_additional};
     my $profile              = $self->{profile};
     my $modes                = $profile->get_profile_levels;
-    for my $level (values %$modes) {
+    for my $level (grep { {reverse %$modes}->{$_} } qw(sub block line)) {
         $self->_generate_report($profile, $level);
         $level_additional_sub->($profile, $level)
             if $level_additional_sub;
@@ -494,29 +494,29 @@ sub _generate_report {
 
 
 sub href_for_sub {
-    my ($self, $sub) = @_;
+    my ($self, $sub, %opts) = @_;
 
     my ($file, $fid, $first, $last) = $self->{profile}->file_line_range_of_sub($sub);
     if (!$first) {
-        return undef if defined $first;    # is xs (first and least are 0)
+        return "" if defined $first;    # is xs (first and least are 0)
         warn("No file line range data for sub '$sub'\n")
             unless our $href_for_sub_no_data_warn->{$sub}++;    # warn just once
-        return undef;
+        return "";
     }
 
-    my $stats      = $self->get_file_stats();
+    my $stats      = $self->get_file_stats(); # may be undef
     my $file_stats = $stats->{$file};
     if (!$file_stats) {
         warn("Sub '$sub' file '$file' (fid $fid) not in stats!\n");
-        return "#sub unknown";
+        return "";
     }
     my $html_safe = $file_stats->{html_safe} ||= do {
-
         # warn, just once, and use a default value
         warn "Sub '$sub' file '$file' (fid $fid) has no html_safe value\n";
         "unknown";
     };
-    return "$html_safe.html#$first";
+    $html_safe = ($opts{in_this_file}) ? "" : "$html_safe.html";
+    return sprintf q{href="%s#%s"}, $html_safe, $first;
 }
 
 
