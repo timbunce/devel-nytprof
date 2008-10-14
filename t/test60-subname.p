@@ -1,4 +1,3 @@
-#package foo;
 # test sub name resolution
 use Devel::NYTProf::Test qw(example_xsub);
 
