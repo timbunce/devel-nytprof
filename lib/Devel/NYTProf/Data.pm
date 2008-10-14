@@ -471,10 +471,10 @@ sub normalize_variables {
     }
 
     # zero per-call-location subroutine inclusive time
-    # { 'pkg::sub' => { fid => { line => [ count, incl_time, excl_time, ucpu, scpu ] } } }
+    # { 'pkg::sub' => { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } } }
     my $sub_caller = $self->{sub_caller} || {};
     for (map { values %$_ } map { values %$_ } values %$sub_caller) {
-        $_->[1] = $_->[2] = $_->[3] = $_->[4] = 0;
+        $_->[1] = $_->[2] = $_->[3] = $_->[4] = $_->[5] = 0;
     }
 
     my $inc = [@INC, '.'];

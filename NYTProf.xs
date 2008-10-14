@@ -2886,11 +2886,13 @@ load_profile_data_from_stream()
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newAV()));
                     sv = SvRV(sv);
-                    sv_setuv(*av_fetch((AV *)sv, 0, 1), count);
-                    sv_setnv(*av_fetch((AV *)sv, 1, 1), incl_time);
-                    sv_setnv(*av_fetch((AV *)sv, 2, 1), excl_time);
-                    sv_setnv(*av_fetch((AV *)sv, 3, 1), ucpu_time);
-                    sv_setnv(*av_fetch((AV *)sv, 4, 1), scpu_time);
+                    sv_setuv(*av_fetch((AV *)sv, NYTP_SCi_CALL_COUNT, 1), count);
+                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_RTIME, 1), incl_time);
+                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_EXCL_RTIME, 1), excl_time);
+                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_UTIME, 1), ucpu_time);
+                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_STIME, 1), scpu_time);
+                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_RECI_RTIME, 1), reci_time);
+                    sv_setuv(*av_fetch((AV *)sv, NYTP_SCi_REC_DEPTH,  1), rec_depth);
                 }
                 else {                            /* is meta-data about sub */
                     /* line == 0: is_xs - set line range to 0,0 as marker */
