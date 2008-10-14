@@ -772,7 +772,7 @@ output_header(pTHX)
 
     assert(out != NULL);
     /* File header with "magic" string, with file major and minor version */
-    NYTP_printf(out, "NYTProf %d %d\n", 2, 0);
+    NYTP_printf(out, "NYTProf %d %d\n", 2, 1);
     /* Human readable comments and attributes follow
      * comments start with '#', end with '\n', and are discarded
      * attributes start with ':', a word, '=', then the value, then '\n'
@@ -1200,6 +1200,17 @@ output_tag_int(unsigned char tag, unsigned int i)
 }
 
 
+static UV
+output_uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
+{
+    SV **svp = av_fetch(av, idx, 0);
+    UV uv = (!svp || !SvOK(*svp)) ? default_uv : SvUV(*svp);
+    output_int( uv );
+    return uv;
+}
+        
+
+
 /**
  * Output a double precision float via a simple binary write of the memory.
  * (Minor portbility issues are seen as less important than speed and space.)
@@ -1210,6 +1221,16 @@ output_nv(NV nv)
     NYTP_write(out, (unsigned char *)&nv, sizeof(NV));
 }
 
+
+static NV
+output_nv_from_av(pTHX_ AV *av, int idx, NV default_nv)
+{
+    SV **svp = av_fetch(av, idx, 0);
+    NV nv = (!svp || !SvOK(*svp)) ? default_nv : SvNV(*svp);
+    output_nv( nv );
+    return nv;
+}
+        
 
 static const char* block_type[] =
 {
@@ -1729,6 +1750,29 @@ reinit_if_forked(pTHX)
  * Sub caller and inclusive time tracking
  ******************************************/
 
+#define NYTP_SCi_CALL_COUNT  0   /* count of calls to sub */    
+#define NYTP_SCi_INCL_RTIME  1   /* inclusive real time in sub */    
+#define NYTP_SCi_EXCL_RTIME  2   /* exclusive real time in sub */    
+#define NYTP_SCi_INCL_UTIME  3   /* incl user cpu time in sub */
+#define NYTP_SCi_INCL_STIME  4   /* incl sys  cpu time in sub */
+#define NYTP_SCi_RECI_RTIME  5   /* recursive incl real time in sub */
+#define NYTP_SCi_REC_DEPTH   6   /* max recursion call depth */
+#define NYTP_SCi_elements    7   /* highest index, plus 1 */
+
+static AV *
+new_sub_call_info_av(pTHX)
+{
+    AV *av = newAV();
+    av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(1));
+    av_store(av, NYTP_SCi_INCL_RTIME, newSVnv(0.0));
+    av_store(av, NYTP_SCi_EXCL_RTIME, newSVnv(0.0));
+    av_store(av, NYTP_SCi_INCL_UTIME, newSVnv(0.0));
+    av_store(av, NYTP_SCi_INCL_STIME, newSVnv(0.0));
+    /* NYTP_SCi_RECI_RTIME - allocated when needed */
+    /* NYTP_SCi_REC_DEPTH  - allocated when needed */
+    return av;
+}
+
 typedef struct sub_call_start_st
 {
     time_of_day_t sub_call_time;
@@ -1778,8 +1822,19 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
             overhead_ticks, (int)sub_call_start->call_depth);
 
     /* only count inclusive time for the outer-most calls */
-    if (sub_call_start->call_depth == 1)
+    if (sub_call_start->call_depth <= 1) {
         sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
+    }
+    else {
+        /* recursing into an already entered sub */
+        /* measure max depth and accumulate incl time separately */
+        SV *reci_time_sv = *av_fetch(av, NYTP_SCi_RECI_RTIME, 1);
+        SV *max_depth_sv = *av_fetch(av, NYTP_SCi_REC_DEPTH, 1);
+        sv_setnv(reci_time_sv, (SvOK(reci_time_sv)) ? SvNV(reci_time_sv)+incl_subr_sec : incl_subr_sec);
+        /* we track recursion depth here, which is call_depth-1 */
+        if (!SvOK(max_depth_sv) || sub_call_start->call_depth > SvIV(max_depth_sv)-1)
+            sv_setiv(max_depth_sv, sub_call_start->call_depth-1);
+    }
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
 
     sv_free(sub_call_start->subname_sv);
@@ -1953,13 +2008,8 @@ pp_entersub_profiler(pTHX)
             sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
 
             if (is_xs) { /* create dummy item to hold flag to indicate xs */
-                AV *av = newAV();
+                AV *av = new_sub_call_info_av(aTHX);
                 /* flag to indicate xs */
-                av_store(av, 0, newSVuv(1));
-                av_store(av, 1, newSVnv(0.0));
-                av_store(av, 2, newSVnv(0.0));
-                av_store(av, 3, newSVnv(0.0));
-                av_store(av, 4, newSVnv(0.0));
                 sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
 
                 if (cv && SvTYPE(cv) == SVt_PVCV) {
@@ -1980,12 +2030,8 @@ pp_entersub_profiler(pTHX)
         /* drill-down to array of sub call information for this fid_line_key */
         sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
         if (!SvROK(sv_tmp)) {                     /* autoviv array ref */
-            AV *av = newAV();
-            av_store(av, 0, newSVuv(1));   /* count of calls to sub */
-            av_store(av, 1, newSVnv(0.0)); /* inclusive time in sub */
-            av_store(av, 2, newSVnv(0.0)); /* exclusive time in sub */
-            av_store(av, 3, newSVnv(0.0)); /* incl user cpu time in sub */
-            av_store(av, 4, newSVnv(0.0)); /* incl sys  cpu time in sub */
+            AV *av = new_sub_call_info_av(aTHX);
+
             sv_setsv(sv_tmp, newRV_noinc((SV *)av));
             sub_call_start.sub_av = av;
 
@@ -2003,9 +2049,7 @@ pp_entersub_profiler(pTHX)
 
         if (trace_level >= 3)
             fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %gt, sub %gs)\n",
-                (is_xs) ? "xsub" : " sub",
-                SvPV_nolen(subname_sv),
-                fid, line,
+                (is_xs) ? "xsub" : " sub", SvPV_nolen(subname_sv), fid, line,
                 sub_call_start.call_depth,
                 sub_call_start.current_overhead_ticks,
                 sub_call_start.current_subr_secs
@@ -2439,25 +2483,29 @@ write_sub_callers(pTHX)
         /* iterate over callers to this sub ({ "fid:line" => [ ... ] })  */
         hv_iterinit(fid_lines_hv);
         while (NULL != (sv = hv_iternextsv(fid_lines_hv, &fid_line_string, &fid_line_len))) {
+            NV sc[NYTP_SCi_elements];
             AV *av = (AV *)SvRV(sv);
-            unsigned int count = SvUV(AvARRAY(av)[0]);
-            unsigned int fid = 0;
-            unsigned int line = 0;
+
+            unsigned int fid = 0, line = 0;
             sscanf(fid_line_string, "%u:%u", &fid, &line);
-            if (trace_level >= 3)
-                warn("%s called by %u:%u: count %d (%"NVff"s %"NVff"s %"NVff"s %"NVff"s)\n",
-                    sub_name, fid, line, count,
-                    SvNV(AvARRAY(av)[1]), SvNV(AvARRAY(av)[2]),
-                    SvNV(AvARRAY(av)[3]), SvNV(AvARRAY(av)[4]) );
 
             output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
             output_int(line);
-            output_int(count);
-            output_nv( SvNV(AvARRAY(av)[1]) );
-            output_nv( SvNV(AvARRAY(av)[2]) );
-            output_nv( SvNV(AvARRAY(av)[3]) );
-            output_nv( SvNV(AvARRAY(av)[4]) );
+            sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0);
+            sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
+            sc[NYTP_SCi_EXCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
+            sc[NYTP_SCi_INCL_UTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_UTIME, 0.0);
+            sc[NYTP_SCi_INCL_STIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_STIME, 0.0);
+            sc[NYTP_SCi_RECI_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
+            sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0);
             output_str(sub_name, sub_name_len);
+
+            if (trace_level >= 3)
+                warn("%s called by %u:%u: count %"NVff" (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%"NVff" ri%"NVff"s)\n",
+                    sub_name, fid, line, sc[NYTP_SCi_CALL_COUNT],
+                    sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
+                    sc[NYTP_SCi_INCL_UTIME], sc[NYTP_SCi_INCL_STIME],
+                    sc[NYTP_SCi_REC_DEPTH], sc[NYTP_SCi_RECI_RTIME]);
         }
     }
 }
@@ -2786,8 +2834,13 @@ load_profile_data_from_stream()
                 sv_setuv(*av_fetch(av, 0, 1), fid);
                 sv_setuv(*av_fetch(av, 1, 1), first_line);
                 sv_setuv(*av_fetch(av, 2, 1), last_line);
-                /* [3] used for call count - updated by sub caller info below */
-                /* [4] used for incl_time - updated by sub caller info below */
+                sv_setuv(*av_fetch(av, 3, 1),   0); /* cal count */
+                sv_setnv(*av_fetch(av, 4, 1), 0.0); /* incl_time */
+                sv_setnv(*av_fetch(av, 5, 1), 0.0); /* excl_time */
+                sv_setsv(*av_fetch(av, 6, 1), subname_sv);
+                sv_setsv(*av_fetch(av, 6, 1), &PL_sv_undef); /* ref to profile */
+                sv_setuv(*av_fetch(av, 8, 1),   0); /* rec_depth */
+                sv_setnv(*av_fetch(av, 9, 1), 0.0); /* reci_time */
                 break;
             }
 
@@ -2803,12 +2856,11 @@ load_profile_data_from_stream()
                 unsigned int line  = read_int();
                 unsigned int count = read_int();
                 NV incl_time       = read_nv();
-                NV excl_time       = 0.0;
-                NV ucpu_time       = 0.0;
-                NV scpu_time       = 0.0;
-                excl_time        = read_nv();
-                ucpu_time        = read_nv();
-                scpu_time        = read_nv();
+                NV excl_time       = read_nv();
+                NV ucpu_time       = read_nv();
+                NV scpu_time       = read_nv();
+                NV reci_time       = (file_minor >= 1) ? read_nv()  : 0;
+                UV rec_depth       = (file_minor >= 1) ? read_int() : 0;
                 subname_sv = read_str(aTHX_ tmp_str_sv);
 
                 if (trace_level >= 3)
@@ -2856,6 +2908,13 @@ load_profile_data_from_stream()
                 /* sub excl_time */
                 sv = *av_fetch(subinfo_av, 5, 1);
                 sv_setnv(sv, excl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
+                /* sub rec_depth - record the maximum */
+                sv = *av_fetch(subinfo_av, 8, 1);
+                if (!SvOK(sv) || rec_depth > SvUV(sv))
+                    sv_setuv(sv, rec_depth);
+                /* sub reci_time */
+                sv = *av_fetch(subinfo_av, 9, 1);
+                sv_setnv(sv, reci_time + (SvOK(sv) ? SvNV(sv) : 0.0));
 
                 break;
             }
@@ -3002,6 +3061,7 @@ PROTOTYPES: DISABLE
 void
 example_xsub(...)
     CODE:
+    PERL_UNUSED_VAR(items);
 
 
 MODULE = Devel::NYTProf     PACKAGE = DB

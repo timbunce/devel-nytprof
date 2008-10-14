@@ -4,9 +4,12 @@ package # hide from pause package indexer
 # this module is just to test the test suite
 # see t/test60-subname.p for example
 
-use Devel::NYTProf::Core;
-use base qw(Exporter);
+require Devel::NYTProf::Core;
+require Exporter;
+our @ISA = qw(Exporter);
 
-our @EXPORT_OK = qw(example_xsub);
+our @EXPORT_OK = qw(example_xsub example_sub);
+
+sub example_sub { }
 
 1;

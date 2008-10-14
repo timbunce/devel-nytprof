@@ -467,7 +467,7 @@ sub normalize_variables {
     # zero subroutine inclusive time
     my $sub_subinfo = $self->{sub_subinfo};
     for (values %$sub_subinfo) {
-        $_->[4] = $_->[5] = 0;
+        $_->[4] = $_->[5] = $_->[9] = 0;
     }
 
     # zero per-call-location subroutine inclusive time
@@ -904,6 +904,8 @@ sub package_fids {
     sub subname    { shift->[6] }
     sub profile    { shift->[7] }
     sub package    { (my $pkg = shift->subname) =~ s/::.*?$//; return $pkg }
+    sub recur_max_depth { shift->[8] }
+    sub recur_incl_time { shift->[9] }
 
     sub is_xsub {
         my $self = shift;
@@ -931,8 +933,7 @@ sub package_fids {
 
     sub _values_for_dump {
         my $self   = shift;
-        my @values = @{$self}[0 .. 5];
-        push @values, 0, 0;
+        my @values = @{$self}[0 .. 5, 8, 9 ];
         return \@values;
     }
 
