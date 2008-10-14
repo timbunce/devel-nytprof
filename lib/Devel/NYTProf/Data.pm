@@ -932,6 +932,7 @@ sub package_fids {
     sub _values_for_dump {
         my $self   = shift;
         my @values = @{$self}[0 .. 5];
+        push @values, 0, 0;
         return \@values;
     }
 
