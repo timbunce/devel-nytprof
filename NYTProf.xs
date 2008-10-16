@@ -684,9 +684,6 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
     retval = vfprintf(ofile->file, format, args);
     va_end(args);
 
-    if (retval < 0)
-	croak("error writing to profile data file: %s", strerror(errno));
-
     return retval;
 }
 
@@ -760,6 +757,9 @@ NYTP_close(NYTP_file file, int discard) {
 #endif
 
     Safefree(file);
+
+    if (ferror(raw_file))
+        warn("There was an error writing to the profile data file\n");
 
     if (discard) {
         /* close the underlying fd first so any buffered data gets discarded
