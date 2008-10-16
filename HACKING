@@ -272,12 +272,6 @@ could be treated as calls to xsubs in the CORE:: namespace.
 
 Consider use of CLOCK_PROF for (higher-resolution?) cpu time measurement
 
-Need better handling of XS subs. Specifically we know all the places an xsub is
-called from but we've nowhere to write that information in the report.
-We could assign fids to xsubs based on matching the package name to the
-package name of non-xsubs. Then add dummy lines to the report for each xsub.
-Could get_file_id(CvFILE(cv)), but the source file will be long gone.
-
 Replace DB::enable_profiling() and DB::disable_profiling() with $DB::profile = 1|0;
 That a more consistent API with $DB::single etc., but more importantly it lets
 users leave the code in place when NYTProf is not loaded. It'll just do nothing,
