@@ -163,6 +163,7 @@ sub fmt_incl_excl_time {
 sub calculate_median_absolute_deviation {
     my $values_ref = shift;
     my ($ignore_zeros) = @_;
+    croak "No array ref given" unless ref $values_ref eq 'ARRAY';
 
     my @values = ($ignore_zeros) ? grep {$_} @$values_ref : @$values_ref;
     my $median_value = [sort { $a <=> $b } @values]->[@values / 2];

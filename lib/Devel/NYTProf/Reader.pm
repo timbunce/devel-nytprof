@@ -142,8 +142,7 @@ sub _map_new_to_old {    # convert into old-style data structure
         # (because the main use for .pmc's are related to perl6)
         $filename .= "c" if $fid_fileinfo->[$fid]->is_pmc;
 
-        my $lines_array = $fid_line_data->[$fid]
-            or next;    # ignore fid's with no lines executed
+        my $lines_array = $fid_line_data->[$fid] || [];
 
         # convert any embedded eval line time arrays to hashes
         for (@$lines_array) {
@@ -309,11 +308,13 @@ sub _generate_report {
 
         my %totalsAccum;         # holds all line times. used to find median
         my %totalsByLine;        # holds individual line stats
-        my $runningTotalTime;    # holds the running total
+        my $runningTotalTime = 0;  # holds the running total
 
         # (should equal sum of $totalsAccum)
-        my $runningTotalCalls;    # holds the running total number of calls.
+        my $runningTotalCalls = 0; # holds the running total number of calls.
 
+        # note that a file may have no source lines executed, so no keys here
+        # (but is included because some xsubs in the package were executed)
         foreach my $key (keys %{$data->{$filestr}}) {
             my $a = $data->{$filestr}->{$key};
 
@@ -351,16 +352,15 @@ sub _generate_report {
 
         $self->{filestats}->{$filestr}->{'time'}      = $runningTotalTime;
         $self->{filestats}->{$filestr}->{'calls'}     = $runningTotalCalls;
-        $self->{filestats}->{$filestr}->{'time/call'} = eval { $runningTotalTime / $runningTotalCalls };
-        warn "Um, that's odd, the count of executed statements is zero for '$filestr'\n"
-            unless $runningTotalCalls;
+        $self->{filestats}->{$filestr}->{'time/call'} =
+            ($runningTotalCalls) ? $runningTotalTime / $runningTotalCalls: 0;
 
         # Use Median Absolute Deviation Formula to get file deviations for each of
         # calls, time and time/call values
         my %statistics = (
-            'calls'     => calculate_median_absolute_deviation($totalsAccum{'calls'}),
-            'time'      => calculate_median_absolute_deviation($totalsAccum{'time'}),
-            'time/call' => calculate_median_absolute_deviation($totalsAccum{'time/call'}),
+            'calls'     => calculate_median_absolute_deviation($totalsAccum{'calls'}||[]),
+            'time'      => calculate_median_absolute_deviation($totalsAccum{'time'}||[]),
+            'time/call' => calculate_median_absolute_deviation($totalsAccum{'time/call'}||[]),
         );
 
         my $line_calls_hash = $profile->line_calls_for_file($filestr);
@@ -498,10 +498,16 @@ sub href_for_sub {
 
     my ($file, $fid, $first, $last) = $self->{profile}->file_line_range_of_sub($sub);
     if (!$first) {
-        return "" if defined $first;    # is xs (first and least are 0)
-        warn("No file line range data for sub '$sub'\n")
-            unless our $href_for_sub_no_data_warn->{$sub}++;    # warn just once
-        return "";
+        if (not defined $first) {
+            warn("No file line range data for sub '$sub'\n")
+                unless our $href_for_sub_no_data_warn->{$sub}++;    # warn just once
+            return "";
+        }
+        # probably xsub
+        # return no link if we don't have a file for this xsub
+        return "" unless $file;
+        # use sanitized subname as label
+        ($first = $sub) =~ s/\W/_/g;
     }
 
     my $stats      = $self->get_file_stats(); # may be undef

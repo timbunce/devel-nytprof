@@ -16,9 +16,10 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
     now recorded separately, along with the max recursion depth.
 
   XS subs are now automatically associated with a source file that
-    defines non-xsubs in the same package as the xsub.
+    defines normal subs in the same package.
 
-  Global subroutine index pages no longer list subs that were never called.
+  The html global subroutine index pages no longer list subs that
+    were never called.
 
   Removed use of vfscanf() to improve portability,
     thanks to Jan Dubois.
