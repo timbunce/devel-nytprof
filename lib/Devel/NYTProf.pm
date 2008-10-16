@@ -273,6 +273,10 @@ gigahertz clocks, 0.01 seconds is like a lifetime. The cpu time clock 'ticks'
 happen so rarely relative to the activity of a most applications that you'd
 have to run the code for many hours to have any hope of reasonably useful results.
 
+(It may be possible to use the C<clock=N> option to select a
+high-resolution cpu time clock. I've not tried that yet.
+If you try it, please let me know how it works out.)
+
 =head2 file=...
 
 Specify the output file to write profile data to (default: './nytprof.out').
@@ -363,6 +367,25 @@ with us.
 
 The reporting code currently doesn't handle #line directives, but at least it
 warns about them. Patches welcome.
+
+=head1 CAVEATS
+
+=head2 Virtual Machines
+
+I recommend you don't do performance profiling while running in a
+virtual machine.  If you do you're likely to find inexplicable spikes
+of real-time appearing at unreasonable places in your code. You should pay
+less attention to the statement timings and rely more on the subroutine
+timings. They will still be noisy but less so than the statement times.
+
+You could also try using the C<clock=N> option to select a high-resolution
+I<cpu-time> clock instead of a real-time one. That should be much less
+noisy, though you will loose visibility of wait-times due to network
+and disk I/O, for example.
+
+If your system doesn't support the C<clock=N> option then you could try
+using the C<usecputime=1> option. That will give you cpu-time measurements
+but only at a very low 1/00th of a second resolution.
 
 =head1 BUGS
 
