@@ -86,8 +86,9 @@ sub get_abs_paths_alternation_regex {
 
 # edit @$paths in-place to remove specified absolute path prefixes
 sub strip_prefix_from_paths {
-    my ($inc_ref, $paths, $anchor) = @_;
-    $anchor = '^' if not defined $anchor;
+    my ($inc_ref, $paths, $anchor, $replacement) = @_;
+    $anchor      = '^' if not defined $anchor;
+    $replacement = ''  if not defined $replacement;
 
     my @inc = @$inc_ref
         or return;
@@ -102,10 +103,10 @@ sub strip_prefix_from_paths {
     if (UNIVERSAL::isa($paths, 'ARRAY')) {
         for my $path (@$paths) {
             if (ref $path) {    # recurse to process deeper data
-                strip_prefix_from_paths($inc_ref, $path, $anchor);
+                strip_prefix_from_paths($inc_ref, $path, $anchor, $replacement);
             }
             elsif ($path) {
-                $path =~ s{$inc_regex}{$1};
+                $path =~ s{$inc_regex}{$1$replacement};
             }
         }
     }

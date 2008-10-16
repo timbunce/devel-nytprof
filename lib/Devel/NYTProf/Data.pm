@@ -421,7 +421,7 @@ The data normalized is:
  - profile timing data: set to 0
  - subroutines: timings are set to 0
  - attributes, like basetime, xs_version, etc., are set to 0
- - filenames: path prefixes matching absolute paths in @INC are removed
+ - filenames: path prefixes matching absolute paths in @INC are changed to "/.../"
  - filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
  - calls remove_internal_data_of() for files loaded from absolute paths in @INC
 
@@ -430,7 +430,6 @@ The data normalized is:
 
 sub normalize_variables {
     my $self       = shift;
-    my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
 
     $self->{attribute}{basetime}      = 0;
     $self->{attribute}{xs_version}    = 0;
@@ -438,6 +437,8 @@ sub normalize_variables {
     $self->{attribute}{clock_id}      = 0;
     $self->{attribute}{ticks_per_sec} = 0;
     $self->{attribute}{nv_size}       = 0;
+
+    my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
 
     # remove_internal_data_of library files
     # (the definition of which is quite vague at the moment)
@@ -480,13 +481,13 @@ sub normalize_variables {
 
     my $inc = [@INC, '.'];
 
-    $self->make_fid_filenames_relative($inc);
+    $self->make_fid_filenames_relative($inc, '/.../');
 
     for my $info ($self->{sub_subinfo}, $self->{sub_caller}) {
 
         # normalize paths in sub names like
         #		AutoLoader::__ANON__[/lib/perl5/5.8.6/AutoLoader.pm:96]
-        strip_prefix_from_paths($inc, $info, '\[');
+        strip_prefix_from_paths($inc, $info, '\[', '/.../');
 
         # normalize eval sequence numbers in sub names to 0
         for my $subname (keys %$info) {
@@ -504,11 +505,11 @@ sub normalize_variables {
 
 
 sub make_fid_filenames_relative {
-    my ($self, $roots) = @_;
+    my ($self, $roots, $replacement) = @_;
     $roots ||= ['.'];    # e.g. [ @INC, '.' ]
     # strip prefix from start of string and also when embeded
     # e.g., "(eval 42)[/foo/bar/...]"
-    strip_prefix_from_paths($roots, $self->{fid_fileinfo}, qr{^|\[});
+    strip_prefix_from_paths($roots, $self->{fid_fileinfo}, qr{^|\[}, $replacement);
 }
 
 

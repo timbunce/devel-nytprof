@@ -15,6 +15,7 @@ is $Devel::NYTProf::Reader::VERSION, $version, 'lib/Devel/NYTProf/Reader.pm $VER
 
 use_ok('Devel::NYTProf');
 is $Devel::NYTProf::VERSION, $version, 'lib/Devel/NYTProf.pm $VERSION should match';
+
 # clean up after ourselves
 DB::finish_profile();
 unlink 'nytprof.out';

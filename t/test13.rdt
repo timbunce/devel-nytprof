@@ -15,7 +15,7 @@ fid_block_time	1	19	1	1
 fid_block_time	1	19	2	1	[ 0 1 ]
 fid_block_time	1	20	[ 0 2 ]
 fid_block_time	1	21	[ 0 1 ]
-fid_fileinfo	1	[ test13.p   1 2 0 0 ]
+fid_fileinfo	1	[ /.../test13.p   1 2 0 0 ]
 fid_fileinfo	2	[ (eval 0)[test13.p:19] 1 19 2 2 0 0 ]
 fid_line_time	1	4	[ 0 3 ]
 fid_line_time	1	8	[ 0 1 ]
