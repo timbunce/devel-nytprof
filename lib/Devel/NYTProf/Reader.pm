@@ -486,6 +486,36 @@ sub _generate_report {
             # Increment line number counters
             $LINE++;
         }
+
+        # iterate over xsubs 
+        my $subs_defined_in_file = $profile->subs_defined_in_file($filestr, 0);
+        foreach my $subname (sort keys %$subs_defined_in_file) {
+            my $subinfo = $subs_defined_in_file->{$subname};
+            next unless $subinfo->is_xsub;
+
+            $LINE = '';
+            my $src = "sub $subname; # xsub\n\t";
+
+            foreach my $hash (@{$self->{line}}) {
+
+                my $func = $hash->{func};
+                my $value = $hash->{value};
+                if ($value) {
+                    print OUT $func->(
+                        $subname, undef,
+                        undef, $LINE, $src, $profile,
+                        [ $subinfo ], {}
+                    );
+                }
+                else {
+                    print OUT $func->(
+                        $subname, $LINE, $src, $profile, [ $subinfo ], {}
+                    );
+                }
+            }
+
+        }
+
         print OUT $dataend;
         print OUT $footer;
         close OUT;

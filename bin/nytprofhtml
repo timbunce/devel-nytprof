@@ -247,7 +247,8 @@ $reporter->set_param(
     'linestart',
     {   func => sub {
             my ($value, $linenum, $linesrc) = @_;
-            sprintf qq{<tr><td class="h"><a name="%d"></a>%d</td>}, $linenum, $linenum;
+            (my $anchor = $linenum || $value) =~ s/\W/_/g;
+            sprintf qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, $linenum;
         },
     }
 );
@@ -261,6 +262,7 @@ $reporter->set_param(
             $linesrc =~ s/</&lt;/g;
             $linesrc =~ s/>/&gt;/g;
             $linesrc =~ s/\t/        /g;
+            $linesrc =~ s/\n/<br>/g; # for xsub pseudo-sub declarations
 
             my @prologue;
 
@@ -346,7 +348,7 @@ $reporter->set_param('column1', {value => 'calls',     func => \&determine_sever
 $reporter->set_param('column2', {value => 'time',      func => \&determine_severity});
 $reporter->set_param('column3', {value => 'time/call', func => \&determine_severity});
 
-$reporter->set_param('lineend', {start => "</tr>\n"});
+$reporter->set_param('lineend', { func => sub { "</tr>\n" } });
 
 # set output options
 $reporter->set_param('suffix', '.html');
@@ -892,6 +894,7 @@ pre,.s {
 .calls {
   display: block;
   color: grey;
+  margin-top: 5px;
   padding-top: 5px;
   padding-bottom: 5px;
   text-decoration: none;
