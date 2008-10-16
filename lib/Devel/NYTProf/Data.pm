@@ -441,7 +441,8 @@ sub normalize_variables {
 
     # remove_internal_data_of library files
     # (the definition of which is quite vague at the moment)
-    my @abs_inc = grep { $_ =~ m:^/: } $self->inc;
+    my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
+    my @abs_inc = grep { $_ =~ $abs_path_regex } $self->inc;
     my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
     for my $fileinfo ($self->all_fileinfos) {
 

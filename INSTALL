@@ -19,15 +19,6 @@ version of fpurge is.  Usually it can be found in stdio.h or stdio_ext.h, so
 make sure those are in your INCLUDE path.  It is also sometimes named fpurge
 _fpurge or __fpurge.
 
-WINDOWS
-
-Windows users are currently out of luck.  The module will not compile properly
-due to file locking headers, and some other POSIX/GNU code being absent.  It
-should be possible to port the module, but this has not yet been done.  Feel
-free to do it.  Also, file paths throughout the module are assumed to use "/"
-instead of Windows "\", and assumed that "/...." will start at the file system
-root.  These things can also be pathed if you feel the urge.
-
 COMPILE NOTES
 
 The module was written to compile silently with -Wall -pedantic -ansi.  Some

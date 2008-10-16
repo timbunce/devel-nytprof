@@ -73,8 +73,9 @@ sub get_abs_paths_alternation_regex {
 
     # rewrite relative directories to be absolute
     # the logic here should match that in get_file_id()
+    my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
     for (@inc) {
-        next if m{^\/};    # already absolute
+        next if $_ =~ $abs_path_regex;    # already absolute
         $_ =~ s/^\.\///;   # remove a leading './'
         $cwd ||= getcwd();
         $_ = ($_ eq '.') ? $cwd : "$cwd/$_";

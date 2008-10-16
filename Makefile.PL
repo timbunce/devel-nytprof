@@ -34,13 +34,6 @@ if ($ENV{PERL_CORE}) {
   } );
 }
 
-# --- Bail out on Windows
-if ($^O eq 'MSWin32') {
-    print "This module does not currently support Windows.\n"
-        . "Please help us port it - contact us at develnytprof-dev\@googlegroups.com\n";
-    die "No support for OS" if $ENV{AUTOMATED_TESTING};    # keep cpan-testers happy
-}
-
 # --- Options
 GetOptions(
     'g!'  => \my $opt_g,

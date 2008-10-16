@@ -6,9 +6,8 @@ Devel-NYTProf
 
 Devel::NYTProf is a powerful feature-rich perl source code profiler.
 
-Devel::NYTProf was written and tested on Linux, Solaris and OS X.
+Devel::NYTProf was written and tested on Linux, Solaris, OS X and Windows.
 Please report any problems you encounter on other platforms.
-(Except for windows as we can't help you, but we'd love someone to port it for us.)
 
 INSTALLATION
 
