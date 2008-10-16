@@ -536,8 +536,8 @@ static size_t
 NYTP_read(NYTP_file ifile, void *buffer, size_t len, char *what) {
     size_t got = NYTP_read_unchecked(ifile, buffer, len);
     if (got != len) {
-        croak("Profile format error whilst reading %s at %ld%s: expected %d got %d, %s",
-              what, NYTP_tell(ifile), NYTP_type_of_offset(ifile), (int)len, (int)got,
+        croak("Profile format error whilst reading %s at %ld%s: expected %ld got %ld, %s",
+              what, NYTP_tell(ifile), NYTP_type_of_offset(ifile), (long)len, (long)got,
                 (NYTP_eof(in)) ? "end of file" : NYTP_fstrerror(in));
     }
     return len;
@@ -681,6 +681,10 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
     va_start(args, format);
     retval = vfprintf(ofile->file, format, args);
     va_end(args);
+
+    if (retval < 0)
+	croak("error writing to profile data file: %s", strerror(errno));
+
     return retval;
 }
 
@@ -756,7 +760,9 @@ NYTP_close(NYTP_file file, int discard) {
     Safefree(file);
 
     if (discard) {
-	close(fileno(raw_file)); /* close the underlying fd first */
+        /* close the underlying fd first so any buffered data gets discarded
+         * when fclose is called below */
+	close(fileno(raw_file));
     }
 
     return fclose(raw_file);
@@ -1068,7 +1074,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     entry.key_len = (unsigned int)file_name_len;
 
     /* inserted new entry */
-    if (1 == hash_op(entry, &found, (bool)created_via)) {
+    if (1 == hash_op(entry, &found, (bool)(created_via ? 1 : 0))) {
         AV *src_av = Nullav;
 
         /* if this is a synthetic filename for an 'eval'
@@ -1108,7 +1114,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             /* Note that the current directory may have changed
              * between loading the file and profiling it.
              * We don't use realpath() or similar here because we want to
-             * keep the of symlinks etc. as the program saw them.
+             * keep the view of symlinks etc. as the program saw them.
              */
             if (!getcwd(file_name_abs, sizeof(file_name_abs))) {
                 /* eg permission */
@@ -2529,13 +2535,13 @@ write_sub_callers(pTHX)
 
             output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
             output_int(line);
-            sc[NYTP_SCi_CALL_COUNT] = (NV)output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0);
+            sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
             sc[NYTP_SCi_EXCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
             sc[NYTP_SCi_INCL_UTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_UTIME, 0.0);
             sc[NYTP_SCi_INCL_STIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_STIME, 0.0);
             sc[NYTP_SCi_RECI_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
-            sc[NYTP_SCi_REC_DEPTH]  = (NV)output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0);
+            sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0) * 1.0;
             output_str(sub_name, sub_name_len);
 
             if (trace_level >= 3)
