@@ -396,7 +396,7 @@ sub _generate_report {
 
         # open output file
         #warn "$self->{output_dir}/$fname";
-        open(OUT, "> $self->{output_dir}/$fname")
+        open(OUT, ">", "$self->{output_dir}/$fname")
             or confess "Unable to open $self->{output_dir}/$fname " . "for writing: $!\n";
 
         # begin output
@@ -404,7 +404,7 @@ sub _generate_report {
         print OUT $taintmsg if $tainted;
         print OUT $datastart;
 
-        if (!open(IN, $filestr)) {
+        if (!open(IN, "<", $filestr)) {
 
             # ignore synthetic file names that perl assigns when reading
             # code returned by a CODE ref in @INC

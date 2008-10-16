@@ -227,7 +227,7 @@ by calling DB::enable_profile() and DB::disable_profile() yourself.
 
 =head2 subs=0
 
-Set to 0 to disable the collection of subroutine inclusive timings.
+Set to 0 to disable the collection of subroutine caller and timing details.
 
 =head2 blocks=0
 
