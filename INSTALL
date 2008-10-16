@@ -24,5 +24,3 @@ COMPILE NOTES
 The module was written to compile silently with -Wall -pedantic -ansi.  Some
 warnings might be generated from methods like XS_blah.  These are in Perl
 generated code and cannot be fixed by me.
-
-If 'make test' fails on perl 5.6, it should be safe to force install it.
