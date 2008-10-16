@@ -1100,7 +1100,9 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 
         /* determine absolute path if file_name is relative */
         found->key_abs = NULL;
-        if (!found->eval_fid && !(file_name_len==2 && strEQ(file_name,"-e")) &&
+        if (!found->eval_fid &&
+            !(file_name_len==1 && strEQ(file_name,"-" )) &&
+            !(file_name_len==2 && strEQ(file_name,"-e")) &&
 #ifdef WIN32
             /* XXX should we check for UNC names too? */
             (file_name_len < 3 || !isALPHA(file_name[0]) || file_name[1] != ':' ||
@@ -1153,6 +1155,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
          * then think about writing out the source code */
         if (found->eval_fid
         || (found->key_len > 10 && strnEQ(found->key, "/loader/0x", 10))
+        || (found->key_len == 1 && strnEQ(found->key, "-",  1))
         || (found->key_len == 2 && strnEQ(found->key, "-e", 2))
         ) {
             src_av = GvAV(gv_fetchfile(found->key));
