@@ -8,11 +8,7 @@ BEGIN {
 }
 
 use Devel::NYTProf;
-
-# some modules just to 'do some work'
-use Text::Wrap;
-use Benchmark;
-use Socket;
+use Devel::NYTProf::Test qw(example_xsub example_sub);
 
 
 # simple assignment and immediate check of $!
@@ -23,19 +19,23 @@ my $size1 = -s $nytprof_out;
 ok $size1, "$nytprof_out should be non-empty";
 
 $! = 9999;
-new Benchmark;
-fill("", "", ("foo bar baz") x 100);
+example_xsub();
+example_sub();
 is 0+$!, 9999, '$! should not be altered by assigning fids to previously unprofiled modules';
 
 $! = 9999;
 while (-s $nytprof_out == $size1) {
     # execute lots of statements to force some i/o even if zipping
-    # none of this should alter $!
-    timediff(new Benchmark, new Benchmark);
-    $Text::Wrap::columns = 9;
-    fill("", "", ("foo bar baz") x 100);
-    pack_sockaddr_un("foo"); # call xs sub
+    busy();
 }
 is 0+$!, 9999, '$! should not be altered by NYTProf i/o';
 
 exit 0;
+
+sub busy {
+    # none of this should alter $!
+    for (my $i = 1_000; $i > 0; --$i) {
+        example_xsub();
+        example_sub();
+    }
+}
