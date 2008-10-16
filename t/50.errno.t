@@ -36,6 +36,7 @@ sub busy {
     # none of this should alter $!
     for (my $i = 1_000; $i > 0; --$i) {
         example_xsub();
+        next if $i % 100;
         example_sub();
     }
 }

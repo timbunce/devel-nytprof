@@ -1021,15 +1021,13 @@ fid_is_pmc(pTHX_ Hash_entry *fid_info)
         SV *pmcsv = Perl_newSVpvf(aTHX_ "%s%c", SvPV_nolen(pmsv), 'c');
         Stat_t pmstat;
         Stat_t pmcstat;
-        int saved_errno = errno;
         if (PerlLIO_lstat(SvPV_nolen(pmcsv), &pmcstat) == 0) {
             /* .pmc exists, is it newer than the .pm (if that exists) */
             if (PerlLIO_lstat(SvPV_nolen(pmsv), &pmstat) < 0 ||
             pmstat.st_mtime < pmcstat.st_mtime) {
-                is_pmc = 1;                       /* hey, maybe it's Larry working on the perl6 comiler */
+                is_pmc = 1; /* hey, maybe it's Larry working on the perl6 comiler */
             }
         }
-        SETERRNO(saved_errno, 0);
         SvREFCNT_dec(pmcsv);
         SvREFCNT_dec(pmsv);
     }
@@ -1549,6 +1547,7 @@ closest_cop(pTHX_ const COP *cop, const OP *o)
 static void
 DB_stmt(pTHX_ OP *op)
 {
+    int saved_errno = errno;
     char *file;
     unsigned int elapsed;
     unsigned int overflow;
@@ -1567,11 +1566,10 @@ DB_stmt(pTHX_ OP *op)
     if (overflow)                                 /* XXX later output overflow to file */
         warn("profile time overflow of %d seconds discarded", overflow);
 
-    if (!out)
+    if (!out || !is_profiling) {
+        SETERRNO(saved_errno, 0);
         return;
-
-    if (!is_profiling)
-        return;
+    }
 
     if (last_executed_fid) {
         reinit_if_forked(aTHX);
@@ -1643,12 +1641,15 @@ DB_stmt(pTHX_ OP *op)
     /* measure time we've spent measuring so we can discount it */
     get_ticks_between(end_time, start_time, elapsed, overflow);
     cumulative_overhead_ticks += elapsed;
+
+    SETERRNO(saved_errno, 0);
 }
 
 
 static void
 DB_leave(pTHX_ OP *op)
 {
+    int saved_errno = errno;
     int prev_last_executed_fid  = last_executed_fid;
     int prev_last_executed_line = last_executed_line;
     const char tag = NYTP_TAG_DISCOUNT;
@@ -1684,6 +1685,7 @@ DB_leave(pTHX_ OP *op)
             (op) ? "" : ", LEAVING PERL"
         );
     }
+    SETERRNO(saved_errno, 0);
 }
 
 
@@ -1988,6 +1990,7 @@ pp_entersub_profiler(pTHX)
     op = run_original_op(OP_ENTERSUB);            /* may croak */
 
     if (profile_subs && is_profiling) {
+        int saved_errno = errno;
 
         /* get line, file, and fid for statement *before* the call */
 
@@ -2119,6 +2122,7 @@ pp_entersub_profiler(pTHX)
         else {
             sv_free(subname_sv);
         }
+        SETERRNO(saved_errno, 0);
     }
 
     return op;
@@ -2191,6 +2195,8 @@ disable_profile(pTHX)
 static void
 finish_profile(pTHX)
 {
+    int saved_errno = errno;
+
     if (trace_level >= 1)
         warn("finish_profile (last_pid %d, getpid %d, overhead %"NVff"s, is_profiling %d)\n",
             last_pid, getpid(), cumulative_overhead_ticks/ticks_per_sec, is_profiling);
@@ -2212,6 +2218,8 @@ finish_profile(pTHX)
             warn("Error closing profile data file: %s", strerror(errno));
         out = NULL;
     }
+
+    SETERRNO(saved_errno, 0);
 }
 
 

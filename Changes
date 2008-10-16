@@ -11,15 +11,17 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
   Now builds on Windows, with thanks to Jan Dubois!
 
-  Subroutine inclusive time no longer counts time
-    spent recursed into the same subroutine. That time is
-    now recorded separately, along with the max recursion depth.
-
   XS subs (xsubs) are now automatically associated with a source
     file that defines normal subs in the same package.
   Callers and timing information for xsubs are now shown at the
     bottom of the corresponding source file.
   References to xsubs in reports now include a working link.
+
+  Subroutine inclusive time no longer counts time
+    spent recursed into the same subroutine. That time is
+    now recorded separately, along with the max recursion depth.
+
+  The profiler takes more care to avoid changing $!.
 
   The html global subroutine index pages no longer list subs that
     were never called.
