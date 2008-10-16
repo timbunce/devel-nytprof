@@ -200,6 +200,8 @@ static struct tms start_ctime, end_ctime;
 /* http://www.freebsd.org/cgi/man.cgi?query=clock_gettime
  * http://webnews.giga.net.tw/article//mailing.freebsd.performance/710
  * http://sean.chittenden.org/news/2008/06/01/
+ * Explanation of why gettimeofday() (and presumably CLOCK_REALTIME) may go backwards:
+ * http://groups.google.com/group/comp.os.linux.development.apps/tree/browse_frm/thread/dc29071f2417f75f/ac44671fdb35f6db?rnum=1&_done=%2Fgroup%2Fcomp.os.linux.development.apps%2Fbrowse_frm%2Fthread%2Fdc29071f2417f75f%2Fc46264dba0863463%3Flnk%3Dst%26rnum%3D1%26#doc_776f910824bdbee8
  */
 typedef struct timespec time_of_day_t;
 #  define CLOCK_GETTIME(ts) clock_gettime(profile_clock, ts)

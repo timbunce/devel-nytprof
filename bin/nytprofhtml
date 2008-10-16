@@ -190,14 +190,14 @@ sub subroutine_table {
 
         # package and subname
         my $subname = $sub->subname;
-
-        # remove own filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
-        # XXX doesn't work right because $filestr isn't full filename
-        $subname =~ s/\Q$filestr\E:(\d+)/:$1/g;
         my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1, $2) : ('', $subname);
         $sub_links .= sprintf qq{<td class="sub_pkg">%s</td>}, $pkg;
 
+        # remove own filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
+        # XXX doesn't work right because $filestr isn't full filename
+        $subr =~ s/\Q$filestr\E:(\d+)/:$1/g;
         $subr =~ s/$inc_path_regex//;    # for __ANON__[/very/long/path...]
+
         my $first_line = $sub->first_line;
         my $fileinfo   = $sub->fileinfo;
         if ($fileinfo and my ($outer_fileinfo, $outer_line) = $fileinfo->outer) {    # eval
