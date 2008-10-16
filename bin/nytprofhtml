@@ -310,7 +310,7 @@ $reporter->set_param(
                 }
             }
             my $prologue = '';
-            $prologue = sprintf qq{<div class="calls">%s</div>}, join("\n", @prologue)
+            $prologue = sprintf qq{<div class="calls"><div class="calls_in">%s</div></div>}, join("\n", @prologue)
                 if @prologue;
 
             # give details of each of the subs called by this line
@@ -335,7 +335,7 @@ $reporter->set_param(
                         if $rec_depth;
                     $html;
                 } @calls_to;
-                $epilogue = sprintf qq{<div class="calls">%s</div>}, $epilogue;
+                $epilogue = sprintf qq{<div class="calls"><div class="calls_out">%s</div></div>}, $epilogue;
             }
 
             sprintf qq{<td class="s">%s%s%s</td>}, $prologue, $linesrc, $epilogue;
@@ -891,10 +891,10 @@ pre,.s {
     padding: 5px 0;
 }
 
+/* summary of calls into and out of a sub */
 .calls {
   display: block;
   color: grey;
-  margin-top: 5px;
   padding-top: 5px;
   padding-bottom: 5px;
   text-decoration: none;
@@ -906,6 +906,9 @@ pre,.s {
 .calls       a       { color: grey;  text-decoration: none; }
 .calls:hover a       { color: black; text-decoration: underline; }
 .calls:hover a:hover { color: red; }
+
+/* give a little headroom to the summary of calls into a sub */
+.calls .calls_in { margin-top: 5px; }
 
 __END__
 
