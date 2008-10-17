@@ -3,9 +3,8 @@
 ##########################################################
 ## This script is part of the Devel::NYTProf distribution
 ##
-## Copyright, contact and other information can be found
-## at the bottom of this file, or by going to:
-## http://search.cpan.org/dist/Devel-NYTProf/
+## Copyright, contact and other information can be found in the
+## README file and at http://search.cpan.org/dist/Devel-NYTProf/
 ##
 ###########################################################
 ## $Id$
