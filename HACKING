@@ -293,9 +293,7 @@ memory, plus getrusage()). Abstract those into a structure with functions to
 subtract the difference. Then use the same logic to get inclusive and exclusive
 values as we use for inclusive and exclusive subroutine times.
 
-Could add an extra attribute that measures time spent when recursing (based on
-CvDEPTH(cv)) wich would be 0 for subs that didn't recurse (a handy boolean) and
-could be subtracted from the inclusive time to get the 'outer' inclusive time.
+Report max recursion depth and reci_time per sub in per-file reports.
 
 Could add ::Data method to write source code for each fid into $dir/nytprof_src_$fid.txt
 OR, probably better, add method to return source code array ref, that defaults to returning

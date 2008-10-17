@@ -87,7 +87,6 @@
 
 #define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
 
-#define output_int(i)            output_tag_int(NYTP_TAG_NO_TAG, (unsigned int)(i))
 
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
@@ -248,7 +247,9 @@ static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set *
 /* prototypes */
 static void output_header(pTHX);
 static void output_tag_int(unsigned char tag, unsigned int);
+#define     output_int(i)   output_tag_int(NYTP_TAG_NO_TAG, (unsigned int)(i))
 static void output_str(char *str, I32 len);
+static void output_nv(NV nv);
 static unsigned int read_int();
 static SV *read_str(pTHX_ SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
@@ -280,13 +281,7 @@ static HV *pkg_fids_hv;     /* currently just package names */
 #ifndef HAS_GETPPID
 #define getppid() 0
 #endif
-#define OUTPUT_PID() STMT_START { \
-    assert(out != NULL); output_tag_int(NYTP_TAG_PID_START, getpid()); output_int(getppid()); \
-} STMT_END
 
-#define END_OUTPUT_PID(pid) STMT_START { \
-    assert(out != NULL); output_tag_int(NYTP_TAG_PID_END, pid); NYTP_flush(out); \
-} STMT_END
 
 /***********************************
  * Devel::NYTProf Functions        *
@@ -767,6 +762,24 @@ NYTP_close(NYTP_file file, int discard) {
     return fclose(raw_file);
 }
 
+
+static NV
+gettimeofday_nv(void)
+{
+#ifdef HAS_GETTIMEOFDAY
+    struct timeval when;
+    gettimeofday(&when, (struct timezone *) 0);
+    return when.tv_sec + (when.tv_usec / 1000000.0);
+#else
+    if (u2time) {
+        UV time_of_day[2];
+        (*u2time)(aTHX_ &time_of_day);
+        return time_of_day[0] + (time_of_day[1] / 1000000.0);
+    }
+    return 0.0;
+#endif
+}
+
 /**
  * output file header
  */
@@ -806,15 +819,12 @@ output_header(pTHX)
 		    compression_level, zlibVersion());
 	NYTP_write(out, &tag, sizeof(tag));
 	NYTP_start_deflate(out);
-
-	/* If the next action stops being OUTPUT_PID(), or it stops having
-	   a flush() built in, consider adding a call to
-	   sync_avail_out_to_ftell() "here" instead, most logically by putting
-	   it in NYTP_start_deflate(out).  */
     }
 #endif
 	
-    OUTPUT_PID();
+    output_tag_int(NYTP_TAG_PID_START, getpid());
+    output_int(getppid());
+    output_nv(gettimeofday_nv());
 
     write_cached_fids();                          /* empty initially, non-empty after fork */
 
@@ -1575,8 +1585,9 @@ DB_stmt(pTHX_ OP *op)
         return;
     }
 
+    reinit_if_forked(aTHX);
+
     if (last_executed_fid) {
-        reinit_if_forked(aTHX);
 
         output_tag_int((unsigned char)((profile_blocks)
 			? NYTP_TAG_TIME_BLOCK : NYTP_TAG_TIME_LINE), elapsed);
@@ -1745,6 +1756,14 @@ static void
 open_output_file(pTHX_ char *filename)
 {
     char filename_buf[MAXPATHLEN];
+    /* 'x' is a GNU C lib extension for O_EXCL which gives us a little
+     * extra protection, but it isn't POSIX compliant */
+    char *mode = "wbx";
+    /* most systems that don't support it will silently ignore it
+     * but for some we need to remove it to avoid an error */
+#ifdef WIN32
+    mode = "wb";
+#endif
 
     if ((profile_opts & NYTP_OPTf_ADDPID)
     || out /* already opened so assume forking */
@@ -1756,12 +1775,13 @@ open_output_file(pTHX_ char *filename)
 
     /* some protection against multiple processes writing to the same file */
     unlink(filename);   /* throw away any previous file */
-    out = NYTP_open(filename, "wb");
+
+    out = NYTP_open(filename, mode);
     if (!out) {
         int fopen_errno = errno;
         char *hint = "";
         if (fopen_errno==EEXIST && !(profile_opts & NYTP_OPTf_ADDPID))
-            hint = " (enable addpid mode to protect against concurrent writes)";
+            hint = " (enable addpid option to protect against concurrent writes)";
         disable_profile(aTHX);
         croak("Failed to open output '%s': %s%s", filename, strerror(fopen_errno), hint);
     }
@@ -1780,9 +1800,11 @@ reinit_if_forked(pTHX)
     /* we're now the child process */
     if (trace_level >= 1)
         warn("New pid %d (was %d)\n", getpid(), last_pid);
+
     /* reset state */
     last_pid = getpid();
     last_executed_fileptr = NULL;
+    last_executed_fid = 0; /* don't count the fork in the child */
     if (sub_callers_hv)
         hv_clear(sub_callers_hv);
 
@@ -2169,6 +2191,10 @@ static int
 enable_profile(pTHX)
 {
     int prev_is_profiling = is_profiling;
+    if (!out) {
+        warn("enable_profile: NYTProf not active");
+        return 0;
+    }
     if (trace_level)
         warn("NYTProf enable_profile%s", (prev_is_profiling)?" (already enabled)":"");
     is_profiling = 1;
@@ -2214,10 +2240,13 @@ finish_profile(pTHX)
     if (out) {
         write_sub_line_ranges(aTHX);
         write_sub_callers(aTHX);
+
         /* mark end of profile data for last_pid pid
          * (which is the pid that relates to the out filehandle)
          */
-        END_OUTPUT_PID(last_pid);
+        output_tag_int(NYTP_TAG_PID_END, last_pid);
+        output_nv(gettimeofday_nv());
+
         if (-1 == NYTP_close(out, 0))
             warn("Error closing profile data file: %s", strerror(errno));
         out = NULL;
@@ -2258,6 +2287,11 @@ init_profiler(pTHX)
         if (clock_gettime(profile_clock, &start_time) != 0)
             croak("clock_gettime CLOCK_REALTIME not available (%s), aborting",
                 strerror(errno));
+    }
+#else
+    if (profile_clock != -1) {  /* user tried to select different clock */
+        warn("clock %d not available (clock_gettime not supported on this system)\n");
+        profile_clock = -1;
     }
 #endif
 
@@ -2658,6 +2692,15 @@ lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
 }
 
 
+static void
+store_attrib_sv(pTHX_ HV *attr_hv, char *text, SV *value_sv)
+{
+    (void)hv_store(attr_hv, text, (I32)strlen(text), value_sv, 0);
+    if (trace_level >= 2)
+        warn(": %s = '%s'\n", text, SvPV_nolen(value_sv));
+}
+
+
 /**
  * Process a profile output file and return the results in a hash like
  * { fid_fileinfo  => [ [file, other...info ], ... ], # index by [fid]
@@ -2680,9 +2723,9 @@ load_profile_data_from_stream()
     unsigned int last_file_num = 0;
     unsigned int last_line_num = 0;
     int statement_discount = 0;
-    NV total_stmt_seconds = 0.0;
-    int total_stmt_measures = 0;
-    int total_stmt_discounts = 0;
+    NV total_stmts_duration = 0.0;
+    int total_stmts_measured = 0;
+    int total_stmts_discounted = 0;
     HV *profile_hv;
     HV* profile_modes = newHV();
     HV *live_pids_hv = newHV();
@@ -2695,6 +2738,11 @@ load_profile_data_from_stream()
     HV* sub_subinfo_hv = newHV();
     HV* sub_callers_hv = newHV();
     SV *tmp_str_sv = newSVpvn("",0);
+
+    /* these times don't reflect profile_enable & profile_disable calls */
+    NV profiler_start_time = 0.0;
+    NV profiler_end_time = 0.0;
+    NV profiler_duration = 0.0;
 
     av_extend(fid_fileinfo_av, 64);               /* grow it up front. */
     av_extend(fid_filecontents_av, 64);
@@ -2732,7 +2780,7 @@ load_profile_data_from_stream()
                 if (statement_discount)
                     warn("multiple statement discount after %u:%d\n", last_file_num, last_line_num);
                 ++statement_discount;
-                ++total_stmt_discounts;
+                ++total_stmts_discounted;
                 break;
             }
 
@@ -2804,8 +2852,8 @@ load_profile_data_from_stream()
                         warn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
                 }
 
-                total_stmt_measures++;
-                total_stmt_seconds += seconds;
+                total_stmts_measured++;
+                total_stmts_duration += seconds;
                 statement_discount = 0;
                 last_file_num = file_num;
                 break;
@@ -2985,10 +3033,15 @@ load_profile_data_from_stream()
                 unsigned int pid  = read_int();
                 unsigned int ppid = read_int();
                 int len = my_snprintf(text, sizeof(text), "%d", pid);
+                profiler_start_time = (file_minor >= 1) ? read_nv() : 0;
+
                 (void)hv_store(live_pids_hv, text, len, newSVuv(ppid), 0);
                 if (trace_level)
-                    warn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live)\n",
-                        text, ppid, HvKEYS(live_pids_hv));
+                    warn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live) at %"NVff"\n",
+                        text, ppid, HvKEYS(live_pids_hv), profiler_start_time);
+
+                store_attrib_sv(aTHX_ attr_hv, "profiler_start_time", newSVnv(profiler_start_time));
+
                 break;
             }
 
@@ -2997,12 +3050,19 @@ load_profile_data_from_stream()
                 char text[MAXPATHLEN*2];
                 unsigned int pid = read_int();
                 int len = my_snprintf(text, sizeof(text), "%d", pid);
+                profiler_end_time = (file_minor >= 1) ? read_nv() : 0;
+
                 if (!hv_delete(live_pids_hv, text, len, 0))
                     warn("Inconsistent pids in profile data (pid %d not introduced)",
                         pid);
                 if (trace_level)
-                    warn("End of profile data for pid %s, %"IVdf" remaining\n", text,
-                        HvKEYS(live_pids_hv));
+                    warn("End of profile data for pid %s (%"IVdf" remaining) at %"NVff"\n", text,
+                        HvKEYS(live_pids_hv), profiler_end_time);
+
+                store_attrib_sv(aTHX_ attr_hv, "profiler_end_time", newSVnv(profiler_end_time));
+                profiler_duration = profiler_end_time - profiler_start_time;
+                store_attrib_sv(aTHX_ attr_hv, "profiler_duration", newSVnv(profiler_duration));
+
                 break;
             }
 
@@ -3022,10 +3082,7 @@ load_profile_data_from_stream()
                 }
                 *value++ = '\0';
                 value_sv = newSVpvn(value, end-value);
-                (void)hv_store(attr_hv, text, (I32)strlen(text), value_sv, 0);
-                if (trace_level >= 2)
-                    /* includes \n */
-                    warn(": %s = '%s'\n", text, SvPV_nolen(value_sv));
+                store_attrib_sv(aTHX_ attr_hv, text, value_sv);
                 if ('t' == *text && strEQ(text, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)SvUV(value_sv);
                 }
@@ -3070,9 +3127,27 @@ load_profile_data_from_stream()
     sv_free((SV*)live_pids_hv);
     sv_free(tmp_str_sv);
 
-    if (trace_level >= 1)
-        warn("Statement totals: measured %d, discounted %d, time %"NVff"s\n",
-            total_stmt_measures, total_stmt_discounts, total_stmt_seconds);
+    store_attrib_sv(aTHX_ attr_hv, "total_stmts_measured",   newSVnv(total_stmts_measured));
+    store_attrib_sv(aTHX_ attr_hv, "total_stmts_discounted", newSVnv(total_stmts_discounted));
+    store_attrib_sv(aTHX_ attr_hv, "total_stmts_duration",   newSVnv(total_stmts_duration));
+
+    if (1) {
+        int show_summary_stats = (trace_level >= 1);
+
+        if (profiler_end_time && total_stmts_duration > profiler_duration * 1.1) {
+            warn("The sum of the statement timings is %.1f%% of the total time profiling."
+                 " (Values slightly over 100%% can be due simply to cumulative timing errors,"
+                 " whereas larger values can indicate a problem with the clock used.)\n",
+                total_stmts_duration / profiler_duration * 100);
+            show_summary_stats = 1;
+        }
+
+        if (show_summary_stats)
+            warn("Summary: statements profiled %d (%d-%d), sum of time %"NVff"s, profile spanned %"NVff"s\n",
+                total_stmts_measured-total_stmts_discounted,
+                total_stmts_measured, total_stmts_discounted,
+                total_stmts_duration, profiler_end_time-profiler_start_time);
+    }
 
     profile_hv = newHV();
     (void)hv_stores(profile_hv, "attribute",          newRV_noinc((SV*)attr_hv));

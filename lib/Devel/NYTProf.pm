@@ -334,14 +334,10 @@ reports (including statistics, source code and color highlighting)
 
 =head1 LIMITATIONS
 
-=head2 Only profiles code loaded after this module
-
-Loading via the perl -d option ensures it's loaded first.
-
 =head2 threads
 
 C<Devel::NYTProf> is not currently thread safe. If you'd be interested in
-helping us make it thread safe then please get in touch with us.
+helping to make it thread safe then please get in touch with us.
 
 =head2 For perl versions before 5.8.8 it may change what caller() returns
 
@@ -352,16 +348,11 @@ certain values from caller().  We're not quite sure what the cause is yet.
 =head2 Calls made via operator overloading
 
 Calls made via operator overloading are not noticed by any subroutine profiler.
+Though the statements executed by the code in the overload subs are profiled.
 
 =head2 goto
 
 The C<goto &$sub;> isn't recognised as a subroutine call by the subroutine profiler.
-
-=head2 Windows
-
-Currently there's no support for Windows. Some work is being done on a port.
-If you'd be interested in helping us port to Windows then please get in touch
-with us.
 
 =head2 #line directives
 
@@ -385,7 +376,7 @@ and disk I/O, for example.
 
 If your system doesn't support the C<clock=N> option then you could try
 using the C<usecputime=1> option. That will give you cpu-time measurements
-but only at a very low 1/00th of a second resolution.
+but only at a very low 1/100th of a second resolution.
 
 =head1 BUGS
 
@@ -479,7 +470,8 @@ to display all the extra profile call and timing data in richly annotated and
 cross-linked reports.
 
 Steve Peters came on board along the way with patches for portability and to
-keep NYTProf working with the latest development perl versions.
+keep NYTProf working with the latest development perl versions. Nicholas Clark
+added zip compression. Jan Dubois contributed Windows support.
 
 Adam's work is sponsored by The New York Times Co. L<http://open.nytimes.com>.
 Tim's work was partly sponsored by Shopzilla. L<http://www.shopzilla.com>.

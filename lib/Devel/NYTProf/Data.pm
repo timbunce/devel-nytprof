@@ -431,12 +431,14 @@ The data normalized is:
 sub normalize_variables {
     my $self       = shift;
 
-    $self->{attribute}{basetime}      = 0;
-    $self->{attribute}{xs_version}    = 0;
-    $self->{attribute}{perl_version}  = 0;
-    $self->{attribute}{clock_id}      = 0;
-    $self->{attribute}{ticks_per_sec} = 0;
-    $self->{attribute}{nv_size}       = 0;
+    for my $attr (qw(
+        basetime xs_version perl_version clock_id ticks_per_sec nv_size
+        profiler_duration profiler_end_time profiler_start_time
+        total_stmts_duration
+        total_stmts_measured total_stmts_discounted
+    )) {
+        $self->{attribute}{$attr} = 0;
+    }
 
     my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
 
