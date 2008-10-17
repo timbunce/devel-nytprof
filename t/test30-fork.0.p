@@ -1,26 +1,22 @@
-sub foo {
-  print "in sub foo\n";
-  bar();
+sub prefork {
+  print "in sub prefork\n";
+  other();
 }
 
-sub bar {
-  print "in sub bar\n";
+sub other {
+  print "in sub other\n";
 }
 
-sub baz {
-  print "in sub baz\n";
-  bar();
-  bar();
-  bar();
-  foo();
+sub postfork {
+  print "in sub postfork\n";
+  other();
 }
 
-bar();
+prefork();
 
 fork;
 
-bar();
-baz();
-foo();
+postfork();
+other();
 
 wait;
