@@ -138,9 +138,13 @@ Subroutine entry is detected by intercepting the entersub opcode. Subroutine
 exit is detected via perl's internal save stack. The result is both extremely
 fast and very robust.
 
-Note that subroutines that recurse directly or indirectly, such as Error::try,
-will show higher subroutine inclusive times because the time spent recuring
-will be double-counted. That may change in future.
+=head3 Subroutine Recursion
+
+For subroutines that recurse directly or indirectly, such as Error::try,
+the inclusive time is only measured for the outer-most call.
+
+The inclusive times of recursive calls are still measured and are accumulated
+separately. Also the 'maximum recursion depth' per calling location is recorded.
 
 =head2 Application Profiling
 
@@ -232,10 +236,10 @@ Set to 0 to disable the collection of subroutine caller and timing details.
 =head2 blocks=0
 
 Set to 0 to disable the determination of block and subroutine location per statement.
-This makes the profiler about 50% faster (as of July 2008) but you loose some
-valuable information. The extra cost is likely to be reduced in later versions
-anyway, as little optimization has been done on that part of the code.
-The profiler is fast enough that you shouldn't need to do this.
+This makes the profiler about 50% faster (as of July 2008) and produces smaller
+output files, but you loose some valuable information. The extra cost is likely
+to be reduced in later versions anyway, as little optimization has been done on
+that part of the code.
 
 =head2 leave=0
 

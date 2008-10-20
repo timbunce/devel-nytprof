@@ -169,7 +169,7 @@ static struct NYTP_int_options_t options[] = {
 #define usecputime options[0].option_value
     { "usecputime", 0 },
 #define profile_subs options[1].option_value
-    { "subs", 1 },                                /* sub *inclusive* times */
+    { "subs", 1 },                                /* subroutine times */
 #define profile_blocks options[2].option_value
     { "blocks", 1 },                              /* block and sub *exclusive* times */
 #define profile_leave options[3].option_value
@@ -1172,7 +1172,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
                     found->id, use_db_sub ? "" : ", set use_db_sub=1 option");
         }
 
-        if (trace_level) {
+        if (trace_level >= 2) {
             /* including last_executed_fid can be handy for tracking down how
              * a file got loaded */
             warn("New fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s%s\n",
@@ -1597,7 +1597,7 @@ DB_stmt(pTHX_ OP *op)
             output_int(last_block_line);
             output_int(last_sub_line);
         }
-        if (trace_level >= 3)
+        if (trace_level >= 4)
             warn("Wrote %d:%-4d %2u ticks (%u, %u)\n", last_executed_fid,
                 last_executed_line, elapsed, last_block_line, last_sub_line);
     }
@@ -1867,9 +1867,9 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     SV *incl_time_sv = *av_fetch(av, 1, 1);
     SV *excl_time_sv = *av_fetch(av, 2, 1);
     /* statement overheads we've accumulated since we entered the sub */
-    int overhead_ticks = (int)(cumulative_overhead_ticks - sub_call_start->current_overhead_ticks);
+    NV overhead_ticks = (int)(cumulative_overhead_ticks - sub_call_start->current_overhead_ticks);
     /* seconds spent in subroutines called by this subroutine */
-    NV called_sub_secs = (cumulative_subr_secs      - sub_call_start->current_subr_secs);
+    NV called_sub_secs = (cumulative_subr_secs - sub_call_start->current_subr_secs);
     NV incl_subr_sec;
     NV excl_subr_sec;
 
@@ -1880,20 +1880,25 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     else {
         time_of_day_t sub_end_time;
         unsigned int ticks, overflow;
+
         /* calculate ticks since we entered the sub */
         get_time_of_day(sub_end_time);
         get_ticks_between(sub_call_start->sub_call_time, sub_end_time, ticks, overflow);
-        ticks -= overhead_ticks;                  /* subtract statement measurement overheads */
-        incl_subr_sec = overflow + ticks / (NV)ticks_per_sec;
+        
+        incl_subr_sec = overflow + (ticks / (NV)ticks_per_sec);
+        /* subtract statement measurement overheads */
+        incl_subr_sec -= (overhead_ticks / (NV)ticks_per_sec);
+        /* exclusive = inclusive - time spent in subroutines called by this subroutine */
         excl_subr_sec = incl_subr_sec - called_sub_secs;
     }
 
     if (trace_level >= 3)
-        warn(" <-     %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (%"NVff"s @ %s, oh %g-%g=%dt) d%d\n",
+        warn(" <-     %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (sub %g-%g=%g, oh %g-%g=%gt) d%d @%s\n",
             SvPV_nolen(subname_sv), incl_subr_sec, called_sub_secs, excl_subr_sec,
-            SvNV(incl_time_sv)+incl_subr_sec, sub_call_start->fid_line,
-            cumulative_overhead_ticks, sub_call_start->current_overhead_ticks,
-            overhead_ticks, (int)sub_call_start->call_depth);
+            cumulative_subr_secs, sub_call_start->current_subr_secs, called_sub_secs,
+            cumulative_overhead_ticks, sub_call_start->current_overhead_ticks, overhead_ticks,
+            (int)sub_call_start->call_depth,
+            sub_call_start->fid_line);
 
     /* only count inclusive time for the outer-most calls */
     if (sub_call_start->call_depth <= 1) {
@@ -2295,7 +2300,7 @@ init_profiler(pTHX)
     }
 #endif
 
-    if (trace_level || profile_zero)
+    if (trace_level)
         warn("NYTProf init pid %d, clock %d%s\n", last_pid, profile_clock,
             profile_zero ? ", zero=1" : "");
 
@@ -2696,7 +2701,7 @@ static void
 store_attrib_sv(pTHX_ HV *attr_hv, char *text, SV *value_sv)
 {
     (void)hv_store(attr_hv, text, (I32)strlen(text), value_sv, 0);
-    if (trace_level >= 2)
+    if (trace_level >= 1)
         warn(": %s = '%s'\n", text, SvPV_nolen(value_sv));
 }
 
@@ -2871,7 +2876,7 @@ load_profile_data_from_stream()
                 unsigned int file_mtime    = read_int();
 
                 filename_sv = read_str(aTHX_ NULL);
-                if (trace_level) {
+                if (trace_level >= 2) {
                     warn("Fid %2u is %s (eval %u:%u) 0x%x sz%u mt%u\n",
                         file_num, SvPV_nolen(filename_sv), eval_file_num, eval_line_num,
                         fid_flags, file_size, file_mtime);
@@ -3101,7 +3106,7 @@ load_profile_data_from_stream()
                 if (NULL == NYTP_gets(in, text, sizeof(text)))
                     /* probably EOF */
                     croak("Profile format error reading comment");
-                if (trace_level >= 2)
+                if (trace_level >= 1)
                     warn("# %s", text);           /* includes \n */
                 break;
             }
@@ -3249,7 +3254,7 @@ _INIT()
     }
     else if (profile_start == NYTP_START_END) {
         SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
-        if (trace_level >= 2)
+        if (trace_level >= 1)
             warn("enable_profile defered until END");
         av_unshift(PL_endav, 1);  /* we want to be first */
         av_store(PL_endav, 0, SvREFCNT_inc(enable_profile_sv));
