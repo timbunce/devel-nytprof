@@ -25,6 +25,8 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
   The html global subroutine index pages no longer list subs that
     were never called.
+  Exclusive and Inclusive time column positions have been switched
+    to be consistent with how the times are presented elsewhere.
 
   Removed use of vfscanf() to improve portability to Windows
     and old unix systems, thanks to Jan Dubois.

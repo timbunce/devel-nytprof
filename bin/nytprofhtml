@@ -168,8 +168,8 @@ sub subroutine_table {
         <th>Calls</th>
         <th><span title="Number of Places sub is called from">P</span></th>
         <th><span title="Number of Files sub is called from">F</span></th>
-        <th>Inclusive<br />Time</th>
         <th>Exclusive<br />Time</th>
+        <th>Inclusive<br />Time</th>
         <th colspan=2 class="left_indent_header">Subroutine</th>
         </tr>
     };
@@ -185,8 +185,8 @@ sub subroutine_table {
         $sub_links .= determine_severity(undef, $sub->calls        || 0, $dev_calls);
         $sub_links .= determine_severity(undef, $sub->caller_count || 0, $dev_call_count);
         $sub_links .= determine_severity(undef, $sub->caller_fids  || 0, $dev_call_fids);
-        $sub_links .= determine_severity(undef, $sub->incl_time    || 0, $dev_incl_time);
         $sub_links .= determine_severity(undef, $sub->excl_time    || 0, $dev_excl_time);
+        $sub_links .= determine_severity(undef, $sub->incl_time    || 0, $dev_incl_time);
 
         # package and subname
         my $subname = $sub->subname;
