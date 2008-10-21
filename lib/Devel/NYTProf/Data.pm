@@ -91,6 +91,43 @@ sub new {
     (my $sub_class = $class) =~ s/\w+$/ProfSub/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
+
+    # migrate sub calls made from evals to be calls from the base fid
+    #
+    # map of { eval_fid => base_fid, ... }
+    my $eval_fid_map = $profile->eval_fid_map;
+    # map of { fid => { subs called from fid... }, ... }
+    my $fid_sub_calls_map = $profile->fid_sub_calls_map;
+    #
+    while ( my ($eval_fid, $base_fid) = each %$eval_fid_map ) {
+        my $subnames = $fid_sub_calls_map->{$eval_fid}
+            or next; # no subs called from this eval fid
+
+        # drill thru string-evals-within-string-evals
+        $base_fid = $eval_fid_map->{$base_fid}
+            while $eval_fid_map->{$base_fid};
+
+        my $line_of_eval = $profile->fileinfo_of($eval_fid)->eval_line;
+        warn "Migrating sub calls from eval fid $eval_fid to fid $base_fid line $line_of_eval: @$subnames\n"
+            if $trace;
+
+        my $sub_caller = $profile->{sub_caller};
+        for my $subname (@$subnames) {
+
+            my $eval_calls = delete $sub_caller->{$subname}{$eval_fid}
+                or die "panic";
+            my $base_calls =        $sub_caller->{$subname}{$base_fid} ||= {};
+
+            warn "merged $subname calls from fid $eval_fid to $base_fid\n";
+            while ( my ($line_in_eval, $eval_line_calls) = each %$eval_calls ) {
+                my $e = $eval_calls->{$line_in_eval};
+                my $b = $base_calls->{$line_of_eval} ||= [ (0) x @$e ];
+                $b->[$_] += $e->[$_] for (0..@$e-1);
+            }
+        }
+    }
+    $profile->_clear_caches;
+
     # XXX merge evals - should become a method optionally called here
     # (which uses other methods to do the work and those methods
     # should also be called by Devel::NYTProf::ProfSub::callers())
@@ -153,9 +190,13 @@ sub new {
             }
         }
     }
+    $profile->_clear_caches;
 
     return $profile;
 }
+
+sub _caches       { return shift->{caches} ||= {} }
+sub _clear_caches { return delete shift->{caches} }
 
 sub all_subinfos {
     my @all = values %{ shift->{sub_subinfo} };
@@ -186,6 +227,30 @@ sub fileinfo_of {
     }
 
     return $self->{fid_fileinfo}[$fid];
+}
+
+sub eval_fid_map {
+    my $self = shift;
+    my $fid_fileinfo = $self->{fid_fileinfo} || [];
+    my $eval_fid_map = {};
+    for my $fileinfo (@$fid_fileinfo) {
+        my $base_fid = $fileinfo && $fileinfo->eval_fid
+            or next;
+        $eval_fid_map->{ $fileinfo->fid } = $base_fid;
+    }
+    return $eval_fid_map;
+}
+
+sub fid_sub_calls_map {
+    my $self = shift;
+    my $sub_caller = $self->{sub_caller} || {};
+    my $fid_sub_calls_map = {};
+    while ( my ($subname, $fid_hash) = each %$sub_caller ) {
+        for my $fid (keys %$fid_hash) {
+            push @{ $fid_sub_calls_map->{$fid} }, $subname;
+        }
+    }
+    return $fid_sub_calls_map;
 }
 
 
@@ -291,6 +356,7 @@ sub dump_profile_data {
     my $filehandle = $args->{filehandle} || \*STDOUT;
     my $startnode  = $args->{startnode} || $self;       # undocumented
     croak "Invalid startnode" unless ref $startnode;
+    $self->_clear_caches;
     _dump_elements($startnode, $separator, $filehandle, []);
 }
 
@@ -401,10 +467,7 @@ sub remove_internal_data_of {
         }
     }
 
-    # remove sub_caller info for calls made from within this file
-    if (my $sub_caller = $self->{sub_caller}) {
-        delete $_->{$fid} for values %$sub_caller;
-    }
+    $fileinfo->delete_subs_called_info;
 }
 
 
@@ -532,7 +595,8 @@ sub _zero_array_elem {
 
 sub _filename_to_fid {
     my $self = shift;
-    return $self->{_filename_to_fid_cache} ||= do {
+    my $caches = $self->_caches;
+    return $caches->{_filename_to_fid_cache} ||= do {
         my $fid_fileinfo = $self->{fid_fileinfo} || [];
         my $filename_to_fid = {};
         for my $fid (1 .. @$fid_fileinfo - 1) {
@@ -552,7 +616,7 @@ Returns a reference to a hash containing information about subroutines defined
 in a source file.  The $file argument can be an integer file id (fid) or a file
 path. If $file is 0 then details for all known subroutines are returned.
 
-Returns undef if the profile contains no C<sub_caller> data for the $file.
+Returns undef if the profile contains no C<sub_subinfo> data for the $file.
 
 The keys of the returned hash are fully qualified subroutine names and the
 corresponding value is a hash reference containing L<Devel::NYTProf::ProfSub>
@@ -565,15 +629,15 @@ subroutines defined on that line, typically just one.
 
 =cut
 
-
 sub subs_defined_in_file {
     my ($self, $fid, $incl_lines) = @_;
     $fid = $self->resolve_fid($fid);
     $incl_lines ||= 0;
     $incl_lines = 0 if $fid == 0;
+    my $caches = $self->_caches;
 
     my $cache_key = "_cache:subs_defined_in_file:$fid:$incl_lines";
-    return $self->{$cache_key} if $self->{$cache_key};
+    return $caches->{$cache_key} if $caches->{$cache_key};
 
     my $sub_subinfo = $self->{sub_subinfo}
         or return;
@@ -593,8 +657,8 @@ sub subs_defined_in_file {
         }
     }
 
-    $self->{$cache_key} = \%subs;
-    return $self->{$cache_key};
+    $caches->{$cache_key} = \%subs;
+    return $caches->{$cache_key};
 }
 
 
@@ -787,12 +851,14 @@ sub line_calls_for_file {
         or return;
 
     my $line_calls = {};
-    while (my ($sub, $fid_hash) = each %$sub_caller) {
+    # search through all subs to find those that were called
+    # from the fid we're interested in
+    while (my ($subname, $fid_hash) = each %$sub_caller) {
         my $line_calls_hash = $fid_hash->{$fid}
             or next;
 
         while (my ($line, $calls) = each %$line_calls_hash) {
-            $line_calls->{$line}{$sub} = $calls;
+            $line_calls->{$line}{$subname} = $calls;
         }
 
     }
@@ -810,6 +876,11 @@ sub package_fids {
     return $fids[0];
 }
 
+
+sub _dumper {
+    require Data::Dumper;
+    return Data::Dumper::Dumper(@_);
+}
 
 ## --- will move out to separate files later ---
 # for now these are viewed as private classes
@@ -888,6 +959,17 @@ sub package_fids {
         $values[0] = $self->filename_without_inc;
         pop @values;    # remove profile ref
         return \@values;
+    }
+
+    sub delete_subs_called_info {
+        my $self = shift;
+        my $profile = $self->profile;
+        my $sub_caller = $profile->{sub_caller}
+            or return;
+        my $fid = $self->fid;
+        # remove sub_caller info for calls made *from within* this file
+        delete $_->{$fid} for values %$sub_caller;
+        return;
     }
 
 }    # end of package

@@ -11,6 +11,10 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
   Now builds on Windows, with thanks to Jan Dubois!
 
+  Subroutine calls made from within string evals (and even
+    string evals within string evals etc) are now shown
+    in reports.
+
   XS subs (xsubs) are now automatically associated with a source
     file that defines normal subs in the same package.
   Callers and timing information for xsubs are now shown at the
