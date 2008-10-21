@@ -40,7 +40,7 @@ my %opt = (
     file => 'nytprof.out',
     out  => 'nytprof',
 );
-GetOptions(\%opt, qw/file|f=s delete|d out|o=s lib|l=s help|h/) or exit 1;
+GetOptions(\%opt, qw/file|f=s delete|d out|o=s lib|l=s help|h open/) or exit 1;
 
 if (defined($opt{help})) {
     &usage;
@@ -365,6 +365,13 @@ output_indexpage($reporter, "index.html");
 
 output_js_files($reporter);
 
+if ($opt{open}) {
+    # only useful on systems with an 'open' command
+    # XXX could get fancy and look for firefox -remote command etc
+    system("open", "$opt{out}/index.html");
+}
+
+exit 0;
 
 #
 # SUBROUTINES

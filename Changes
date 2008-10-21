@@ -6,34 +6,42 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 2.06
 
+Core:
+
   NOTE: The file format has changed. Files from 2.04 and 2.05
   can still be read by this version.
 
   Now builds on Windows, with thanks to Jan Dubois!
 
-  Subroutine calls made from within string evals (and even
-    string evals within string evals etc) are now shown
-    in reports.
+  Removed use of vfscanf() to improve portability to Windows
+    and old unix systems, thanks to Jan Dubois.
 
-  XS subs (xsubs) are now automatically associated with a source
-    file that defines normal subs in the same package.
-  Callers and timing information for xsubs are now shown at the
-    bottom of the corresponding source file.
-  References to xsubs in reports now include a working link.
+  The profiler takes more care to avoid changing $!.
 
   Subroutine inclusive time no longer counts time
     spent recursed into the same subroutine. That time is
     now recorded separately, along with the max recursion depth.
 
-  The profiler takes more care to avoid changing $!.
+Reports:
+
+  Subroutine calls made within string evals are now shown in reports.
+  Subroutine caller details now includes calls from within string evals.
+
+  XS subs (xsubs) are now automatically associated with a source
+    file that defines normal subs in the same package.
+  Callers and timing information for xsubs are now shown at the
+    bottom of the corresponding source file.
+  References to xsubs in reports now include a working link
+    if the xsub is in a package that contains perl code.
 
   The html global subroutine index pages no longer list subs that
     were never called.
+
   Exclusive and Inclusive time column positions have been switched
     to be consistent with how the times are presented elsewhere.
 
-  Removed use of vfscanf() to improve portability to Windows
-    and old unix systems, thanks to Jan Dubois.
+  nytprofhtml includes a -open option to open the generated html
+    (requires an external 'open' command)
 
 =head2 Changes in Devel::NYTProf 2.05 (svn r498) 8th Oct 2008
 

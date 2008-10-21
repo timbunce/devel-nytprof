@@ -301,3 +301,9 @@ the embeded source array, if available, else hunts for and loads current source 
 
 Bug or limitation?: sub calls in a continue { ... } block of a while () get
 associated with the 'next;' within the loop.
+Also, test sub caller location for
+	while ( foo() ) {	 # all calls to foo should be from here
+		...
+		... # no calls to foo() should appear here
+	}
+
