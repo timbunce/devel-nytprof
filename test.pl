@@ -65,7 +65,12 @@ chdir('t') if -d 't';
 
 my $tests_per_extn = {p => 1, rdt => 1, x => 3};
 
-s:^t/:: for @ARGV;    # allow args to use t/ prefix
+@ARGV = map {
+   s:^t/::;        # allow args to use t/ prefix
+   s:^(\d)$:0$1:;  # allow single digit tests
+   s:^(\d+)$:test$1:;  # can skip test prefix
+   $_ =~ /\./ ? $_ : <$_.*>
+} @ARGV;
 
 # *.p   = perl code to profile
 # *.rdt = result tsv data dump to verify
