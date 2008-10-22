@@ -983,15 +983,11 @@ nytprofhtml - Generate reports from Devel::NYTProf data
 Typical usage:
 
  $ perl -d:NYTProf some_perl_app.pl
-
- $ nytprofhtml
- Generating HTML Output...
-
- $ open nytprof/index.html
+ $ nytprofhtml --open
 
 Options synopsis:
 
- $ nytprofhtml [-h] [-d] [-o <output directory>] [-f <input file>]
+ $ nytprofhtml [-h] [-d] [-o <output directory>] [-f <input file>] [--open]
 
 =head1 DESCRIPTION
 
@@ -1034,6 +1030,10 @@ Purge any existing contents of the report output directory.
 
 Add a path to the beginning of @INC to help nytprofhtml find the source files
 used by the code. Should not be needed in practice.
+
+=item --open
+
+Make your web browser visit the report after it has been generated.
 
 =item -h, --help
 
