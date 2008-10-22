@@ -155,9 +155,9 @@ SKIP: {
             verify_csv_report($test, $test_datafile, $outdir);
 
             if ($opts{html}) {
-                run_command("$perl $nytprofhtml --file=$profile_datafile --out=$outdir");
-                run_command("open $outdir/*.html")
-                    if $opts{open};    # possibly only useful on OS X
+                my $cmd = "$perl $nytprofhtml --file=$profile_datafile --out=$outdir";
+                $cmd .= " --open" if $opts{open};
+                run_command($cmd);
             }
         }
         else {
