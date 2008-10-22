@@ -38,6 +38,7 @@ GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i
     or exit 1;
 
 $opts{v} ||= $opts{d};
+$opts{html} ||= $opts{open};
 
 my $opt_perl         = $opts{p};
 my $opt_include      = $opts{I};
