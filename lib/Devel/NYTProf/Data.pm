@@ -91,42 +91,7 @@ sub new {
     (my $sub_class = $class) =~ s/\w+$/ProfSub/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
-
-    # migrate sub calls made from evals to be calls from the base fid
-    #
-    # map of { eval_fid => base_fid, ... }
-    my $eval_fid_map = $profile->eval_fid_map;
-    # map of { fid => { subs called from fid... }, ... }
-    my $fid_sub_calls_map = $profile->fid_sub_calls_map;
-    #
-    while ( my ($eval_fid, $base_fid) = each %$eval_fid_map ) {
-        my $subnames = $fid_sub_calls_map->{$eval_fid}
-            or next; # no subs called from this eval fid
-
-        # drill thru string-evals-within-string-evals
-        $base_fid = $eval_fid_map->{$base_fid}
-            while $eval_fid_map->{$base_fid};
-
-        my $line_of_eval = $profile->fileinfo_of($eval_fid)->eval_line;
-        warn "Migrating sub calls from eval fid $eval_fid to fid $base_fid line $line_of_eval: @$subnames\n"
-            if $trace;
-
-        my $sub_caller = $profile->{sub_caller};
-        for my $subname (@$subnames) {
-
-            my $eval_calls = delete $sub_caller->{$subname}{$eval_fid}
-                or die "panic";
-            my $base_calls =        $sub_caller->{$subname}{$base_fid} ||= {};
-
-            warn "merged $subname calls from fid $eval_fid to $base_fid\n";
-            while ( my ($line_in_eval, $eval_line_calls) = each %$eval_calls ) {
-                my $e = $eval_calls->{$line_in_eval};
-                my $b = $base_calls->{$line_of_eval} ||= [ (0) x @$e ];
-                $b->[$_] += $e->[$_] for (0..@$e-1);
-            }
-        }
-    }
-    $profile->_clear_caches;
+    $profile->_migrate_sub_callers_from_eval_fids;
 
     # XXX merge evals - should become a method optionally called here
     # (which uses other methods to do the work and those methods
@@ -566,6 +531,48 @@ sub normalize_variables {
     }
 
     return;
+}
+
+
+sub _migrate_sub_callers_from_eval_fids {
+    my $self = shift;
+
+    # migrate sub calls made from evals to be calls from the base fid
+    #
+    # map of { eval_fid => base_fid, ... }
+    my $eval_fid_map = $self->eval_fid_map;
+    # map of { fid => { subs called from fid... }, ... }
+    my $fid_sub_calls_map = $self->fid_sub_calls_map;
+    #
+    while ( my ($eval_fid, $base_fid) = each %$eval_fid_map ) {
+        my $subnames = $fid_sub_calls_map->{$eval_fid}
+            or next; # no subs called from this eval fid
+
+        # drill thru string-evals-within-string-evals
+        $base_fid = $eval_fid_map->{$base_fid}
+            while $eval_fid_map->{$base_fid};
+
+        my $line_of_eval = $self->fileinfo_of($eval_fid)->eval_line;
+        warn "Migrating sub calls from eval fid $eval_fid to fid $base_fid line $line_of_eval: @$subnames\n"
+            if $trace;
+
+        my $sub_caller = $self->{sub_caller};
+        for my $subname (@$subnames) {
+
+            my $eval_calls = delete $sub_caller->{$subname}{$eval_fid}
+                or die "panic";
+            my $base_calls =        $sub_caller->{$subname}{$base_fid} ||= {};
+
+            warn "merged $subname calls from fid $eval_fid to $base_fid\n"
+                if $trace;
+            while ( my ($line_in_eval, $eval_line_calls) = each %$eval_calls ) {
+                my $e = $eval_calls->{$line_in_eval};
+                my $b = $base_calls->{$line_of_eval} ||= [ (0) x @$e ];
+                $b->[$_] += $e->[$_] for (0..@$e-1);
+            }
+        }
+    }
+    $self->_clear_caches;
 }
 
 
