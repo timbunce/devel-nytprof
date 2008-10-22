@@ -24,6 +24,10 @@ Core:
 
 Reports:
 
+  Fixed significant error in time reported as spent in a subroutine,
+    which was showing the sum of the inclusive and exclusive time
+    instead of just the inclusive time.
+
   Subroutine calls made within string evals are now shown in reports.
   Subroutine caller details now includes calls from within string evals.
 

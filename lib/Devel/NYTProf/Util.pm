@@ -152,7 +152,7 @@ sub fmt_incl_excl_time {
     my ($incl, $excl) = @_;
     my $diff = $incl - $excl;
     return fmt_float($incl) . "s" unless $diff;
-    return sprintf "%ss (%s+%s)", fmt_float($incl + $excl), fmt_float($excl),
+    return sprintf "%ss (%s+%s)", fmt_float($incl), fmt_float($excl),
         fmt_float($incl - $excl);
 }
 
