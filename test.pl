@@ -99,7 +99,7 @@ if ($opts{v}) {
 }
 
 # Windows emulates the executable bit based on file extension only
-ok($^O eq "MSWin32" ? -f $nytprofcsv : -x $nytprofcsv, "Where's nytprofcsv?");
+ok($^O eq "MSWin32" ? -f $nytprofcsv : -x $nytprofcsv, "Found nytprofcsv as $nytprofcsv");
 
 # run all tests in various configurations
 for my $leave (@test_opt_leave) {
@@ -115,7 +115,7 @@ for my $leave (@test_opt_leave) {
 
 sub run_all_tests {
     my ($env) = @_;
-    print "Running tests with options: { @{[ %$env ]} }\n";
+    print "# Running tests with options: { @{[ %$env ]} }\n";
     for my $test (@tests) {
         run_test($test, $env);
     }
@@ -193,7 +193,7 @@ sub profile {
     my ($test, $profile_datafile) = @_;
 
     my $cmd = "$perl $opts{profperlopts} $test";
-    ok run_command($cmd), "$test should run ok";
+    ok run_command($cmd), "$test runs ok under the profiler";
 }
 
 
@@ -212,7 +212,7 @@ sub verify_data {
     my @got      = slurp_file("$test.new");
     my @expected = slurp_file($test);
 
-    is_deeply(\@got, \@expected, $test)
+    is_deeply(\@got, \@expected, "$test match generated profile data")
         ? unlink("$test.new")
         : diff_files($test, "$test.new");
 }
@@ -268,7 +268,7 @@ sub verify_csv_report {
     unlink $csvfile;
 
     my $cmd = "$perl $nytprofcsv --file=$profile_datafile --out=$outdir";
-    ok run_command($cmd), "generate csv ok";
+    ok run_command($cmd), "nytprofcsv runs ok";
 
     my @got      = slurp_file($csvfile);
     my @expected = slurp_file($test);
@@ -335,11 +335,11 @@ sub verify_csv_report {
         print "\n";
     }
 
-    is_deeply(\@got, \@expected, $test) or do {
+    is_deeply(\@got, \@expected, "$test match generated CSV data") or do {
         spit_file("$test.new", join("", @got));
         diff_files($test, "$test.new");
     };
-    is(join("\n", @accuracy_errors), '', $test);
+    is(join("\n", @accuracy_errors), '', "$test has no accuracy errors");
 }
 
 
