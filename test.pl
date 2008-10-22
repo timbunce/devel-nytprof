@@ -165,10 +165,11 @@ SKIP: {
                 run_command($cmd);
             }
         }
-        else {
-            warn "Unrecognized extension '$type' on test file '$test'\n"
-                unless $type eq 'new'
-                or $type     eq 'outdir';    # handy for "test.pl t/test01.*"
+	elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
+	    # skip; handy for "test.pl t/test01.*"
+	}
+	else {
+            warn "Unrecognized extension '$type' on test file '$test'\n";
         }
     }
 }
