@@ -365,11 +365,7 @@ output_indexpage($reporter, "index.html");
 
 output_js_files($reporter);
 
-if ($opt{open}) {
-    # only useful on systems with an 'open' command
-    # XXX could get fancy and look for firefox -remote command etc
-    system("open", "$opt{out}/index.html");
-}
+browse("$opt{out}/index.html") if $opt{open};
 
 exit 0;
 
@@ -457,6 +453,65 @@ sub output_js_files {
         copy($src, "$opt{out}/$file")
             or warn "Unable to copy $src to $opt{out}/$file: $!";
     }
+}
+
+
+sub browse {
+    my $index = shift;
+    if (eval { require ActiveState::Browser; 1 }) {
+        ActiveState::Browser::open($index);
+    }
+    else {
+        my $BROWSER;
+        if ($^O eq "MSWin32") {
+            $BROWSER = "start %s";
+        }
+        elsif ($^O eq "darwin") {
+            $BROWSER = "/usr/bin/open %s";
+        }
+        else {
+            my @try = qw(xdg-open);
+            if ($ENV{BROWSER}) {
+                push(@try, split(/:/, $ENV{BROWSER}));
+            }
+            else {
+                push(@try, qw(firefox galeon mozilla opera netscape));
+            }
+            unshift(@try, "kfmclient") if $ENV{KDE_FULL_SESSION};
+            unshift(@try, "gnome-open") if $ENV{GNOME_DESKTOP_SESSION_ID};
+            for (@try) {
+                if (have_prog($_)) {
+                    if ($_ eq "kfmclient") {
+                        $BROWSER .= " openURL %s";
+                    }
+                    elsif ($_ eq "gnome-open" || $_ eq "opera") {
+                        $BROWSER = "$_ %s";
+                    }
+                    else {
+                        $BROWSER = "$_ %s &";
+                    }
+                    last;
+                }
+            }
+        }
+        if ($BROWSER) {
+            (my $cmd = $BROWSER) =~ s/%s/"$index"/;
+            #warn "Running $cmd\n";
+            system($cmd);
+        }
+        else {
+            warn "Don't know how to invoke your web browser.\nPlease visit $index yourself!\n";
+        }
+    }
+}
+
+
+sub have_prog {
+    my $prog = shift;
+    for (split(":", $ENV{PATH})) {
+        return 1 if -x "$_/$prog";
+    }
+    return 0;
 }
 
 
