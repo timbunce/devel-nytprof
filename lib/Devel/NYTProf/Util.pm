@@ -161,7 +161,18 @@ sub fmt_incl_excl_time {
     my ($incl, $excl) = @_;
     my $diff = $incl - $excl;
     return fmt_time($incl) unless $diff;
-    return sprintf "%s (%s+%s)", fmt_time($incl), fmt_time($excl), fmt_time($diff);
+    $_ = fmt_time($_) for $incl, $excl, $diff;
+    if ($incl =~ /(\D+)$/) {
+	# no need to repeat the unit if it's the same for all time stamps
+	my $unit = $1;
+	my $offset = -length($unit);
+	for ($excl, $diff) {
+	    if (/(\D+)$/) {
+		substr($_, $offset) = "" if $1 eq $unit
+	    }
+	}
+    }
+    return sprintf "%s (%s+%s)", $incl, $excl, $diff;
 }
 
 

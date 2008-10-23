@@ -1,6 +1,6 @@
-use Test::More tests => 15;
+use Test::More tests => 20;
 
-use Devel::NYTProf::Util qw(fmt_time);
+use Devel::NYTProf::Util qw(fmt_time fmt_incl_excl_time);
 
 my $us = "&micro;s";
 
@@ -20,3 +20,10 @@ is(fmt_time(1.1253e-0), "1.13s");
 is(fmt_time(1.1253e+1), "11.3s");
 is(fmt_time(1.1253e+2), "113s");
 is(fmt_time(1.1253e+3), "1125s");
+
+is(fmt_incl_excl_time(3, 3), "3.00s");
+is(fmt_incl_excl_time(3, 2), "3.00s (2.00+1.00)");
+is(fmt_incl_excl_time(3, 2.997), "3.00s (3.00+3.00ms)");
+is(fmt_incl_excl_time(0.1, 0.0997), "100ms (99.7+300$us)");
+is(fmt_incl_excl_time(1.1e-5, 3.5e-6), "11$us (4+8)");
+
