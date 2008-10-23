@@ -279,11 +279,11 @@ $reporter->set_param(
                 my $max_calls = max(@caller_calls);
                 my $avg_per_call = fmt_float($sub_info->incl_time / $total_calls);
 
-                push @prologue, sprintf "# spent %s within %s which was called%s:",
+                push @prologue, sprintf "# spent %s within %s which was called%s",
                     fmt_incl_excl_time($sub_info->incl_time, $sub_info->excl_time),
                     $sub_info->subname, ($total_calls <= 1)
                     ? ""
-                    : " $total_calls times, avg ${avg_per_call}s/call";
+                    : " $total_calls times, avg ${avg_per_call}s/call:";
 
                 # order by most frequent caller first
                 @callers = sort { $b->[2] <=> $a->[2] } @callers;
@@ -307,6 +307,7 @@ $reporter->set_param(
                         sprintf q{# %*s times%s%s at <a href="%s#%d">line %d</a> of %s%s},
                         length($max_calls), $count, $times, $subname, "$href.html", $line, $line,
                         $caller_filename, $avg_time;
+		    $prologue[-1] =~ s/^# 1 times/#    once/;  # better English
                 }
             }
             my $prologue = '';
@@ -326,8 +327,9 @@ $reporter->set_param(
 
                 $epilogue = join "\n", map {
                     my ($count, $incl_time, $reci_time, $rec_depth) = (@{$calls->{$_}})[0,1,5,6];
-                    my $html = sprintf qq{%s# spent %ss making %*d calls to }, $ws,
-                        fmt_float($incl_time+$reci_time), length($max_calls_to), $count;
+                    my $html = sprintf qq{%s# spent %ss making %*d call%s to }, $ws,
+                        fmt_float($incl_time+$reci_time), length($max_calls_to),
+		        $count, $count == 1 ? "" : "s";
                     $html .= sprintf qq{<a %s>%s</a>}, $reporter->href_for_sub($_), $_;
                     $html .= sprintf qq{, avg %ss/call}, fmt_float($incl_time / $count)
                         if $count > 1;
