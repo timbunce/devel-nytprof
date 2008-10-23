@@ -1,4 +1,4 @@
-# vim: ts=2 sw=2 sts=0 noexpandtab:
+# vim: ts=8 sw=2 sts=0 noexpandtab:
 # $Id$
 
 HACKING Devel::NYTProf
@@ -53,20 +53,20 @@ Writing tests is easy!
 3) Create a corresponding CSV output file if appropriate.
    You can use the same trick of creating an empty file, but this
    time with a .x suffix: t/test##-description.x
-	 You still need to verify the .x.new file of course!
+   You still need to verify the .x.new file of course!
 
 Note:  While writing a test, it is helpful to be able to run it directly, 
-			without the test harness.  This allows you to view more output stdout and 
-			stderr.  Fortunately, its easy to do:
+      without the test harness.  This allows you to view more output stdout and 
+      stderr.  Fortunately, its easy to do:
 
-			perl -Mblib -MDevel::NYTProf t/test01.p
+      perl -Mblib -MDevel::NYTProf t/test01.p
 
-			The output will be in the ./nytprof.out file.
-			You can then also run the csv manually:
+      The output will be in the ./nytprof.out file.
+      You can then also run the csv manually:
 
-			perl -Mblib bin/nytprofcsv
+      perl -Mblib bin/nytprofcsv
 
-			The final file will be in ./nytprof/test01.p.csv
+      The final file will be in ./nytprof/test01.p.csv
 
 Remember, testing is VERY VERY important!  Within a day or two of releasing
 code, the CPAN testers will test the release on pretty much every major platform
@@ -129,10 +129,10 @@ Add actual size and mtime of fid to data file. (Already in data file as zero,
 just needs the stat() call.) Don't alter errno.
 
 Intercept all opcodes that may fork and run perl code in the child
-	ie fork, open, entersub (ie xs), others?
-	and fflush before executing the op (so fpurge isn't strictly required)
+  ie fork, open, entersub (ie xs), others?
+  and fflush before executing the op (so fpurge isn't strictly required)
   and reinit_if_forked() afterwards
-	add option to force reinit_if_forked check per stmt just-in-case
+  add option to force reinit_if_forked check per stmt just-in-case
 Alternatively it might be better to use pthread_atfork() [if available] with a
 child handler. The man page says "Remember: only async-cancel-safe functions
 are allowed on the child side of fork()" so it seems that the safe thing to do
@@ -145,8 +145,8 @@ Add constants to Data.pm for the array indexes
 0=time_spent, 1=exe_count, 2=eval_line_data, etc
 
 Support profiling programs which use threads:
-	- move all relevant globals into a structure
-	- add lock around output to file
+  - move all relevant globals into a structure
+  - add lock around output to file
 
 We now save eval strings (from @{"_<$filename"}, see perldoc perldebguts)
 but it requires use_db_subs=1 due to perl internals. Currently unused.
@@ -302,8 +302,8 @@ the embeded source array, if available, else hunts for and loads current source 
 Bug or limitation?: sub calls in a continue { ... } block of a while () get
 associated with the 'next;' within the loop.
 Also, test sub caller location for
-	while ( foo() ) {	 # all calls to foo should be from here
-		...
-		... # no calls to foo() should appear here
-	}
+  while ( foo() ) {  # all calls to foo should be from here
+    ...
+    ... # no calls to foo() should appear here
+  }
 

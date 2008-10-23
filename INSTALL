@@ -1,4 +1,4 @@
-# vim: ts=2 sw=2 sts=0 noexpandtab:
+# vim: ts=8 sw=2 sts=0 noexpandtab:
 # $Id$
 
 Devel::NYTProf Installation Notes

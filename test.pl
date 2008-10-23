@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# vim: ts=2 sw=2 sts=0 noexpandtab:
+# vim: ts=8 sw=2 sts=0 noexpandtab:
 ##########################################################
 ## This script is part of the Devel::NYTProf distribution
 ##
@@ -407,4 +407,4 @@ sub unlink_old_profile_datafiles {
 }
 
 
-# vim:ts=2:sw=2
+# vim:ts=8:sw=2

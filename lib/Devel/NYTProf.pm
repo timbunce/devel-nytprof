@@ -1,4 +1,4 @@
-# vim: ts=2 sw=2 sts=0 noexpandtab:
+# vim: ts=8 sw=2 sts=0 noexpandtab:
 ##########################################################
 ## This script is part of the Devel::NYTProf distribution
 ##
@@ -166,7 +166,7 @@ taken to ensure it's very efficient.
 
 Just add one line near the start of your httpd.conf file:
 
-	PerlModule Devel::NYTProf::Apache
+ PerlModule Devel::NYTProf::Apache
 
 By default you'll get a F</tmp/nytprof.$$.out> file for the parent process and
 a F</tmp/nytprof.$parent.out.$$> file for each worker process.
@@ -193,7 +193,7 @@ and then just perl -d would work:
 
 Or you can avoid the need to add the -d option at all by using the C<PERL5OPT> env var:
 
-  PERL5OPT=-d:NYTProf
+ PERL5OPT=-d:NYTProf
 
 That's also very handy when you can't alter the perl command line being used to
 run the script you want to profile.
