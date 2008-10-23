@@ -185,7 +185,6 @@ PERLTIDY=perltidy --profile=.perltidyrc -nst -b
 perltidy:
 	$(PERLTIDY) bin/nytprofhtml bin/nytprofcsv
 	$(PERLTIDY) lib/Devel/NYTProf.pm lib/Devel/NYTProf/*.pm
-	$(PERLTIDY) test.pl
 
 # the XS portion of the file will be mangled and require manual fixup
 ctidy_bcpp:
