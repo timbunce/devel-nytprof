@@ -44,7 +44,7 @@ our $VERSION = '2.05';
 
 our @EXPORT_OK = qw(
     fmt_float
-    fmt_incl_excl_time
+    fmt_time fmt_incl_excl_time
     strip_prefix_from_paths
     calculate_median_absolute_deviation
     get_alternation_regex
@@ -147,13 +147,21 @@ sub fmt_float {
     return $val;
 }
 
+sub fmt_time {
+    my $sec = shift;
+    return 0 unless $sec;
+    return sprintf "%.0fns", $sec * 1e9                              if $sec < 1e-6;
+    return sprintf "%.0f&micro;s", $sec * 1e6                        if $sec < 1e-3;
+    return sprintf "%.*fms", 3 - length(int($sec * 1e3)), $sec * 1e3 if $sec < 1;
+    return sprintf "%.*fs",  3 - length(int($sec)),       $sec       if $sec < 100;
+    return sprintf "%.0fs", $sec;
+}
 
 sub fmt_incl_excl_time {
     my ($incl, $excl) = @_;
     my $diff = $incl - $excl;
-    return fmt_float($incl) . "s" unless $diff;
-    return sprintf "%ss (%s+%s)", fmt_float($incl), fmt_float($excl),
-        fmt_float($diff);
+    return fmt_time($incl) unless $diff;
+    return sprintf "%s (%s+%s)", fmt_time($incl), fmt_time($excl), fmt_time($diff);
 }
 
 

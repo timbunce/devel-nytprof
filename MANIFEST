@@ -26,6 +26,7 @@ ppport.h
 README
 t/00.load.t
 t/20.runtests.t
+t/30.util.t
 t/50.errno.t
 t/90.pod.t
 t/80.version.t

@@ -41,6 +41,8 @@ Reports:
   The html global subroutine index pages no longer list subs that
     were never called.
 
+  More readable formatting of timestamps inlined in the code.
+
   Exclusive and Inclusive time column positions have been switched
     to be consistent with how the times are presented elsewhere.
 
