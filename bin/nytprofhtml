@@ -256,7 +256,7 @@ $reporter->set_param(
 $reporter->set_param(
     'column4',
     {   func => sub {
-            my ($value, $linenum, $linesrc, $profile, $subs, $calls) = @_;
+            my ($value, $linenum, $linesrc, $profile, $subs, $calls, $thisfile) = @_;
 
             $linesrc =~ s/&/&amp;/g;
             $linesrc =~ s/</&lt;/g;
@@ -301,9 +301,10 @@ $reporter->set_param(
 
                     my $filename = $profile->fid_filename($fid);
                     my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
+		    $filename = $filename eq $thisfile ? "" : " of $filename";
 
                     push @prologue,
-                        sprintf q{# %*s times%s%s at <a href="%s#%d">line %d</a> of %s%s},
+                        sprintf q{# %*s times%s%s at <a href="%s#%d">line %d%s</a>%s},
                         length($max_calls), $count, $times, $subname, "$href.html", $line, $line,
                         $filename, $avg_time;
 		    $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English

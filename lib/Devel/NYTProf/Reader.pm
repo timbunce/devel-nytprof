@@ -447,12 +447,12 @@ sub _generate_report {
                         print OUT $func->(
                             $value, $totalsByLine{$LINE}->{$value},
                             $statistics{$value}, $LINE, $line, $profile, $subs_defined,
-                            $makes_calls_to
+                            $makes_calls_to, $filestr
                         );
                     }
                     else {
                         print OUT $func->(
-                            $value, $LINE, $line, $profile, $subs_defined, $makes_calls_to
+                            $value, $LINE, $line, $profile, $subs_defined, $makes_calls_to, $filestr
                         );
                     }
                     next;
