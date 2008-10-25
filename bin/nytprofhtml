@@ -301,12 +301,11 @@ $reporter->set_param(
 
                     my $filename = $profile->fid_filename($fid);
                     my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
-                    my $caller_filename = $profile->fid_filename($fid);
 
                     push @prologue,
                         sprintf q{# %*s times%s%s at <a href="%s#%d">line %d</a> of %s%s},
                         length($max_calls), $count, $times, $subname, "$href.html", $line, $line,
-                        $caller_filename, $avg_time;
+                        $filename, $avg_time;
 		    $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English
                 }
             }
