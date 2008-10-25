@@ -307,7 +307,7 @@ $reporter->set_param(
                         sprintf q{# %*s times%s%s at <a href="%s#%d">line %d</a> of %s%s},
                         length($max_calls), $count, $times, $subname, "$href.html", $line, $line,
                         $caller_filename, $avg_time;
-		    $prologue[-1] =~ s/^# 1 times/#    once/;  # better English
+		    $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English
                 }
             }
             my $prologue = '';
