@@ -286,7 +286,7 @@ $reporter->set_param(
                     : " $total_calls times, avg ${avg_per_call}/call:";
 
                 # order by most frequent caller first
-                @callers = sort { $b->[2] <=> $a->[2] } @callers;
+                @callers = sort { $b->[2] <=> $a->[2] || $b->[3] <=> $a->[3] } @callers;
                 for my $caller (@callers) {
                     my ($fid, $line, $count, $incl_time, $excl_time) = @$caller;
 
