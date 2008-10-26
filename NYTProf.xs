@@ -187,7 +187,9 @@ static struct NYTP_int_options_t options[] = {
     { "compress", 0 },
 #endif
 #define profile_clock options[8].option_value
-    { "clock", -1 }
+    { "clock", -1 },
+#define profile_stmts options[9].option_value
+    { "stmts", 1 }                               /* statement exclusive times */
 };
 
 /* time tracking */
@@ -1580,7 +1582,7 @@ DB_stmt(pTHX_ OP *op)
     if (overflow)                                 /* XXX later output overflow to file */
         warn("profile time overflow of %d seconds discarded", overflow);
 
-    if (!out || !is_profiling) {
+    if (!out || !is_profiling || !profile_stmts) {
         SETERRNO(saved_errno, 0);
         return;
     }
@@ -1677,7 +1679,7 @@ DB_leave(pTHX_ OP *op)
      * PL_curcop has already been updated.
      */
 
-    if (!is_profiling || !out)
+    if (!is_profiling || !out || !profile_stmts)
         return;
 
     /* measure and output end time of previous statement

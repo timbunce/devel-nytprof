@@ -23,5 +23,5 @@ sub check_readonly {
         Readonly::Hash    my %has => (A => 1, B => 2);
         1;
     } or die;
-    warn "ok - readonly\n";
+    #warn "ok - readonly\n";
 }
