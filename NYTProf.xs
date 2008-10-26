@@ -3272,7 +3272,7 @@ MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Data
 PROTOTYPES: DISABLE
 
 HV*
-load_profile_data_from_file(file=NULL)
+load_profile_data_from_file(file)
 char *file;
     CODE:
     if (trace_level)
