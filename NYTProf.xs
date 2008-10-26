@@ -2835,7 +2835,7 @@ load_profile_data_from_stream()
                     1-statement_discount
                 );
 
-                if (c == '*') {
+                if (c == NYTP_TAG_TIME_BLOCK) {
                     unsigned int block_line_num = read_int();
                     unsigned int sub_line_num   = read_int();
 
