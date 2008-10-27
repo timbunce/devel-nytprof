@@ -289,6 +289,7 @@ $reporter->set_param(
                 @callers = sort { $b->[2] <=> $a->[2] || $b->[3] <=> $a->[3] } @callers;
                 for my $caller (@callers) {
                     my ($fid, $line, $count, $incl_time, $excl_time) = @$caller;
+                    my $fi = $profile->fileinfo_of($fid);
 
                     my @subnames = $profile->subname_at_file_line($fid, $line);
                     my $subname = (@subnames) ? " by " . join(" or ", @subnames) : "";
@@ -299,14 +300,22 @@ $reporter->set_param(
                     my $times = sprintf " (%s+%s)", fmt_time($excl_time),
                         fmt_time($incl_time - $excl_time);
 
-                    my $filename = $profile->fid_filename($fid);
+                    my $filename = $fi->filename($fid);
+                    my $line_desc = "line $line of $filename";
+                    # chase string eval chain back to a real file
+                    while ( my ($outer_fileinfo, $outer_line) = $fi->outer ) {
+                        ($filename, $line) = ($outer_fileinfo->filename, $outer_line);
+                        $line_desc .= sprintf " at line %s of %s", $line, $filename;
+                        $fi = $outer_fileinfo;
+                    }
+
                     my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
-		    $filename = $filename eq $thisfile ? "" : " of $filename";
+                    $line_desc =~ s/ of $filename$// if $filename eq $thisfile;
 
                     push @prologue,
-                        sprintf q{# %*s times%s%s at <a href="%s#%d">line %d%s</a>%s},
-                        length($max_calls), $count, $times, $subname, "$href.html", $line, $line,
-                        $filename, $avg_time;
+                        sprintf q{# %*s times%s%s at <a href="%s#%d">%s</a>%s},
+                        length($max_calls), $count, $times, $subname, "$href.html", $line,
+                        $line_desc, $avg_time;
 		    $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English
                 }
             }

@@ -363,7 +363,7 @@ sub _generate_report {
             'time/call' => calculate_median_absolute_deviation($totalsAccum{'time/call'}||[]),
         );
 
-        my $line_calls_hash = $profile->line_calls_for_file($filestr);
+        my $line_calls_hash = $profile->line_calls_for_file($filestr, 1);
         my $subs_defined_hash = $profile->subs_defined_in_file($filestr, 1);
 
         # the output file name that will be open later.  Not including directory at this time.

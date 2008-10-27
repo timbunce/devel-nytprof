@@ -91,7 +91,7 @@ sub new {
     (my $sub_class = $class) =~ s/\w+$/ProfSub/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
-    $profile->_migrate_sub_callers_from_eval_fids;
+    #$profile->_migrate_sub_callers_from_eval_fids;
 
     # XXX merge evals - should become a method optionally called here
     # (which uses other methods to do the work and those methods
@@ -194,16 +194,36 @@ sub fileinfo_of {
     return $self->{fid_fileinfo}[$fid];
 }
 
-sub eval_fid_map {
-    my $self = shift;
+
+# map of { eval_fid => base_fid, ... }
+sub eval_fid_2_base_fid_map {
+    my ($self, $flatten_evals) = @_;
+
     my $fid_fileinfo = $self->{fid_fileinfo} || [];
     my $eval_fid_map = {};
-    for my $fileinfo (@$fid_fileinfo) {
-        my $base_fid = $fileinfo && $fileinfo->eval_fid
+
+    for my $fi (@$fid_fileinfo) {
+        my $base_fi = $fi && $fi->eval_fi
             or next;
-        $eval_fid_map->{ $fileinfo->fid } = $base_fid;
+
+        while ($flatten_evals and my $b_eval_fi = $base_fi->eval_fi) {
+            $base_fi = $b_eval_fi;
+        }
+        $eval_fid_map->{ $fi->fid } = $base_fi->fid;
     }
     return $eval_fid_map;
+}
+
+
+# map of { base_fid => [ eval_fid, ...].  }
+sub base_fid_2_eval_fids_map {
+    my ($self, $flatten_evals) = @_;
+    my $e2b = $self->eval_fid_2_base_fid_map($flatten_evals);
+    my $b2e = {};
+    while ( my ($eval_fid, $base_fid) = each %$e2b ) {
+        push @{ $b2e->{$base_fid} }, $eval_fid;
+    }
+    return $b2e;
 }
 
 sub fid_sub_calls_map {
@@ -561,7 +581,7 @@ sub _migrate_sub_callers_from_eval_fids {
     # migrate sub calls made from evals to be calls from the base fid
     #
     # map of { eval_fid => base_fid, ... }
-    my $eval_fid_map = $self->eval_fid_map;
+    my $eval_fid_map = $self->eval_fid_2_base_fid_map;
     # map of { fid => { subs called from fid... }, ... }
     my $fid_sub_calls_map = $self->fid_sub_calls_map;
     #
@@ -872,21 +892,41 @@ $profile->line_calls_for_file( 'foo.pl' ) would return something like:
 
 
 sub line_calls_for_file {
-    my ($self, $fid) = @_;
-
+    my ($self, $fid, $flatten_evals) = @_;
     $fid = $self->resolve_fid($fid);
+
     my $sub_caller = $self->{sub_caller}
         or return;
 
+    # hash of fids we're interested in
+    my %fids = ($fid => 1);
+    # add in all the fids for evals compiled in this fid
+    my $b2e = $self->base_fid_2_eval_fids_map($flatten_evals);
+    $fids{$_} = 1 for @{ $b2e->{$fid} || [] };
+
     my $line_calls = {};
     # search through all subs to find those that were called
-    # from the fid we're interested in
+    # from the fid we're interested in, or any eval fids in that
     while (my ($subname, $fid_hash) = each %$sub_caller) {
-        my $line_calls_hash = $fid_hash->{$fid}
-            or next;
 
-        while (my ($line, $calls) = each %$line_calls_hash) {
-            $line_calls->{$line}{$subname} = $calls;
+        while ( my ($caller_fid, $line_calls_hash) = each %$fid_hash ) {
+            next unless $fids{ $caller_fid };
+
+            my $caller_fi = $self->fileinfo_of($caller_fid);
+            my ($outer_fi, $outer_line) = $caller_fi->outer(1);
+
+            while (my ($line, $callinfo) = each %$line_calls_hash) {
+                my $caller_line = $outer_line || $line;
+                my $ci = $line_calls->{$caller_line}{$subname} ||= [];
+                if (!@$ci) {    # typical case
+                    @$ci = @$callinfo;
+                }
+                else {          # e.g., multiple calls inside the same string eval
+                    #warn "merging calls to $subname from fid $caller_fid line $caller_line ($outer_line || $line)";
+                    $ci->[$_] += $callinfo->[$_] for 0..5;
+                    $ci->[6]   = $callinfo->[6] if $callinfo->[6] > $ci->[6]; # NYTP_SCi_REC_DEPTH
+                }
+            }
         }
 
     }
@@ -921,6 +961,7 @@ sub _dumper {
 
     sub filename  { shift->[0] }
     sub eval_fid  { shift->[1] }
+    sub eval_fi   { return $_[0]->profile->fileinfo_of($_[0]->eval_fid || return) }
     sub eval_line { shift->[2] }
     sub fid       { shift->[3] }
     sub flags     { shift->[4] }
@@ -958,12 +999,17 @@ sub _dumper {
     }
 
     sub outer {
-        my $self = shift;
-        my $fid  = $self->eval_fid
+        my ($self, $recurse) = @_;
+        my $fi  = $self->eval_fi
             or return;
-        my $fileinfo = $self->profile->fileinfo_of($fid);
-        return $fileinfo unless wantarray;
-        return ($fileinfo, $self->eval_line);
+        my $prev = $self;
+
+        while ($recurse and my $eval_fi = $fi->eval_fi) {
+            $prev = $fi;
+            $fi = $eval_fi;
+       }
+        return $fi unless wantarray;
+        return ($fi, $prev->eval_line);
     }
 
 
@@ -1083,7 +1129,7 @@ sub _dumper {
         my $callers = $self->callers
             or return 0;
 
-        # scalar: count of the number of distinct locations sub iss called from
+        # scalar: count of the number of distinct locations sub is called from
         # list: array of [ fid, line, @... ]
         my @callers;
         warn "caller_places in list context not implemented/tested yet";

@@ -54,7 +54,8 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_caller	main::bar	1	13	[ 1 0 0 0 0 0 0 ]
-sub_caller	main::bar	1	2	[ 2 0 0 0 0 0 0 ]
+sub_caller	main::bar	2	3	[ 1 0 0 0 0 0 0 ]
+sub_caller	main::bar	4	3	[ 1 0 0 0 0 0 0 ]
 sub_caller	main::foo	1	11	[ 1 0 0 0 0 0 0 ]
 sub_caller	main::foo	1	12	[ 1 0 0 0 0 0 0 ]
 sub_subinfo	main::bar	[ 1 7 9 3 0 0 0 0 ]
