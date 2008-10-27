@@ -65,23 +65,77 @@ Devel::NYTProf - Powerful feature-rich perl source code profiler
 
 Devel::NYTProf is a powerful feature-rich perl source code profiler.
 
- * Performs per-line statement profiling for fine detail
- * Performs per-subroutine statement profiling for overview
- * Performs per-block statement profiling (the first profiler to do so)
- * Accounts correctly for time spent after calls return
- * Performs inclusive and exclusive timing of subroutines
- * Subroutine times are per calling location (a powerful feature)
- * Can profile compile-time activity, just run-time, or just END time
- * Uses novel techniques for efficient profiling
- * Sub-microsecond (100ns) resolution on systems with clock_gettime()
- * Very fast - the fastest statement and subroutine profilers for perl
- * Handles applications that fork, with no performance cost
- * Immune from noise caused by profiling overheads and I/O
- * Program being profiled can stop/start the profiler
- * Generates richly annotated and cross-linked html reports
- * Trivial to use with mod_perl - add one line to httpd.conf
- * Includes an extensive test suite
- * Tested on very large codebases
+=over
+
+=item *
+
+Performs per-line statement profiling for fine detail
+
+=item *
+
+Performs per-subroutine statement profiling for overview
+
+=item *
+
+Performs per-block statement profiling (the first profiler to do so)
+
+=item *
+
+Accounts correctly for time spent after calls return
+
+=item *
+
+Performs inclusive and exclusive timing of subroutines
+
+=item *
+
+Subroutine times are per calling location (a powerful feature)
+
+=item *
+
+Can profile compile-time activity, just run-time, or just END time
+
+=item *
+
+Uses novel techniques for efficient profiling
+
+=item *
+
+Sub-microsecond (100ns) resolution on systems with clock_gettime()
+
+=item *
+
+Very fast - the fastest statement and subroutine profilers for perl
+
+=item *
+
+Handles applications that fork, with no performance cost
+
+=item *
+
+Immune from noise caused by profiling overheads and I/O
+
+=item *
+
+Program being profiled can stop/start the profiler
+
+=item *
+
+Generates richly annotated and cross-linked html reports
+
+=item *
+
+Trivial to use with mod_perl - add one line to httpd.conf
+
+=item *
+
+Includes an extensive test suite
+
+=item *
+
+Tested on very large codebases
+
+=back
 
 NYTProf is effectively two profilers in one: a statement profiler, and a
 subroutine profiler.
@@ -325,13 +379,15 @@ perl. (Though the module is in a state of flux and may be deprecated soon.)
 Included in the bin directory of this distribution are two scripts
 which implement the L<Devel::NYTProf::Reader> interface: 
 
-=over 4
+=over 12
 
-=item * 
-nytprofcsv - creates comma delimited profile reports
+=item nytprofcsv
 
-=item *
-nytprofhtml - creates attractive, richly annotated, and fully cross-linked html
+creates comma delimited profile reports
+
+=item nytprofhtml
+
+creates attractive, richly annotated, and fully cross-linked html
 reports (including statistics, source code and color highlighting)
 
 =back

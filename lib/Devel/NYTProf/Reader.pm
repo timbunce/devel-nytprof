@@ -619,22 +619,28 @@ will provide the following statistics:
 =over
 
 =item *
- Total calls
+
+Total calls
 
 =item *
- Total time
+
+Total time
 
 =item *
- Average time per call
+
+Average time per call
 
 =item *
- Deviation of all of the above
+
+Deviation of all of the above
 
 =item *
- Line number
+
+Line number
 
 =item *
- Source code
+
+Source code
 
 =back
 

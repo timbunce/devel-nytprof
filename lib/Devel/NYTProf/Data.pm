@@ -446,12 +446,33 @@ for example, by the test suite.
 
 The data normalized is:
 
- - profile timing data: set to 0
- - subroutines: timings are set to 0
- - attributes, like basetime, xs_version, etc., are set to 0
- - filenames: path prefixes matching absolute paths in @INC are changed to "/.../"
- - filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
- - calls remove_internal_data_of() for files loaded from absolute paths in @INC
+=over
+
+=item *
+
+profile timing data: set to 0
+
+=item *
+
+subroutines: timings are set to 0
+
+=item *
+
+attributes, like basetime, xs_version, etc., are set to 0
+
+=item *
+
+filenames: path prefixes matching absolute paths in @INC are changed to "/.../"
+
+=item *
+
+filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
+
+=item *
+
+calls remove_internal_data_of() for files loaded from absolute paths in @INC
+
+=back
 
 =cut
 
