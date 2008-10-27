@@ -56,17 +56,17 @@ Writing tests is easy!
    You still need to verify the .x.new file of course!
 
 Note:  While writing a test, it is helpful to be able to run it directly, 
-      without the test harness.  This allows you to view more output stdout and 
-      stderr.  Fortunately, its easy to do:
+without the test harness.  This allows you to view more output stdout and 
+stderr.  Fortunately, its easy to do:
 
-      perl -Mblib -MDevel::NYTProf t/test01.p
+  perl -Mblib -MDevel::NYTProf t/test01.p
 
-      The output will be in the ./nytprof.out file.
-      You can then also run the csv manually:
+The output will be in the ./nytprof.out file.  You can then also run the
+csv manually:
 
-      perl -Mblib bin/nytprofcsv
+  perl -Mblib bin/nytprofcsv
 
-      The final file will be in ./nytprof/test01.p.csv
+The final file will be in ./nytprof/test01.p.csv
 
 Remember, testing is VERY VERY important!  Within a day or two of releasing
 code, the CPAN testers will test the release on pretty much every major platform
@@ -100,6 +100,7 @@ Fix Reader
 - to be subclassable
 - to provide a subclass to manage generating CSV
 - to provide a subclass to manage generating HTML
+
 Then rework bin/ntyprof* to use the new subclasses
 Ideally end up with a single nytprof command.
 
@@ -152,10 +153,12 @@ We now save eval strings (from @{"_<$filename"}, see perldoc perldebguts)
 but it requires use_db_subs=1 due to perl internals. Currently unused.
 Add source code of first string eval at each fid:line to report.
 Add option to control saving of source code. Perhaps
-savesrc=0 - don't save any source
-savesrc=1 - save only first string eval src per distinct fid:line (default)
-savesrc=2 - save all string eval src
-savesrc=3 - save all source code, not just string evals
+
+  savesrc=0 - don't save any source
+  savesrc=1 - save only first string eval src per distinct fid:line (default)
+  savesrc=2 - save all string eval src
+  savesrc=3 - save all source code, not just string evals
+
 Also option to delete @{"_<$filename"} to release memory could be useful
 for programs that doo a lot of string evals.
 
@@ -200,7 +203,8 @@ Could also print list of available clocks for the clock=N option
 (using a set of #ifdef's)
 
 Add mechanism to specify options inside the .p file, such as
-# NYTPROF=...
+
+  # NYTPROF=...
 
 Add mechanism to specify inside the .p file that NYTProf
 should not be loaded via the command line. That's needed to test
@@ -212,9 +216,11 @@ Add top-n statements to file reports between sub table and line table.
 Pure css tooltips, with a :before or :after with content:, may let us add help notes to the
 counts column to describe what the count is actually a count of, without
 bloating the html.
-http://meyerweb.com/eric/css/edge/popups/demo.html
-http://www.communitymx.com/content/article.cfm?page=4&cid=4E2C0
-http://www.kollermedia.at/archive/2008/03/24/easy-css-tooltip/
+
+  http://meyerweb.com/eric/css/edge/popups/demo.html
+  http://www.communitymx.com/content/article.cfm?page=4&cid=4E2C0
+  http://www.kollermedia.at/archive/2008/03/24/easy-css-tooltip/
+
 The tricky/clever/new idea is that by nesting a span inside another and using
 the :before or :after on the inner one the text of the popup can reside in css
 and not html. Mind you, I've not seen anyone do this so I may be crazy :)
@@ -230,16 +236,17 @@ could be used to highlight the corresponding rollup line when hovering over a
 source line, and/or the opposite. Needs lots of thought, but it's an interesting idea.
 
 Investigate and fix "Unable to determine line number" cases. Here's one:
-$ NYTPROF=begin=1:blocks=1:trace=1 perl  -d:NYTProf -Mstrict -e 1
-...
-New fid  1 (after  0:1   ): -e /Users/timbo/perl/mods/nytprof-trunk/-e
-New fid  2 (after  1:3   ): /usr/local/perl58-i/lib/5.8.6/strict.pm 
-at 3: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 3.
-at 5: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 5.
-at 25: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 25.
-at 37: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 37.
-Unable to determine line number in -e.
-Unable to determine line number in -e.
+
+  $ NYTPROF=begin=1:blocks=1:trace=1 perl  -d:NYTProf -Mstrict -e 1
+  ...
+  New fid  1 (after  0:1   ): -e /Users/timbo/perl/mods/nytprof-trunk/-e
+  New fid  2 (after  1:3   ): /usr/local/perl58-i/lib/5.8.6/strict.pm 
+  at 3: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 3.
+  at 5: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 5.
+  at 25: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 25.
+  at 37: EVAL in different file (-e, /usr/local/perl58-i/lib/5.8.6/strict.pm) at /usr/local/perl58-i/lib/5.8.6/strict.pm line 37.
+  Unable to determine line number in -e.
+  Unable to determine line number in -e.
 
 Add option to disable statement based profiling, so you're left with subroutine
 inclusive timing. That's *really* fast and would be handy for a quick check on
@@ -302,8 +309,9 @@ the embeded source array, if available, else hunts for and loads current source 
 Bug or limitation?: sub calls in a continue { ... } block of a while () get
 associated with the 'next;' within the loop.
 Also, test sub caller location for
+
   while ( foo() ) {  # all calls to foo should be from here
-    ...
-    ... # no calls to foo() should appear here
+      ...
+      ... # no calls to foo() should appear here
   }
 

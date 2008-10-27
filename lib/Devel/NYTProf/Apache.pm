@@ -73,9 +73,9 @@ Devel::NYTProf::Apache - Profile mod_perl applications with Devel::NYTProf
 
 =head1 SYNOPSIS
 
-    # in your Apache config file with mod_perl installed
-    PerlPassEnv NYTPROF
-    PerlModule Devel::NYTProf::Apache
+  # in your Apache config file with mod_perl installed
+  PerlPassEnv NYTPROF
+  PerlModule Devel::NYTProf::Apache
 
 =head1 DESCRIPTION
 
@@ -86,7 +86,7 @@ If the NYTPROF environment variable isn't set I<at the time
 Devel::NYTProf::Apache is loaded> then Devel::NYTProf::Apache will issue a
 warning and default it to:
 
-	file=/tmp/nytprof.$$.out
+  file=/tmp/nytprof.$$.out
 
 See L<Devel::NYTProf/"ENVIRONMENT VARIABLES"> for 
 more details on the settings effected by this environment variable.
@@ -111,10 +111,10 @@ Using an C<IfDefine> blocks lets you leave the profile configuration in place
 and enable it whenever it's needed by adding C<-D NYTPROF> to the httpd startup
 command line.
 
-    <IfDefine NYTPROF>
-        MaxClients 1
-        PerlModule Devel::NYTProf::Apache
-    </IfDefine>
+  <IfDefine NYTPROF>
+      MaxClients 1
+      PerlModule Devel::NYTProf::Apache
+  </IfDefine>
 
 
 =head1 SEE ALSO
@@ -129,9 +129,9 @@ B<Steve Peters>, C<< <steve at fisharerojo.org> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
-Copyright (C) 2008 by Steve Peters.
-Copyright (C) 2008 by Tim Bunce.
+  Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
+  Copyright (C) 2008 by Steve Peters.
+  Copyright (C) 2008 by Tim Bunce.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

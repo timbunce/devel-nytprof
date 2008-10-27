@@ -52,14 +52,14 @@ Devel::NYTProf - Powerful feature-rich perl source code profiler
 
 =head1 SYNOPSIS
 
- # profile code and write database to ./nytprof.out
- perl -d:NYTProf some_perl.pl
+  # profile code and write database to ./nytprof.out
+  perl -d:NYTProf some_perl.pl
 
- # convert database into a set of html files, e.g., ./nytprof/index.html
- nytprofhtml
+  # convert database into a set of html files, e.g., ./nytprof/index.html
+  nytprofhtml
 
- # or into comma seperated files, e.g., ./nytprof/*.csv
- nytprofcsv
+  # or into comma seperated files, e.g., ./nytprof/*.csv
+  nytprofcsv
 
 =head1 DESCRIPTION
 
@@ -166,7 +166,7 @@ taken to ensure it's very efficient.
 
 Just add one line near the start of your httpd.conf file:
 
- PerlModule Devel::NYTProf::Apache
+  PerlModule Devel::NYTProf::Apache
 
 By default you'll get a F</tmp/nytprof.$$.out> file for the parent process and
 a F</tmp/nytprof.$parent.out.$$> file for each worker process.
@@ -181,19 +181,19 @@ Works with mod_perl 1 and 2. See L<Devel::NYTProf::Apache> for more information.
 
 Usually you'd load Devel::NYTProf on the command line using the perl -d option:
 
- perl -d:NYTProf some_perl.pl
+  perl -d:NYTProf some_perl.pl
 
 To save typing the ':NYTProf' you could set the PERL5DB env var 
 
- PERL5DB='use Devel::NYTProf'
+  PERL5DB='use Devel::NYTProf'
 
 and then just perl -d would work:
 
- perl -d some_perl.pl
+  perl -d some_perl.pl
 
 Or you can avoid the need to add the -d option at all by using the C<PERL5OPT> env var:
 
- PERL5OPT=-d:NYTProf
+  PERL5OPT=-d:NYTProf
 
 That's also very handy when you can't alter the perl command line being used to
 run the script you want to profile.
@@ -205,7 +205,7 @@ environment variable C<NYTPROF>.  It is possible to use this environment
 variable to effect multiple setting by separating the values with a C<:>.  For
 example:
 
-    export NYTPROF=trace=2:start=init:file=/tmp/nytprof.out
+  export NYTPROF=trace=2:start=init:file=/tmp/nytprof.out
 
 =head2 addpid=1
 

@@ -19,9 +19,9 @@ Devel::NYTProf::Data - L<Devel::NYTProf> data loading and manipulation
 
   use Devel::NYTProf::Data;
 
-	$profile = Devel::NYTProf::Data->new( { filename => 'nytprof.out' } );
+  $profile = Devel::NYTProf::Data->new( { filename => 'nytprof.out' } );
 
-	$profile->dump_profile_data();
+  $profile->dump_profile_data();
 
 =head1 DESCRIPTION
 
@@ -56,7 +56,7 @@ my $trace = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) && $1; # XXX a hack
 
 =head2 new
 
-	$profile = Devel::NYTProf::Data->new( { filename => 'nytprof.out' } );
+  $profile = Devel::NYTProf::Data->new( { filename => 'nytprof.out' } );
 
 Reads the specified file containing profile data written by L<Devel::NYTProf>,
 aggregates the contents, and returns the results as a blessed data structure.
@@ -229,8 +229,8 @@ sub inc {
 
   $profile->dump_profile_data;
   $profile->dump_profile_data( {
-    filehandle => \*STDOUT,
-    separator  => "",
+      filehandle => \*STDOUT,
+      separator  => "",
   } );
 
 Writes the profile data in a reasonably human friendly format to the sepcified
@@ -243,51 +243,51 @@ place a subroutine was called from, plus one per subroutine.
 The default format is a Data::Dumper style whitespace-indented tree.
 The types of data present can depend on the options used when profiling.
 
- {
-    attribute => {
-        basetime => 1207228764
-        ticks_per_sec => 1000000
-        xs_version => 1.13
-    }
-    fid_fileinfo => [
-        1: [
-            0: test01.p
-            1: 
-            2: 
-            3: 1
-            4: 0
-            5: 0
-            6: 0
-        ]
-    ]
-    fid_line_time => [
-        1: [
-            2: [ 4e-06 2 ]
-            3: [ 1.2e-05 2 ]
-            7: [ 4.6e-05 4 ]
-            11: [ 2e-06 1 ]
-            16: [ 1.2e-05 1 ]
-        ]
-    ]
-    sub_caller => {
-        main::bar => {
-            1 => {
-                12 => 1 # main::bar was called by fid 1, line 12, 1 time.
-                16 => 1
-                3 => 2
-            }
-        }
-        main::foo => {
-            1 => {
-                11 => 1
-            }
-        }
-    }
-    sub_subinfo => {
-        main::bar => [ 1 6 8 762 2e-06 ]
-        main::foo => [ 1 1 4 793 1.5e-06 ]
-    }
- }
+  {
+      attribute => {
+          basetime => 1207228764
+          ticks_per_sec => 1000000
+          xs_version => 1.13
+      }
+      fid_fileinfo => [
+          1: [
+              0: test01.p
+              1: 
+              2: 
+              3: 1
+              4: 0
+              5: 0
+              6: 0
+          ]
+      ]
+      fid_line_time => [
+          1: [
+              2: [ 4e-06 2 ]
+              3: [ 1.2e-05 2 ]
+              7: [ 4.6e-05 4 ]
+              11: [ 2e-06 1 ]
+              16: [ 1.2e-05 1 ]
+          ]
+      ]
+      sub_caller => {
+          main::bar => {
+              1 => {
+                  12 => 1 # main::bar was called by fid 1, line 12, 1 time.
+                  16 => 1
+                  3 => 2
+              }
+          }
+          main::foo => {
+              1 => {
+                  11 => 1
+              }
+          }
+      }
+      sub_subinfo => {
+          main::bar => [ 1 6 8 762 2e-06 ]
+          main::foo => [ 1 1 4 793 1.5e-06 ]
+      }
+  }
 
 If C<separator> is true then instead of whitespace, each item of data is
 indented with the I<path> through the structure with C<separator> used to
@@ -671,8 +671,8 @@ sub subs_defined_in_file {
 
 =head2 subname_at_file_line
 
-    @subname = $profile->subname_at_file_line($file, $line_number);
-    $subname = $profile->subname_at_file_line($file, $line_number);
+  @subname = $profile->subname_at_file_line($file, $line_number);
+  $subname = $profile->subname_at_file_line($file, $line_number);
 
 =cut
 
@@ -723,7 +723,7 @@ sub fid_filename {
 
 =head2 file_line_range_of_sub
 
-    ($file, $fid, $first, $last) = $profile->file_line_range_of_sub("main::foo");
+  ($file, $fid, $first, $last) = $profile->file_line_range_of_sub("main::foo");
 
 Returns the filename, fid, and first and last line numbers for the specified
 subroutine (which must be fully qualified with a package name).
@@ -840,12 +840,12 @@ For example, if the following was line 42 of a file C<foo.pl>:
 that line was executed once, and foo and bar were imported from pkg1, then
 $profile->line_calls_for_file( 'foo.pl' ) would return something like:
 
-	{
-		42 => {
-			'pkg1::foo' => [ 1, 0.02093 ],
-			'pkg1::bar' => [ 1, 0.00154 ],
-		},
-	}
+  {
+      42 => {
+	  'pkg1::foo' => [ 1, 0.02093 ],
+	  'pkg1::bar' => [ 1, 0.00154 ],
+      },
+  }
 
 =cut
 

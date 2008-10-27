@@ -565,40 +565,40 @@ Devel::NYTProf::Reader - Tranforms L<Devel::NYTProf> output into comprehensive, 
 
 =head1 SYNOPSIS
 
- # This module comes with two scripts that implement it:
- #
- # nytprofhtml - create an html report with statistics highlighting
- # nytprofcsv - create a basic comma delimited report
- #
- # They are in the bin directory of your perl path, so add that to your PATH.
- #
- # The csv script is simple, and really only provided as a starting point
- # for creating other custom reports. You should refer to the html script
- # for advanced usage and statistics.
+  # This module comes with two scripts that implement it:
+  #
+  # nytprofhtml - create an html report with statistics highlighting
+  # nytprofcsv - create a basic comma delimited report
+  #
+  # They are in the bin directory of your perl path, so add that to your PATH.
+  #
+  # The csv script is simple, and really only provided as a starting point
+  # for creating other custom reports. You should refer to the html script
+  # for advanced usage and statistics.
 
- # First run some code through the profiler to generate the nytprof database.
- perl -d:NYTProf some_perl.pl
+  # First run some code through the profiler to generate the nytprof database.
+  perl -d:NYTProf some_perl.pl
 
- # To create an HTML report in ./nytprof 
- nytprofhtml
+  # To create an HTML report in ./nytprof 
+  nytprofhtml
 
- # To create a csv report in ./nytprof 
- nytprofcsv
+  # To create a csv report in ./nytprof 
+  nytprofcsv
 
- # Or to generate a simple comma delimited report manually
- use Devel::NYTProf::Reader;
- my $reporter = new Devel::NYTProf::Reader('nytprof.out');
+  # Or to generate a simple comma delimited report manually
+  use Devel::NYTProf::Reader;
+  my $reporter = new Devel::NYTProf::Reader('nytprof.out');
 
- # place to store the output
- $reporter->output_dir($file);
+  # place to store the output
+  $reporter->output_dir($file);
 
- # set other options and parameters
- $reporter->add_regexp('^\s*', ''); # trim leading spaces
+  # set other options and parameters
+  $reporter->add_regexp('^\s*', ''); # trim leading spaces
 
- # generate the report
- $reporter->report();
+  # generate the report
+  $reporter->report();
 
- # many configuration options exist.  See nytprofhtml, advanced example.
+  # many configuration options exist.  See nytprofhtml, advanced example.
 
 =head1 DESCRIPTION
 
@@ -678,9 +678,9 @@ will be run through each entry in the pattern stack.
 
 For example, to replace spaces, < and > with html entities, you might do:
 
-	$reporter->add_regexp(' ', '&nbsp;');
-	$reporter->add_regexp('<', '&lt;');
-	$reporter->add_regexp('>', '&gt;');
+  $reporter->add_regexp(' ', '&nbsp;');
+  $reporter->add_regexp('<', '&lt;');
+  $reporter->add_regexp('>', '&gt;');
 
 =item $reporter->set_param( $parameter, $value );
 
@@ -779,8 +779,8 @@ the work is done.
 
 When called after calling C<$reporter-E<gt>report()>, will return a hash containing the cumulative totals for each file.
 
- my $stats = $reporter->getStats();
- $stats->{FILENAME}->{time}; # might hold 0.25, the total runtime of this file>>
+  my $stats = $reporter->getStats();
+  $stats->{FILENAME}->{time}; # might hold 0.25, the total runtime of this file>>
 
 Fields are time, calls, time/call, html-safe.
 
