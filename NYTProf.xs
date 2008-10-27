@@ -816,7 +816,7 @@ output_header(pTHX)
 
 #ifdef HAS_ZLIB
     if (compression_level) {
-        const char tag = NYTP_TAG_START_DEFLATE;
+        const unsigned char tag = NYTP_TAG_START_DEFLATE;
 	NYTP_printf(out, "# Compressed at level %d with zlib %s\n",
 		    compression_level, zlibVersion());
 	NYTP_write(out, &tag, sizeof(tag));
@@ -852,7 +852,7 @@ static SV *
 read_str(pTHX_ SV *sv) {
     STRLEN len;
     char *buf;
-    char tag;
+    unsigned char tag;
 
     NYTP_read(in, &tag, sizeof(tag), "string prefix");
 
@@ -1669,7 +1669,7 @@ DB_leave(pTHX_ OP *op)
     int saved_errno = errno;
     int prev_last_executed_fid  = last_executed_fid;
     int prev_last_executed_line = last_executed_line;
-    const char tag = NYTP_TAG_DISCOUNT;
+    const unsigned char tag = NYTP_TAG_DISCOUNT;
 
     /* Called _after_ ops that indicate we've completed a statement
      * and are returning into the middle of some outer statement.
@@ -3113,13 +3113,15 @@ load_profile_data_from_stream()
                 break;
             }
 
-#ifdef HAS_ZLIB
 	    case NYTP_TAG_START_DEFLATE:
 	    {
+#ifdef HAS_ZLIB
 		NYTP_start_inflate(in);
+#else
+                croak("File uses compression but compression is not supported by this build of NYTProf");
+#endif
 		break;
 	    }
-#endif
 
             default:
                 croak("File format error: token %d ('%c'), chunk %lu, pos %ld%s",

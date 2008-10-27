@@ -251,7 +251,7 @@ sub diff_files {
     # we don't care if this fails, it's just an aid to debug test failures
     my @opts = split / /, $ENV{NYTPROF_DIFF_OPTS} || '';    # e.g. '-y'
     @opts = ('-u') unless @opts;
-    system("diff", @opts, @_);
+    system("diff @opts @_ 1>&2");
 }
 
 
