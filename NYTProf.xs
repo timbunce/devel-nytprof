@@ -265,7 +265,7 @@ static int reinit_if_forked(pTHX);
 static void write_cached_fids();
 static void write_sub_line_ranges(pTHX);
 static void write_sub_callers(pTHX);
-static HV *load_profile_data_from_stream();
+static HV *load_profile_data_from_stream(SV* cb, bool cb_seq);
 static AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num,
 				    NV time, int count, unsigned int fid);
 
@@ -2721,9 +2721,10 @@ store_attrib_sv(pTHX_ HV *attr_hv, char *text, SV *value_sv)
  * data for each line of the string eval.
  */
 static HV*
-load_profile_data_from_stream()
+load_profile_data_from_stream(SV *cb, bool cb_seq)
 {
     dTHX;
+    dSP;
     int file_major, file_minor;
 
     unsigned long input_chunk_seqn = 0L;
@@ -2765,6 +2766,16 @@ load_profile_data_from_stream()
         croak("Profile format version %d.%d not supported by %s %s",
             file_major, file_minor, __FILE__, XS_VERSION);
 
+    if (cb) {
+        PUSHMARK(SP);
+	if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+	XPUSHs(sv_2mortal(newSVpvs("VERSION")));
+	XPUSHs(sv_2mortal(newSViv(file_major)));
+	XPUSHs(sv_2mortal(newSViv(file_minor)));
+	PUTBACK;
+	call_sv(cb, G_DISCARD);
+    }
+
     while (1) {
 	/* Loop "forever" until EOF. We can only check the EOF flag *after* we
 	   attempt a read.  */
@@ -2784,6 +2795,15 @@ load_profile_data_from_stream()
         switch (c) {
             case NYTP_TAG_DISCOUNT:
             {
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("DISCOUNT")));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
+
                 if (statement_discount)
                     warn("multiple statement discount after %u:%d\n", last_file_num, last_line_num);
                 ++statement_discount;
@@ -2802,6 +2822,27 @@ load_profile_data_from_stream()
                 unsigned int ticks    = read_int();
                 unsigned int file_num = read_int();
                 unsigned int line_num = read_int();
+
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(c == NYTP_TAG_TIME_BLOCK ?
+		                      newSVpvs("TIME_BLOCK") : newSVpvs("TIME_LINE")
+                    ));
+		    XPUSHs(sv_2mortal(newSViv(eval_file_num)));
+		    XPUSHs(sv_2mortal(newSViv(eval_line_num)));
+		    XPUSHs(sv_2mortal(newSViv(ticks)));
+		    XPUSHs(sv_2mortal(newSViv(file_num)));
+		    XPUSHs(sv_2mortal(newSViv(line_num)));
+
+		    if (c == NYTP_TAG_TIME_BLOCK) {
+			XPUSHs(sv_2mortal(newSViv(read_int())));  /* block_line_num */
+			XPUSHs(sv_2mortal(newSViv(read_int())));  /* sub_line_num */
+		    }
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
 
                 seconds  = (NV)ticks / ticks_per_sec;
 
@@ -2878,6 +2919,23 @@ load_profile_data_from_stream()
                 unsigned int file_mtime    = read_int();
 
                 filename_sv = read_str(aTHX_ NULL);
+
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("NEW_FID")));
+		    XPUSHs(sv_2mortal(newSViv(file_num)));
+		    XPUSHs(sv_2mortal(newSViv(eval_file_num)));
+		    XPUSHs(sv_2mortal(newSViv(eval_line_num)));
+		    XPUSHs(sv_2mortal(newSViv(fid_flags)));
+		    XPUSHs(sv_2mortal(newSViv(file_size)));
+		    XPUSHs(sv_2mortal(newSViv(file_mtime)));
+		    XPUSHs(sv_2mortal(filename_sv));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
+
                 if (trace_level >= 2) {
                     warn("Fid %2u is %s (eval %u:%u) 0x%x sz%u mt%u\n",
                         file_num, SvPV_nolen(filename_sv), eval_file_num, eval_line_num,
@@ -2916,6 +2974,18 @@ load_profile_data_from_stream()
                 SV *src = read_str(aTHX_ NULL);
                 AV *file_av;
 
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("SRC_LINE")));
+		    XPUSHs(sv_2mortal(newSVuv(file_num)));
+		    XPUSHs(sv_2mortal(newSVuv(line_num)));
+		    XPUSHs(sv_2mortal(src));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
+
                 /* first line in the file seen */
                 if (!av_exists(fid_filecontents_av, file_num)) {
                     file_av = newAV();
@@ -2940,6 +3010,20 @@ load_profile_data_from_stream()
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
                 SV *subname_sv = read_str(aTHX_ tmp_str_sv);
+
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("SUB_LINE_RANGE")));
+		    XPUSHs(sv_2mortal(newSVuv(fid)));
+		    XPUSHs(sv_2mortal(newSVuv(first_line)));
+		    XPUSHs(sv_2mortal(newSVuv(last_line)));
+		    XPUSHs(sv_2mortal(newSVsv(subname_sv)));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
+
                 if (trace_level >= 2)
                     warn("Sub %s fid %u lines %u..%u\n",
                         SvPV_nolen(subname_sv), fid, first_line, last_line);
@@ -2975,6 +3059,25 @@ load_profile_data_from_stream()
                 NV reci_time       = (file_minor >= 1) ? read_nv()  : 0;
                 UV rec_depth       = (file_minor >= 1) ? read_int() : 0;
                 subname_sv = read_str(aTHX_ tmp_str_sv);
+
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("SUB_CALLERS")));
+		    XPUSHs(sv_2mortal(newSVuv(fid)));
+		    XPUSHs(sv_2mortal(newSVuv(line)));
+		    XPUSHs(sv_2mortal(newSVuv(count)));
+		    XPUSHs(sv_2mortal(newSVnv(incl_time)));
+		    XPUSHs(sv_2mortal(newSVnv(excl_time)));
+		    XPUSHs(sv_2mortal(newSVnv(ucpu_time)));
+		    XPUSHs(sv_2mortal(newSVnv(scpu_time)));
+		    XPUSHs(sv_2mortal(newSVnv(reci_time)));
+		    XPUSHs(sv_2mortal(newSViv(rec_depth)));
+		    XPUSHs(sv_2mortal(newSVsv(subname_sv)));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
 
                 if (trace_level >= 3)
                     warn("Sub %s called by fid %u line %u: count %d, incl %f, excl %f, ucpu %f scpu %f\n",
@@ -3042,6 +3145,19 @@ load_profile_data_from_stream()
                 int len = my_snprintf(text, sizeof(text), "%d", pid);
                 profiler_start_time = (file_minor >= 1) ? read_nv() : 0;
 
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("PID_START")));
+		    XPUSHs(sv_2mortal(newSVuv(pid)));
+		    XPUSHs(sv_2mortal(newSVuv(ppid)));
+		    if (file_minor >= 1)
+			XPUSHs(sv_2mortal(newSVuv(profiler_start_time)));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
+
                 (void)hv_store(live_pids_hv, text, len, newSVuv(ppid), 0);
                 if (trace_level)
                     warn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live) at %"NVff"\n",
@@ -3058,6 +3174,18 @@ load_profile_data_from_stream()
                 unsigned int pid = read_int();
                 int len = my_snprintf(text, sizeof(text), "%d", pid);
                 profiler_end_time = (file_minor >= 1) ? read_nv() : 0;
+
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("PID_END")));
+		    XPUSHs(sv_2mortal(newSVuv(pid)));
+		    if (file_minor >= 1)
+			XPUSHs(sv_2mortal(newSVuv(profiler_end_time)));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
 
                 if (!hv_delete(live_pids_hv, text, len, 0))
                     warn("Inconsistent pids in profile data (pid %d not introduced)",
@@ -3089,6 +3217,17 @@ load_profile_data_from_stream()
                 }
                 *value++ = '\0';
                 value_sv = newSVpvn(value, end-value);
+
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("ATTRIBUTE")));
+		    XPUSHs(sv_2mortal(newSVpv(text, 0)));
+		    XPUSHs(sv_2mortal(newSVsv(value_sv)));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		}
+
                 store_attrib_sv(aTHX_ attr_hv, text, value_sv);
                 if ('t' == *text && strEQ(text, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)SvUV(value_sv);
@@ -3108,6 +3247,17 @@ load_profile_data_from_stream()
                 if (NULL == NYTP_gets(in, text, sizeof(text)))
                     /* probably EOF */
                     croak("Profile format error reading comment");
+
+		if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("COMMENT")));
+		    XPUSHs(sv_2mortal(newSVpv(text, 0)));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		    break;
+		}
+
                 if (trace_level >= 1)
                     warn("# %s", text);           /* includes \n */
                 break;
@@ -3116,6 +3266,13 @@ load_profile_data_from_stream()
 	    case NYTP_TAG_START_DEFLATE:
 	    {
 #ifdef HAS_ZLIB
+	        if (cb) {
+		    PUSHMARK(SP);
+		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
+		    XPUSHs(sv_2mortal(newSVpvs("START_DEFLATE")));
+		    PUTBACK;
+		    call_sv(cb, G_DISCARD);
+		}
 		NYTP_start_inflate(in);
 #else
                 croak("File uses compression but compression is not supported by this build of NYTProf");
@@ -3127,6 +3284,22 @@ load_profile_data_from_stream()
                 croak("File format error: token %d ('%c'), chunk %lu, pos %ld%s",
 		      c, c, input_chunk_seqn, NYTP_tell(in)-1, NYTP_type_of_offset(in));
         }
+    }
+
+    if (cb) {
+	SvREFCNT_dec(profile_modes);
+	SvREFCNT_dec(live_pids_hv);
+	SvREFCNT_dec(attr_hv);
+	SvREFCNT_dec(fid_fileinfo_av);
+	SvREFCNT_dec(fid_filecontents_av);
+	SvREFCNT_dec(fid_line_time_av);
+	SvREFCNT_dec(fid_block_time_av);
+	SvREFCNT_dec(fid_sub_time_av);
+	SvREFCNT_dec(sub_subinfo_hv);
+	SvREFCNT_dec(sub_callers_hv);
+	SvREFCNT_dec(tmp_str_sv);
+
+	return newHV(); /* dummy */
     }
 
     if (HvKEYS(live_pids_hv)) {
@@ -3276,8 +3449,10 @@ MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Data
 PROTOTYPES: DISABLE
 
 HV*
-load_profile_data_from_file(file)
+load_profile_data_from_file(file,cb=NULL,cb_seq=0)
 char *file;
+SV* cb;
+bool cb_seq;
     CODE:
     if (trace_level)
         warn("reading profile data from file %s\n", file);
@@ -3285,7 +3460,7 @@ char *file;
     if (in == NULL) {
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
-    RETVAL = load_profile_data_from_stream();
+    RETVAL = load_profile_data_from_stream(cb, cb_seq);
     NYTP_close(in, 0);
     OUTPUT:
     RETVAL
