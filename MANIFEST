@@ -18,8 +18,8 @@ lib/Devel/NYTProf.pm
 lib/Devel/NYTProf/Apache.pm
 lib/Devel/NYTProf/Core.pm
 lib/Devel/NYTProf/Data.pm
-lib/Devel/NYTProf/Data/Raw.pm
 lib/Devel/NYTProf/Reader.pm
+lib/Devel/NYTProf/ReadStream.pm
 lib/Devel/NYTProf/Test.pm
 lib/Devel/NYTProf/Util.pm
 lib/Devel/NYTProf/js/jquery.min.js
