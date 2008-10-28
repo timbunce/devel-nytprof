@@ -112,7 +112,12 @@ in the file.
 
 =item PID_START => $pid, $parent_pid, $start_time (v2.1)
 
-Still a mystery to me.
+The process with the given $pid starts running (under the profiler).
+
+Dates from the way forking used to be supported. Likely to get
+deprecated when we get better support for tracking the time the sub
+profiler and statement profiler were actually active. (Which is needed
+to calculate percentages.)
 
 =item NEW_FID => $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name
 
@@ -128,12 +133,14 @@ the program leaves a line.
 
 =item DISCOUNT
 
-Still a mystery to me.
+Indicates that the next TIME_BLOCK or TIME_LINE should not increment the
+"number of times the statement was executed". See the 'leave' option.
 
 =item SUB_LINE_RANGE => $fid, $beg, $end, $name
 
 At the end of the run the profiler will output chunks that report on
-the subroutines encountered.
+the subroutines in all the files visited.  This is a straight dump
+C<%DB::sub>; see L<perldebguts>.
 
 =item SUB_CALLERS => $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $name
 
@@ -142,13 +149,15 @@ where subroutines were called from.
 
 =item SRC_LINE => $fid, $line, $text
 
-Not used (???)
+Used to capture the source code of the program and modules profiled.
+Currently only used for C<< perl -e '...' >> and C<< perl - >> runs.
 
 =item PID_END => $pid (v2.0)
 
 =item PID_END => $pid, $end_time (v2.1)
 
-Still a mystery to me.
+The process with the given $pid is done running.  See the description
+of PID_START above.
 
 =back
 
