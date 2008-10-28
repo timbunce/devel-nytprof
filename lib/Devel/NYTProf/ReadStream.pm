@@ -1,4 +1,4 @@
-package Devel::NYTProf::Data::Raw;
+package Devel::NYTProf::ReadStream;
 
 use warnings;
 use strict;
@@ -26,11 +26,11 @@ __END__
 
 =head1 NAME
 
-Devel::NYTProf::Data::Raw - Reader of Devel::NYTProf data files
+Devel::NYTProf::ReadStream - Reader of Devel::NYTProf data files
 
 =head1 SYNOPSIS
 
-  use Devel::NYTProf::Data::Raw qw(for_chunks);
+  use Devel::NYTProf::ReadStream qw(for_chunks);
   for_chunks {
       my $tag = shift;
       print "$tag\n";
