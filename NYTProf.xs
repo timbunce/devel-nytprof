@@ -265,7 +265,7 @@ static int reinit_if_forked(pTHX);
 static void write_cached_fids();
 static void write_sub_line_ranges(pTHX);
 static void write_sub_callers(pTHX);
-static HV *load_profile_data_from_stream(SV* cb, bool cb_seq);
+static HV *load_profile_data_from_stream(SV* cb);
 static AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num,
 				    NV time, int count, unsigned int fid);
 
@@ -2721,7 +2721,7 @@ store_attrib_sv(pTHX_ HV *attr_hv, char *text, SV *value_sv)
  * data for each line of the string eval.
  */
 static HV*
-load_profile_data_from_stream(SV *cb, bool cb_seq)
+load_profile_data_from_stream(SV *cb)
 {
     dTHX;
     dSP;
@@ -2746,6 +2746,7 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
     HV* sub_subinfo_hv = newHV();
     HV* sub_callers_hv = newHV();
     SV *tmp_str_sv = newSVpvn("",0);
+    SV *input_chunk_seqn_sv = NULL;
 
     /* these times don't reflect profile_enable & profile_disable calls */
     NV profiler_start_time = 0.0;
@@ -2767,8 +2768,10 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
             file_major, file_minor, __FILE__, XS_VERSION);
 
     if (cb) {
+        input_chunk_seqn_sv = save_scalar(gv_fetchpvs(".", GV_ADD, SVt_IV));
+	sv_setuv(input_chunk_seqn_sv, input_chunk_seqn);
+
         PUSHMARK(SP);
-	if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 	XPUSHs(sv_2mortal(newSVpvs("VERSION")));
 	XPUSHs(sv_2mortal(newSViv(file_major)));
 	XPUSHs(sv_2mortal(newSViv(file_minor)));
@@ -2789,6 +2792,10 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 	}
 
         input_chunk_seqn++;
+	if (cb) {
+	    sv_setuv(input_chunk_seqn_sv, input_chunk_seqn);
+	}
+
         if (trace_level >= 6)
             warn("Chunk %lu token is %d ('%c') at %ld%s\n", input_chunk_seqn, c, c, NYTP_tell(in)-1, NYTP_type_of_offset(in));
 
@@ -2797,7 +2804,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
             {
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("DISCOUNT")));
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
@@ -2825,7 +2831,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(c == NYTP_TAG_TIME_BLOCK ?
 		                      newSVpvs("TIME_BLOCK") : newSVpvs("TIME_LINE")
                     ));
@@ -2922,7 +2927,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("NEW_FID")));
 		    XPUSHs(sv_2mortal(newSViv(file_num)));
 		    XPUSHs(sv_2mortal(newSViv(eval_file_num)));
@@ -2976,7 +2980,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("SRC_LINE")));
 		    XPUSHs(sv_2mortal(newSVuv(file_num)));
 		    XPUSHs(sv_2mortal(newSVuv(line_num)));
@@ -3013,7 +3016,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("SUB_LINE_RANGE")));
 		    XPUSHs(sv_2mortal(newSVuv(fid)));
 		    XPUSHs(sv_2mortal(newSVuv(first_line)));
@@ -3062,7 +3064,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("SUB_CALLERS")));
 		    XPUSHs(sv_2mortal(newSVuv(fid)));
 		    XPUSHs(sv_2mortal(newSVuv(line)));
@@ -3147,7 +3148,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("PID_START")));
 		    XPUSHs(sv_2mortal(newSVuv(pid)));
 		    XPUSHs(sv_2mortal(newSVuv(ppid)));
@@ -3177,7 +3177,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("PID_END")));
 		    XPUSHs(sv_2mortal(newSVuv(pid)));
 		    if (file_minor >= 1)
@@ -3220,7 +3219,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("ATTRIBUTE")));
 		    XPUSHs(sv_2mortal(newSVpv(text, 0)));
 		    XPUSHs(sv_2mortal(newSVsv(value_sv)));
@@ -3250,7 +3248,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("COMMENT")));
 		    XPUSHs(sv_2mortal(newSVpv(text, 0)));
 		    PUTBACK;
@@ -3268,7 +3265,6 @@ load_profile_data_from_stream(SV *cb, bool cb_seq)
 #ifdef HAS_ZLIB
 	        if (cb) {
 		    PUSHMARK(SP);
-		    if (cb_seq) XPUSHs(sv_2mortal(newSViv(input_chunk_seqn)));
 		    XPUSHs(sv_2mortal(newSVpvs("START_DEFLATE")));
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
@@ -3449,10 +3445,9 @@ MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Data
 PROTOTYPES: DISABLE
 
 HV*
-load_profile_data_from_file(file,cb=NULL,cb_seq=0)
+load_profile_data_from_file(file,cb=NULL)
 char *file;
 SV* cb;
-bool cb_seq;
     CODE:
     if (trace_level)
         warn("reading profile data from file %s\n", file);
@@ -3460,7 +3455,7 @@ bool cb_seq;
     if (in == NULL) {
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
-    RETVAL = load_profile_data_from_stream(cb, cb_seq);
+    RETVAL = load_profile_data_from_stream(cb);
     NYTP_close(in, 0);
     OUTPUT:
     RETVAL

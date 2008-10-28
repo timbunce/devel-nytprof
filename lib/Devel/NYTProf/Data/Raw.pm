@@ -16,7 +16,7 @@ sub for_chunks (&%) {
     my($cb, %opts) = @_;
     Devel::NYTProf::Data::load_profile_data_from_file(
 	$opts{filename} || 'nytprof.out',
-	$cb, $opts{sequence_numbers},
+	$cb,
     );
 }
 
@@ -58,6 +58,7 @@ passed depend on the tag.  See L</"Chunks"> for the details.
 
 The return value of the callback function is ignored.  The
 for_chunks() function will croak if the file isn't readable.
+The C<$.> variable is made to track the chunk sequence numbers.
 
 The behaviour of the function can be modified by passing key/value
 pairs after the callback.  Currently recognized are:
@@ -67,14 +68,6 @@ pairs after the callback.  Currently recognized are:
 =item filename => $path
 
 The path to the data file to read.  Defaults to F<nytprof.out>.
-
-=item sequence_numbers => $bool
-
-If TRUE pass the chunk sequence number as the first argument (ahead of
-the chunk tag) to the callback function.  This is mostly useful for
-testing the internal workings of this module, as this should just be a
-counter that starts at 0 and increments by 1 for each call to the
-callback function.
 
 =back
 
