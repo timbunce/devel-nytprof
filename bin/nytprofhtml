@@ -247,7 +247,7 @@ $reporter->set_param(
     'linestart',
     {   func => sub {
             my ($value, $linenum, $linesrc) = @_;
-            (my $anchor = $linenum || $value) =~ s/\W/_/g;
+            (my $anchor = defined($linenum) ? $linenum : $value) =~ s/\W/_/g;
             sprintf qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, $linenum;
         },
     }

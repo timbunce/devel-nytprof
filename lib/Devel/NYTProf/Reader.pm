@@ -404,7 +404,10 @@ sub _generate_report {
         print OUT $taintmsg if $tainted;
         print OUT $datastart;
 
-        if (!open(IN, "<", $filestr)) {
+        my $LINE = 1;    # actual line number. PATTERN variable, DO NOT CHANGE
+        my $fileinfo = $profile->fileinfo_of($filestr);
+        my $src_lines = $fileinfo->srclines_array;
+        if (!$src_lines) {
 
             # ignore synthetic file names that perl assigns when reading
             # code returned by a CODE ref in @INC
@@ -417,13 +420,14 @@ sub _generate_report {
                 . "or ensure \@INC is correct."
                 unless $filestr eq '-e'
                 or our $_generate_report_inc_hint++;
-            warn "Unable to open '$filestr' for reading: $!.$hint\n"
+            my $msg = "Unable to open '$filestr' for reading: $!.$hint\n";
+            warn $msg
                 unless our $_generate_report_filestr_warn->{$filestr}++;    # only once
-            next;
+            $src_lines = [ $msg ];
+            $LINE = 0;
         }
 
-        my $LINE = 1;    # actual line number. PATTERN variable, DO NOT CHANGE
-        foreach my $line (<IN>) {
+        while ( my $line = shift @$src_lines ) {
             chomp $line;
             foreach my $regexp (@{$self->{user_regexp}}) {
                 $line =~ s/$regexp->{pattern}/$regexp->{replace}/g;
@@ -495,6 +499,7 @@ sub _generate_report {
 
             $LINE = '';
             my $src = "sub $subname; # xsub\n\t";
+            my $filestr = '';
 
             foreach my $hash (@{$self->{line}}) {
 
@@ -504,12 +509,12 @@ sub _generate_report {
                     print OUT $func->(
                         $subname, undef,
                         undef, $LINE, $src, $profile,
-                        [ $subinfo ], {}
+                        [ $subinfo ], {}, $filestr
                     );
                 }
                 else {
                     print OUT $func->(
-                        $subname, $LINE, $src, $profile, [ $subinfo ], {}
+                        $subname, $LINE, $src, $profile, [ $subinfo ], {}, $filestr
                     );
                 }
             }

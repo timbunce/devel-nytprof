@@ -379,7 +379,7 @@ sub _dump_elements {
         $value = $value->_values_for_dump
             if blessed $value && $value->can('_values_for_dump');
 
-        next if $key eq 'fid_filecontents';
+        next if $key eq 'fid_srclines';
 
         # special case some common cases to be more compact:
         #		fid_*_time   [fid][line] = [N,N]
@@ -1018,8 +1018,8 @@ sub _dumper {
     }
 
 
-# should return the filename that the application used
-# when loading the file
+    # should return the filename that the application used
+    # when loading the file
     sub filename_without_inc {
         my $self = shift;
         my $f    = [$self->filename];
@@ -1044,6 +1044,23 @@ sub _dumper {
         # remove sub_caller info for calls made *from within* this file
         delete $_->{$fid} for values %$sub_caller;
         return;
+    }
+
+    sub srclines_array {
+        my $self = shift;
+        my $profile = $self->profile;
+        #warn Dumper($profile->{fid_srclines});
+        if (my $srclines = $profile->{fid_srclines}[ $self->fid ]) {
+            return [ @$srclines ]; # shallow clone
+        }
+        # open file
+        my $filename = $self->filename;
+        # if it's a .pmc then assume that's the file we want to look at
+        # (because the main use for .pmc's are related to perl6)
+        $filename .= "c" if $self->is_pmc;
+        open my $fh, "<", $filename
+            or return undef;
+        return [ <$fh> ];
     }
 
 }    # end of package
