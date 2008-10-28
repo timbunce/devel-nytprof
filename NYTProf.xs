@@ -2746,12 +2746,19 @@ load_profile_data_from_stream(SV *cb)
     HV* sub_subinfo_hv = newHV();
     HV* sub_callers_hv = newHV();
     SV *tmp_str_sv = newSVpvn("",0);
-    SV *input_chunk_seqn_sv = NULL;
 
     /* these times don't reflect profile_enable & profile_disable calls */
     NV profiler_start_time = 0.0;
     NV profiler_end_time = 0.0;
     NV profiler_duration = 0.0;
+
+    /* callback support */
+    int i;
+    SV *input_chunk_seqn_sv = NULL;
+    SV *cb_DISCOUNT_tag = NULL;
+    SV *cb_TIME_BLOCK_tag = NULL;
+    SV *cb_TIME_LINE_tag = NULL;
+    SV *cb_args[12];  /* must be large enough for the largest callback argument list */
 
     av_extend(fid_fileinfo_av, 64);               /* grow it up front. */
     av_extend(fid_srclines_av, 64);
@@ -2771,10 +2778,25 @@ load_profile_data_from_stream(SV *cb)
         input_chunk_seqn_sv = save_scalar(gv_fetchpvs(".", GV_ADD, SVt_IV));
 	sv_setuv(input_chunk_seqn_sv, input_chunk_seqn);
 
+	/* these tags are frequent enough that we reuse the same SV in all calls */
+	cb_DISCOUNT_tag = sv_2mortal(newSVpvs("DISCOUNT"));
+	cb_TIME_BLOCK_tag = sv_2mortal(newSVpvs("TIME_BLOCK"));
+	cb_TIME_LINE_tag = sv_2mortal(newSVpvs("TIME_LINE"));
+	SvREADONLY_on(cb_DISCOUNT_tag);
+	SvREADONLY_on(cb_TIME_BLOCK_tag);
+	SvREADONLY_on(cb_TIME_LINE_tag);
+
+	for (i = 0; i < C_ARRAY_LENGTH(cb_args); i++)
+	    cb_args[i] = sv_newmortal();
+
+
         PUSHMARK(SP);
-	XPUSHs(sv_2mortal(newSVpvs("VERSION")));
-	XPUSHs(sv_2mortal(newSViv(file_major)));
-	XPUSHs(sv_2mortal(newSViv(file_minor)));
+
+	i = 0;
+	sv_setpvs(cb_args[i], "VERSION");  XPUSHs(cb_args[i++]);
+	sv_setiv(cb_args[i], file_major);  XPUSHs(cb_args[i++]);
+	sv_setiv(cb_args[i], file_minor);  XPUSHs(cb_args[i++]);
+
 	PUTBACK;
 	call_sv(cb, G_DISCARD);
     }
@@ -2804,7 +2826,7 @@ load_profile_data_from_stream(SV *cb)
             {
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("DISCOUNT")));
+		    XPUSHs(cb_DISCOUNT_tag);
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -2831,19 +2853,21 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(c == NYTP_TAG_TIME_BLOCK ?
-		                      newSVpvs("TIME_BLOCK") : newSVpvs("TIME_LINE")
-                    ));
-		    XPUSHs(sv_2mortal(newSViv(eval_file_num)));
-		    XPUSHs(sv_2mortal(newSViv(eval_line_num)));
-		    XPUSHs(sv_2mortal(newSViv(ticks)));
-		    XPUSHs(sv_2mortal(newSViv(file_num)));
-		    XPUSHs(sv_2mortal(newSViv(line_num)));
+
+		    XPUSHs(c == NYTP_TAG_TIME_BLOCK ? cb_TIME_BLOCK_tag : cb_TIME_LINE_tag);
+
+		    i = 0;
+		    sv_setiv(cb_args[i], eval_file_num);  XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], eval_line_num);  XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], ticks);          XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], file_num);       XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], line_num);       XPUSHs(cb_args[i++]);
 
 		    if (c == NYTP_TAG_TIME_BLOCK) {
-			XPUSHs(sv_2mortal(newSViv(read_int())));  /* block_line_num */
-			XPUSHs(sv_2mortal(newSViv(read_int())));  /* sub_line_num */
+			sv_setiv(cb_args[i], read_int()); XPUSHs(cb_args[i++]); /* block_line_num */
+			sv_setiv(cb_args[i], read_int()); XPUSHs(cb_args[i++]); /* sub_line_num */
 		    }
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -2927,14 +2951,19 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("NEW_FID")));
-		    XPUSHs(sv_2mortal(newSViv(file_num)));
-		    XPUSHs(sv_2mortal(newSViv(eval_file_num)));
-		    XPUSHs(sv_2mortal(newSViv(eval_line_num)));
-		    XPUSHs(sv_2mortal(newSViv(fid_flags)));
-		    XPUSHs(sv_2mortal(newSViv(file_size)));
-		    XPUSHs(sv_2mortal(newSViv(file_mtime)));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "NEW_FID");    XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], file_num);      XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], eval_file_num); XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], eval_line_num); XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], fid_flags);     XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], file_size);     XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], file_mtime);    XPUSHs(cb_args[i++]);
+		    assert(i <= C_ARRAY_LENGTH(cb_args));
+
 		    XPUSHs(sv_2mortal(filename_sv));
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -2980,10 +3009,14 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("SRC_LINE")));
-		    XPUSHs(sv_2mortal(newSVuv(file_num)));
-		    XPUSHs(sv_2mortal(newSVuv(line_num)));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "SRC_LINE");  XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], file_num);     XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], line_num);     XPUSHs(cb_args[i++]);
+
 		    XPUSHs(sv_2mortal(src));
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -3016,11 +3049,14 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("SUB_LINE_RANGE")));
-		    XPUSHs(sv_2mortal(newSVuv(fid)));
-		    XPUSHs(sv_2mortal(newSVuv(first_line)));
-		    XPUSHs(sv_2mortal(newSVuv(last_line)));
-		    XPUSHs(sv_2mortal(newSVsv(subname_sv)));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "SUB_LINE_RANGE"); XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], fid);               XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], first_line);        XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], last_line);         XPUSHs(cb_args[i++]);
+		    sv_setsv(cb_args[i], subname_sv);        XPUSHs(cb_args[i++]);
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -3064,17 +3100,21 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("SUB_CALLERS")));
-		    XPUSHs(sv_2mortal(newSVuv(fid)));
-		    XPUSHs(sv_2mortal(newSVuv(line)));
-		    XPUSHs(sv_2mortal(newSVuv(count)));
-		    XPUSHs(sv_2mortal(newSVnv(incl_time)));
-		    XPUSHs(sv_2mortal(newSVnv(excl_time)));
-		    XPUSHs(sv_2mortal(newSVnv(ucpu_time)));
-		    XPUSHs(sv_2mortal(newSVnv(scpu_time)));
-		    XPUSHs(sv_2mortal(newSVnv(reci_time)));
-		    XPUSHs(sv_2mortal(newSViv(rec_depth)));
-		    XPUSHs(sv_2mortal(newSVsv(subname_sv)));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "SUB_CALLERS"); XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], fid);            XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], line);           XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], count);          XPUSHs(cb_args[i++]);
+		    sv_setnv(cb_args[i], incl_time);      XPUSHs(cb_args[i++]);
+		    sv_setnv(cb_args[i], excl_time);      XPUSHs(cb_args[i++]);
+		    sv_setnv(cb_args[i], ucpu_time);      XPUSHs(cb_args[i++]);
+		    sv_setnv(cb_args[i], scpu_time);      XPUSHs(cb_args[i++]);
+		    sv_setnv(cb_args[i], reci_time);      XPUSHs(cb_args[i++]);
+		    sv_setiv(cb_args[i], rec_depth);      XPUSHs(cb_args[i++]);
+		    sv_setsv(cb_args[i], subname_sv);     XPUSHs(cb_args[i++]);
+		    assert(i <= C_ARRAY_LENGTH(cb_args));
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -3148,11 +3188,14 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("PID_START")));
-		    XPUSHs(sv_2mortal(newSVuv(pid)));
-		    XPUSHs(sv_2mortal(newSVuv(ppid)));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "PID_START");   XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], pid);            XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], ppid);           XPUSHs(cb_args[i++]);
 		    if (file_minor >= 1)
-			XPUSHs(sv_2mortal(newSVuv(profiler_start_time)));
+			sv_setuv(cb_args[i], profiler_start_time); XPUSHs(cb_args[i++]);
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -3177,10 +3220,13 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("PID_END")));
-		    XPUSHs(sv_2mortal(newSVuv(pid)));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "PID_END");  XPUSHs(cb_args[i++]);
+		    sv_setuv(cb_args[i], pid);         XPUSHs(cb_args[i++]);
 		    if (file_minor >= 1)
-			XPUSHs(sv_2mortal(newSVuv(profiler_end_time)));
+			sv_setuv(cb_args[i], profiler_end_time);  XPUSHs(cb_args[i++]);
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -3219,9 +3265,12 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("ATTRIBUTE")));
-		    XPUSHs(sv_2mortal(newSVpv(text, 0)));
-		    XPUSHs(sv_2mortal(newSVsv(value_sv)));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "ATTRIBUTE");  XPUSHs(cb_args[i++]);
+		    sv_setpv(cb_args[i], text);          XPUSHs(cb_args[i++]);
+		    sv_setsv(cb_args[i], value_sv);      XPUSHs(cb_args[i++]);
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		}
@@ -3248,8 +3297,11 @@ load_profile_data_from_stream(SV *cb)
 
 		if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("COMMENT")));
-		    XPUSHs(sv_2mortal(newSVpv(text, 0)));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "COMMENT"); XPUSHs(cb_args[i++]);
+		    sv_setpv(cb_args[i], text);       XPUSHs(cb_args[i++]);
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		    break;
@@ -3265,7 +3317,10 @@ load_profile_data_from_stream(SV *cb)
 #ifdef HAS_ZLIB
 	        if (cb) {
 		    PUSHMARK(SP);
-		    XPUSHs(sv_2mortal(newSVpvs("START_DEFLATE")));
+
+		    i = 0;
+		    sv_setpvs(cb_args[i], "START_DEFLATE"); XPUSHs(cb_args[i++]);
+
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
 		}
