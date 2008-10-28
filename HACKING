@@ -302,10 +302,6 @@ values as we use for inclusive and exclusive subroutine times.
 
 Report max recursion depth and reci_time per sub in per-file reports.
 
-Could add ::Data method to write source code for each fid into $dir/nytprof_src_$fid.txt
-OR, probably better, add method to return source code array ref, that defaults to returning
-the embeded source array, if available, else hunts for and loads current source file.
-
 Bug or limitation?: sub calls in a continue { ... } block of a while () get
 associated with the 'next;' within the loop.
 Also, test sub caller location for
@@ -315,3 +311,18 @@ Also, test sub caller location for
       ... # no calls to foo() should appear here
   }
 
+Report could track which subs it has reported caller info for
+and so be able to identify subs that were called but haven't been included
+in the report because we didn't know where the sub was.
+They could them be included in a separate 'miscellaneous' page.
+This is a more general way to view the problem of xsubs in packages
+for which we don't have any perl source code.
+
+Investigate style.css problem when using --outfile=some/other/dir
+
+Could save 'current subname' in sub profiler so we can say A was called by B
+and not just A was called by line X of file Y. (Will need to SAVE* a link to
+previous current subname and restore it on return from sub.)
+
+Add per-package summary table like the per-sub stats to make it easier to see
+a package where a lot of time is being spent in lots of different subs.

@@ -98,5 +98,5 @@ t/test60-subname.rdt
 t/test70-subexcl.p
 t/test80-recurs.p
 t/test80-recurs.rdt
-t/test90-stress.p
+xt/test90-stress.p
 typemap
