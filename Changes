@@ -43,6 +43,8 @@ Reports:
 
   Assorted report formating enhancements thanks to Gisle Aas.
 
+  Added Devel::NYTProf::ReadStream module thanks to Gisle Aas.
+
   Exclusive and Inclusive time column positions have been switched
     to be consistent with how the times are presented elsewhere.
 

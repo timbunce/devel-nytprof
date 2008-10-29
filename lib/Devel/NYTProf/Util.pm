@@ -148,13 +148,14 @@ sub fmt_float {
 }
 
 sub fmt_time {
-    my $sec = shift;
-    return 0 unless $sec;
-    return sprintf "%.0fns", $sec * 1e9                              if $sec < 1e-6;
-    return sprintf "%.0f&micro;s", $sec * 1e6                        if $sec < 1e-3;
-    return sprintf "%.*fms", 3 - length(int($sec * 1e3)), $sec * 1e3 if $sec < 1;
-    return sprintf "%.*fs",  3 - length(int($sec)),       $sec       if $sec < 100;
-    return sprintf "%.0fs", $sec;
+    my ($sec, $width) = @_;
+    $width = '' unless defined $width;
+    return sprintf "%$width.0f", 0 unless $sec;
+    return sprintf "%$width.0fns", $sec * 1e9                              if $sec < 1e-6;
+    return sprintf "%$width.0f&micro;s", $sec * 1e6                        if $sec < 1e-3;
+    return sprintf "%$width.*fms", 3 - length(int($sec * 1e3)), $sec * 1e3 if $sec < 1;
+    return sprintf "%$width.*fs",  3 - length(int($sec)),       $sec       if $sec < 100;
+    return sprintf "%$width.0fs", $sec;
 }
 
 sub fmt_incl_excl_time {

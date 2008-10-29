@@ -253,6 +253,11 @@ $reporter->set_param(
     }
 );
 
+
+$reporter->set_param('column1', {value => 'calls',     func => \&determine_severity});
+$reporter->set_param('column2', {value => 'time',      func => \&determine_severity});
+$reporter->set_param('column3', {value => 'time/call', func => \&determine_severity});
+
 $reporter->set_param(
     'column4',
     {   func => sub {
@@ -337,7 +342,7 @@ $reporter->set_param(
                 $epilogue = join "\n", map {
                     my ($count, $incl_time, $reci_time, $rec_depth) = (@{$calls->{$_}})[0,1,5,6];
                     my $html = sprintf qq{%s# spent %s making %*d call%s to }, $ws,
-                        fmt_time($incl_time+$reci_time), length($max_calls_to),
+                        fmt_time($incl_time+$reci_time, 5), length($max_calls_to),
 		        $count, $count == 1 ? "" : "s";
                     $html .= sprintf qq{<a %s>%s</a>}, $reporter->href_for_sub($_), $_;
                     $html .= sprintf qq{, avg %s/call}, fmt_time($incl_time / $count)
@@ -353,11 +358,6 @@ $reporter->set_param(
         },
     }
 );
-
-
-$reporter->set_param('column1', {value => 'calls',     func => \&determine_severity});
-$reporter->set_param('column2', {value => 'time',      func => \&determine_severity});
-$reporter->set_param('column3', {value => 'time/call', func => \&determine_severity});
 
 $reporter->set_param('lineend', { func => sub { "</tr>\n" } });
 
