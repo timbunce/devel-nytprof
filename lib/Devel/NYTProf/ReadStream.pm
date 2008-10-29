@@ -26,11 +26,12 @@ __END__
 
 =head1 NAME
 
-Devel::NYTProf::ReadStream - Reader of Devel::NYTProf data files
+Devel::NYTProf::ReadStream - Read Devel::NYTProf data file as a stream
 
 =head1 SYNOPSIS
 
   use Devel::NYTProf::ReadStream qw(for_chunks);
+
   for_chunks {
       my $tag = shift;
       print "$tag\n";
@@ -44,9 +45,10 @@ Devel::NYTProf::ReadStream - Reader of Devel::NYTProf data files
 
 =head1 DESCRIPTION
 
-This module provide a low level interface for reading F<nytprof.out>
-files (Devel::NYTProf data files).  Currently the module only provide
-a single function:
+This module provide a low level interface for reading the contents of
+F<nytprof.out> files (Devel::NYTProf data files) as a stream of chunks.
+
+Currently the module only provide a single function:
 
 =over
 
@@ -90,6 +92,9 @@ streamed out as the profiled program runs.  This documents how the
 chunks appear when presented to the callback function of the
 for_chunks() function for version 2.0 and 2.1 of the file format.
 
+I<Note that the chunks and their arguments are liable to change
+between versions as NYTProf evolves.>
+
 =over
 
 =item VERSION => $major, $minor
@@ -114,7 +119,8 @@ The attributes reported are:
 
 =item basetime => $time
 
-The time (epoch based) when this profile run started.
+The time (epoch based) when the profiled perl process started.
+It's the same value as C<$^T>.
 
 =item xs_version => $ver
 
@@ -122,11 +128,11 @@ The version of the Devel::NYTProf used for profiling.
 
 =item perl_version => $ver
 
-The version of perl used for profiling.  This is a string line "5.10.1".
+The version of perl used for profiling.  This is a string like "5.10.1".
 
 =item clock_id => $num
 
-What kind of clock was used to time the program.  Will be C<-1> for
+What kind of clock was used to profile the program.  Will be C<-1> for
 the default clock.
 
 =item ticks_per_sec => $num
@@ -163,7 +169,7 @@ to calculate percentages.)
 
 =item NEW_FID => $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name
 
-Files are represented by integers called $fid and this chunk declare
+Files are represented by integers called 'fid' (File IDs) and this chunk declares
 the mapping between these numbers and file path names.
 
 =item TIME_BLOCK => $eval_fid, $eval_line, $ticks, $fid, $line, $block_line, $sub_line
@@ -171,7 +177,7 @@ the mapping between these numbers and file path names.
 =item TIME_LINE => $eval_fid, $eval_line, $ticks, $fid, $line
 
 A TIME_BLOCK or TIME_LINE chunk is output each time the execution of
-the program leaves a line.
+the program leaves a statement.
 
 =item DISCOUNT
 
@@ -181,8 +187,8 @@ Indicates that the next TIME_BLOCK or TIME_LINE should not increment the
 =item SUB_LINE_RANGE => $fid, $beg, $end, $name
 
 At the end of the run the profiler will output chunks that report on
-the subroutines in all the files visited.  This is a straight dump
-C<%DB::sub>; see L<perldebguts>.
+the perl subroutines defined in all the files visited while profiling.
+This is a straight dump C<%DB::sub>; see L<perldebguts>.
 
 =item SUB_CALLERS => $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $name
 
@@ -192,7 +198,8 @@ where subroutines were called from.
 =item SRC_LINE => $fid, $line, $text
 
 Used to capture the source code of the program and modules profiled.
-Currently only used for C<< perl -e '...' >> and C<< perl - >> runs.
+Currently only used for C<< perl -e '...' >> and C<< perl - >> runs
+and requires use of the C<use_db_sub=1> option.
 
 =item PID_END => $pid (v2.0)
 
