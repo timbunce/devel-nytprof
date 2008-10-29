@@ -27,6 +27,8 @@ lib/Devel/NYTProf/js/jquery.tablesorter.min.js
 ppport.h
 t/00.load.t
 t/20.runtests.t
+t/22.readstream.v20.out
+t/22.readstream.t
 t/30.util.t
 t/50.errno.t
 t/80.version.t

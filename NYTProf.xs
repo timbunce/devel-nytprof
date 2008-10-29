@@ -3193,8 +3193,9 @@ load_profile_data_from_stream(SV *cb)
 		    sv_setpvs(cb_args[i], "PID_START");   XPUSHs(cb_args[i++]);
 		    sv_setuv(cb_args[i], pid);            XPUSHs(cb_args[i++]);
 		    sv_setuv(cb_args[i], ppid);           XPUSHs(cb_args[i++]);
-		    if (file_minor >= 1)
+		    if (file_minor >= 1) {
 			sv_setuv(cb_args[i], profiler_start_time); XPUSHs(cb_args[i++]);
+		    }
 
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
@@ -3224,8 +3225,9 @@ load_profile_data_from_stream(SV *cb)
 		    i = 0;
 		    sv_setpvs(cb_args[i], "PID_END");  XPUSHs(cb_args[i++]);
 		    sv_setuv(cb_args[i], pid);         XPUSHs(cb_args[i++]);
-		    if (file_minor >= 1)
+		    if (file_minor >= 1) {
 			sv_setuv(cb_args[i], profiler_end_time);  XPUSHs(cb_args[i++]);
+		    }
 
 		    PUTBACK;
 		    call_sv(cb, G_DISCARD);
