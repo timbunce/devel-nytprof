@@ -101,4 +101,5 @@ t/test70-subexcl.p
 t/test80-recurs.p
 t/test80-recurs.rdt
 typemap
+xt/test71-while.p
 xt/test90-stress.p

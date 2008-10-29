@@ -20,7 +20,7 @@ package    # hide the package from the PAUSE indexer
 # Set the flags that influence compilation ASAP so we get full details
 # (sub line ranges etc) of modules loaded as a side effect of loading
 # Devel::NYTProf::Core (ie XSLoader, strict, Exporter etc.)
-# See "perldoc perlvar" for details of the $^P flags
+# See "perldoc perlvar" for details of the $^P ($PERLDB) flags
 $^P = 0x010     # record line range of sub definition
     | 0x100     # informative "file" names for evals
     | 0x200;    # informative names for anonymous subroutines
@@ -28,8 +28,8 @@ $^P = 0x010     # record line range of sub definition
 # XXX hack, need better option handling
 my $use_db_sub = ($ENV{NYTPROF} && $ENV{NYTPROF} =~ m/\buse_db_sub=1\b/);
 
-$^P |= 0x002    # line-by-line profiling (if $DB::single true)
-    | 0x020     # start (after BEGINs) with single-step on
+$^P |= 0x002    # line-by-line profiling via DB::DB (if $DB::single true)
+    |  0x020    # start (after BEGINs) with single-step on
     if $use_db_sub;
 
 require Devel::NYTProf::Core;    # loads XS
@@ -331,9 +331,15 @@ gigahertz clocks, 0.01 seconds is like a lifetime. The cpu time clock 'ticks'
 happen so rarely relative to the activity of a most applications that you'd
 have to run the code for many hours to have any hope of reasonably useful results.
 
-(It may be possible to use the C<clock=N> option to select a
-high-resolution cpu time clock. I've not tried that yet.
-If you try it, please let me know how it works out.)
+It may be possible to use the C<clock=N> option to select a
+high-resolution cpu time clock. You can find the clocks available
+on you system using a command like:
+
+  grep -r 'define *CLOCK_' /usr/include
+
+Look for a group that includes CLOCK_REALTIME. Documentation on these clocks
+can be hard to find.  I've not tried using these clocks yet. If you try it,
+please let us know how it works out.
 
 =head2 file=...
 

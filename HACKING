@@ -277,8 +277,6 @@ probably).
 Slow builtins, eg those that make system calls or are otherwise expensive, like crypt,
 could be treated as calls to xsubs in the CORE:: namespace.
 
-Consider use of CLOCK_PROF for (higher-resolution?) cpu time measurement
-
 Replace DB::enable_profiling() and DB::disable_profiling() with $DB::profile = 1|0;
 That a more consistent API with $DB::single etc., but more importantly it lets
 users leave the code in place when NYTProf is not loaded. It'll just do nothing,
