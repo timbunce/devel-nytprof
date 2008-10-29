@@ -44,21 +44,25 @@ Devel::NYTProf::ReadStream - Reader of Devel::NYTProf data files
 
 =head1 DESCRIPTION
 
-This module provide a low level interface for reading Devel::NYTProf
-data files.  Currently the module only provide a single function:
+This module provide a low level interface for reading F<nytprof.out>
+files (Devel::NYTProf data files).  Currently the module only provide
+a single function:
 
 =over
 
 =item for_chunks( \&callback, %opts )
 
 This function will read the F<nytprof.out> file and invoke the
-callback function for each chunk in the file.  The first argument
-passed to the callback is the chunk tag.  The rest of the arguments
-passed depend on the tag.  See L</"Chunks"> for the details.
+given callback function for each chunk in the file.
 
-The return value of the callback function is ignored.  The
-for_chunks() function will croak if the file isn't readable.
-The C<$.> variable is made to track the chunk sequence numbers.
+The first argument passed to the callback is the chunk tag.  The rest
+of the arguments passed depend on the tag.  See L</"Chunks"> for the
+details.  The return value of the callback function is ignored.
+
+The for_chunks() function will croak if the file can't be opened or if
+the file format isn't recognized.  The global C<$.> variable is made
+to track the chunk sequence numbers and can be inspected in the
+callback.
 
 The behaviour of the function can be modified by passing key/value
 pairs after the callback.  Currently recognized are:
@@ -71,6 +75,12 @@ The path to the data file to read.  Defaults to F<nytprof.out>.
 
 =back
 
+The function is prototyped as C<(&%)> which means that it can be invoked with a
+bare block representing the callback function.  In that case there
+should be no comma before any options.  Example:
+
+  for_chunk { say $_[0] } filename => "myprof.out";
+
 =back
 
 =head2 Chunks
@@ -78,14 +88,14 @@ The path to the data file to read.  Defaults to F<nytprof.out>.
 The F<nytprof.out> file contains a sequence of tagged chunks that are
 streamed out as the profiled program runs.  This documents how the
 chunks appear when presented to the callback function of the
-for_chunks() function for the version 2.0 and 2.1 version of the file format.
+for_chunks() function for version 2.0 and 2.1 of the file format.
 
 =over
 
 =item VERSION => $major, $minor
 
 The first chunk in the file declare what version of the file format
-this is.
+was used for the current file.
 
 =item COMMENT => $text
 
@@ -93,8 +103,47 @@ This chunk is just some textual content that can be ignored.
 
 =item ATTRIBUTE => $key, $value
 
-This chunk is repeated at the beginning of the file and used to declare
-various facts about the profiling run.
+This chunk type is repeated at the beginning of the file and used to
+declare various facts about the profiling run.  The only one that's
+really interesting is C<ticks_per_sec> that tell you how to convert
+the $ticks values into seconds.
+
+The attributes reported are:
+
+=over
+
+=item basetime => $time
+
+The time (epoch based) when this profile run started.
+
+=item xs_version => $ver
+
+The version of the Devel::NYTProf used for profiling.
+
+=item perl_version => $ver
+
+The version of perl used for profiling.  This is a string line "5.10.1".
+
+=item clock_id => $num
+
+What kind of clock was used to time the program.  Will be C<-1> for
+the default clock.
+
+=item ticks_per_sec => $num
+
+Divide the $ticks values in TIME_BLOCK/TIME_LINE by this number to
+convert the time to seconds.
+
+=item nv_size => 8
+
+The $Config{nv_size} of the perl that wrote this file.  This value
+must match for the perl that reads the file as well.
+
+=item application => $string
+
+The path to the program that ran; same as C<$0> in the program itself.
+
+=back
 
 =item START_DEFLATE
 
@@ -115,7 +164,7 @@ to calculate percentages.)
 =item NEW_FID => $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name
 
 Files are represented by integers called $fid and this chunk declare
-the mapping between these numbers and file names.
+the mapping between these numbers and file path names.
 
 =item TIME_BLOCK => $eval_fid, $eval_line, $ticks, $fid, $line, $block_line, $sub_line
 
@@ -156,7 +205,7 @@ of PID_START above.
 
 =head1 SEE ALSO
 
-L<Devel::NYTProf>
+L<Devel::NYTProf>, L<Devel::NYTProf::Data>
 
 =head1 AUTHOR
 
