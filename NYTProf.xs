@@ -2775,7 +2775,7 @@ load_profile_data_from_stream(SV *cb)
             file_major, file_minor, __FILE__, XS_VERSION);
 
     if (cb) {
-        input_chunk_seqn_sv = save_scalar(gv_fetchpvs(".", GV_ADD, SVt_IV));
+        input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
 	sv_setuv(input_chunk_seqn_sv, input_chunk_seqn);
 
 	/* these tags are frequent enough that we reuse the same SV in all calls */
