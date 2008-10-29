@@ -66,10 +66,12 @@ aggregates the contents, and returns the results as a blessed data structure.
 
 sub new {
     my $class = shift;
-    my $args = shift || {filename => 'nytprof.out'};
+    my $args = shift || { filename => 'nytprof.out' };
 
     my $file = $args->{filename}
         or croak "No filename specified";
+
+    print "Reading $file\n" unless $args->{quiet};
 
     my $profile = load_profile_data_from_file($file);
     bless $profile => $class;

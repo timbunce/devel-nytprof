@@ -255,6 +255,9 @@ sub report {
     my $self = shift;
     my ($opts) = @_;
 
+    print "Writing report to $self->{output_dir} directory\n"
+        unless $opts->{quiet};
+
     my $level_additional_sub = $opts->{level_additional};
     my $profile              = $self->{profile};
     my $modes                = $profile->get_profile_levels;
