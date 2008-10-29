@@ -1189,7 +1189,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             I32 lines = av_len(src_av);
             int line;
             if (trace_level >= 4)
-                warn("fid %d has %d src lines", found->id, lines+1);
+                warn("fid %d has %ld src lines", found->id, (long)lines+1);
             for (line = 1; line <= lines; ++line) { /* lines start at 1 */
                 SV **svp = av_fetch(src_av, line, 0);
                 STRLEN len = 0;
@@ -2297,7 +2297,7 @@ init_profiler(pTHX)
     }
 #else
     if (profile_clock != -1) {  /* user tried to select different clock */
-        warn("clock %d not available (clock_gettime not supported on this system)\n");
+        warn("clock %d not available (clock_gettime not supported on this system)\n", profile_clock);
         profile_clock = -1;
     }
 #endif
