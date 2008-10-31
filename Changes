@@ -55,7 +55,7 @@ Reports:
 Documentation:
 
   Greatly expanded description of the clocks used for profiling
-    and thier issues, especially on multi-processor systems.
+    and their issues, especially on multi-processor systems.
 
 Other:
 
@@ -188,7 +188,7 @@ Other:
     - Changed XS code to compile clean with -ansi and -pedantic
     - Removed `cont' on file argument to process due to XS error in Perl 5.6
     - Added code to Makefile.PL so that header sources are run through the C 
-        pre-processor (if availible) as a potential fix for some BSD systems.
+        pre-processor (if available) as a potential fix for some BSD systems.
 
   0.03  Thu Mar 6 09:12:00 2008
     - Fixed a VERY tricky bug some people had encountered. Scalar references to 
