@@ -331,15 +331,8 @@ gigahertz clocks, 0.01 seconds is like a lifetime. The cpu time clock 'ticks'
 happen so rarely relative to the activity of a most applications that you'd
 have to run the code for many hours to have any hope of reasonably useful results.
 
-It may be possible to use the C<clock=N> option to select a
-high-resolution cpu time clock. You can find the clocks available
-on you system using a command like:
-
-  grep -r 'define *CLOCK_' /usr/include
-
-Look for a group that includes CLOCK_REALTIME. Documentation on these clocks
-can be hard to find.  I've not tried using these clocks yet. If you try it,
-please let us know how it works out.
+A better alternative would be to use the C<clock=N> option to select a
+high-resolution cpu time clock, if available on your system.
 
 =head2 file=...
 
@@ -358,20 +351,24 @@ If NYTProf was not compiled with compression support, this option is silently ig
 
 Systems which support the C<clock_gettime()> system call typically
 support several clocks. By default NYTProf uses CLOCK_MONOTONIC.
+
 This option enables you to select a different clock by specifying the
-integer id of the clock (which may vary between systems). If the clock
-you select isn't available then CLOCK_REALTIME is used.
+integer id of the clock (which may vary between operating system types).
+If the clock you select isn't available then CLOCK_REALTIME is used.
 
-This is a wizardly option and best avoided unless you really know what
-you're doing and understand the subtle differences between the clocks.
+See L</CLOCKS> for more information.
 
-=head1 SELECTIVE PROFILING
+=head1 RUN-TIME CONTROL OF PROFILING
 
 You can profile only parts of an application by calling DB::enable_profile()
 and DB::disable_profile() at the appropriate moments.
 
 Using the C<start=no> option lets you leave the profiler disabled until the
 right moment, or circumstances, are reached.
+
+You can finish profiling completely by calling DB::finish_profile().
+This may be useful if perl is exiting abnormally, leaving the profile data file
+in an incomplete state,
 
 =head1 REPORTS
 
@@ -398,6 +395,116 @@ reports (including statistics, source code and color highlighting)
 
 =back
 
+=head1 CLOCKS
+
+Here we discuss the way NYTProf gets high-resolution timing information from
+your system and related issues.
+
+=head2 POSIX Clocks
+
+These are the clocks that your system may support if it supports the POSIX
+C<clock_gettime()> function. Other clock sources are listed in the
+L</Other Clocks> section below.
+
+The C<clock_gettime()> interface allows clocks to return times to nanosecond
+precision. Of course few offer nanosecond I<accuracy> but the extra precision
+helps reduce the cumulative error that naturally occurs when adding together
+many timings. When using these clocks NYTProf outputs timings as a count of 100
+nanosecond ticks.
+
+=head3 CLOCK_REALTIME
+
+CLOCK_REALTIME is typically the system's main high resolution 'wall clock time'
+source.  The same source as used for the gettimeofday() call used by most kinds
+of perl benchmarking and profiling tools.
+
+If your system doesn't support clock_gettime() then NYTProf will use
+gettimeofday(), or the nearest equivalent,
+
+The problem with real time is that it's far from simple. It tends to drift and
+then be reset to match 'reality', either sharply or by small adjustments (via the
+adjtime() system call).
+
+Surprizingly, it can also go backwards, for reasons explained in
+http://preview.tinyurl.com/5wawnn
+
+=head3 CLOCK_MONOTONIC
+
+CLOCK_MONOTONIC rrepresents the amount of time since an unspecified point in
+the past (typically system start-up time).  It increments uniformally
+independent of adjustments to 'wallclock time'.
+
+=head3 CLOCK_VIRTUAL
+
+CLOCK_VIRTUAL increments only when the CPU is running in user mode on behalf of the calling process.
+
+=head3 CLOCK_PROF
+
+CLOCK_PROF increments when the CPU is running in user I<or> kernel mode.
+
+=head3 CLOCK_PROCESS_CPUTIME_ID
+
+CLOCK_PROCESS_CPUTIME_ID represents the amount of execution time of the process associated with the clock.
+
+=head3 CLOCK_THREAD_CPUTIME_ID
+
+CLOCK_THREAD_CPUTIME_ID represents the amount of execution time of the thread associated with the clock.
+
+=head3 Finding Available POSIX Clocks
+
+On unix-like systems you can find the CLOCK_* clocks available on you system
+using a command like:
+
+  grep -r 'define *CLOCK_' /usr/include
+
+Look for a group that includes CLOCK_REALTIME. The integer values listed are
+the clock ids that you can use with the C<clock=N> option.
+
+A future version of NYTProf should be able to list the supported clocks.
+
+=head2 Other Clocks
+
+This section lists other clock sources that NYTProf may use.
+
+=head3 gettimeofday
+
+This is the traditional high resolution time of day interface for most
+unix-like systems. It's used on platforms like Mac OS X which don't
+(yet) support C<clock_gettime()>.
+
+With this clock NYTProf outputs timings as a count of 1 microsecond ticks.
+
+=for comment re high resolution timing for OS X:
+http://developer.apple.com/qa/qa2004/qa1398.html
+http://www.macresearch.org/tutorial_performance_and_time
+http://cocoasamurai.blogspot.com/2006/12/tip-when-you-must-be-precise-be-mach.html
+http://boredzo.org/blog/archives/2006-11-26/how-to-use-mach-clocks
+
+=head3 Time::HiRes
+
+On systems which don't support C<clock_gettime()> or C<gettimeofday()>
+NYTProf falls back to using the L<Time::HiRes> module.
+With this clock NYTProf outputs timings as a count of 1 microsecond ticks.
+
+=head2 Clock References
+
+Relevant specifications and manual pages:
+
+  http://www.opengroup.org/onlinepubs/000095399/functions/clock_getres.html
+  http://linux.die.net/man/3/clock_gettime
+
+Why 'realtime' can appear to go backwards:
+
+  http://preview.tinyurl.com/5wawnn
+
+=for comment
+http://preview.tinyurl.com/5wawnn redirects to:
+http://groups.google.com/group/comp.os.linux.development.apps/tree/browse_frm/thread/dc29071f2417f75f/ac44671fdb35f6db?rnum=1&_done=%2Fgroup%2Fcomp.os.linux.development.apps%2Fbrowse_frm%2Fthread%2Fdc29071f2417f75f%2Fc46264dba0863463%3Flnk%3Dst%26rnum%3D1%26
+
+=for comment - these links seem broken
+http://webnews.giga.net.tw/article//mailing.freebsd.performance/710
+http://sean.chittenden.org/news/2008/06/01/
+
 =head1 LIMITATIONS
 
 =head2 threads
@@ -409,7 +516,7 @@ helping to make it thread safe then please get in touch with us.
 
 For example, the Readonly module croaks with an "Invalid tie" when profiled with
 perl versions before 5.8.8. That's because L<Readonly> explicitly checking for
-certain values from caller().  We're not quite sure what the cause is yet.
+certain values from caller().
 
 =head2 Calls made via operator overloading
 
@@ -418,7 +525,7 @@ Though the statements executed by the code in the overload subs are profiled.
 
 =head2 goto
 
-The C<goto &$sub;> isn't recognised as a subroutine call by the subroutine profiler.
+The C<goto &foo;> isn't recognised as a subroutine call by the subroutine profiler.
 
 =head2 #line directives
 
@@ -426,6 +533,56 @@ The reporting code currently doesn't handle #line directives, but at least it
 warns about them. Patches welcome.
 
 =head1 CAVEATS
+
+=head2 SMP Systems
+
+Systems with multiple processors, which includes most modern machines, have
+
+From Linux docs (though applicable to most SMP systems):
+
+  The CLOCK_PROCESS_CPUTIME_ID and CLOCK_THREAD_CPUTIME_ID clocks are realized on
+  many platforms using timers from the CPUs (TSC on i386, AR.ITC on Itanium).
+  These registers may differ between CPUs and as a consequence these clocks may
+  return bogus results if a process is migrated to another CPU.
+
+  If the CPUs in an SMP system have different clock sources then there is no way
+  to maintain a correlation between the timer registers since each CPU will run
+  at a slightly different frequency. If that is the case then
+  clock_getcpuclockid(0) will return ENOENT to signify this condition. The two
+  clocks will then only be useful if it can be ensured that a process stays on a
+  certain CPU.
+
+  The processors in an SMP system do not start all at exactly the same time and
+  therefore the timer registers are typically running at an offset. Some
+  architectures include code that attempts to limit these offsets on bootup.
+  However, the code cannot guarantee to accurately tune the offsets. Glibc
+  contains no provisions to deal with these offsets (unlike the Linux Kernel).
+  Typically these offsets are small and therefore the effects may be negligible
+  in most cases.
+
+In summary, SMP systems are likely to give 'noisy' profiles.
+Setting a L<Processor Affinity> may help.
+
+=head3 Processor Affinity
+
+Processor affinity is an aspect of task scheduling on SMP systems.
+"Processor affinity takes advantage of the fact that some remnants of a process
+may remain in one processor's state (in particular, in its cache) from the last
+time the process ran, and so scheduling it to run on the same processor the
+next time could result in the process running more efficiently than if it were
+to run on another processor." (From http://en.wikipedia.org/wiki/Processor_affinity)
+
+Setting an explicit processor affinity can avoid the problems described in
+L</SMP Systems>.
+
+Processor affinity can be set using the C<taskset> command on Linux.
+
+Future versions of NYTProf could support setting processor affinity automatically
+(e.g. via sched_setaffinity() on Linux). Patches welcome!
+
+Note that processor affinity is inherited by child processes, so if the process
+you're profiling spawns cpu intensive sub processes then your process will be
+impacted by those more than it otherwise would.
 
 =head2 Virtual Machines
 
@@ -460,6 +617,8 @@ L<http://blog.timbunce.org/2008/07/16/nytprof-v2-the-background-story/>.
 
 Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
 
+Blog posts L<http://blog.timbunce.org/tag/nytprof/> and L<http://technorati.com/search/nytprof>
+
 Public SVN Repository and hacking instructions at L<http://code.google.com/p/perl-devel-nytprof/>
 
 L<nytprofhtml> is a script included that produces html reports.
@@ -467,7 +626,10 @@ L<nytprofcsv> is another script included that produces plain text CSV reports.
 
 L<Devel::NYTProf::Reader> is the module that powers the report scripts.  You
 might want to check this out if you plan to implement a custom report (though
-it may be deprecated in a future release).
+it's very likely to be deprecated in a future release).
+
+L<Devel::NYTProf::ReadStream> is the module that lets you read a profile data
+file as a stream of chunks of data.
 
 =head1 AUTHOR
 
