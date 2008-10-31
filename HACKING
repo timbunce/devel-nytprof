@@ -248,11 +248,6 @@ Investigate and fix "Unable to determine line number" cases. Here's one:
   Unable to determine line number in -e.
   Unable to determine line number in -e.
 
-Add option to disable statement based profiling, so you're left with subroutine
-inclusive timing. That's *really* fast and would be handy for a quick check on
-performance of a large application. It's also generates no i/o till the end
-so may be useful for long running apps that would otherwise generate a huge data file.
-
 Add a 'permalink' icon (eg infinity symbol) to the right of lines defining subs
 to make it easer to email/IM links to particular places in the code.
 
@@ -324,3 +319,5 @@ previous current subname and restore it on return from sub.)
 
 Add per-package summary table like the per-sub stats to make it easier to see
 a package where a lot of time is being spent in lots of different subs.
+
+Add option to set processor affinity.

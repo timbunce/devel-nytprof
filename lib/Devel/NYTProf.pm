@@ -11,7 +11,7 @@
 ###########################################################
 package Devel::NYTProf;
 
-our $VERSION = '2.05';
+our $VERSION = '2.06';
 
 package    # hide the package from the PAUSE indexer
     DB;
@@ -294,6 +294,15 @@ This makes the profiler about 50% faster (as of July 2008) and produces smaller
 output files, but you loose some valuable information. The extra cost is likely
 to be reduced in later versions anyway, as little optimization has been done on
 that part of the code.
+
+=head2 stmts=0
+
+Set to 0 to disable the statement profiler. (Implies C<blocks=0>.)
+The reports won't contain any statement timing detail.
+
+This significantly reduces the overhead of the profiler and can also be useful
+for profiling large applications that would normally generate a very large
+profile data file.
 
 =head2 leave=0
 
