@@ -81,6 +81,7 @@ t/test16.rdt
 t/test16.x
 t/test20-streval.p
 t/test20-streval.rdt
+t/test20-streval.x
 t/test30-fork.0.p
 t/test30-fork.0.rdt
 t/test30-fork.0.x
