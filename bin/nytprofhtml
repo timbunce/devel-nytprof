@@ -461,6 +461,7 @@ sub output_js_files {
     (my $lib = $INC{"Devel/NYTProf/Data.pm"}) =~ s/Data\.pm$//;
     for my $src (<$lib/js/*.js>) {
         (my $file = $src) =~ s/.*\///;
+        unlink "$opt{out}/$file";
         copy($src, "$opt{out}/$file")
             or warn "Unable to copy $src to $opt{out}/$file: $!";
     }
