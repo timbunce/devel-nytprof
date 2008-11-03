@@ -1052,8 +1052,11 @@ sub _dumper {
         my $self = shift;
         my $profile = $self->profile;
         #warn Dumper($profile->{fid_srclines});
-        if (my $srclines = $profile->{fid_srclines}[ $self->fid ]) {
-            return [ @$srclines ]; # shallow clone
+        my $fid = $self->fid;
+        if (my $srclines = $profile->{fid_srclines}[ $fid ]) {
+            my $copy = [ @$srclines ]; # shallow clone
+            shift @$copy; # line 0 not used
+            return $copy;
         }
         # open file
         my $filename = $self->filename;
