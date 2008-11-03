@@ -150,17 +150,14 @@ Support profiling programs which use threads:
   - add lock around output to file
 
 We now save eval strings (from @{"_<$filename"}, see perldoc perldebguts)
-but it requires use_db_subs=1 due to perl internals. Currently unused.
-Add source code of first string eval at each fid:line to report.
-Add option to control saving of source code. Perhaps
-
-  savesrc=0 - don't save any source
-  savesrc=1 - save only first string eval src per distinct fid:line (default)
-  savesrc=2 - save all string eval src
-  savesrc=3 - save all source code, not just string evals
-
-Also option to delete @{"_<$filename"} to release memory could be useful
-for programs that doo a lot of string evals.
+Add 'savesrc=N' option to control saving of source code. Perhaps as bit flags:
+0x01 = save source lines of first eval per fid:line (plus 'perl -' and 'perl -e "..."')
+0x02 = save source lines of ordinary source files
+0x04 = save source lines of all evals
+0x10 = delete saved lines from @{"_<$filename"} to release memory
+      for programs that do a lot of string evals.
+For perl <= 5.10.0 default=0 and set use_db_subs=1 if savesrc option set
+For perl >= 5.10.1 default=1
 
 Add % of total time to file table on index page.
 Add % of total time to exclusive time column in subs table as a tooltip.
