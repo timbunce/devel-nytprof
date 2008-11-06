@@ -1,9 +1,6 @@
 package # hide from pause package indexer
     Devel::NYTProf::Test;
 
-use strict;
-use warnings;
-
 # this module is just to test the test suite
 # see t/test60-subname.p for example
 

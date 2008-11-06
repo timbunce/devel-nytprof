@@ -263,6 +263,26 @@ sub fid_sub_calls_map {
 }
 
 
+sub caller_fid_2_subname_map {
+    my $self = shift;
+
+    my $caches = $self->_caches;
+    my $cache_key = "caller_fid_2_subname_map";
+    return $caches->{$cache_key} if $caches->{$cache_key};
+
+    my $sub_caller = $self->{sub_caller} || {};
+    my %map;
+    while (my ($subname, $fid_hash) = each %$sub_caller) {
+        while ( my ($caller_fid, $line_calls_hash) = each %$fid_hash ) {
+            $map{ $caller_fid }{ $subname } = $line_calls_hash;
+        }
+    }
+
+    $caches->{$cache_key} = \%map;
+    return \%map;
+}
+
+
 sub inc {
 
     # XXX should return inc from profile data, when it's there
@@ -908,7 +928,6 @@ $profile->line_calls_for_file( 'foo.pl' ) would return something like:
 
 =cut
 
-
 sub line_calls_for_file {
     my ($self, $fid, $flatten_evals) = @_;
     $fid = $self->resolve_fid($fid);
@@ -916,19 +935,23 @@ sub line_calls_for_file {
     my $sub_caller = $self->{sub_caller}
         or return;
 
-    # hash of fids we're interested in
-    my %fids = ($fid => 1);
+    # list of fids we're interested in
+    my @fids = ($fid);
     # add in all the fids for evals compiled in this fid
-    my $b2e = $self->base_fid_2_eval_fids_map($flatten_evals);
-    $fids{$_} = 1 for @{ $b2e->{$fid} || [] };
+    my $eval_fids = $self->base_fid_2_eval_fids_map($flatten_evals)->{$fid};
+    push @fids, @$eval_fids if $eval_fids;
+
+    # { fid => { subname => { line => count, ... }, ... }, ... }
+    my $caller_fid_2_subname_map = $self->caller_fid_2_subname_map;
 
     my $line_calls = {};
-    # search through all subs to find those that were called
-    # from the fid we're interested in, or any eval fids in that
-    while (my ($subname, $fid_hash) = each %$sub_caller) {
+    # for the fid we're interested in, and all the related eval fids
+    # loop over the sub calls made by those fids
+    for my $caller_fid (@fids) {
+        my $subs_called_hash = $caller_fid_2_subname_map->{$caller_fid}
+            or next;
 
-        while ( my ($caller_fid, $line_calls_hash) = each %$fid_hash ) {
-            next unless $fids{ $caller_fid };
+        while (my ($subname, $line_calls_hash) = each %$subs_called_hash) {
 
             my $caller_fi = $self->fileinfo_of($caller_fid);
             my ($outer_fi, $outer_line) = $caller_fi->outer(1);
