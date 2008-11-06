@@ -4,6 +4,10 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
+=head2 Changes in Devel::NYTProf 2.08
+
+  Improved HTML conformance thanks to Leland Johnson.
+
 =head2 Changes in Devel::NYTProf 2.07 (svn r583) 1st Nov 2008
 
 Core:

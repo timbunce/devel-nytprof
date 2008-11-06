@@ -105,23 +105,32 @@ $reporter->set_param(
             subtitle => $subhead,
             mode     => qq/-$level/
             )
-            . qq{<div class="body_content">
+            . qq{
+<div class="body_content">
 <br />
-<table><tr>
-<td class='h' align='right'>File</td><td align=\"left\">!~FILENAME~!</td></tr>
-<td class='h' align='right'>Statements Executed</td><td align=\"left\">!~TOTAL_CALLS~!
-</td></tr>\n
-<td class='h' align='right'>Total Time</td><td align=\"left\">!~TOTAL_TIME~!
-seconds</td>\n</tr></table><br/>
+<table>
+<tr>
+<td class="h" align="right">File</td>
+<td align="left">!~FILENAME~!</td>
+</tr>
+<tr>
+<td class="h" align="right">Statements Executed</td>
+<td align="left">!~TOTAL_CALLS~!</td>
+</tr>
+<tr>
+<td class="h" align="right">Total Time</td>
+<td align="left">!~TOTAL_TIME~! seconds</td>
+</tr>
+</table>
 };
     }
 );
 
 $reporter->set_param(
     'taintmsg',
-    "<div class='warn_title'>WARNING!</div>\n
-<div class='warn'>The source file used to generate this report was modified
-after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br/>\n"
+    qq{<div class="warn_title">WARNING!</div>\n
+<div class="warn">The source file used to generate this report was modified
+after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br />\n}
 );
 
 
@@ -162,7 +171,7 @@ sub subroutine_table {
     my $sub_links;
 
     my $sortby_desc = ($sortby eq 'excl_time') ? "exclusive time" : "inclusive time";
-    $sub_links .= qq{<table border=1 cellpadding=0>
+    $sub_links .= qq{<table border="1" cellpadding="0">
         <caption>${qualifier}Subroutines &mdash; ordered by $sortby_desc</caption>
         <tr>
         <th>Calls</th>
@@ -170,7 +179,7 @@ sub subroutine_table {
         <th><span title="Number of Files sub is called from">F</span></th>
         <th>Exclusive<br />Time</th>
         <th>Inclusive<br />Time</th>
-        <th colspan=2 class="left_indent_header">Subroutine</th>
+        <th colspan="2" class="left_indent_header">Subroutine</th>
         </tr>
     };
 
@@ -212,7 +221,7 @@ sub subroutine_table {
             $href, $subr, $sub->is_xsub ? " (xsub)" : ""
         );
 
-        $sub_links .= "<tr>\n";
+        $sub_links .= "</tr>\n";
     }
     $sub_links .= "</table>\n";
 
@@ -226,8 +235,8 @@ $reporter->set_param(
 
         my $sub_links = subroutine_table($profile, $filestr, undef, undef);
 
-        return qq{$sub_links<br>
-      <table border=1 cellpadding=0>
+        return qq{$sub_links
+      <table border="1" cellpadding="0">
       <tr><th>Line</th><th>Stmts.</th><th>Exclusive<br />Time</th><th>Avg.</th><th class="left_indent_header">Code</th>
       </tr>\n
     };
@@ -267,7 +276,7 @@ $reporter->set_param(
             $linesrc =~ s/</&lt;/g;
             $linesrc =~ s/>/&gt;/g;
             $linesrc =~ s/\t/        /g;
-            $linesrc =~ s/\n/<br>/g; # for xsub pseudo-sub declarations
+            $linesrc =~ s{\n}{<br />}g; # for xsub pseudo-sub declarations
 
             my @prologue;
 
@@ -365,7 +374,7 @@ $reporter->set_param('lineend', { func => sub { "</tr>\n" } });
 $reporter->set_param('suffix', '.html');
 
 # output a css file too (optional, but good for pretty pages)
-$reporter->_output_additional('style.css', [<DATA>]);
+$reporter->_output_additional('style.css', get_css());
 
 # generate the files
 $reporter->report();
@@ -394,7 +403,7 @@ sub output_subs_indexpage {
 
     print OUT get_html_header();
     print OUT get_header(profile => $profile, title => "Performance Profile Subroutine Index");
-    print OUT qq{<div class="body_content"><br/>};
+    print OUT qq{<div class="body_content"><br />};
 
     # Show top subs across all files
     print OUT subroutine_table($profile, 0, 0, $sortby);
@@ -419,19 +428,19 @@ sub output_indexpage {
     print OUT get_html_header();
     print OUT get_header(profile => $profile, title => "Performance Profile Index");
     print OUT qq{
-        <div class="body_content"><br/>
+        <div class="body_content"><br />
     };
 
     # generate name-sorted select options for files, if there are many
     if (keys %$stats > 30) {
         print OUT
             qq{<form name="jump"><select name="file" onChange="location.href=document.jump.file.value;">\n};
-        printf OUT qq{<option disabled>%s</option>\n}, "Jump to file...";
+        printf OUT qq{<option disabled="disabled">%s</option>\n}, "Jump to file...";
         foreach (sort keys %$stats) {
             my $fid = $profile->resolve_fid($_) or warn "Can't find fid for $_";
             printf OUT qq{<option value="#f%s">%s</option>\n}, $fid, $_;
         }
-        print OUT "</select><form><br/>\n";
+        print OUT "</select></form><br />\n";
     }
 
     # Show top subs across all files
@@ -540,10 +549,10 @@ sub file_table {
 
     # generate time-sorted sections for files
     print OUT qq{
-        <table border=1 cellspacing=0>
+        <table border="1" cellspacing="0">
         <caption>Source Code Files &mdash; ordered by exclusive time then name</caption>
     };
-    print OUT "<tr class='index'><th>Stmts</th><th>Exclusive<br />Time</th>"
+    print OUT qq{<tr class="index"><th>Stmts</th><th>Exclusive<br />Time</th>}
         . "<th>Avg.</th><th>Reports</th><th>Source File</th></tr>";
 
     my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
@@ -553,7 +562,7 @@ sub file_table {
 
     foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
         print OUT qq{<tr class="index">};
-        print OUT "<td class='n'>$filestats->{calls}</td>";
+        print OUT qq{<td class="n">$filestats->{calls}</td>};
         print OUT determine_severity('time',      $filestats->{'time'},      $dev_time);
         print OUT determine_severity('time/call', $filestats->{'time/call'}, $dev_avgt);
 
@@ -578,7 +587,7 @@ sub file_table {
     }
     if ($add_totals) {
         my $stats_fmt =
-            qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td style="font-style: italic">%s</td></tr>};
+            qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
         print OUT sprintf $stats_fmt, fmt_float($allCalls), fmt_float($allTimes), '', "Total";
         print OUT sprintf $stats_fmt, int(fmt_float($allCalls / keys %$stats)),
             fmt_float($allTimes / keys %$stats), '', "Average"
@@ -621,7 +630,7 @@ sub determine_severity {
     else {
         $class = 'c0';
     }
-    return "<td class='$class'>$val</td>";
+    return qq{<td class="$class">$val</td>};
 }
 
 # Delete the previous database/directory if it exists
@@ -683,7 +692,6 @@ sub get_footer {
     # spacing so links to #line near can put right line at top near the bottom of the report
     my $spacing = "<br />" x 10;
     return qq{
-        <br />
         <div class="footer">Report produced by the
         <a href="http://search.cpan.org/dist/Devel-NYTProf/">NYTProf $version</a>
         Perl profiler, developed by
@@ -740,7 +748,7 @@ sub get_header {
 $back_link
 <div class="headerForeground" style="float: left">
     <span class="siteTitle">$head1</span>
-    <span class="siteSubtitle">$head2<span>
+    <span class="siteSubtitle">$head2</span>
 </div>
 <div class="headerForeground" style="float: right; text-align: right">
     <span class="siteTitle">$right1</span>
@@ -800,8 +808,8 @@ $back_link
 </div>\n};
 }
 
-# The data handle contains the entire CSS file.
-__DATA__
+sub get_css {
+    return <<'EOD';
 /* Stylesheet for Devel::NYTProf::Reader HTML reports */
 
 /* You may modify this file to alter the appearance of your coverage
@@ -844,7 +852,6 @@ table {
     border-collapse: collapse; 
     border-spacing: 0px; 
     margin-top: 20px;
-    margin-botom: 20px;
 }
 tr { 
     text-align : center;
@@ -862,15 +869,14 @@ td {
 caption {
     background-color: #dddddd;
     text-align: left;
-    text-wrap: none;
     white-space: pre;
     padding: 0.4em;
 }
 
-.table_footer { color: grey; }
+.table_footer { color: gray; }
 .table_footer > a:link,
-.table_footer > a:visited,
-{ color: grey;
+.table_footer > a:visited
+{ color: gray;
     text-decoration: none;
 }
 
@@ -886,7 +892,7 @@ td.sub_pkg {
   padding-right: 0;
   border-right: hidden;
   font-family: monospace;
-  color: grey;
+  color: gray;
 }
 
 td.sub_sub {
@@ -968,7 +974,7 @@ pre,.s {
 /* summary of calls into and out of a sub */
 .calls {
   display: block;
-  color: grey;
+  color: gray;
   padding-top: 5px;
   padding-bottom: 5px;
   text-decoration: none;
@@ -977,12 +983,14 @@ pre,.s {
     background-color: #e8e8e8;
     color: black;
 }
-.calls       a       { color: grey;  text-decoration: none; }
+.calls       a       { color: gray;  text-decoration: none; }
 .calls:hover a       { color: black; text-decoration: underline; }
 .calls:hover a:hover { color: red; }
 
 /* give a little headroom to the summary of calls into a sub */
 .calls .calls_in { margin-top: 5px; }
+EOD
+}
 
 __END__
 

@@ -230,7 +230,7 @@ sub _output_additional {
     my ($self, $fname, $content) = @_;
     open(OUT, '>', "$self->{output_dir}/$fname")
         or confess "Unable to open $self->{output_dir}/$fname for writing; $!\n";
-    print OUT @$content;
+    print OUT $content;
     close OUT;
 }
 
