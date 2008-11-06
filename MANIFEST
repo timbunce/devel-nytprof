@@ -24,6 +24,7 @@ lib/Devel/NYTProf/Test.pm
 lib/Devel/NYTProf/Util.pm
 lib/Devel/NYTProf/js/jquery.min.js
 lib/Devel/NYTProf/js/jquery.tablesorter.min.js
+perftest.pl
 ppport.h
 t/00.load.t
 t/20.runtests.t

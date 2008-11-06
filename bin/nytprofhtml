@@ -149,7 +149,9 @@ sub subroutine_table {
     my ($profile, $filestr, $max_subs, $sortby) = @_;
     $sortby ||= 'excl_time';
 
-    my $subs_in_file = $profile->subs_defined_in_file($filestr, 0);
+    my $subs_in_file = ($filestr)
+        ? $profile->subs_defined_in_file($filestr, 0)
+        : $profile->subname_subinfo_map;
     return "" unless $subs_in_file && %$subs_in_file;
 
     my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);

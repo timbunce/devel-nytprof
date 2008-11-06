@@ -165,15 +165,30 @@ sub new {
 sub _caches       { return shift->{caches} ||= {} }
 sub _clear_caches { return delete shift->{caches} }
 
-sub all_subinfos {
-    my @all = values %{ shift->{sub_subinfo} };
-    return @all;
+sub subname_subinfo_map {
+    return { %{ shift->{sub_subinfo} } }; # shallow copy
 }
 
 sub all_fileinfos {
     my @all = @{shift->{fid_fileinfo}};
     shift @all;    # drop fid 0
     return @all;
+}
+
+sub fid_subs_map {
+    # return { fid => { subname => subinfo, ... }, fid => ... }
+    my $self = shift;
+
+    my $caches = $self->_caches;
+    return $caches->{fid_subs_map} if $caches->{fid_subs_map};
+
+    my $subname_subinfo_map = $self->subname_subinfo_map;
+    my %fid_subs_map;
+    while ( my ($subname, $subinfo) = each %$subname_subinfo_map ) {
+        $fid_subs_map{ $subinfo->fid || 0 }{ $subname } = $subinfo;
+    }
+
+    return $caches->{fid_subs_map} = \%fid_subs_map;
 }
 
 sub fileinfo_of {
@@ -200,6 +215,11 @@ sub fileinfo_of {
 # map of { eval_fid => base_fid, ... }
 sub eval_fid_2_base_fid_map {
     my ($self, $flatten_evals) = @_;
+    $flatten_evals ||= 0;
+
+    my $caches = $self->_caches;
+    my $cache_key = "eval_fid_2_base_fid_map:$flatten_evals";
+    return $caches->{$cache_key} if $caches->{$cache_key};
 
     my $fid_fileinfo = $self->{fid_fileinfo} || [];
     my $eval_fid_map = {};
@@ -213,6 +233,8 @@ sub eval_fid_2_base_fid_map {
         }
         $eval_fid_map->{ $fi->fid } = $base_fi->fid;
     }
+
+    $caches->{$cache_key} = $eval_fid_map;
     return $eval_fid_map;
 }
 
@@ -664,7 +686,7 @@ sub _filename_to_fid {
 
 Returns a reference to a hash containing information about subroutines defined
 in a source file.  The $file argument can be an integer file id (fid) or a file
-path. If $file is 0 then details for all known subroutines are returned.
+path.
 
 Returns undef if the profile contains no C<sub_subinfo> data for the $file.
 
@@ -686,18 +708,12 @@ sub subs_defined_in_file {
     $incl_lines = 0 if $fid == 0;
     my $caches = $self->_caches;
 
-    my $cache_key = "_cache:subs_defined_in_file:$fid:$incl_lines";
+    my $cache_key = "subs_defined_in_file:$fid:$incl_lines";
     return $caches->{$cache_key} if $caches->{$cache_key};
 
-    my $sub_subinfo = $self->{sub_subinfo}
+    my $fi = $self->fileinfo_of($fid)
         or return;
-
-    my %subs;
-    while (my ($sub, $subinfo) = each %$sub_subinfo) {
-
-        next if $fid && ($subinfo->fid||0) != $fid;
-        $subs{$sub} = $subinfo;
-    }
+    my %subs = %{ $fi->subs || {} }; # shallow copy
 
     if ($incl_lines) {    # add in the first-line-number keys
         croak "Can't include line numbers without a fid" unless $fid;
@@ -963,13 +979,17 @@ sub _dumper {
 
     sub filename  { shift->[0] }
     sub eval_fid  { shift->[1] }
-    sub eval_fi   { return $_[0]->profile->fileinfo_of($_[0]->eval_fid || return) }
     sub eval_line { shift->[2] }
     sub fid       { shift->[3] }
     sub flags     { shift->[4] }
     sub size      { shift->[5] }
     sub mtime     { shift->[6] }
     sub profile   { shift->[7] }
+
+    # if fid is an eval then return fileinfo obj for the fid that executed the eval
+    sub eval_fi   { $_[0]->[8] ||= $_[0]->profile->fileinfo_of($_[0]->eval_fid || return) }
+    # return a ref to a hash of { subname => subinfo, ... }
+    sub subs      { $_[0]->[9] ||= $_[0]->profile->fid_subs_map->{ $_[0]->fid } }
 
     sub line_time_data {
         my ($self, $levels) = @_;
