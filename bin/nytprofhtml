@@ -193,11 +193,11 @@ sub subroutine_table {
 
         $sub_links .= "<tr>";
 
-        $sub_links .= determine_severity(undef, $sub->calls        || 0, $dev_calls);
-        $sub_links .= determine_severity(undef, $sub->caller_count || 0, $dev_call_count);
-        $sub_links .= determine_severity(undef, $sub->caller_fids  || 0, $dev_call_fids);
-        $sub_links .= determine_severity(undef, $sub->excl_time    || 0, $dev_excl_time);
-        $sub_links .= determine_severity(undef, $sub->incl_time    || 0, $dev_incl_time);
+        $sub_links .= determine_severity($sub->calls        || 0, $dev_calls);
+        $sub_links .= determine_severity($sub->caller_count || 0, $dev_call_count);
+        $sub_links .= determine_severity($sub->caller_fids  || 0, $dev_call_fids);
+        $sub_links .= determine_severity($sub->excl_time    || 0, $dev_excl_time, 1);
+        $sub_links .= determine_severity($sub->incl_time    || 0, $dev_incl_time, 1);
 
         # package and subname
         my $subname = $sub->subname;
@@ -254,123 +254,134 @@ $reporter->set_param(
     }
 );
 
-$reporter->set_param(
-    'linestart',
-    {   func => sub {
-            my ($value, $linenum, $linesrc) = @_;
-            (my $anchor = defined($linenum) ? $linenum : $value) =~ s/\W/_/g;
-            sprintf qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, $linenum;
-        },
-    }
-);
+$reporter->set_param(mk_report_source_line => \&mk_report_source_line);
+$reporter->set_param(mk_report_xsub_line   => \&mk_report_xsub_line  );
+
+sub mk_report_source_line {
+    my ($linenum, $line, $stats_for_line, $stats_for_file, $subs_defined, $makes_calls_to, $profile, $filestr) = @_;
+
+    my $l = sprintf(qq{<td class="h"><a name="%s"></a>%s</td>}, $linenum, $linenum);
+    my $s = report_src_line(undef, $linenum, $line, $profile, $subs_defined, $makes_calls_to, $filestr);
+
+    return "<tr>$l<td></td><td></td><td></td>$s</tr>\n"
+        if not %$stats_for_line;
+
+    return join "",
+        "<tr>$l",
+        determine_severity($stats_for_line->{'calls'},     $stats_for_file->{'calls'}),
+        determine_severity($stats_for_line->{'time'},      $stats_for_file->{'time'}, 1),
+        determine_severity($stats_for_line->{'time/call'}, $stats_for_file->{'time/call'}, 1),
+        $s, "</tr>\n";
+}
+
+sub mk_report_xsub_line {
+    my ($subname, $line, $stats_for_line, $stats_for_file, $subs_defined, $makes_calls_to, $profile, $filestr) = @_;
+    (my $anchor = $subname) =~ s/\W/_/g;
+    return join "",
+        sprintf(qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, ''),
+        "<td></td><td></td><td></td>",
+        report_src_line(undef, undef, $line, $profile, $subs_defined, $makes_calls_to, $filestr),
+        "</tr>\n";
+}
 
 
-$reporter->set_param('column1', {value => 'calls',     func => \&determine_severity});
-$reporter->set_param('column2', {value => 'time',      func => \&determine_severity});
-$reporter->set_param('column3', {value => 'time/call', func => \&determine_severity});
+sub report_src_line {
+    my ($value, undef, $linesrc, $profile, $subs, $calls, $thisfile) = @_;
 
-$reporter->set_param(
-    'column4',
-    {   func => sub {
-            my ($value, $linenum, $linesrc, $profile, $subs, $calls, $thisfile) = @_;
+    $linesrc =~ s/&/&amp;/g;
+    $linesrc =~ s/</&lt;/g;
+    $linesrc =~ s/>/&gt;/g;
+    $linesrc =~ s/\t/        /g;
+    $linesrc =~ s{\n}{<br />}g; # for xsub pseudo-sub declarations
 
-            $linesrc =~ s/&/&amp;/g;
-            $linesrc =~ s/</&lt;/g;
-            $linesrc =~ s/>/&gt;/g;
-            $linesrc =~ s/\t/        /g;
-            $linesrc =~ s{\n}{<br />}g; # for xsub pseudo-sub declarations
+    my @prologue;
 
-            my @prologue;
+    # for each of the subs defined on this line, who called them
+    for my $sub_info (@$subs) {
+        my $callers = $sub_info->callers;
+        next unless $callers && %$callers;
 
-            # for each of the subs defined on this line, who called them
-            for my $sub_info (@$subs) {
-                my $callers = $sub_info->callers;
-                next unless $callers && %$callers;
+        my @callers;
+        while (my ($fid, $fid_line_info) = each %$callers) {
+            push @callers, [$fid, $_, @{$fid_line_info->{$_}}] for keys %$fid_line_info;
+        }
+        my $total_calls = sum(my @caller_calls = map { $_->[2] } @callers);
+        my $max_calls = max(@caller_calls);
+        my $avg_per_call = fmt_time($sub_info->incl_time / $total_calls);
 
-                my @callers;
-                while (my ($fid, $fid_line_info) = each %$callers) {
-                    push @callers, [$fid, $_, @{$fid_line_info->{$_}}] for keys %$fid_line_info;
-                }
-                my $total_calls = sum(my @caller_calls = map { $_->[2] } @callers);
-                my $max_calls = max(@caller_calls);
-                my $avg_per_call = fmt_time($sub_info->incl_time / $total_calls);
+        push @prologue, sprintf "# spent %s within %s which was called%s",
+            fmt_incl_excl_time($sub_info->incl_time, $sub_info->excl_time),
+            $sub_info->subname, ($total_calls <= 1)
+            ? ""
+            : " $total_calls times, avg ${avg_per_call}/call:";
 
-                push @prologue, sprintf "# spent %s within %s which was called%s",
-                    fmt_incl_excl_time($sub_info->incl_time, $sub_info->excl_time),
-                    $sub_info->subname, ($total_calls <= 1)
-                    ? ""
-                    : " $total_calls times, avg ${avg_per_call}/call:";
+        # order by most frequent caller first
+        @callers = sort { $b->[2] <=> $a->[2] || $b->[3] <=> $a->[3] } @callers;
+        for my $caller (@callers) {
+            my ($fid, $line, $count, $incl_time, $excl_time) = @$caller;
+            my $fi = $profile->fileinfo_of($fid);
 
-                # order by most frequent caller first
-                @callers = sort { $b->[2] <=> $a->[2] || $b->[3] <=> $a->[3] } @callers;
-                for my $caller (@callers) {
-                    my ($fid, $line, $count, $incl_time, $excl_time) = @$caller;
-                    my $fi = $profile->fileinfo_of($fid);
+            my @subnames = $profile->subname_at_file_line($fid, $line);
+            my $subname = (@subnames) ? " by " . join(" or ", @subnames) : "";
+            my $avg_time =
+                ($count <= 1)
+                ? ""
+                : sprintf ", avg %s/call", fmt_time($incl_time / $count);
+            my $times = sprintf " (%s+%s)", fmt_time($excl_time),
+                fmt_time($incl_time - $excl_time);
 
-                    my @subnames = $profile->subname_at_file_line($fid, $line);
-                    my $subname = (@subnames) ? " by " . join(" or ", @subnames) : "";
-                    my $avg_time =
-                        ($count <= 1)
-                        ? ""
-                        : sprintf ", avg %s/call", fmt_time($incl_time / $count);
-                    my $times = sprintf " (%s+%s)", fmt_time($excl_time),
-                        fmt_time($incl_time - $excl_time);
-
-                    my $filename = $fi->filename($fid);
-                    my $line_desc = "line $line of $filename";
-                    # chase string eval chain back to a real file
-                    while ( my ($outer_fileinfo, $outer_line) = $fi->outer ) {
-                        ($filename, $line) = ($outer_fileinfo->filename, $outer_line);
-                        $line_desc .= sprintf " at line %s of %s", $line, $filename;
-                        $fi = $outer_fileinfo;
-                    }
-
-                    my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
-                    $line_desc =~ s/ of $filename$// if $filename eq $thisfile;
-
-                    push @prologue,
-                        sprintf q{# %*s times%s%s at <a href="%s#%d">%s</a>%s},
-                        length($max_calls), $count, $times, $subname, "$href.html", $line,
-                        $line_desc, $avg_time;
-		    $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English
-                }
-            }
-            my $prologue = '';
-            $prologue = sprintf qq{<div class="calls"><div class="calls_in">%s</div></div>}, join("\n", @prologue)
-                if @prologue;
-
-            # give details of each of the subs called by this line
-            my $epilogue = '';
-            if (%$calls) {
-
-                my @calls_to = sort {
-                    $calls->{$b}[1] <=> $calls->{$a}[1] or    # incl_time
-                        $a cmp $b
-                } keys %$calls;
-                my $max_calls_to = max(map { $_->[0] } values %$calls);
-                my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
-
-                $epilogue = join "\n", map {
-                    my ($count, $incl_time, $reci_time, $rec_depth) = (@{$calls->{$_}})[0,1,5,6];
-                    my $html = sprintf qq{%s# spent %s making %*d call%s to }, $ws,
-                        fmt_time($incl_time+$reci_time, 5), length($max_calls_to),
-		        $count, $count == 1 ? "" : "s";
-                    $html .= sprintf qq{<a %s>%s</a>}, $reporter->href_for_sub($_), $_;
-                    $html .= sprintf qq{, avg %s/call}, fmt_time($incl_time / $count)
-                        if $count > 1;
-                    $html .= sprintf qq{, max recursion depth %d}, $rec_depth
-                        if $rec_depth;
-                    $html;
-                } @calls_to;
-                $epilogue = sprintf qq{<div class="calls"><div class="calls_out">%s</div></div>}, $epilogue;
+            my $filename = $fi->filename($fid);
+            my $line_desc = "line $line of $filename";
+            # chase string eval chain back to a real file
+            while ( my ($outer_fileinfo, $outer_line) = $fi->outer ) {
+                ($filename, $line) = ($outer_fileinfo->filename, $outer_line);
+                $line_desc .= sprintf " at line %s of %s", $line, $filename;
+                $fi = $outer_fileinfo;
             }
 
-            sprintf qq{<td class="s">%s%s%s</td>}, $prologue, $linesrc, $epilogue;
-        },
-    }
-);
+            my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
+            $line_desc =~ s/ of $filename$// if $filename eq $thisfile;
 
-$reporter->set_param('lineend', { func => sub { "</tr>\n" } });
+            push @prologue,
+                sprintf q{# %*s times%s%s at <a href="%s#%d">%s</a>%s},
+                length($max_calls), $count, $times, $subname, "$href.html", $line,
+                $line_desc, $avg_time;
+            $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English
+        }
+    }
+    my $prologue = '';
+    $prologue = sprintf qq{<div class="calls"><div class="calls_in">%s</div></div>}, join("\n", @prologue)
+        if @prologue;
+
+    # give details of each of the subs called by this line
+    my $epilogue = '';
+    if (%$calls) {
+
+        my @calls_to = sort {
+            $calls->{$b}[1] <=> $calls->{$a}[1] or    # incl_time
+                $a cmp $b
+        } keys %$calls;
+        my $max_calls_to = max(map { $_->[0] } values %$calls);
+        my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
+
+        $epilogue = join "\n", map {
+            my ($count, $incl_time, $reci_time, $rec_depth) = (@{$calls->{$_}})[0,1,5,6];
+            my $html = sprintf qq{%s# spent %s making %*d call%s to }, $ws,
+                fmt_time($incl_time+$reci_time, 5), length($max_calls_to),
+                $count, $count == 1 ? "" : "s";
+            $html .= sprintf qq{<a %s>%s</a>}, $reporter->href_for_sub($_), $_;
+            $html .= sprintf qq{, avg %s/call}, fmt_time($incl_time / $count)
+                if $count > 1;
+            $html .= sprintf qq{, max recursion depth %d}, $rec_depth
+                if $rec_depth;
+            $html;
+        } @calls_to;
+        $epilogue = sprintf qq{<div class="calls"><div class="calls_out">%s</div></div>}, $epilogue;
+    }
+
+    return qq{<td class="s">$prologue$linesrc$epilogue</td>};
+}
+
 
 # set output options
 $reporter->set_param('suffix', '.html');
@@ -565,8 +576,8 @@ sub file_table {
     foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
         print OUT qq{<tr class="index">};
         print OUT qq{<td class="n">$filestats->{calls}</td>};
-        print OUT determine_severity('time',      $filestats->{'time'},      $dev_time);
-        print OUT determine_severity('time/call', $filestats->{'time/call'}, $dev_avgt);
+        print OUT determine_severity($filestats->{'time'},      $dev_time, 1);
+        print OUT determine_severity($filestats->{'time/call'}, $dev_avgt, 1);
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
             my $level_html_safe = $filestats->{$_}->{html_safe};
@@ -590,11 +601,11 @@ sub file_table {
     if ($add_totals) {
         my $stats_fmt =
             qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
-        print OUT sprintf $stats_fmt, fmt_float($allCalls), fmt_float($allTimes), '', "Total";
+        print OUT sprintf $stats_fmt, fmt_float($allCalls), fmt_time($allTimes), '', "Total";
         print OUT sprintf $stats_fmt, int(fmt_float($allCalls / keys %$stats)),
-            fmt_float($allTimes / keys %$stats), '', "Average"
+            fmt_time($allTimes / keys %$stats), '', "Average"
             if %$stats;    # avoid divide by zero
-        print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[1]), fmt_float($dev_avgt->[1]),
+        print OUT sprintf $stats_fmt, '', fmt_time($dev_time->[1]), fmt_time($dev_avgt->[1]),
             "Median";
         print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]),
             "Deviation";
@@ -606,12 +617,16 @@ sub file_table {
 
 # calculates how good or bad the time is for a file based on the others
 sub determine_severity {
-    my (undef, $val, $stats) = @_;    # @_[3] is like arrayref (deviation, mean)
+    my $val = shift;
     return "<td></td>" unless defined $val;
+    my $stats = shift;    # @_[3] is like arrayref (deviation, mean)
+    my $is_time = shift;
 
     # normalize the width/precision so that the tables look good.
-    $val = fmt_float($val, NUMERIC_PRECISION);
-    return qq{<td class="n">$val</td>} unless defined $stats;
+    my $fmt_val = ($is_time)
+        ? fmt_time($val)
+        : fmt_float($val, NUMERIC_PRECISION);
+    return qq{<td class="n">$fmt_val</td>} unless defined $stats;
 
     my $devs = ($val - $stats->[1]);    #stats->[1] is the mean.
     $devs /= $stats->[0] if $stats->[0];    # no divide by zero when all values equal
@@ -632,7 +647,7 @@ sub determine_severity {
     else {
         $class = 'c0';
     }
-    return qq{<td class="$class">$val</td>};
+    return qq{<td class="$class">$fmt_val</td>};
 }
 
 # Delete the previous database/directory if it exists

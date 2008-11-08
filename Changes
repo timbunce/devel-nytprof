@@ -6,6 +6,10 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 2.08
 
+  Dramatically increased performance of nytprofhtml
+    relative to the 2.07 version.
+  Statement timings are now shown as integers in appropriate
+    units: seconds, milliseconds, microseconds or nanoseconds.
   Improved HTML conformance thanks to Leland Johnson.
 
 =head2 Changes in Devel::NYTProf 2.07 (svn r583) 1st Nov 2008

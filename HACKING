@@ -318,3 +318,7 @@ Add per-package summary table like the per-sub stats to make it easier to see
 a package where a lot of time is being spent in lots of different subs.
 
 Add option to set processor affinity.
+
+Trace level 1 should show totals fids, subs etc.
+
+Index should show eval fids in some form - collapsed per location?

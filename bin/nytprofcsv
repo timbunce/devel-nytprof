@@ -61,8 +61,18 @@ my $reporter = new Devel::NYTProf::Reader($opt{file});
 # place to store this
 $reporter->output_dir($opt{out});
 
-# set output options
-$reporter->add_regexp('^\s*', '');    # trim leading spaces
+$reporter->set_param(mk_report_source_line => sub {
+    my ($linenum, $line, $stats_for_line, $statistics, $subs_defined, $makes_calls_to, $profile, $filestr) = @_;
+    $line =~ s/^\s*//; # trim leading spaces
+    return sprintf("%f,%g,%f,%s\n",
+        $stats_for_line->{'time'} || 0,
+        $stats_for_line->{'calls'} || 0,
+        $stats_for_line->{'time/call'} || 0,
+        $line,
+    );
+});
+
+$reporter->set_param(mk_report_xsub_line => sub { "" });
 
 # generate the files
 $reporter->report();
