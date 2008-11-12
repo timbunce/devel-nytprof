@@ -97,6 +97,7 @@
 #define NYTP_FIDi_PROFILE       7
 #define NYTP_FIDi_EVAL_FI       8
 #define NYTP_FIDi_SUBS_DEFN     9
+#define NYTP_FIDi_HAS_EVALS     10
 
 
 /* Hash table definitions */
@@ -3000,23 +3001,35 @@ load_profile_data_from_stream(SV *cb)
                 /* [ name, eval_file_num, eval_line_num, fid, flags, size, mtime, ... ]
                  */
                 av = newAV();
-                /* drop newline */
+                rv = newRV_noinc((SV*)av);
+                sv_bless(rv, file_info_stash);
+                av_store(fid_fileinfo_av, file_num, rv);
+
                 av_store(av, NYTP_FIDi_FILENAME, filename_sv); /* av now owns the sv */
                 av_store(av, NYTP_FIDi_EVAL_FID,  (eval_file_num) ? newSVuv(eval_file_num) : &PL_sv_no);
                 av_store(av, NYTP_FIDi_EVAL_LINE, (eval_file_num) ? newSVuv(eval_line_num) : &PL_sv_no);
+                if (eval_file_num) {
+                    SV *has_evals;
+                    SV *eval_fi = *av_fetch(fid_fileinfo_av, eval_file_num, 1);
+                    /* this eval fid points to the fid that contained the eval */
+                    av_store(av, NYTP_FIDi_EVAL_FI, sv_rvweaken(newSVsv(eval_fi)));
+                    /* the fid that contained the eval has a list of eval fids */
+                    has_evals = *av_fetch((AV *)SvRV(eval_fi), NYTP_FIDi_HAS_EVALS, 1);
+                    if (!SvROK(has_evals)) /* autoviv */
+                        sv_setsv(has_evals, newRV_noinc((SV*)newAV()));
+                    av_push((AV *)SvRV(has_evals), sv_rvweaken(newSVsv(rv)));
+                }
+                else {
+                    av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
+                }
                 av_store(av, NYTP_FIDi_FID,       newSVuv(file_num));
                 av_store(av, NYTP_FIDi_FLAGS,     newSVuv(fid_flags));
                 av_store(av, NYTP_FIDi_FILESIZE,  newSVuv(file_size));
                 av_store(av, NYTP_FIDi_FILEMTIME, newSVuv(file_mtime));
                 av_store(av, NYTP_FIDi_PROFILE,   &PL_sv_undef);
-                av_store(av, NYTP_FIDi_EVAL_FI, eval_file_num
-                    ? sv_rvweaken(newSVsv(*av_fetch(fid_fileinfo_av, eval_file_num, 1)))
-                    : &PL_sv_undef);
                 av_store(av, NYTP_FIDi_SUBS_DEFN, &PL_sv_undef);
+                av_store(av, NYTP_FIDi_HAS_EVALS, &PL_sv_undef);
 
-                rv = newRV_noinc((SV*)av);
-                sv_bless(rv, file_info_stash);
-                av_store(fid_fileinfo_av, file_num, rv);
                 break;
             }
 
@@ -3448,6 +3461,7 @@ BOOT:
     newCONSTSUB(stash, "NYTP_FIDi_PROFILE",   newSViv(NYTP_FIDi_PROFILE));
     newCONSTSUB(stash, "NYTP_FIDi_EVAL_FI",   newSViv(NYTP_FIDi_EVAL_FI));
     newCONSTSUB(stash, "NYTP_FIDi_SUBS_DEFN", newSViv(NYTP_FIDi_SUBS_DEFN));
+    newCONSTSUB(stash, "NYTP_FIDi_HAS_EVALS", newSViv(NYTP_FIDi_HAS_EVALS));
     }
 
 

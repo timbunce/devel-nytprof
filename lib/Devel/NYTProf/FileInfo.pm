@@ -7,7 +7,7 @@ use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 use Devel::NYTProf::Constants qw(
     NYTP_FIDi_FILENAME NYTP_FIDi_EVAL_FID NYTP_FIDi_EVAL_LINE NYTP_FIDi_FID
     NYTP_FIDi_FLAGS NYTP_FIDi_FILESIZE NYTP_FIDi_FILEMTIME NYTP_FIDi_PROFILE
-    NYTP_FIDi_EVAL_FI NYTP_FIDi_SUBS_DEFN
+    NYTP_FIDi_EVAL_FI NYTP_FIDi_SUBS_DEFN NYTP_FIDi_HAS_EVALS
     NYTP_FIDf_IS_PMC
 );
 
@@ -22,8 +22,13 @@ sub profile   { shift->[NYTP_FIDi_PROFILE()] }
 
 # if fid is an eval then return fileinfo obj for the fid that executed the eval
 sub eval_fi   { $_[0]->[NYTP_FIDi_EVAL_FI()] }
+
+# ref to array of fileinfo's for each string eval in the file, else undef
+sub has_evals { $_[0]->[NYTP_FIDi_HAS_EVALS()] }
+
 # return a ref to a hash of { subname => subinfo, ... }
 sub subs      { $_[0]->[NYTP_FIDi_SUBS_DEFN()] ||= $_[0]->profile->fid_subs_map->{ $_[0]->fid } }
+
 
 sub _values_for_dump {
     my $self   = shift;
@@ -32,6 +37,7 @@ sub _values_for_dump {
         NYTP_FIDi_FLAGS, NYTP_FIDi_FILESIZE, NYTP_FIDi_FILEMTIME
     ];
     $values[0] = $self->filename_without_inc;
+    #push @values, $self->has_evals ? "evals:".join(",", map { $_->fid } @{$self->has_evals}) : "";
     return \@values;
 }
 
