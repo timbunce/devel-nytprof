@@ -45,6 +45,7 @@ our $VERSION = '2.07';
 our @EXPORT_OK = qw(
     fmt_float
     fmt_time fmt_incl_excl_time
+    make_path_strip_editor
     strip_prefix_from_paths
     calculate_median_absolute_deviation
     get_alternation_regex
@@ -84,20 +85,32 @@ sub get_abs_paths_alternation_regex {
     return get_alternation_regex(\@inc, '/?');
 }
 
-# edit @$paths in-place to remove specified absolute path prefixes
-sub strip_prefix_from_paths {
-    my ($inc_ref, $paths, $anchor, $replacement) = @_;
+
+sub make_path_strip_editor {
+    my ($inc_ref, $anchor, $replacement) = @_;
     $anchor      = '^' if not defined $anchor;
     $replacement = ''  if not defined $replacement;
 
     my @inc = @$inc_ref
         or return;
-    return if not defined $paths;
 
     my $inc_regex = get_abs_paths_alternation_regex(\@inc);
 
-    # anchor at start, capture anchor, soak up any /'s at end
+    # anchor at start, capture anchor
     $inc_regex = qr{($anchor)$inc_regex};
+
+    return sub { $_[0] =~ s{$inc_regex}{$1$replacement} };
+}
+
+
+# edit @$paths in-place to remove specified absolute path prefixes
+sub strip_prefix_from_paths {
+    my ($inc_ref, $paths, $anchor, $replacement) = @_;
+
+    return if not defined $paths;
+
+    my $editor = make_path_strip_editor($inc_ref, $anchor, $replacement)
+        or return;
 
     # strip off prefix using regex, skip any empty/undef paths
     if (UNIVERSAL::isa($paths, 'ARRAY')) {
@@ -106,13 +119,13 @@ sub strip_prefix_from_paths {
                 strip_prefix_from_paths($inc_ref, $path, $anchor, $replacement);
             }
             elsif ($path) {
-                $path =~ s{$inc_regex}{$1$replacement};
+                $editor->($path);
             }
         }
     }
     elsif (UNIVERSAL::isa($paths, 'HASH')) {
         for my $orig (keys %$paths) {
-            (my $new = $orig) =~ s{$inc_regex}{$1}
+            $editor->(my $new = $orig)
                 or next;
             my $value = delete $paths->{$orig};
             warn "Stripping prefix from $orig overwrites existing $new"
