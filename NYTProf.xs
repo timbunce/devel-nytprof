@@ -2757,6 +2757,8 @@ load_profile_data_from_stream(SV *cb)
     HV* sub_subinfo_hv = newHV();
     HV* sub_callers_hv = newHV();
     SV *tmp_str_sv = newSVpvn("",0);
+    HV *file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
+    HV *sub_info_stash  = gv_stashpv("Devel::NYTProf::SubInfo",  GV_ADDWARN);
 
     /* these times don't reflect profile_enable & profile_disable calls */
     NV profiler_start_time = 0.0;
@@ -2950,6 +2952,7 @@ load_profile_data_from_stream(SV *cb)
             case NYTP_TAG_NEW_FID:                             /* file */
             {
                 AV *av;
+                SV *rv;
                 SV *filename_sv;
                 unsigned int file_num      = read_int();
                 unsigned int eval_file_num = read_int();
@@ -3006,10 +3009,14 @@ load_profile_data_from_stream(SV *cb)
                 av_store(av, NYTP_FIDi_FILESIZE,  newSVuv(file_size));
                 av_store(av, NYTP_FIDi_FILEMTIME, newSVuv(file_mtime));
                 av_store(av, NYTP_FIDi_PROFILE,   &PL_sv_undef);
-                av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
+                av_store(av, NYTP_FIDi_EVAL_FI, eval_file_num
+                    ? sv_rvweaken(newSVsv(*av_fetch(fid_fileinfo_av, eval_file_num, 1)))
+                    : &PL_sv_undef);
                 av_store(av, NYTP_FIDi_SUBS_DEFN, &PL_sv_undef);
 
-                av_store(fid_fileinfo_av, file_num, newRV_noinc((SV*)av));
+                rv = newRV_noinc((SV*)av);
+                sv_bless(rv, file_info_stash);
+                av_store(fid_fileinfo_av, file_num, rv);
                 break;
             }
 

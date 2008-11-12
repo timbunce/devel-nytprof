@@ -8,6 +8,7 @@ use Devel::NYTProf::Constants qw(
     NYTP_FIDi_FILENAME NYTP_FIDi_EVAL_FID NYTP_FIDi_EVAL_LINE NYTP_FIDi_FID
     NYTP_FIDi_FLAGS NYTP_FIDi_FILESIZE NYTP_FIDi_FILEMTIME NYTP_FIDi_PROFILE
     NYTP_FIDi_EVAL_FI NYTP_FIDi_SUBS_DEFN
+    NYTP_FIDf_IS_PMC
 );
 
 sub filename  { shift->[NYTP_FIDi_FILENAME()] }
@@ -20,7 +21,7 @@ sub mtime     { shift->[NYTP_FIDi_FILEMTIME()] }
 sub profile   { shift->[NYTP_FIDi_PROFILE()] }
 
 # if fid is an eval then return fileinfo obj for the fid that executed the eval
-sub eval_fi   { $_[0]->[NYTP_FIDi_EVAL_FI()] ||= $_[0]->profile->fileinfo_of($_[0]->eval_fid || return) }
+sub eval_fi   { $_[0]->[NYTP_FIDi_EVAL_FI()] }
 # return a ref to a hash of { subname => subinfo, ... }
 sub subs      { $_[0]->[NYTP_FIDi_SUBS_DEFN()] ||= $_[0]->profile->fid_subs_map->{ $_[0]->fid } }
 
@@ -79,7 +80,7 @@ sub outer {
 
 
 sub is_pmc {
-    return (shift->flags & 1);    # NYTP_FIDf_IS_PMC
+    return (shift->flags & NYTP_FIDf_IS_PMC());
 }
 
 

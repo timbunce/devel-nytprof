@@ -50,7 +50,7 @@ use Scalar::Util qw(blessed);
 use Devel::NYTProf::Core;
 use Devel::NYTProf::FileInfo;
 use Devel::NYTProf::SubInfo;
-use Devel::NYTProf::Util qw(strip_prefix_from_paths get_abs_paths_alternation_regex);
+use Devel::NYTProf::Util qw(make_path_strip_editor strip_prefix_from_paths get_abs_paths_alternation_regex);
 
 our $VERSION = '2.07';
 
@@ -77,6 +77,7 @@ sub new {
 
     my $profile = load_profile_data_from_file($file);
     bless $profile => $class;
+    #use Data::Dumper; warn Dumper($profile->{fid_fileinfo});
 
     my $fid_fileinfo = $profile->{fid_fileinfo};
     my $sub_subinfo  = $profile->{sub_subinfo};
@@ -87,15 +88,9 @@ sub new {
     $_ and $_->[7] = $profile for @$fid_fileinfo;
     $_->[7] = $profile for values %$sub_subinfo;
 
-    # bless fid_fileinfo data
-    (my $fid_class = $class) =~ s/\w+$/FileInfo/;
-    $_ and bless $_ => $fid_class for @$fid_fileinfo;
-
     # bless sub_subinfo data
     (my $sub_class = $class) =~ s/\w+$/SubInfo/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
-
-    #$profile->_migrate_sub_callers_from_eval_fids;
 
     # XXX merge evals - should become a method optionally called here
     # (which uses other methods to do the work and those methods
@@ -557,20 +552,21 @@ sub normalize_variables {
 
     my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
 
-    # remove_internal_data_of library files
-    # (the definition of which is quite vague at the moment)
     my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
+    my $inc = [ $self->inc, '.' ];
     my @abs_inc = grep { $_ =~ $abs_path_regex } $self->inc;
     my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
-    for my $fileinfo ($self->all_fileinfos) {
+    my $editor = make_path_strip_editor([ $self->inc, '.' ], qr{^|\[}, '/.../');
+
+    for my $fi ($self->all_fileinfos) {
 
         # normalize eval sequence numbers in 'file' names to 0
-        $fileinfo->[0] =~ s/$eval_regex/(${1}eval 0)/g;
+        $fi->[0] =~ s/$eval_regex/(${1}eval 0)/g;
 
-        # ignore files not in perl's own lib
-        next if $fileinfo->filename !~ $is_lib_regex;
-
-        $self->remove_internal_data_of($fileinfo);
+        # strip out internal details of library modules
+        # (the definition of which is quite vague at the moment)
+        $self->remove_internal_data_of($fi)
+            if $fi->filename =~ $is_lib_regex;
     }
 
     # normalize line data
@@ -596,15 +592,9 @@ sub normalize_variables {
         $_->[1] = $_->[2] = $_->[3] = $_->[4] = $_->[5] = 0;
     }
 
-    my $inc = [@INC, '.'];
-
-    $self->make_fid_filenames_relative($inc, '/.../');
+    $self->make_filenames_relative($inc, '/.../');
 
     for my $info ($self->{sub_subinfo}, $self->{sub_caller}) {
-
-        # normalize paths in sub names like
-        #		AutoLoader::__ANON__[/lib/perl5/5.8.6/AutoLoader.pm:96]
-        strip_prefix_from_paths($inc, $info, '\[', '/.../');
 
         # normalize eval sequence numbers in sub names to 0
         for my $subname (keys %$info) {
@@ -621,6 +611,7 @@ sub normalize_variables {
 }
 
 
+# not currently used, guts may be refactored into new methods later
 sub _migrate_sub_callers_from_eval_fids {
     my $self = shift;
 
@@ -663,12 +654,34 @@ sub _migrate_sub_callers_from_eval_fids {
 }
 
 
-sub make_fid_filenames_relative {
+sub make_filenames_relative {
     my ($self, $roots, $replacement) = @_;
     $roots ||= ['.'];    # e.g. [ @INC, '.' ]
+
+    warn "making filenames relative to @$roots\n"
+        if $trace;
+
+    my $editor = make_path_strip_editor($roots, qr{^|\[}, $replacement);
+
     # strip prefix from start of string and also when embeded
     # e.g., "(eval 42)[/foo/bar/...]"
-    strip_prefix_from_paths($roots, $self->{fid_fileinfo}, qr{^|\[}, $replacement);
+    for my $fi ($self->all_fileinfos) {
+        $editor->($fi->[0]); # XXX breaks encapsulation
+    }
+
+    # edit sub names, e.g., "__ANON__[/foo/bar/...:42]"
+    for my $info ($self->{sub_subinfo}, $self->{sub_caller}) {
+        for my $subname (keys %$info) {
+            $editor->(my $newname = $subname)
+                or next;
+            next if $newname eq $subname;
+            warn "Discarded previous $newname info" if $info->{$newname};
+            my $value = delete $info->{$subname};
+            $info->{$newname} = $value;
+            # update subname attribute of SubInfo XXX breaks encapsulation
+            $value->[6] = $newname if UNIVERSAL::can($value, 'subname');
+        }
+    }
 }
 
 
