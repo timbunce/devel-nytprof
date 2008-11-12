@@ -48,6 +48,8 @@ use Cwd qw(getcwd);
 use Scalar::Util qw(blessed);
 
 use Devel::NYTProf::Core;
+use Devel::NYTProf::FileInfo;
+use Devel::NYTProf::SubInfo;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths get_abs_paths_alternation_regex);
 
 our $VERSION = '2.07';
@@ -86,18 +88,18 @@ sub new {
     $_->[7] = $profile for values %$sub_subinfo;
 
     # bless fid_fileinfo data
-    (my $fid_class = $class) =~ s/\w+$/ProfFile/;
+    (my $fid_class = $class) =~ s/\w+$/FileInfo/;
     $_ and bless $_ => $fid_class for @$fid_fileinfo;
 
     # bless sub_subinfo data
-    (my $sub_class = $class) =~ s/\w+$/ProfSub/;
+    (my $sub_class = $class) =~ s/\w+$/SubInfo/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
     #$profile->_migrate_sub_callers_from_eval_fids;
 
     # XXX merge evals - should become a method optionally called here
     # (which uses other methods to do the work and those methods
-    # should also be called by Devel::NYTProf::ProfSub::callers())
+    # should also be called by Devel::NYTProf::SubInfo::callers())
     my %anon_eval_subs_merged;
     while (my ($subname, $subinfo) = each %$sub_subinfo) {
 
@@ -199,8 +201,8 @@ sub fileinfo_of {
         return undef;
     }
 
-    # check if already a ProfFile object
-    return $arg if ref $arg and $arg->isa('Devel::NYTProf::ProfFile');
+    # check if already a file info object
+    return $arg if ref $arg and $arg->isa('Devel::NYTProf::FileInfo');
 
     my $fid = $self->resolve_fid($arg);
     if (not $fid) {
@@ -711,7 +713,7 @@ path.
 Returns undef if the profile contains no C<sub_subinfo> data for the $file.
 
 The keys of the returned hash are fully qualified subroutine names and the
-corresponding value is a hash reference containing L<Devel::NYTProf::ProfSub>
+corresponding value is a hash reference containing L<Devel::NYTProf::SubInfo>
 objects.
 
 If $include_lines is true then the hash also contains integer keys
@@ -990,221 +992,6 @@ sub _dumper {
     require Data::Dumper;
     return Data::Dumper::Dumper(@_);
 }
-
-## --- will move out to separate files later ---
-# for now these are viewed as private classes
-
-{
-
-    package Devel::NYTProf::ProfFile;    # fid_fileinfo
-
-    use Devel::NYTProf::Util qw(strip_prefix_from_paths);
-
-    sub filename  { shift->[0] }
-    sub eval_fid  { shift->[1] }
-    sub eval_line { shift->[2] }
-    sub fid       { shift->[3] }
-    sub flags     { shift->[4] }
-    sub size      { shift->[5] }
-    sub mtime     { shift->[6] }
-    sub profile   { shift->[7] }
-
-    # if fid is an eval then return fileinfo obj for the fid that executed the eval
-    sub eval_fi   { $_[0]->[8] ||= $_[0]->profile->fileinfo_of($_[0]->eval_fid || return) }
-    # return a ref to a hash of { subname => subinfo, ... }
-    sub subs      { $_[0]->[9] ||= $_[0]->profile->fid_subs_map->{ $_[0]->fid } }
-
-    sub line_time_data {
-        my ($self, $levels) = @_;
-        $levels ||= [ 'line' ];
-        # XXX this can be optimized once the fidinfo contains directs refs to the data
-        my $profile = $self->profile;
-        my $fid = $self->fid;
-        for my $level (@$levels) {
-            my $line_data = $profile->get_fid_line_data($level)->[$fid];
-            return $line_data if $line_data;
-        }
-        return undef;
-    }
-
-    sub excl_time { # total exclusive time for fid
-        my $self = shift;
-        my $line_data = $self->line_time_data([qw(sub block line)])
-            || return undef;
-        my $excl_time = 0;
-        for (@$line_data) {
-            next unless $_;
-            $excl_time += $_->[0];
-            if (my $eval_lines = $_->[2]) {
-                # line contains a string eval
-                $excl_time += $_->[0] for values %$eval_lines;
-            }
-        }
-        return $excl_time;
-    }
-
-    sub outer {
-        my ($self, $recurse) = @_;
-        my $fi  = $self->eval_fi
-            or return;
-        my $prev = $self;
-
-        while ($recurse and my $eval_fi = $fi->eval_fi) {
-            $prev = $fi;
-            $fi = $eval_fi;
-       }
-        return $fi unless wantarray;
-        return ($fi, $prev->eval_line);
-    }
-
-
-    sub is_pmc {
-        return (shift->flags & 1);    # NYTP_FIDf_IS_PMC
-    }
-
-
-    # should return the filename that the application used
-    # when loading the file
-    sub filename_without_inc {
-        my $self = shift;
-        my $f    = [$self->filename];
-        strip_prefix_from_paths([$self->profile->inc], $f);
-        return $f->[0];
-    }
-
-    sub _values_for_dump {
-        my $self   = shift;
-        my @values = @$self;
-        $values[0] = $self->filename_without_inc;
-        pop @values;    # remove profile ref
-        return \@values;
-    }
-
-    sub delete_subs_called_info {
-        my $self = shift;
-        my $profile = $self->profile;
-        my $sub_caller = $profile->{sub_caller}
-            or return;
-        my $fid = $self->fid;
-        # remove sub_caller info for calls made *from within* this file
-        delete $_->{$fid} for values %$sub_caller;
-        return;
-    }
-
-    sub srclines_array {
-        my $self = shift;
-        my $profile = $self->profile;
-        #warn Dumper($profile->{fid_srclines});
-        my $fid = $self->fid;
-        if (my $srclines = $profile->{fid_srclines}[ $fid ]) {
-            my $copy = [ @$srclines ]; # shallow clone
-            shift @$copy; # line 0 not used
-            return $copy;
-        }
-        # open file
-        my $filename = $self->filename;
-        # if it's a .pmc then assume that's the file we want to look at
-        # (because the main use for .pmc's are related to perl6)
-        $filename .= "c" if $self->is_pmc;
-        open my $fh, "<", $filename
-            or return undef;
-        return [ <$fh> ];
-    }
-
-}    # end of package
-
-
-{
-
-    package Devel::NYTProf::ProfSub;    # sub_subinfo
-
-    use List::Util qw(sum);
-
-    sub fid        { $_[0]->[0] ||= $_[0]->profile->package_fids($_[0]->package) }
-    sub first_line { shift->[1] }
-    sub last_line  { shift->[2] }
-    sub calls      { shift->[3] }
-    sub incl_time  { shift->[4] }
-    sub excl_time  { shift->[5] }
-    sub subname    { shift->[6] }
-    sub profile    { shift->[7] }
-    sub package    { (my $pkg = shift->subname) =~ s/::.*?$//; return $pkg }
-    sub recur_max_depth { shift->[8] }
-    sub recur_incl_time { shift->[9] }
-
-    sub is_xsub {
-        my $self = shift;
-
-        # XXX should test == 0 but some xsubs still have undef first_line etc
-        return (!$self->first_line && !$self->last_line);
-    }
-
-    sub fileinfo {
-        my $self = shift;
-        my $fid  = $self->fid;
-        if (!$fid) {
-            return undef;    # sub not have a known fid
-        }
-        $self->profile->fileinfo_of($fid);
-    }
-
-    sub merge_in {
-        my $self    = shift;
-        my $newinfo = shift;
-        $self->[3] += $newinfo->[3];    # calls
-        $self->[4] += $newinfo->[4];    # calls
-        return;
-    }
-
-    sub _values_for_dump {
-        my $self   = shift;
-        my @values = @{$self}[0 .. 5, 8, 9 ];
-        return \@values;
-    }
-
-    sub callers {
-        my $self = shift;
-
-        # { fid => { line => [ count, incl_time ] } } }
-        my $callers = $self->profile->{sub_caller}->{$self->subname}
-            or return undef;
-
-        # XXX should 'collapse' data for calls from eval fids
-        # (with an option to not collapse)
-        return $callers;
-    }
-
-    sub caller_fids {
-        my ($self, $merge_evals) = @_;
-        my $callers = $self->callers($merge_evals) || {};
-        my @fids = keys %$callers;
-        return @fids;    # count in scalar context
-    }
-
-    sub caller_count {
-        my ($self, $merge_evals) = @_;
-        my $callers = $self->callers($merge_evals) || {};
-
-        # count of the number of distinct locations sub is called from
-        return sum(map { scalar keys %$_ } values %$callers);
-    }
-
-    sub caller_places {
-        my ($self, $merge_evals) = @_;
-        my $callers = $self->callers
-            or return 0;
-
-        # scalar: count of the number of distinct locations sub is called from
-        # list: array of [ fid, line, @... ]
-        my @callers;
-        warn "caller_places in list context not implemented/tested yet";
-        while (my ($fid, $lines) = each %$callers) {
-            push @callers, map { [$fid, $_, @{$lines->{$_}}] } keys %$lines;
-        }
-        return \@callers;
-    }
-
-}    # end of package
 
 1;
 

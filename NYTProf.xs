@@ -84,8 +84,19 @@
 #define NYTP_TAG_STRING          '\'' 
 #define NYTP_TAG_STRING_UTF8     '"' 
 #define NYTP_TAG_START_DEFLATE   'z' 
-
 #define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
+
+/* indices to elements of the file info array */
+#define NYTP_FIDi_FILENAME      0
+#define NYTP_FIDi_EVAL_FID      1
+#define NYTP_FIDi_EVAL_LINE     2
+#define NYTP_FIDi_FID           3
+#define NYTP_FIDi_FLAGS         4
+#define NYTP_FIDi_FILESIZE      5
+#define NYTP_FIDi_FILEMTIME     6
+#define NYTP_FIDi_PROFILE       7
+#define NYTP_FIDi_EVAL_FI       8
+#define NYTP_FIDi_SUBS_DEFN     9
 
 
 /* Hash table definitions */
@@ -2987,14 +2998,16 @@ load_profile_data_from_stream(SV *cb)
                  */
                 av = newAV();
                 /* drop newline */
-                av_store(av, 0, filename_sv); /* av now owns the sv */
-                av_store(av, 1, (eval_file_num) ? newSVuv(eval_file_num) : &PL_sv_no);
-                av_store(av, 2, (eval_file_num) ? newSVuv(eval_line_num) : &PL_sv_no);
-                av_store(av, 3, newSVuv(file_num));
-                av_store(av, 4, newSVuv(fid_flags));
-                av_store(av, 5, newSVuv(file_size));
-                av_store(av, 6, newSVuv(file_mtime));
-                /* 7: profile ref */
+                av_store(av, NYTP_FIDi_FILENAME, filename_sv); /* av now owns the sv */
+                av_store(av, NYTP_FIDi_EVAL_FID,  (eval_file_num) ? newSVuv(eval_file_num) : &PL_sv_no);
+                av_store(av, NYTP_FIDi_EVAL_LINE, (eval_file_num) ? newSVuv(eval_line_num) : &PL_sv_no);
+                av_store(av, NYTP_FIDi_FID,       newSVuv(file_num));
+                av_store(av, NYTP_FIDi_FLAGS,     newSVuv(fid_flags));
+                av_store(av, NYTP_FIDi_FILESIZE,  newSVuv(file_size));
+                av_store(av, NYTP_FIDi_FILEMTIME, newSVuv(file_mtime));
+                av_store(av, NYTP_FIDi_PROFILE,   &PL_sv_undef);
+                av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
+                av_store(av, NYTP_FIDi_SUBS_DEFN, &PL_sv_undef);
 
                 av_store(fid_fileinfo_av, file_num, newRV_noinc((SV*)av));
                 break;
@@ -3069,11 +3082,11 @@ load_profile_data_from_stream(SV *cb)
                 sv_setuv(*av_fetch(av, 0, 1), fid);
                 sv_setuv(*av_fetch(av, 1, 1), first_line);
                 sv_setuv(*av_fetch(av, 2, 1), last_line);
-                sv_setuv(*av_fetch(av, 3, 1),   0); /* cal count */
+                sv_setuv(*av_fetch(av, 3, 1),   0); /* call count */
                 sv_setnv(*av_fetch(av, 4, 1), 0.0); /* incl_time */
                 sv_setnv(*av_fetch(av, 5, 1), 0.0); /* excl_time */
                 sv_setsv(*av_fetch(av, 6, 1), subname_sv);
-                sv_setsv(*av_fetch(av, 6, 1), &PL_sv_undef); /* ref to profile */
+                sv_setsv(*av_fetch(av, 7, 1), &PL_sv_undef); /* ref to profile */
                 sv_setuv(*av_fetch(av, 8, 1),   0); /* rec_depth */
                 sv_setnv(*av_fetch(av, 9, 1), 0.0); /* reci_time */
                 break;
@@ -3409,19 +3422,26 @@ load_profile_data_from_stream(SV *cb)
  * Perl XS Code Below Here         *
  ***********************************/
 
-MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf
+MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Constants
 
 PROTOTYPES: DISABLE
 
-I32
-constant()
-    PROTOTYPE:
-    ALIAS:
-        NYTP_FIDf_IS_PMC = NYTP_FIDf_IS_PMC
-    CODE:
-    RETVAL = ix;
-    OUTPUT:
-    RETVAL
+BOOT:
+    {
+    HV *stash = gv_stashpv("Devel::NYTProf::Constants", GV_ADDWARN);
+    newCONSTSUB(stash, "NYTP_FIDf_IS_PMC", newSViv(NYTP_FIDf_IS_PMC));
+    /* NYTP_FIDi_* */
+    newCONSTSUB(stash, "NYTP_FIDi_FILENAME",  newSViv(NYTP_FIDi_FILENAME));
+    newCONSTSUB(stash, "NYTP_FIDi_EVAL_FID",  newSViv(NYTP_FIDi_EVAL_FID));
+    newCONSTSUB(stash, "NYTP_FIDi_EVAL_LINE", newSViv(NYTP_FIDi_EVAL_LINE));
+    newCONSTSUB(stash, "NYTP_FIDi_FID",       newSViv(NYTP_FIDi_FID));
+    newCONSTSUB(stash, "NYTP_FIDi_FLAGS",     newSViv(NYTP_FIDi_FLAGS));
+    newCONSTSUB(stash, "NYTP_FIDi_FILESIZE",  newSViv(NYTP_FIDi_FILESIZE));
+    newCONSTSUB(stash, "NYTP_FIDi_FILEMTIME", newSViv(NYTP_FIDi_FILEMTIME));
+    newCONSTSUB(stash, "NYTP_FIDi_PROFILE",   newSViv(NYTP_FIDi_PROFILE));
+    newCONSTSUB(stash, "NYTP_FIDi_EVAL_FI",   newSViv(NYTP_FIDi_EVAL_FI));
+    newCONSTSUB(stash, "NYTP_FIDi_SUBS_DEFN", newSViv(NYTP_FIDi_SUBS_DEFN));
+    }
 
 
 MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Test
