@@ -892,10 +892,8 @@ caption {
 
 .table_footer { color: gray; }
 .table_footer > a:link,
-.table_footer > a:visited
-{ color: gray;
-    text-decoration: none;
-}
+.table_footer > a:visited { color: gray; }
+.table_footer > a:hover   { color: red; }
 
 .index { text-align: left; }
 
