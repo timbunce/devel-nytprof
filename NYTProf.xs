@@ -3185,10 +3185,14 @@ load_profile_data_from_stream(SV *cb)
                     sv_setsv(sv, newRV_noinc((SV*)newHV()));
 
                 if (fid) {
+                    SV *fi;
                     len = my_snprintf(text, sizeof(text), "%u", line);
+
                     sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newAV()));
+                    else warn("sub_caller info for %s %d:%d already exists!",
+                        SvPV_nolen(subname_sv), fid, line);
                     sv = SvRV(sv);
                     sv_setuv(*av_fetch((AV *)sv, NYTP_SCi_CALL_COUNT, 1), count);
                     sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_RTIME, 1), incl_time);
@@ -3197,6 +3201,16 @@ load_profile_data_from_stream(SV *cb)
                     sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_STIME, 1), scpu_time);
                     sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_RECI_RTIME, 1), reci_time);
                     sv_setuv(*av_fetch((AV *)sv, NYTP_SCi_REC_DEPTH,  1), rec_depth);
+
+                    /* add sub call to NYTP_FIDi_SUBS_CALLED of fid */
+                    /* => { line => { subname => [ ... ] } } */
+                    fi = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
+                    fi = *av_fetch((AV *)fi, NYTP_FIDi_SUBS_CALLED, 1);
+                    fi = *hv_fetch((HV*)SvRV(fi), text, len, 1);
+                    if (!SvROK(fi))               /* autoviv */
+                        sv_setsv(fi, newRV_noinc((SV*)newHV()));
+                    fi = HeVAL(hv_fetch_ent((HV *)SvRV(fi), subname_sv, 1, 0));
+                    sv_setsv(fi, newRV(sv));
                 }
                 else {                            /* is meta-data about sub */
                     /* line == 0: is_xs - set line range to 0,0 as marker */
