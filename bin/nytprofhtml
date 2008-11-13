@@ -459,6 +459,21 @@ sub output_indexpage {
         <div class="body_content"><br />
     };
 
+    # overall description
+    my @all_fileinfos = $profile->all_fileinfos;
+    my $eval_fileinfos = grep { $_->eval_line } @all_fileinfos;
+    my $summary = sprintf "Profile of %s for %s,",
+        $profile->{attribute}{application},
+        fmt_time($profile->{attribute}{profiler_duration});
+    $summary .= sprintf " executing %d statements",
+         $profile->{attribute}{total_stmts_measured}
+        -$profile->{attribute}{total_stmts_discounted};
+    $summary .= sprintf " in %d source files",
+        @all_fileinfos - $eval_fileinfos;
+    $summary .= sprintf " and %d string evals",
+        $eval_fileinfos if $eval_fileinfos;
+    printf OUT qq{<div class="index_summary">%s.</div>}, _escape_html($summary);
+
     # generate name-sorted select options for files, if there are many
     if (keys %$stats > 30) {
         print OUT

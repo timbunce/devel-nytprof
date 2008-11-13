@@ -790,7 +790,7 @@ gettimeofday_nv(void)
         (*u2time)(aTHX_ &time_of_day);
         return time_of_day[0] + (time_of_day[1] / 1000000.0);
     }
-    return 0.0;
+    return (NV)time();
 #endif
 }
 

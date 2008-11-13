@@ -1,6 +1,8 @@
 #!/bin/env perl -w
 use strict;
 
+my $NYTPROF = ($ENV{NYTPROF}) ? "$ENV{NYTPROF}:" : "";
+
 my %runs = (
     start_begin => {
         skip => 0,
@@ -20,7 +22,7 @@ my %runs = (
 for my $run (keys %runs) {
 
     next if $runs{$run}{skip};
-    $ENV{NYTPROF}      = $runs{$run}{NYTPROF} || '';
+    $ENV{NYTPROF}      = $NYTPROF . $runs{$run}{NYTPROF} || '';
     $ENV{NYTPROF_HTML} = $runs{$run}{NYTPROF_HTML} || '';
 
     system("perl -Mblib -MDevel::NYTProf demo/demo-code.pl @ARGV") == 0
