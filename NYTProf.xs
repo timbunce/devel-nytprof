@@ -2846,6 +2846,8 @@ load_profile_data_from_stream(SV *cb)
 		    break;
 		}
 
+                if (trace_level >= 4)
+                    warn("discounting next statement after %u:%d\n", last_file_num, last_line_num);
                 if (statement_discount)
                     warn("multiple statement discount after %u:%d\n", last_file_num, last_line_num);
                 ++statement_discount;
@@ -2947,6 +2949,7 @@ load_profile_data_from_stream(SV *cb)
                 total_stmts_duration += seconds;
                 statement_discount = 0;
                 last_file_num = file_num;
+                last_line_num = line_num;
                 break;
             }
 
@@ -3395,6 +3398,8 @@ load_profile_data_from_stream(SV *cb)
     sv_free((SV*)live_pids_hv);
     sv_free(tmp_str_sv);
 
+    if (statement_discount) /* discard unused statement_discount */
+        total_stmts_discounted -= statement_discount;
     store_attrib_sv(aTHX_ attr_hv, "total_stmts_measured",   newSVnv(total_stmts_measured));
     store_attrib_sv(aTHX_ attr_hv, "total_stmts_discounted", newSVnv(total_stmts_discounted));
     store_attrib_sv(aTHX_ attr_hv, "total_stmts_duration",   newSVnv(total_stmts_duration));
