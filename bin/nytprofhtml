@@ -185,6 +185,9 @@ sub subroutine_table {
         </tr>
     };
 
+    # XXX may not be appropriate if profiling wasn't continuous
+    my $profiler_duration = $profile->{attribute}{profiler_duration};
+
     my @rows;
     for my $sub (@subs_to_show) {
 
@@ -196,8 +199,12 @@ sub subroutine_table {
         $sub_links .= determine_severity($sub->calls        || 0, $dev_calls);
         $sub_links .= determine_severity($sub->caller_count || 0, $dev_call_count);
         $sub_links .= determine_severity($sub->caller_fids  || 0, $dev_call_fids);
-        $sub_links .= determine_severity($sub->excl_time    || 0, $dev_excl_time, 1);
-        $sub_links .= determine_severity($sub->incl_time    || 0, $dev_incl_time, 1);
+        $sub_links .= determine_severity($sub->excl_time    || 0, $dev_excl_time, 1,
+            sprintf("%.1f%%", $sub->excl_time/$profiler_duration*100)
+        );
+        $sub_links .= determine_severity($sub->incl_time    || 0, $dev_incl_time, 1,
+            sprintf("%.1f%%", $sub->incl_time/$profiler_duration*100)
+        );
 
         # package and subname
         my $subname = $sub->subname;
@@ -285,14 +292,22 @@ sub mk_report_xsub_line {
 }
 
 
+sub _escape_html {
+    local $_ = shift;
+    s/\t/        /g; # XXX incorrect for most non-leading tabs
+    s/&/&amp;/g;
+    s/</&lt;/g;
+    s/>/&gt;/g;
+    s{\n}{<br />}g;  # for xsub pseudo-sub declarations
+    s{"}{&quot;}g;   # for attributes like title="..."
+    return $_;
+}
+
+
 sub report_src_line {
     my ($value, undef, $linesrc, $profile, $subs, $calls, $thisfile) = @_;
 
-    $linesrc =~ s/&/&amp;/g;
-    $linesrc =~ s/</&lt;/g;
-    $linesrc =~ s/>/&gt;/g;
-    $linesrc =~ s/\t/        /g;
-    $linesrc =~ s{\n}{<br />}g; # for xsub pseudo-sub declarations
+    $linesrc = _escape_html($linesrc);
 
     my @prologue;
 
@@ -570,13 +585,18 @@ sub file_table {
 
     my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
 
-    my $allTimes = 0;    # for stats table at the bottom only
-    my $allCalls = 0;    # for stats table at the bottom only
+    my $allTimes = $profile->{attribute}{total_stmts_duration};
+    my $allCalls = $profile->{attribute}{total_stmts_measured}
+                 - $profile->{attribute}{total_stmts_discounted};
 
     foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
         print OUT qq{<tr class="index">};
-        print OUT qq{<td class="n">$filestats->{calls}</td>};
-        print OUT determine_severity($filestats->{'time'},      $dev_time, 1);
+        print OUT determine_severity($filestats->{'calls'},     undef, 0,
+            sprintf("%.1f%%", $filestats->{'calls'}/$allCalls*100)
+        );
+        print OUT determine_severity($filestats->{'time'},      $dev_time, 1,
+            sprintf("%.1f%%", $filestats->{'time'}/$allTimes*100)
+        );
         print OUT determine_severity($filestats->{'time/call'}, $dev_avgt, 1);
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
@@ -593,10 +613,6 @@ sub file_table {
         print OUT sprintf q{<td><a name="f%s" title="%s">%s</a></td>}, $fid, $filename,
             $shortname;
         print OUT "</tr>\n";
-
-        # stats collection
-        $allTimes += $filestats->{'time'};
-        $allCalls += $filestats->{calls};
     }
     if ($add_totals) {
         my $stats_fmt =
@@ -621,32 +637,44 @@ sub determine_severity {
     return "<td></td>" unless defined $val;
     my $stats = shift;    # @_[3] is like arrayref (deviation, mean)
     my $is_time = shift;
+    my $title   = shift;
 
     # normalize the width/precision so that the tables look good.
     my $fmt_val = ($is_time)
         ? fmt_time($val)
         : fmt_float($val, NUMERIC_PRECISION);
-    return qq{<td class="n">$fmt_val</td>} unless defined $stats;
-
-    my $devs = ($val - $stats->[1]);    #stats->[1] is the mean.
-    $devs /= $stats->[0] if $stats->[0];    # no divide by zero when all values equal
 
     my $class;
-    if ($devs < 0) {                        # fast
-        $class = 'c3';
-    }
-    elsif ($devs < SEVERITY_GOOD) {
-        $class = 'c3';
-    }
-    elsif ($devs < SEVERITY_BAD) {
-        $class = 'c2';
-    }
-    elsif ($devs < SEVERITY_SEVERE) {
-        $class = 'c1';
+    if (defined $stats) {
+
+        my $devs = ($val - $stats->[1]);    #stats->[1] is the mean.
+        $devs /= $stats->[0] if $stats->[0];    # no divide by zero when all values equal
+
+        if ($devs < 0) {                        # fast
+            $class = 'c3';
+        }
+        elsif ($devs < SEVERITY_GOOD) {
+            $class = 'c3';
+        }
+        elsif ($devs < SEVERITY_BAD) {
+            $class = 'c2';
+        }
+        elsif ($devs < SEVERITY_SEVERE) {
+            $class = 'c1';
+        }
+        else {
+            $class = 'c0';
+        }
     }
     else {
-        $class = 'c0';
+        $class = 'n';
     }
+
+    if ($title) {
+        $title = _escape_html($title);
+        $fmt_val = qq{<span title="$title">$fmt_val</span>};
+    }
+
     return qq{<td class="$class">$fmt_val</td>};
 }
 
