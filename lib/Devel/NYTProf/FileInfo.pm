@@ -7,7 +7,7 @@ use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 use Devel::NYTProf::Constants qw(
     NYTP_FIDi_FILENAME NYTP_FIDi_EVAL_FID NYTP_FIDi_EVAL_LINE NYTP_FIDi_FID
     NYTP_FIDi_FLAGS NYTP_FIDi_FILESIZE NYTP_FIDi_FILEMTIME NYTP_FIDi_PROFILE
-    NYTP_FIDi_EVAL_FI NYTP_FIDi_SUBS_DEFN NYTP_FIDi_HAS_EVALS
+    NYTP_FIDi_EVAL_FI NYTP_FIDi_SUBS_DEFINED NYTP_FIDi_HAS_EVALS
     NYTP_FIDf_IS_PMC
 );
 
@@ -27,7 +27,7 @@ sub eval_fi   { $_[0]->[NYTP_FIDi_EVAL_FI()] }
 sub has_evals { $_[0]->[NYTP_FIDi_HAS_EVALS()] }
 
 # return a ref to a hash of { subname => subinfo, ... }
-sub subs      { $_[0]->[NYTP_FIDi_SUBS_DEFN()] ||= $_[0]->profile->fid_subs_map->{ $_[0]->fid } }
+sub subs      { $_[0]->[NYTP_FIDi_SUBS_DEFINED()] }
 
 
 sub _values_for_dump {

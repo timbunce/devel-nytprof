@@ -96,8 +96,9 @@
 #define NYTP_FIDi_FILEMTIME     6
 #define NYTP_FIDi_PROFILE       7
 #define NYTP_FIDi_EVAL_FI       8
-#define NYTP_FIDi_SUBS_DEFN     9
-#define NYTP_FIDi_HAS_EVALS     10
+#define NYTP_FIDi_HAS_EVALS     9
+#define NYTP_FIDi_SUBS_DEFINED  10
+#define NYTP_FIDi_SUBS_CALLED   11
 
 
 /* Hash table definitions */
@@ -3030,8 +3031,9 @@ load_profile_data_from_stream(SV *cb)
                 av_store(av, NYTP_FIDi_FILESIZE,  newSVuv(file_size));
                 av_store(av, NYTP_FIDi_FILEMTIME, newSVuv(file_mtime));
                 av_store(av, NYTP_FIDi_PROFILE,   &PL_sv_undef);
-                av_store(av, NYTP_FIDi_SUBS_DEFN, &PL_sv_undef);
                 av_store(av, NYTP_FIDi_HAS_EVALS, &PL_sv_undef);
+                av_store(av, NYTP_FIDi_SUBS_DEFINED, newRV_noinc((SV*)newHV()));
+                av_store(av, NYTP_FIDi_SUBS_CALLED,  newRV_noinc((SV*)newHV()));
 
                 break;
             }
@@ -3078,10 +3080,13 @@ load_profile_data_from_stream(SV *cb)
             case NYTP_TAG_SUB_LINE_RANGE:
             {
                 AV *av;
+                SV *sv;
                 unsigned int fid        = read_int();
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
                 SV *subname_sv = read_str(aTHX_ tmp_str_sv);
+                STRLEN subname_len;
+                char *subname_pv = SvPV(subname_sv, subname_len);
 
 		if (cb) {
 		    PUSHMARK(SP);
@@ -3100,7 +3105,7 @@ load_profile_data_from_stream(SV *cb)
 
                 if (trace_level >= 2)
                     warn("Sub %s fid %u lines %u..%u\n",
-                        SvPV_nolen(subname_sv), fid, first_line, last_line);
+                        subname_pv, fid, first_line, last_line);
                 av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
                 sv_setuv(*av_fetch(av, 0, 1), fid);
                 sv_setuv(*av_fetch(av, 1, 1), first_line);
@@ -3112,6 +3117,12 @@ load_profile_data_from_stream(SV *cb)
                 sv_setsv(*av_fetch(av, 7, 1), &PL_sv_undef); /* ref to profile */
                 sv_setuv(*av_fetch(av, 8, 1),   0); /* rec_depth */
                 sv_setnv(*av_fetch(av, 9, 1), 0.0); /* reci_time */
+
+                /* add sub to NYTP_FIDi_SUBS_DEFINED of fid */
+                sv = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
+                sv = SvRV(*av_fetch((AV *)sv, NYTP_FIDi_SUBS_DEFINED, 1));
+                (void)hv_store((HV *)sv, subname_pv, subname_len, newRV((SV*)av), 0);
+
                 break;
             }
 
@@ -3465,8 +3476,9 @@ BOOT:
     newCONSTSUB(stash, "NYTP_FIDi_FILEMTIME", newSViv(NYTP_FIDi_FILEMTIME));
     newCONSTSUB(stash, "NYTP_FIDi_PROFILE",   newSViv(NYTP_FIDi_PROFILE));
     newCONSTSUB(stash, "NYTP_FIDi_EVAL_FI",   newSViv(NYTP_FIDi_EVAL_FI));
-    newCONSTSUB(stash, "NYTP_FIDi_SUBS_DEFN", newSViv(NYTP_FIDi_SUBS_DEFN));
     newCONSTSUB(stash, "NYTP_FIDi_HAS_EVALS", newSViv(NYTP_FIDi_HAS_EVALS));
+    newCONSTSUB(stash, "NYTP_FIDi_SUBS_DEFINED", newSViv(NYTP_FIDi_SUBS_DEFINED));
+    newCONSTSUB(stash, "NYTP_FIDi_SUBS_CALLED",  newSViv(NYTP_FIDi_SUBS_CALLED));
     }
 
 

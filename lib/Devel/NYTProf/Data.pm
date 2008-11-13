@@ -172,21 +172,6 @@ sub all_fileinfos {
     return @all;
 }
 
-sub fid_subs_map {
-    # return { fid => { subname => subinfo, ... }, fid => ... }
-    my $self = shift;
-
-    my $caches = $self->_caches;
-    return $caches->{fid_subs_map} if $caches->{fid_subs_map};
-
-    my $subname_subinfo_map = $self->subname_subinfo_map;
-    my %fid_subs_map;
-    while ( my ($subname, $subinfo) = each %$subname_subinfo_map ) {
-        $fid_subs_map{ $subinfo->fid || 0 }{ $subname } = $subinfo;
-    }
-
-    return $caches->{fid_subs_map} = \%fid_subs_map;
-}
 
 sub fileinfo_of {
     my $self = shift;
