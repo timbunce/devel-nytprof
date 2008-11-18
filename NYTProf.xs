@@ -2758,6 +2758,7 @@ load_profile_data_from_stream(SV *cb)
     NV total_stmts_duration = 0.0;
     int total_stmts_measured = 0;
     int total_stmts_discounted = 0;
+    int total_sub_calls = 0;
     HV *profile_hv;
     HV* profile_modes = newHV();
     HV *live_pids_hv = newHV();
@@ -3247,6 +3248,7 @@ load_profile_data_from_stream(SV *cb)
                 sv = *av_fetch(subinfo_av, 9, 1);
                 sv_setnv(sv, reci_time + (SvOK(sv) ? SvNV(sv) : 0.0));
 
+                total_sub_calls += count;
                 break;
             }
 
@@ -3439,6 +3441,7 @@ load_profile_data_from_stream(SV *cb)
     store_attrib_sv(aTHX_ attr_hv, "total_stmts_measured",   newSVnv(total_stmts_measured));
     store_attrib_sv(aTHX_ attr_hv, "total_stmts_discounted", newSVnv(total_stmts_discounted));
     store_attrib_sv(aTHX_ attr_hv, "total_stmts_duration",   newSVnv(total_stmts_duration));
+    store_attrib_sv(aTHX_ attr_hv, "total_sub_calls",        newSVnv(total_sub_calls));
 
     if (1) {
         int show_summary_stats = (trace_level >= 1);

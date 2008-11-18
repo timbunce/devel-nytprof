@@ -10,6 +10,7 @@ attribute	ticks_per_sec	0
 attribute	total_stmts_discounted	0
 attribute	total_stmts_duration	0
 attribute	total_stmts_measured	0
+attribute	total_sub_calls	0
 attribute	xs_version	0
 fid_block_time	1	2	[ 0 4 ]
 fid_block_time	1	7	[ 0 4 ]

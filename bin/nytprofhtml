@@ -468,6 +468,8 @@ sub output_indexpage {
     $summary .= sprintf " executing %d statements",
          $profile->{attribute}{total_stmts_measured}
         -$profile->{attribute}{total_stmts_discounted};
+    $summary .= sprintf " and %d subroutine calls",
+         $profile->{attribute}{total_sub_calls};
     $summary .= sprintf " in %d source files",
         @all_fileinfos - $eval_fileinfos;
     $summary .= sprintf " and %d string evals",
@@ -476,14 +478,14 @@ sub output_indexpage {
 
     # generate name-sorted select options for files, if there are many
     if (keys %$stats > 30) {
-        print OUT
-            qq{<form name="jump"><select name="file" onChange="location.href=document.jump.file.value;">\n};
+        print OUT qq{<div class="jump_to_file"><form name="jump">};
+        print OUT qq{<select name="file" onChange="location.href=document.jump.file.value;">\n};
         printf OUT qq{<option disabled="disabled">%s</option>\n}, "Jump to file...";
         foreach (sort keys %$stats) {
             my $fid = $profile->resolve_fid($_) or warn "Can't find fid for $_";
             printf OUT qq{<option value="#f%s">%s</option>\n}, $fid, $_;
         }
-        print OUT "</select></form><br />\n";
+        print OUT "</select></form></div>\n";
     }
 
     # Show top subs across all files
@@ -898,6 +900,10 @@ body { font-family: sans-serif; margin: 0px; }
     color: white; 
     text-decoration: none;
     font-size: 0.75em;
+}
+
+.jump_to_file {
+    margin-top: 20px;
 }
 
 .footer,
