@@ -558,8 +558,23 @@ certain values from caller().
 
 =head2 Calls made via operator overloading
 
-Calls made via operator overloading are not noticed by any subroutine profiler.
+Calls made via operator overloading are not noticed by the I<subroutine> profiler.
 Though the statements executed by the code in the overload subs are profiled.
+
+The effect is that time in the subroutines that handle overloading is
+accumulated by any subroutines that trigger overloading (so it is measured, but
+the cost is disbursed across possibly many calling locations).
+
+(Technically the change needed to perl internals is for Perl_amagic_call to call
+Perl_pp_entersub via the PL_ppaddr[OP_ENTERSUB] pointer. Patches welcome.)
+
+Alternatively you could use a profiler based on the traditional DB::sub() call
+approach, but then you wouldn't be able to profile xsubs call or any of the
+other goodness that NYTProf offers.
+
+(Alternatively, technically NYTProf could optionally install a DB::sub() just
+to identify these edge cases. They can be identified by the current op in DB::sub()
+being different to the op last seen by the sub profiler. Patches welcome.)
 
 =head2 goto
 
