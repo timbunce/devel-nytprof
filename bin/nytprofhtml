@@ -606,14 +606,20 @@ sub file_table {
     my $allCalls = $profile->{attribute}{total_stmts_measured}
                  - $profile->{attribute}{total_stmts_discounted};
 
+    my ($t_stmt_exec, $t_stmt_time) = (0,0);
     foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
         print OUT qq{<tr class="index">};
+
         print OUT determine_severity($filestats->{'calls'},     undef, 0,
             sprintf("%.1f%%", $filestats->{'calls'}/$allCalls*100)
         );
+        $t_stmt_exec += $filestats->{'calls'};
+
         print OUT determine_severity($filestats->{'time'},      $dev_time, 1,
             sprintf("%.1f%%", $filestats->{'time'}/$allTimes*100)
         );
+        $t_stmt_time += $filestats->{'time'};
+
         print OUT determine_severity($filestats->{'time/call'}, $dev_avgt, 1);
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
@@ -634,14 +640,24 @@ sub file_table {
     if ($add_totals) {
         my $stats_fmt =
             qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
-        print OUT sprintf $stats_fmt, fmt_float($allCalls), fmt_time($allTimes), '', "Total";
-        print OUT sprintf $stats_fmt, int(fmt_float($allCalls / keys %$stats)),
-            fmt_time($allTimes / keys %$stats), '', "Average"
+        my $t_notes = "";
+        if ($t_stmt_exec != $allCalls or $t_stmt_time ne $allTimes) {
+            my $eval_fileinfos = grep { $_->eval_line } $profile->all_fileinfos;
+            $t_notes = sprintf "(%d string evals account for a further %d statements and %s)</i>",
+                $eval_fileinfos, $allCalls - $t_stmt_exec, fmt_time($allTimes - $t_stmt_time);
+        }
+        print OUT sprintf $stats_fmt, fmt_float($t_stmt_exec), fmt_time($t_stmt_time), '',
+            "Total $t_notes";
+
+        print OUT sprintf $stats_fmt, int(fmt_float($t_stmt_exec / keys %$stats)),
+            fmt_time($t_stmt_time / keys %$stats), '', "Average"
             if %$stats;    # avoid divide by zero
+
         print OUT sprintf $stats_fmt, '', fmt_time($dev_time->[1]), fmt_time($dev_avgt->[1]),
             "Median";
         print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]),
-            "Deviation";
+            "Deviation"
+            if $dev_time->[0] or $dev_avgt->[0];
     }
     print OUT '</table>';
 
