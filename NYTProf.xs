@@ -65,6 +65,7 @@
 #define NYTP_START_END           4
 
 #define NYTP_OPTf_ADDPID         0x0001 /* append .pid to output filename */
+#define NYTP_OPTf_OPTIMIZE       0x0002 /* affect $^P & 0x04 */
 
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
@@ -168,7 +169,7 @@ static NYTP_file in;
 
 /* options and overrides */
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
-static unsigned int profile_opts = 0;
+static unsigned int profile_opts = NYTP_OPTf_OPTIMIZE;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
 static int profile_zero = 0;                      /* don't do timing, all times are zero */
 
@@ -1741,6 +1742,11 @@ set_option(const char* option, const char* value)
             ? profile_opts |  NYTP_OPTf_ADDPID
             : profile_opts & ~NYTP_OPTf_ADDPID;
     }
+    else if (strEQ(option, "optimize") || strEQ(option, "optimise")) {
+        profile_opts = (atoi(value))
+            ? profile_opts |  NYTP_OPTf_OPTIMIZE
+            : profile_opts & ~NYTP_OPTf_OPTIMIZE;
+    }
     else {
 	struct NYTP_int_options_t *opt_p = options;
 	const struct NYTP_int_options_t *const opt_end
@@ -2210,6 +2216,7 @@ pp_exit_profiler(pTHX)                            /* handles OP_EXIT, OP_EXEC, e
 static int
 enable_profile(pTHX)
 {
+    /* enable the run-time aspects to profiling */
     int prev_is_profiling = is_profiling;
     if (!out) {
         warn("enable_profile: NYTProf not active");
@@ -2314,6 +2321,10 @@ init_profiler(pTHX)
         profile_clock = -1;
     }
 #endif
+
+    if (profile_opts & NYTP_OPTf_OPTIMIZE)
+         PL_perldb &= ~PERLDBf_NOOPT;
+    else PL_perldb |=  PERLDBf_NOOPT;
 
     if (trace_level)
         warn("NYTProf init pid %d, clock %d%s\n", last_pid, profile_clock,

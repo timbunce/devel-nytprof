@@ -6,6 +6,10 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 2.08
 
+  Added optimize=0 option to disable the perl optimizer
+    so you can see more accurate statement execution counts
+    for some kinds of constructs.
+
   Dramatically increased performance of nytprofhtml
     relative to the 2.07 version.
 

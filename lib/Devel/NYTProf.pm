@@ -283,6 +283,35 @@ Specify at which phase of program execution the profiler should be enabled:
 The start=no option is handy if you want to explicitly control profiling
 by calling DB::enable_profile() and DB::disable_profile() yourself.
 
+=head2 optimize=0
+
+Disable the perl optimizer.
+
+By default NYTProf leaves perl's optimizer enabled.  That gives you more
+accurate profile timing overall, but can lead to I<odd> statement counts for
+individual sets of lines. That's because the perl's peephole optimizer has
+effectively rewritten the statements but you can't see what the rewritten
+version looks like.
+
+For example:
+
+  1     if (...) {
+  2         return;
+  3     }
+
+may be rewritten as
+
+  1    return if (...)
+
+so the profile won't show a statement count for line 2 in your source code
+because the C<return> was merged into the C<if> statement on the preceeding line.
+
+Using the C<optimize=0> option disables the optimizer so you'll get lower
+overall performance but more accurately assigned statement counts.
+
+If you find any other examples of the effect of optimizer on NYTProf output
+(other than performance, obviously) please let us know.
+
 =head2 subs=0
 
 Set to 0 to disable the collection of subroutine caller and timing details.
