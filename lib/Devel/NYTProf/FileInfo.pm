@@ -127,34 +127,44 @@ sub delete_subs_called_info {
     return;
 }
 
+sub abs_filename {
+    my $self = shift;
+
+    my $filename = $self->filename;
+
+    # if it's a .pmc then assume that's the file we want to look at
+    # (because the main use for .pmc's are related to perl6)
+    $filename .= "c" if $self->is_pmc;
+
+    # search profile @INC if filename is not absolute
+    my @files = ($filename);
+    if ($filename !~ m/^\//) {
+        my @inc = $self->profile->inc;
+        @files = map { "$_/$filename" } @inc;
+    }
+
+    for my $file (@files) {
+        return $file if -f $file;
+    }
+    return undef;
+}
+
 sub srclines_array {
     my $self = shift;
     my $profile = $self->profile;
     #warn Dumper($profile->{fid_srclines});
+
     my $fid = $self->fid;
     if (my $srclines = $profile->{fid_srclines}[ $fid ]) {
         my $copy = [ @$srclines ]; # shallow clone
         shift @$copy; # line 0 not used
         return $copy;
     }
-    # open file
-    my $filename = $self->filename;
-    # if it's a .pmc then assume that's the file we want to look at
-    # (because the main use for .pmc's are related to perl6)
-    $filename .= "c" if $self->is_pmc;
 
-    # search @INC if filename is not absolute
-    my @files = ($filename);
-    if ($filename !~ m/^\//) {
-        @files = map { "$_/$filename" } @INC;
-    }
-    for my $file (@files) {
-        open my $fh, "<", $file
-            or next;
-        return [ <$fh> ];
-    }
-
-    return undef;
+    my $filename = $self->abs_filename;
+    open my $fh, "<", $filename
+        or return undef;
+    return [ <$fh> ];
 }
 
 1;

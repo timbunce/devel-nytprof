@@ -608,6 +608,9 @@ sub file_table {
 
     my ($t_stmt_exec, $t_stmt_time) = (0,0);
     foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
+        my $fi = $profile->fileinfo_of($filestats->{filename})
+            or die "Can't find fileinfo for $filestats->{filename}";
+
         print OUT qq{<tr class="index">};
 
         print OUT determine_severity($filestats->{'calls'},     undef, 0,
@@ -630,11 +633,8 @@ sub file_table {
         } qw(line block sub);
         print OUT "<td>$rep_links</td>";
 
-        my $filename = $filestats->{filename};
-        my $fid = $profile->resolve_fid($filename) or warn "Can't find fid for $_";
-        (my $shortname = $filename) =~ s/$inc_path_regex//;
-        print OUT sprintf q{<td><a name="f%s" title="%s">%s</a></td>}, $fid, $filename,
-            $shortname;
+        print OUT sprintf q{<td><a name="f%s" title="%s">%s</a></td>},
+            $fi->fid, $fi->abs_filename, $fi->filename_without_inc;
         print OUT "</tr>\n";
     }
     if ($add_totals) {

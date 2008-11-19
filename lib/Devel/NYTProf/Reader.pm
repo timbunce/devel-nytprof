@@ -112,8 +112,6 @@ sub new {
     bless($self, $class);
     $self->{profile} = Devel::NYTProf::Data->new({filename => $self->{file}});
 
-    $self->{profile}->make_filenames_relative();
-
     # a hack for testing/debugging
     exit $ENV{NYTPROF_EXIT_AFTER_LOAD} if defined $ENV{NYTPROF_EXIT_AFTER_LOAD};
 
