@@ -10,6 +10,8 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
     so you can see more accurate statement execution counts
     for some kinds of constructs.
 
+  Fixed searching @INC for source files for reports.
+
   Dramatically increased performance of nytprofhtml
     relative to the 2.07 version.
 

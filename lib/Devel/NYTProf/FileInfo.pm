@@ -142,9 +142,19 @@ sub srclines_array {
     # if it's a .pmc then assume that's the file we want to look at
     # (because the main use for .pmc's are related to perl6)
     $filename .= "c" if $self->is_pmc;
-    open my $fh, "<", $filename
-        or return undef;
-    return [ <$fh> ];
+
+    # search @INC if filename is not absolute
+    my @files = ($filename);
+    if ($filename !~ m/^\//) {
+        @files = map { "$_/$filename" } @INC;
+    }
+    for my $file (@files) {
+        open my $fh, "<", $file
+            or next;
+        return [ <$fh> ];
+    }
+
+    return undef;
 }
 
 1;
