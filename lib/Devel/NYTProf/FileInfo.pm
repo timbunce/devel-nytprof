@@ -152,7 +152,9 @@ sub abs_filename {
     for my $file (@files) {
         return $file if -f $file;
     }
-    return undef;
+
+    # returning the still-relative filename is better than returning an undef
+    return $filename;
 }
 
 sub srclines_array {

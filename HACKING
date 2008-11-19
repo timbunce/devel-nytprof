@@ -289,6 +289,8 @@ arenas (clone visit() function from sv.c) to measure number of SVs & total SV
 memory, plus getrusage()). Abstract those into a structure with functions to
 subtract the difference. Then use the same logic to get inclusive and exclusive
 values as we use for inclusive and exclusive subroutine times.
+Also possibly track the memory allocated to lexical pad SVs
+(for given sub at given depth).
 
 Report max recursion depth and reci_time per sub in per-file reports.
 
