@@ -122,8 +122,14 @@ sub delete_subs_called_info {
     my $sub_caller = $profile->{sub_caller}
         or return;
     my $fid = $self->fid;
+    my $total_sub_calls = 0;
     # remove sub_caller info for calls made *from within* this file
-    delete $_->{$fid} for values %$sub_caller;
+    for my $sci (values %$sub_caller) {
+        my $info = delete $sci->{$fid};
+        # NYTP_SCi_CALL_COUNT
+        $total_sub_calls += $_->[0] for values %$info;
+    }
+    $profile->{attribute}{total_sub_calls} -= $total_sub_calls;
     return;
 }
 

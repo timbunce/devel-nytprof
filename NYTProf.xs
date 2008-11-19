@@ -101,6 +101,15 @@
 #define NYTP_FIDi_SUBS_DEFINED  10
 #define NYTP_FIDi_SUBS_CALLED   11
 
+/* indices to elements of the sub call info array */
+#define NYTP_SCi_CALL_COUNT  0   /* count of calls to sub */    
+#define NYTP_SCi_INCL_RTIME  1   /* inclusive real time in sub */    
+#define NYTP_SCi_EXCL_RTIME  2   /* exclusive real time in sub */    
+#define NYTP_SCi_INCL_UTIME  3   /* incl user cpu time in sub */
+#define NYTP_SCi_INCL_STIME  4   /* incl sys  cpu time in sub */
+#define NYTP_SCi_RECI_RTIME  5   /* recursive incl real time in sub */
+#define NYTP_SCi_REC_DEPTH   6   /* max recursion call depth */
+#define NYTP_SCi_elements    7   /* highest index, plus 1 */
 
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
@@ -1844,15 +1853,6 @@ reinit_if_forked(pTHX)
 /******************************************
  * Sub caller and inclusive time tracking
  ******************************************/
-
-#define NYTP_SCi_CALL_COUNT  0   /* count of calls to sub */    
-#define NYTP_SCi_INCL_RTIME  1   /* inclusive real time in sub */    
-#define NYTP_SCi_EXCL_RTIME  2   /* exclusive real time in sub */    
-#define NYTP_SCi_INCL_UTIME  3   /* incl user cpu time in sub */
-#define NYTP_SCi_INCL_STIME  4   /* incl sys  cpu time in sub */
-#define NYTP_SCi_RECI_RTIME  5   /* recursive incl real time in sub */
-#define NYTP_SCi_REC_DEPTH   6   /* max recursion call depth */
-#define NYTP_SCi_elements    7   /* highest index, plus 1 */
 
 static AV *
 new_sub_call_info_av(pTHX)
