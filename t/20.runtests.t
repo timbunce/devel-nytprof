@@ -313,11 +313,11 @@ sub verify_csv_report {
             )
         {
             my $expected = $1;
-            my $percent  = ($t0 / $expected) * 100;    # <100 if faster, >100 if slower
+            my $percent  = int(($t0 / $expected) * 100);    # <100 if faster, >100 if slower
 
             # Test aproximate times
             push @accuracy_errors,
-                "$test line $index: got $t0 expected approx $expected for time ($percent%%)"
+                "$test line $index: got $t0 expected approx $expected for time ($percent%)"
 
                 # if it was faster than expected then it should only be slightly faster
                 if ($percent < 95)
@@ -345,7 +345,7 @@ sub verify_csv_report {
         spit_file("$test.new", join("", @got));
         diff_files($test, "$test.new");
     };
-    is(join("\n", @accuracy_errors), '', "$test has no accuracy errors");
+    is(join("\n", @accuracy_errors), '', "$test times should be reasonable");
 }
 
 
