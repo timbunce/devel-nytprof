@@ -2047,17 +2047,16 @@ pp_entersub_profiler(pTHX)
         /* get line, file, and fid for statement *before* the call */
 
         char *file = OutCopFILE(prev_cop);
-        unsigned int fid = (file == last_executed_fileptr)
-            ? last_executed_fid
-            : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
+        unsigned int fid;
         /* XXX could use same closest_cop as DB_stmt() but it doesn't seem
          * to be needed here. Line is 0 only when call is from embedded
          * C code like mod_perl (at least in my testing so far)
          */
         int line = CopLINE(prev_cop);
         char fid_line_key[50];
-        int fid_line_key_len = my_snprintf(fid_line_key, sizeof(fid_line_key), "%u:%d", fid, line);
+        int fid_line_key_len;
         SV *subname_sv = newSV(0);
+        char *subname_pv;
         SV *sv_tmp;
         char *stash_name = NULL;
         CV *cv;
@@ -2099,9 +2098,19 @@ pp_entersub_profiler(pTHX)
                 sv_dump(sub_sv);
             }
         }
+        subname_pv = SvPV_nolen(subname_sv);
+
+        /* ignore our own DB::_INIT sub - only shows up with 5.8.9+ & 5.10.1+ */
+        if (*subname_pv == 'D' && strEQ(subname_pv, "DB::_INIT"))
+            goto skip_sub_profile;
+
+        fid = (file == last_executed_fileptr)
+            ? last_executed_fid
+            : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
+        fid_line_key_len = my_snprintf(fid_line_key, sizeof(fid_line_key), "%u:%d", fid, line);
 
         /* { subname => { "fid:line" => [ count, incl_time ] } } */
-        sv_tmp = *hv_fetch(sub_callers_hv, SvPV_nolen(subname_sv),
+        sv_tmp = *hv_fetch(sub_callers_hv, subname_pv,
             (I32)SvCUR(subname_sv), 1);
 
         if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this subname from anywhere */
@@ -2120,10 +2129,10 @@ pp_entersub_profiler(pTHX)
                      * The reader can try to associate the xsubs with the
                      * corresonding .pm file using the package part of the subname.
                      */
-                    SV *sv = *hv_fetch(GvHV(PL_DBsub), SvPV_nolen(subname_sv), (I32)SvCUR(subname_sv), 1);
+                    SV *sv = *hv_fetch(GvHV(PL_DBsub), subname_pv, (I32)SvCUR(subname_sv), 1);
                     sv_setpv(sv, ":0-0"); /* empty file name */
                     if (trace_level >= 2)
-                        warn("Adding fake DBsub entry for '%s' xsub\n", SvPV_nolen(subname_sv));
+                        warn("Adding fake DBsub entry for '%s' xsub\n", subname_pv);
                 }
             }
         }
@@ -2150,7 +2159,7 @@ pp_entersub_profiler(pTHX)
 
         if (trace_level >= 3)
             fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %gt, sub %gs)\n",
-                (is_xs) ? "xsub" : " sub", SvPV_nolen(subname_sv), fid, line,
+                (is_xs) ? "xsub" : " sub", subname_pv, fid, line,
                 sub_call_start.call_depth,
                 sub_call_start.current_overhead_ticks,
                 sub_call_start.current_subr_secs
@@ -2174,6 +2183,7 @@ pp_entersub_profiler(pTHX)
         else {
             sv_free(subname_sv);
         }
+        skip_sub_profile:
         SETERRNO(saved_errno, 0);
     }
 
