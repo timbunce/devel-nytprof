@@ -10,6 +10,9 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
     so you can see more accurate statement execution counts
     for some kinds of constructs.
 
+  Added savesrc=1 option to copy source code into the profile
+    so reports are not affected by changes to the source files.
+
   Fixed searching @INC for source files for reports.
 
   Dramatically increased performance of nytprofhtml

@@ -66,6 +66,7 @@
 
 #define NYTP_OPTf_ADDPID         0x0001 /* append .pid to output filename */
 #define NYTP_OPTf_OPTIMIZE       0x0002 /* affect $^P & 0x04 */
+#define NYTP_OPTf_SAVESRC        0x0004 /* copy source code lines into profile data */
 
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
@@ -1189,10 +1190,11 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         || (found->key_len > 10 && strnEQ(found->key, "/loader/0x", 10))
         || (found->key_len == 1 && strnEQ(found->key, "-",  1))
         || (found->key_len == 2 && strnEQ(found->key, "-e", 2))
+        || (profile_opts & NYTP_OPTf_SAVESRC)
         ) {
+            /* source only available if PERLDB_LINE or PERLDB_SAVESRC is true */
             src_av = GvAV(gv_fetchfile(found->key));
             if (!src_av && trace_level >= 3)
-                /* source lines are only saved if PERLDB_LINE is true */
                 warn("No source available for fid %d%s\n",
                     found->id, use_db_sub ? "" : ", set use_db_sub=1 option");
         }
@@ -1756,6 +1758,11 @@ set_option(const char* option, const char* value)
             ? profile_opts |  NYTP_OPTf_OPTIMIZE
             : profile_opts & ~NYTP_OPTf_OPTIMIZE;
     }
+    else if (strEQ(option, "savesrc")) {
+        profile_opts = (atoi(value))
+            ? profile_opts |  NYTP_OPTf_SAVESRC
+            : profile_opts & ~NYTP_OPTf_SAVESRC;
+    }
     else {
 	struct NYTP_int_options_t *opt_p = options;
 	const struct NYTP_int_options_t *const opt_end
@@ -1769,7 +1776,7 @@ set_option(const char* option, const char* value)
 	    }
 	} while (++opt_p < opt_end);
 	if (!found) {
-	    warn("Unknown NYTProf option: %s\n", option);
+	    warn("Unknown NYTProf option: '%s'\n", option);
 	    return;
 	}
     }

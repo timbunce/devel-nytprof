@@ -355,6 +355,22 @@ The default 'opcode redirection' technique can't profile subroutines that were
 compiled before NYTProf was loaded. So using use_db_sub=1 can be useful in
 cases where you can't load the profiler early in the life of the application.
 
+=head2 savesrc=1
+
+Save a copy of all source code into the profile data file. This makes the file
+self-contained, so the reporting tools no longer depend on having the original
+source code files available. So it also insulates you from later changes to
+those files that would normally make the reports out of sync with the data.
+
+By default NYTProf saved some source code: the arguments to the C<perl -e>
+option, the script fed to perl via STDIN when using C<perl ->, and the source
+code of string evals. (Currently string eval  source code isn't available in
+the reports. Patches welcome.)
+
+If you're using perl 5.10.0 or 5.8.8 (or earlier) then you need to also enable
+the C<use_db_sub=1> option otherwise perl doesn't make the source code
+available to NYTProf. Perl 5.8.9 and 5.10.1+ don't require that.
+
 =head2 usecputime=1
 
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
