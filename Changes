@@ -6,6 +6,8 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 2.08
 
+Core:
+
   Added optimize=0 option to disable the perl optimizer
     so you can see more accurate statement execution counts
     for some kinds of constructs.
@@ -13,10 +15,14 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
   Added savesrc=1 option to copy source code into the profile
     so reports are not affected by changes to the source files.
 
+Reporting:
+
   Fixed searching @INC for source files for reports.
 
   Dramatically increased performance of nytprofhtml
     relative to the 2.07 version.
+
+  Summary tables can be sorted by clicking on header columns.
 
   Statement timings are now shown as integers in appropriate
     units: seconds, milliseconds, microseconds or nanoseconds.
