@@ -173,8 +173,10 @@ sub subroutine_table {
     my $sub_links;
 
     my $sortby_desc = ($sortby eq 'excl_time') ? "exclusive time" : "inclusive time";
-    $sub_links .= qq{<table border="1" cellpadding="0">
+    $sub_links .= qq{
+        <table id="subroutines" border="1" cellpadding="0">
         <caption>${qualifier}Subroutines &mdash; ordered by $sortby_desc</caption>
+        <thead>
         <tr>
         <th>Calls</th>
         <th><span title="Number of Places sub is called from">P</span></th>
@@ -183,12 +185,14 @@ sub subroutine_table {
         <th>Inclusive<br />Time</th>
         <th colspan="2" class="left_indent_header">Subroutine</th>
         </tr>
+        </thead>
     };
 
     # XXX may not be appropriate if profiling wasn't continuous
     my $profiler_duration = $profile->{attribute}{profiler_duration};
 
     my @rows;
+    $sub_links .= "<tbody>\n";
     for my $sub (@subs_to_show) {
 
         # in the overall summary, don't list subs that were never called
@@ -232,6 +236,7 @@ sub subroutine_table {
 
         $sub_links .= "</tr>\n";
     }
+    $sub_links .= "</tbody>\n";
     $sub_links .= "</table>\n";
 
     return $sub_links;
@@ -246,8 +251,11 @@ $reporter->set_param(
 
         return qq{$sub_links
       <table border="1" cellpadding="0">
+      <thead>
       <tr><th>Line</th><th>Stmts.</th><th>Exclusive<br />Time</th><th>Avg.</th><th class="left_indent_header">Code</th>
       </tr>\n
+      </thead>
+      <tbody>
     };
     }
 );
@@ -257,7 +265,7 @@ $reporter->set_param(
     sub {
         my ($profile, $filestr) = @_;
         my $footer = get_footer($profile);
-        return "</table></div>$footer</body></html>";
+        return "</tbody></table></div>$footer</body></html>";
     }
 );
 
@@ -597,8 +605,13 @@ sub file_table {
         <table border="1" cellspacing="0">
         <caption>Source Code Files &mdash; ordered by exclusive time then name</caption>
     };
-    print OUT qq{<tr class="index"><th>Stmts</th><th>Exclusive<br />Time</th>}
-        . "<th>Avg.</th><th>Reports</th><th>Source File</th></tr>";
+    print OUT qq{
+        <thead><tr class="index">
+        <th>Stmts</th><th>Exclusive<br />Time</th>
+        <th>Avg.</th><th>Reports</th><th>Source File</th>
+        </tr></thead>
+        <tbody>
+    };
 
     my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
 
@@ -637,14 +650,20 @@ sub file_table {
             $fi->fid, $fi->abs_filename, $fi->filename_without_inc;
         print OUT "</tr>\n";
     }
+    print OUT "</tbody>\n";
+
     if ($add_totals) {
+        print OUT "<tfoot>\n";
         my $stats_fmt =
             qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
         my $t_notes = "";
-        if ($t_stmt_exec != $allCalls or $t_stmt_time ne $allTimes) {
+        my $stmt_time_diff = $allTimes - $t_stmt_time;
+        if ($t_stmt_exec != $allCalls or $stmt_time_diff > 0.000_010) {
             my $eval_fileinfos = grep { $_->eval_line } $profile->all_fileinfos;
-            $t_notes = sprintf "(%d string evals account for a further %d statements and %s)</i>",
-                $eval_fileinfos, $allCalls - $t_stmt_exec, fmt_time($allTimes - $t_stmt_time);
+            $stmt_time_diff = ($stmt_time_diff > 0.000_010)
+                ? sprintf(" and %s", fmt_time($stmt_time_diff)) : "";
+            $t_notes = sprintf "(%d string evals account for a further %d statements%s)</i>",
+                $eval_fileinfos, $allCalls - $t_stmt_exec, $stmt_time_diff;
         }
         print OUT sprintf $stats_fmt, fmt_float($t_stmt_exec), fmt_time($t_stmt_time), '',
             "Total $t_notes";
@@ -658,6 +677,7 @@ sub file_table {
         print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]),
             "Deviation"
             if $dev_time->[0] or $dev_avgt->[0];
+        print OUT "</tfoot>\n";
     }
     print OUT '</table>';
 

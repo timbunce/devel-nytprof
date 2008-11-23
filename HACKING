@@ -318,6 +318,8 @@ previous current subname and restore it on return from sub.)
 
 Add per-package summary table like the per-sub stats to make it easier to see
 a package where a lot of time is being spent in lots of different subs.
+Also a per-top-level-package-name summary, so "Moose::*" would summarize
+all the Moose modules. Probably work best with two-level names.
 
 Add option to set processor affinity.
 

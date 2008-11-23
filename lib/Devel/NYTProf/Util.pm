@@ -165,7 +165,7 @@ sub fmt_time {
     my ($sec, $width) = @_;
     $width = '' unless defined $width;
     return sprintf "%$width.0f", 0     unless $sec;
-    return sprintf "%gs", $sec         if $sec < 0; # negative value, can happen
+    return '-'.fmt_time(-$sec, $width) if $sec < 0; # negative value, can happen
     return sprintf "%$width.0fns",                              $sec * 1e9 if $sec < 1e-6;
     return sprintf "%$width.0f&micro;s",                        $sec * 1e6 if $sec < 1e-3;
     return sprintf "%$width.*fms", 3 - length(int($sec * 1e3)), $sec * 1e3 if $sec < 1;
