@@ -10,7 +10,7 @@ sub incl_time  { shift->[4] }
 sub excl_time  { shift->[5] }
 sub subname    { shift->[6] }
 sub profile    { shift->[7] }
-sub package    { (my $pkg = shift->subname) =~ s/::.*?$//; return $pkg }
+sub package    { (my $pkg = shift->subname) =~ s/(.*)::.*/$1/; return $pkg }
 sub recur_max_depth { shift->[8] }
 sub recur_incl_time { shift->[9] }
 
