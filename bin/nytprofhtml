@@ -242,7 +242,6 @@ sub subroutine_table {
     # sort on 4th col (excl_time,desc) then 6th (pkg+name)
     push @on_ready_js, q{
         $("#subs_table").tablesorter({
-            sortList: [[3,1]],
             headers: {
                 3: { sorter: 'fmt_time' },
                 4: { sorter: 'fmt_time' },
@@ -691,10 +690,8 @@ sub file_table {
         print OUT "</tfoot>\n";
     }
     print OUT '</table>';
-    # sort on 2nd col (excl_time,desc) then 5th (name)
     push @on_ready_js, q{
         $("#filestable").tablesorter({
-            sortList: [[1,1],[4,0]],
             headers: {
                 1: { sorter: 'fmt_time' },
                 2: { sorter: 'fmt_time' },
