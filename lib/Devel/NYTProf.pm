@@ -566,31 +566,21 @@ http://sean.chittenden.org/news/2008/06/01/
 C<Devel::NYTProf> is not currently thread safe. If you'd be interested in
 helping to make it thread safe then please get in touch with us.
 
-=head2 For perl versions before 5.8.8 it may change what caller() returns
+=head2 For perl < 5.8.8 it may change what caller() returns
 
-For example, the Readonly module croaks with an "Invalid tie" when profiled with
+For example, the L<Readonly> module croaks with "Invalid tie" when profiled with
 perl versions before 5.8.8. That's because L<Readonly> explicitly checking for
-certain values from caller().
+certain values from caller(). The L<NEXT> module is also affected.
 
-=head2 Calls made via operator overloading
+=head2 For perl < 5.10.1 it can't see calls made via operator overloading
 
-Calls made via operator overloading are not noticed by the I<subroutine> profiler.
-Though the statements executed by the code in the overload subs are profiled.
+For perl versions prior to 5.8.9 and 5.10.1, calls made via operator
+overloading are not noticed by the I<subroutine> profiler.  Though the
+statements executed by the code in the overload subs are profiled.
 
 The effect is that time in the subroutines that handle overloading is
-accumulated by any subroutines that trigger overloading (so it is measured, but
-the cost is disbursed across possibly many calling locations).
-
-(Technically the change needed to perl internals is for Perl_amagic_call to call
-Perl_pp_entersub via the PL_ppaddr[OP_ENTERSUB] pointer. Patches welcome.)
-
-Alternatively you could use a profiler based on the traditional DB::sub() call
-approach, but then you wouldn't be able to profile xsubs call or any of the
-other goodness that NYTProf offers.
-
-(Alternatively, technically NYTProf could optionally install a DB::sub() just
-to identify these edge cases. They can be identified by the current op in DB::sub()
-being different to the op last seen by the sub profiler. Patches welcome.)
+accumulated by any subroutines that trigger overloading (so it is measured,
+but the cost is dispersed across possibly many calling locations).
 
 =head2 goto
 

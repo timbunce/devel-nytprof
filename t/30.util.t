@@ -4,7 +4,7 @@ use Devel::NYTProf::Util qw(fmt_time fmt_incl_excl_time);
 
 my $us = "&micro;s";
 
-is(fmt_time(0), "0");
+is(fmt_time(0), "0s");
 
 is(fmt_time(1.1253e-10), "0ns");
 is(fmt_time(1.1253e-9), "1ns");
