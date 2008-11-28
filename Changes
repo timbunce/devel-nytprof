@@ -17,6 +17,8 @@ Core:
 
 Reporting:
 
+  Time spent within nested string evals is accounted for.
+
   Fixed searching @INC for source files for reports.
 
   Dramatically increased performance of nytprofhtml

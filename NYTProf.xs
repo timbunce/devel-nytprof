@@ -2748,6 +2748,31 @@ store_attrib_sv(pTHX_ HV *attr_hv, char *text, SV *value_sv)
         warn(": %s = '%s'\n", text, SvPV_nolen(value_sv));
 }
 
+static int
+eval_outer_fid(pTHX_
+    AV *fid_fileinfo_av,
+    unsigned int fid,
+    int recurse,
+    unsigned int *eval_file_num_ptr,
+    unsigned int *eval_line_num_ptr
+) {
+    AV *av;
+    SV *fid_info_rvav = *av_fetch(fid_fileinfo_av, fid, 1);
+    if (!SvROK(fid_info_rvav)) /* should never happen */
+        return 0;
+    av = (AV *)SvRV(fid_info_rvav);
+    fid = (unsigned int)SvUV(*av_fetch(av,NYTP_FIDi_EVAL_FID,1));
+    if (!fid)
+        return 0;
+    if (eval_file_num_ptr)
+        *eval_file_num_ptr = fid;
+    if (eval_line_num_ptr)
+        *eval_line_num_ptr = (unsigned int)SvUV(*av_fetch(av,NYTP_FIDi_EVAL_LINE,1));
+    if (recurse)
+        eval_outer_fid(aTHX_ fid_fileinfo_av, fid, recurse, eval_file_num_ptr, eval_line_num_ptr);
+    return 1;
+}
+
 
 /**
  * Process a profile output file and return the results in a hash like
@@ -2922,17 +2947,14 @@ load_profile_data_from_stream(SV *cb)
                 seconds  = (NV)ticks / ticks_per_sec;
 
                 fid_info_rvav = *av_fetch(fid_fileinfo_av, file_num, 1);
-                if (!SvROK(fid_info_rvav)) {
-                    /* only warn once */
-                    if (!SvOK(fid_info_rvav)) {
+                if (!SvROK(fid_info_rvav)) {    /* should never happen */
+                    if (!SvOK(fid_info_rvav)) { /* only warn once */
                         warn("Fid %u used but not defined", file_num);
                         sv_setsv(fid_info_rvav, &PL_sv_no);
                     }
                 }
                 else {
-                    AV *fid_av = (AV *)SvRV(fid_info_rvav);
-                    eval_file_num = (unsigned int)SvUV(*av_fetch(fid_av,1,1));
-                    eval_line_num = (unsigned int)SvUV(*av_fetch(fid_av,2,1));
+                    eval_outer_fid(aTHX_ fid_fileinfo_av, file_num, 1, &eval_file_num, &eval_line_num);
                 }
 
                 if (eval_file_num) {              /* fid is an eval */
@@ -2942,9 +2964,9 @@ load_profile_data_from_stream(SV *cb)
                 }
                 if (trace_level >= 3) {
                     char *new_file_name = "";
-                    if (file_num != last_file_num && SvOK(fid_info_rvav))
-                        new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), 0, 1));
-                    warn("Read %d:%-4d %2u ticks%s%s\n",
+                    if (file_num != last_file_num && SvROK(fid_info_rvav))
+                        new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), NYTP_FIDi_FILENAME, 1));
+                    warn("Read %d:%-4d %2u ticks%s %s\n",
                         file_num, line_num, ticks, trace_note, new_file_name);
                 }
 
