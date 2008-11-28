@@ -2814,7 +2814,6 @@ load_profile_data_from_stream(SV *cb)
     HV* sub_callers_hv = newHV();
     SV *tmp_str_sv = newSVpvn("",0);
     HV *file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
-    HV *sub_info_stash  = gv_stashpv("Devel::NYTProf::SubInfo",  GV_ADDWARN);
 
     /* these times don't reflect profile_enable & profile_disable calls */
     NV profiler_start_time = 0.0;
