@@ -350,7 +350,6 @@ sub _generate_report {
 
         # localize header and footer for variable replacement
         my $header    = $self->get_param('header',    [$profile, $filestr, $fname, $LEVEL]);
-        my $footer    = $self->get_param('footer',    [$profile, $filestr]);
         my $taintmsg  = $self->get_param('taintmsg',  [$profile, $filestr]);
         my $datastart = $self->get_param('datastart', [$profile, $filestr]);
         my $dataend   = $self->get_param('dataend',   [$profile, $filestr]);
@@ -365,7 +364,6 @@ sub _generate_report {
                 # replace variable content
                 $replace = eval $replace;
                 $header    =~ s/$pattern/$replace/g;
-                $footer    =~ s/$pattern/$replace/g;
                 $taintmsg  =~ s/$pattern/$replace/g;
                 $datastart =~ s/$pattern/$replace/g;
                 $dataend   =~ s/$pattern/$replace/g;
@@ -442,7 +440,7 @@ sub _generate_report {
         }
 
         print OUT $dataend;
-        print OUT $footer;
+        print OUT $self->get_param('footer', [$profile, $filestr]);
         close OUT;
     }
 }
