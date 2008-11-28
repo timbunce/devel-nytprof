@@ -553,7 +553,7 @@ NYTP_read_unchecked(NYTP_file ifile, void *buffer, size_t len) {
 
 
 static size_t
-NYTP_read(NYTP_file ifile, void *buffer, size_t len, char *what) {
+NYTP_read(NYTP_file ifile, void *buffer, size_t len, const char *what) {
     size_t got = NYTP_read_unchecked(ifile, buffer, len);
     if (got != len) {
         croak("Profile format error whilst reading %s at %ld%s: expected %ld got %ld, %s",
@@ -1795,7 +1795,7 @@ open_output_file(pTHX_ char *filename)
     char filename_buf[MAXPATHLEN];
     /* 'x' is a GNU C lib extension for O_EXCL which gives us a little
      * extra protection, but it isn't POSIX compliant */
-    char *mode = "wbx";
+    const char *mode = "wbx";
     /* most systems that don't support it will silently ignore it
      * but for some we need to remove it to avoid an error */
 #ifdef WIN32
@@ -1816,7 +1816,7 @@ open_output_file(pTHX_ char *filename)
     out = NYTP_open(filename, mode);
     if (!out) {
         int fopen_errno = errno;
-        char *hint = "";
+        const char *hint = "";
         if (fopen_errno==EEXIST && !(profile_opts & NYTP_OPTf_ADDPID))
             hint = " (enable addpid option to protect against concurrent writes)";
         disable_profile(aTHX);
@@ -2741,7 +2741,7 @@ lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
 
 
 static void
-store_attrib_sv(pTHX_ HV *attr_hv, char *text, SV *value_sv)
+store_attrib_sv(pTHX_ HV *attr_hv, const char *text, SV *value_sv)
 {
     (void)hv_store(attr_hv, text, (I32)strlen(text), value_sv, 0);
     if (trace_level >= 1)
@@ -2962,7 +2962,7 @@ load_profile_data_from_stream(SV *cb)
                     file_num = eval_file_num;
                 }
                 if (trace_level >= 3) {
-                    char *new_file_name = "";
+                    const char *new_file_name = "";
                     if (file_num != last_file_num && SvROK(fid_info_rvav))
                         new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), NYTP_FIDi_FILENAME, 1));
                     warn("Read %d:%-4d %2u ticks%s %s\n",
