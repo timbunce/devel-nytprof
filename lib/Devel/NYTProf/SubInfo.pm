@@ -1,6 +1,6 @@
 package Devel::NYTProf::SubInfo;    # sub_subinfo
 
-use List::Util qw(sum);
+use List::Util qw(sum min max);
 
 sub fid        { $_[0]->[0] ||= $_[0]->profile->package_fids($_[0]->package) }
 sub first_line { shift->[1] }
@@ -10,7 +10,7 @@ sub incl_time  { shift->[4] }
 sub excl_time  { shift->[5] }
 sub subname    { shift->[6] }
 sub profile    { shift->[7] }
-sub package    { (my $pkg = shift->subname) =~ s/(.*)::.*/$1/; return $pkg }
+sub package    { (my $pkg = shift->subname) =~ s/^(.*)::.*/$1/; return $pkg }
 sub recur_max_depth { shift->[8] }
 sub recur_incl_time { shift->[9] }
 
@@ -30,11 +30,27 @@ sub fileinfo {
     $self->profile->fileinfo_of($fid);
 }
 
+sub clone {             # shallow
+    my $self = shift;
+    return bless [ @$self ] => ref $self;
+}
+
+# merge details of another sub into this one
+# there are few cases where this is sane thing to do
+# it's meant for merging things like anon-subs in evals
+# e.g., "PPI::Node::__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
 sub merge_in {
     my $self    = shift;
-    my $newinfo = shift;
-    $self->[3] += $newinfo->[3];    # calls
-    $self->[4] += $newinfo->[4];    # calls
+    my $new = shift;
+    $self->[1] = min($self->[1], $new->[1]); # first_line
+    $self->[2] = max($self->[2], $new->[2]); # last_line
+    $self->[3] += $new->[3];                 # calls
+    $self->[4] = max($self->[4], $new->[4]); # incl_time, ug
+    $self->[5] += $new->[5];                 # excl_time
+    $self->[6] = [ $self->[6] ] if not ref $self->[6];
+    push @{$self->[6]}, $new->[6];           # subname
+    $self->[8] = max($self->[8], $new->[8]); # recur_max_depth
+    $self->[9] = max($self->[9], $new->[9]); # recur_max_depth, ug
     return;
 }
 
