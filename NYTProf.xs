@@ -276,7 +276,7 @@ static void output_tag_int(unsigned char tag, unsigned int);
 #define     output_int(i)   output_tag_int(NYTP_TAG_NO_TAG, (unsigned int)(i))
 static void output_str(char *str, I32 len);
 static void output_nv(NV nv);
-static unsigned int read_int();
+static unsigned int read_int(void);
 static SV *read_str(pTHX_ SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
 static void DB_stmt(pTHX_ OP *op);
@@ -286,7 +286,7 @@ static int disable_profile(pTHX);
 static void finish_profile(pTHX);
 static void open_output_file(pTHX_ char *);
 static int reinit_if_forked(pTHX);
-static void write_cached_fids();
+static void write_cached_fids(void);
 static void write_sub_line_ranges(pTHX);
 static void write_sub_callers(pTHX);
 static HV *load_profile_data_from_stream(SV* cb);
