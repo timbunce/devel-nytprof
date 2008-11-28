@@ -253,6 +253,101 @@ sub subroutine_table {
     return $sub_links;
 }
 
+
+sub package_tables {
+    my ($profile) = @_;
+
+    my $pkg_depth = $profile->packages_at_depth_subinfo({
+        include_unused_subs => 0,
+        rollup_packages => 1,
+        merge_subinfos => 1,
+    });
+
+    my $package_subinfo_map = $profile->package_subinfo_map(1);
+
+    # XXX may not be appropriate if profiling wasn't continuous
+    my $profiler_duration = $profile->{attribute}{profiler_duration};
+
+    my $pkg_html;
+    # generate a separate table for each depth
+    for my $depth (0..@$pkg_depth-1) {
+
+        my $pkgs_subinfos = { %{ $pkg_depth->[$depth] || {} } };
+        next if not %$pkgs_subinfos;
+
+        # add info for raw (un-rolledup) packages from lower depths
+        for my $d (0..$depth-1) {
+            my $p = $pkg_depth->[$d] or next;
+            for my $higher_pkg (keys %$p) {
+                my $higher_pkg_info = $package_subinfo_map->{$higher_pkg}
+                    or next;
+                $pkgs_subinfos->{$higher_pkg} = $higher_pkg_info;
+            }
+        }
+
+        my $table_id = "pkg_table_$depth";
+        $pkg_html .= qq{
+            <table id="$table_id" border="1" cellpadding="0" class="tablesorter">
+            <caption>Packages - level $depth</caption>
+            <thead>
+            <tr>
+            <th>Exclusive<br />Time</th>
+            <th>Pkgs</th>
+            <th>Subs</th>
+            <th>Package Name Prefix</th>
+            </tr>
+            </thead>
+        };
+
+        #my $dev_excl_time  = calc_mad_from_objects(\@subs, 'excl_time',    1);
+            my $dev_excl_time = undef;
+
+        my @pkgs = sort keys %$pkgs_subinfos;
+
+        my @rows;
+        $pkg_html .= "<tbody>\n";
+        for my $pkg_name (@pkgs) {
+            my $subinfos = $pkgs_subinfos->{$pkg_name};
+
+            my ($num_packages, $num_subs) = (0, 0);
+            my $sub;
+            for my $si (@$subinfos) {
+                ++$num_packages;
+                my $n = $si->subname;
+                $num_subs += (ref $n) ? @$n : 1;
+                ($sub) ? $sub->merge_in($si) : ($sub = $si->clone);
+            }
+
+            $pkg_html .= "<tr>";
+            $pkg_html .= determine_severity($sub->excl_time    || 0, $dev_excl_time, 1,
+                sprintf("%.1f%%", $sub->excl_time/$profiler_duration*100)
+            );
+            $pkg_html .= determine_severity($num_packages      || 0, undef);
+            $pkg_html .= determine_severity($num_subs          || 0, undef);
+            $pkg_html .= qq{<td class="sub_name">};
+            $pkg_html .= _escape_html($pkg_name);
+            $pkg_html .= qq{</td>};
+            $pkg_html .= "</tr>\n";
+        }
+        $pkg_html .= q{
+            </tbody>
+            </table>
+        };
+
+        # make table sortable if it contains all the subs
+        push @on_ready_js, qq{
+            \$("#$table_id").tablesorter({
+                sortList: [[0,1],[3,0]],
+                headers: {
+                    0: { sorter: 'fmt_time' },
+                }
+            });
+        };
+    }
+    return $pkg_html;
+}
+
+
 $reporter->set_param(
     'datastart',
     sub {
@@ -516,6 +611,8 @@ sub output_indexpage {
     }
 
     print OUT file_table($profile, $stats, 1);
+
+    print OUT package_tables($profile);
 
     my $footer = get_footer($profile);
     print OUT "</div>$footer</body></html>";
