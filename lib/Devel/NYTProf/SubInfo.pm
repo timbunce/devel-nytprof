@@ -18,7 +18,10 @@ sub is_xsub {
     my $self = shift;
 
     # XXX should test == 0 but some xsubs still have undef first_line etc
-    return (!$self->first_line && !$self->last_line);
+    my $first = $self->first_line;
+    return undef if not defined $first;
+    return 1     if $first == 0 && $self->last_line == 0;
+    return 0;
 }
 
 sub fileinfo {
@@ -45,12 +48,12 @@ sub merge_in {
     $self->[1] = min($self->[1], $new->[1]); # first_line
     $self->[2] = max($self->[2], $new->[2]); # last_line
     $self->[3] += $new->[3];                 # calls
-    $self->[4] = max($self->[4], $new->[4]); # incl_time, ug
+    $self->[4] += $new->[4];                 # incl_time (umm, reasonable)
     $self->[5] += $new->[5];                 # excl_time
     $self->[6] = [ $self->[6] ] if not ref $self->[6];
     push @{$self->[6]}, $new->[6];           # subname
     $self->[8] = max($self->[8], $new->[8]); # recur_max_depth
-    $self->[9] = max($self->[9], $new->[9]); # recur_max_depth, ug
+    $self->[9] = max($self->[9], $new->[9]); # recur_incl_time (ug, plausible)
     return;
 }
 
