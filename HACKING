@@ -326,3 +326,17 @@ Add option to set processor affinity.
 Trace level 1 should show totals fids, subs etc.
 
 Index should show eval fids in some form - collapsed per location?
+
+Usage of SubInfo merge_in needs to also merge sub_callers info.
+Perhaps restructure sub_callers to hang off sub_subinfo.
+That also avoids the need to duplicate subname.
+
+Check forking when stmts=0.
+
+Sub profiler should avoid sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
+because it's expensive (Perl_sv_setpvf_nocontext accounts for 29% of pp_entersub_profiler).
+Use a two level hash: HvNAME(GvSTASH(gv)) then GvNAME(gv).
+Should then also be able to avoid newSV/free for subname_sv (which accounts for 50% of its time).
+
+Class::MOP should update %DB::sub (if $^P set) when it creates methods.
+Sub::Name should do same (extracting the file and line from the ANON[...:...])
