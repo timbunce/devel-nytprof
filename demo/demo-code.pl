@@ -5,22 +5,12 @@ use File::Find;
 my $count = shift || 100;
 my $do_io = shift || 0;
 
-
 sub add {
     $a = $a + 1;
     foo();
 }
 
-sub inc {
-    ++$a;
-    # call foo and then execute a slow expression *in the same statement*
-    # With all line profilers except NYTProf, the time for that expression gets
-    # assigned to the previous statement, i.e., the last statement executed in foo()!
-    foo() && 'aaaaaaaaaaa' =~ /((a{0,5}){0,5})*[c]/;
-}
-
 sub foo {
-    1;
     1;
     for (1..1000) {
         ++$a;
@@ -29,15 +19,24 @@ sub foo {
     1;
 }
 
-END {
-    warn "END!\n";
-    add()
+sub inc {
+    1;
+    # call foo and then execute a slow expression *in the same statement*
+    # With all line profilers except NYTProf, the time for that expression gets
+    # assigned to the previous statement, i.e., the last statement executed in foo()!
+    foo() && 'aaaaaaaaaaa' =~ /((a{0,5}){0,5})*[c]/;
+    1;
 }
 
 timethese( $count, {
     add => \&add,
     bar => \&inc,
 });
+
+END {
+    warn "ENDING\n";
+    add()
+}
 
 
 # --- recursion ---
@@ -49,21 +48,6 @@ sub fib {
 }
 fib(7);
 
-
-# --- while with slow conditional ---
-
-if ($do_io) {
-    print "Enter text. Enter empty line to end.\n";
-    # With all line profilers before NYTProf, the time waiting for the
-    # second and subsequent inputs gets assigned to the previous statement,
-    # i.e., the last statement executed in the loop!
-    while (<>) {
-        chomp;
-        last if not $_;
-        1;
-    }
-}
-
 # --- File::Find ---
 
 sub wanted {
@@ -71,3 +55,18 @@ sub wanted {
 }
 
 find( \&wanted, '.');
+
+
+# --- while with slow conditional ---
+
+if ($do_io) {
+    print "Enter text. Enter empty line to end.\n" if -t STDIN;
+    # time waiting for the second and subsequent inputs
+    # should get assigned to the condition statement
+    # not the last statement executed in the loop
+    while (<>) {
+        chomp;
+        last if not $_;
+        1;
+    }
+}
