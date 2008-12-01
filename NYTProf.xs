@@ -24,7 +24,6 @@
 #include "XSUB.h"
 
 #ifndef NO_PPPORT_H
-#   define NEED_my_snprintf
 #   include "ppport.h"
 #endif
 
@@ -1163,10 +1162,11 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
                         *p = '/';
                     ++p;
                 }
-                if (p[-1] != '/') {
+                if (p[-1] != '/')
 #else
-                if (strNE(file_name_abs, "/")) {
+                if (strNE(file_name_abs, "/"))
 #endif
+                {
                     if (strnEQ(file_name, "./", 2))
                         ++file_name;
                     else
@@ -1187,7 +1187,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
          * or the command line -e '...code...'
          * then think about writing out the source code */
         if (found->eval_fid
-        || (found->key_len > 10 && strnEQ(found->key, "/loader/0x", 10))
+        || (found->key_len > 10 && found->key[9] == 'x' && strnEQ(found->key, "/loader/0x", 10))
         || (found->key_len == 1 && strnEQ(found->key, "-",  1))
         || (found->key_len == 2 && strnEQ(found->key, "-e", 2))
         || (profile_opts & NYTP_OPTf_SAVESRC)
@@ -1588,11 +1588,16 @@ closest_cop(pTHX_ const COP *cop, const OP *o)
 static void
 DB_stmt(pTHX_ OP *op)
 {
-    int saved_errno = errno;
+    int saved_errno;
     char *file;
     unsigned int elapsed;
     unsigned int overflow;
     COP *cop;
+
+    if (!is_profiling || !profile_stmts) {
+        return;
+    }
+    saved_errno = errno;
 
     if (usecputime) {
         times(&end_ctime);
@@ -1606,11 +1611,6 @@ DB_stmt(pTHX_ OP *op)
     }
     if (overflow)                                 /* XXX later output overflow to file */
         warn("profile time overflow of %d seconds discarded", overflow);
-
-    if (!out || !is_profiling || !profile_stmts) {
-        SETERRNO(saved_errno, 0);
-        return;
-    }
 
     reinit_if_forked(aTHX);
 
@@ -1685,6 +1685,7 @@ DB_stmt(pTHX_ OP *op)
     cumulative_overhead_ticks += elapsed;
 
     SETERRNO(saved_errno, 0);
+    return;
 }
 
 
@@ -1719,6 +1720,13 @@ DB_leave(pTHX_ OP *op)
      */
     NYTP_write(out, &tag, sizeof(tag));
 
+    /* special cases */
+    if (last_executed_line == prev_last_executed_line
+    &&  last_executed_fid  == prev_last_executed_fid
+    ) {
+        /* XXX OP_UNSTACK needs help */
+    }
+
     if (trace_level >= 4) {
         warn("left %u:%u via %s back to %s at %u:%u (b%u s%u) - discounting next statement%s\n",
             prev_last_executed_fid, prev_last_executed_line,
@@ -1727,6 +1735,7 @@ DB_leave(pTHX_ OP *op)
             (op) ? "" : ", LEAVING PERL"
         );
     }
+
     SETERRNO(saved_errno, 0);
 }
 
@@ -2075,21 +2084,13 @@ pp_entersub_profiler(pTHX)
             is_xs = 0;
         }
         else {                                    /* have returned from XS so use sub_sv for name */
-            is_xs = 1;
             /* determine the original fully qualified name for sub */
             /* CV or NULL */
             cv = (CV *)resolve_sub(aTHX_ sub_sv, subname_sv);
+            is_xs = 1;
         }
 
-        if (!cv && !SvOK(subname_sv)) {
-            /* should never get here as pp_entersub would have croaked */
-            const char *what = (is_xs) ? "xs" : "sub";
-            warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
-            if (trace_level)
-                sv_dump(sub_sv);
-            sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
-        }
-        else if (cv && CvGV(cv) && GvSTASH(CvGV(cv))) {
+        if (cv && CvGV(cv) && GvSTASH(CvGV(cv))) {
             /* for a plain call of an imported sub the GV is of the current
              * package, so we dig to find the original package
              */
@@ -2098,6 +2099,15 @@ pp_entersub_profiler(pTHX)
             sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
         }
         else if (!SvOK(subname_sv)) {
+
+            if (!cv) { /* should never get here as pp_entersub would have croaked */
+                const char *what = (is_xs) ? "xs" : "sub";
+                warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
+                if (trace_level)
+                    sv_dump(sub_sv);
+                sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
+            }
+
             /* unnamed CV, e.g. seen in mod_perl. XXX do better? */
             sv_setpvn(subname_sv, "__ANON__", 8);
             if (trace_level) {
@@ -2108,13 +2118,13 @@ pp_entersub_profiler(pTHX)
         subname_pv = SvPV_nolen(subname_sv);
 
         /* ignore our own DB::_INIT sub - only shows up with 5.8.9+ & 5.10.1+ */
-        if (*subname_pv == 'D' && strEQ(subname_pv, "DB::_INIT"))
+        if (is_xs && *subname_pv == 'D' && strEQ(subname_pv, "DB::_INIT"))
             goto skip_sub_profile;
 
         fid = (file == last_executed_fileptr)
             ? last_executed_fid
             : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
-        fid_line_key_len = my_snprintf(fid_line_key, sizeof(fid_line_key), "%u:%d", fid, line);
+        fid_line_key_len = sprintf(fid_line_key, "%u:%d", fid, line);
 
         /* { subname => { "fid:line" => [ count, incl_time ] } } */
         sv_tmp = *hv_fetch(sub_callers_hv, subname_pv,
@@ -2371,7 +2381,7 @@ init_profiler(pTHX)
     /* redirect opcodes for statement profiling */
     Newxc(PL_ppaddr_orig, OP_max, void *, orig_ppaddr_t);
     Copy(PL_ppaddr, PL_ppaddr_orig, OP_max, void *);
-    if (!use_db_sub) {
+    if (profile_stmts && !use_db_sub) {
         PL_ppaddr[OP_NEXTSTATE]  = pp_stmt_profiler;
         PL_ppaddr[OP_DBSTATE]    = pp_stmt_profiler;
 #ifdef OP_SETSTATE
@@ -3229,14 +3239,14 @@ load_profile_data_from_stream(SV *cb)
                 if (!SvROK(sv))                   /* autoviv */
                     sv_setsv(sv, newRV_noinc((SV*)newHV()));
 
-                len = my_snprintf(text, sizeof(text), "%u", fid);
+                len = sprintf(text, "%u", fid);
                 sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
                 if (!SvROK(sv))                   /* autoviv */
                     sv_setsv(sv, newRV_noinc((SV*)newHV()));
 
                 if (fid) {
                     SV *fi;
-                    len = my_snprintf(text, sizeof(text), "%u", line);
+                    len = sprintf(text, "%u", line);
 
                     sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
                     if (!SvROK(sv))               /* autoviv */
@@ -3295,7 +3305,7 @@ load_profile_data_from_stream(SV *cb)
                 char text[MAXPATHLEN*2];
                 unsigned int pid  = read_int();
                 unsigned int ppid = read_int();
-                int len = my_snprintf(text, sizeof(text), "%d", pid);
+                int len = sprintf(text, "%d", pid);
                 profiler_start_time = (file_minor >= 1) ? read_nv() : 0;
 
 		if (cb) {
@@ -3328,7 +3338,7 @@ load_profile_data_from_stream(SV *cb)
             {
                 char text[MAXPATHLEN*2];
                 unsigned int pid = read_int();
-                int len = my_snprintf(text, sizeof(text), "%d", pid);
+                int len = sprintf(text, "%d", pid);
                 profiler_end_time = (file_minor >= 1) ? read_nv() : 0;
 
 		if (cb) {
