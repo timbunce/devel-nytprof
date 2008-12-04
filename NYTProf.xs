@@ -102,6 +102,19 @@
 #define NYTP_FIDi_SUBS_CALLED   11
 
 /* indices to elements of the sub call info array */
+#define NYTP_SIi_FID         0   /* fid of file sub was defined in */
+#define NYTP_SIi_FIRST_LINE  1   /* line number of first line of sub */    
+#define NYTP_SIi_LAST_LINE   2   /* line number of last line of sub */    
+#define NYTP_SIi_CALL_COUNT  3   /* number of times sub was called */
+#define NYTP_SIi_INCL_RTIME  4   /* incl real time in sub */
+#define NYTP_SIi_EXCL_RTIME  5   /* excl real time in sub */
+#define NYTP_SIi_SUB_NAME    6   /* sub name */
+#define NYTP_SIi_PROFILE     7   /* ref to profile object */
+#define NYTP_SIi_REC_DEPTH   8   /* max recursion call depth */
+#define NYTP_SIi_RECI_RTIME  9   /* recursive incl real time in sub */
+#define NYTP_SIi_elements   10   /* highest index, plus 1 */
+
+/* indices to elements of the sub call info array */
 #define NYTP_SCi_CALL_COUNT  0   /* count of calls to sub */    
 #define NYTP_SCi_INCL_RTIME  1   /* inclusive real time in sub */    
 #define NYTP_SCi_EXCL_RTIME  2   /* exclusive real time in sub */    
@@ -3167,16 +3180,16 @@ load_profile_data_from_stream(SV *cb)
                     warn("Sub %s fid %u lines %u..%u\n",
                         subname_pv, fid, first_line, last_line);
                 av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
-                sv_setuv(*av_fetch(av, 0, 1), fid);
-                sv_setuv(*av_fetch(av, 1, 1), first_line);
-                sv_setuv(*av_fetch(av, 2, 1), last_line);
-                sv_setuv(*av_fetch(av, 3, 1),   0); /* call count */
-                sv_setnv(*av_fetch(av, 4, 1), 0.0); /* incl_time */
-                sv_setnv(*av_fetch(av, 5, 1), 0.0); /* excl_time */
-                sv_setsv(*av_fetch(av, 6, 1), subname_sv);
-                sv_setsv(*av_fetch(av, 7, 1), &PL_sv_undef); /* ref to profile */
-                sv_setuv(*av_fetch(av, 8, 1),   0); /* rec_depth */
-                sv_setnv(*av_fetch(av, 9, 1), 0.0); /* reci_time */
+                sv_setuv(*av_fetch(av, NYTP_SIi_FID,        1), fid);
+                sv_setuv(*av_fetch(av, NYTP_SIi_FIRST_LINE, 1), first_line);
+                sv_setuv(*av_fetch(av, NYTP_SIi_LAST_LINE,  1), last_line);
+                sv_setuv(*av_fetch(av, NYTP_SIi_CALL_COUNT, 1),   0); /* call count */
+                sv_setnv(*av_fetch(av, NYTP_SIi_INCL_RTIME, 1), 0.0); /* incl_time */
+                sv_setnv(*av_fetch(av, NYTP_SIi_EXCL_RTIME, 1), 0.0); /* excl_time */
+                sv_setsv(*av_fetch(av, NYTP_SIi_SUB_NAME,   1), subname_sv);
+                sv_setsv(*av_fetch(av, NYTP_SIi_PROFILE,    1), &PL_sv_undef); /* ref to profile */
+                sv_setuv(*av_fetch(av, NYTP_SIi_REC_DEPTH,  1),   0); /* rec_depth */
+                sv_setnv(*av_fetch(av, NYTP_SIi_RECI_RTIME, 1), 0.0); /* reci_time */
 
                 /* add sub to NYTP_FIDi_SUBS_DEFINED of fid */
                 sv = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
@@ -3555,7 +3568,26 @@ BOOT:
     newCONSTSUB(stash, "NYTP_FIDi_HAS_EVALS", newSViv(NYTP_FIDi_HAS_EVALS));
     newCONSTSUB(stash, "NYTP_FIDi_SUBS_DEFINED", newSViv(NYTP_FIDi_SUBS_DEFINED));
     newCONSTSUB(stash, "NYTP_FIDi_SUBS_CALLED",  newSViv(NYTP_FIDi_SUBS_CALLED));
-    }
+    /* NYTP_SIi_* */
+    newCONSTSUB(stash, "NYTP_SIi_FID",  	newSViv(NYTP_SIi_FID));
+    newCONSTSUB(stash, "NYTP_SIi_FIRST_LINE",	newSViv(NYTP_SIi_FIRST_LINE));
+    newCONSTSUB(stash, "NYTP_SIi_LAST_LINE",	newSViv(NYTP_SIi_LAST_LINE));
+    newCONSTSUB(stash, "NYTP_SIi_CALL_COUNT",	newSViv(NYTP_SIi_CALL_COUNT));
+    newCONSTSUB(stash, "NYTP_SIi_INCL_RTIME",	newSViv(NYTP_SIi_INCL_RTIME));
+    newCONSTSUB(stash, "NYTP_SIi_EXCL_RTIME",	newSViv(NYTP_SIi_EXCL_RTIME));
+    newCONSTSUB(stash, "NYTP_SIi_SUB_NAME",	newSViv(NYTP_SIi_SUB_NAME));
+    newCONSTSUB(stash, "NYTP_SIi_PROFILE",	newSViv(NYTP_SIi_PROFILE));
+    newCONSTSUB(stash, "NYTP_SIi_REC_DEPTH",	newSViv(NYTP_SIi_REC_DEPTH));
+    newCONSTSUB(stash, "NYTP_SIi_RECI_RTIME",	newSViv(NYTP_SIi_RECI_RTIME));
+    /* NYTP_SCi_* */
+    newCONSTSUB(stash, "NYTP_SCi_CALL_COUNT",	newSViv(NYTP_SCi_CALL_COUNT));
+    newCONSTSUB(stash, "NYTP_SCi_INCL_RTIME",	newSViv(NYTP_SCi_INCL_RTIME));
+    newCONSTSUB(stash, "NYTP_SCi_EXCL_RTIME",	newSViv(NYTP_SCi_EXCL_RTIME));
+    newCONSTSUB(stash, "NYTP_SCi_INCL_UTIME",	newSViv(NYTP_SCi_INCL_UTIME));
+    newCONSTSUB(stash, "NYTP_SCi_INCL_STIME",	newSViv(NYTP_SCi_INCL_STIME));
+    newCONSTSUB(stash, "NYTP_SCi_RECI_RTIME",	newSViv(NYTP_SCi_RECI_RTIME));
+    newCONSTSUB(stash, "NYTP_SCi_REC_DEPTH",	newSViv(NYTP_SCi_REC_DEPTH));
+}
 
 
 MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Test
