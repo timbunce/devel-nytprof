@@ -236,7 +236,7 @@ They could them be included in a separate 'miscellaneous' page.
 This is a more general way to view the problem of xsubs in packages
 for which we don't have any perl source code.
 
-*** Other, less important random or unsorted ideas
+*** Other, less important random, unsorted, and possibly daft ideas
 
 Intercept all opcodes that may fork and run perl code in the child
   ie fork, open, entersub (ie xs), others?
@@ -268,8 +268,9 @@ Rename Foo::BEGIN subs to Foo::BEGIN[file:line]
 Probably need to record or output the line range when the BEGIN 'sub' is entered.
 Same for END subs.
 
-Record $AUTOLOAD when AUTOLOAD() called
-Perhaps as ...::AUTOLOAD[$AUTOLOAD]
+Record $AUTOLOAD when AUTOLOAD() called. Perhaps as ...::AUTOLOAD[$AUTOLOAD]
+Or perhaps just use the original name if the 'resolved' one is AUTOLOAD.
+Could be argued either way.
 
 More generally, consider the problem of code where one code path is fast 
 and just sets $sql = ... (for example) and another code path executes the
@@ -318,7 +319,7 @@ like the goto &$sub made the call (but we'd then get the wrong inclusive time,
 probably).
 
 Bug or limitation?: sub calls in a continue { ... } block of a while () get
-associated with the 'next;' within the loop.
+associated with the 'next;' within the loop. Fixed by perl change 33710?
 
 Investigate style.css problem when using --outfile=some/other/dir
 
@@ -327,6 +328,7 @@ Add option to set processor affinity.
 Trace level 1 should show totals fids, subs etc.
 
 Index should show eval fids in some form - collapsed per location?
+Or just included in the stats for the outer source file.
 
 Usage of SubInfo merge_in needs to also merge sub_callers info.
 Perhaps restructure sub_callers to hang off sub_subinfo.
@@ -339,5 +341,5 @@ because it's expensive (Perl_sv_setpvf_nocontext accounts for 29% of pp_entersub
 Use a two level hash: HvNAME(GvSTASH(gv)) then GvNAME(gv).
 Should then also be able to avoid newSV/free for subname_sv (which accounts for 50% of its time).
 
-Class::MOP should update %DB::sub (if $^P set) when it creates methods.
+Class::MOP should update %DB::sub (if $^P & 0x10 set) when it creates methods.
 Sub::Name should do same (extracting the file and line from the ANON[...:...])
