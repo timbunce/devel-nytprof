@@ -9,6 +9,8 @@ use Devel::NYTProf::Constants qw(
     NYTP_SIi_CALL_COUNT NYTP_SIi_INCL_RTIME NYTP_SIi_EXCL_RTIME
     NYTP_SIi_SUB_NAME NYTP_SIi_PROFILE
     NYTP_SIi_REC_DEPTH NYTP_SIi_RECI_RTIME NYTP_SIi_CALLED_BY
+    NYTP_SCi_INCL_RTIME NYTP_SCi_EXCL_RTIME
+    NYTP_SCi_INCL_UTIME NYTP_SCi_INCL_STIME NYTP_SCi_RECI_RTIME
 );
 
 use List::Util qw(sum min max);
@@ -110,6 +112,26 @@ sub caller_places {
         push @callers, map { [$fid, $_, @{$lines->{$_}}] } keys %$lines;
     }
     return \@callers;
+}
+
+sub normalize_for_test {
+    my $self = shift;
+
+    # zero subroutine inclusive time
+    $self->[NYTP_SIi_INCL_RTIME] = 0;
+    $self->[NYTP_SIi_EXCL_RTIME] = 0;
+    $self->[NYTP_SIi_RECI_RTIME] = 0;
+
+    # zero per-call-location subroutine inclusive time
+    my $callers = $self->callers || {};
+    # $callers => { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } }
+    for (map { values %$_ } values %$callers) {
+        $_->[NYTP_SCi_INCL_RTIME] =
+        $_->[NYTP_SCi_EXCL_RTIME] =
+        $_->[NYTP_SCi_INCL_UTIME] =
+        $_->[NYTP_SCi_INCL_STIME] =
+        $_->[NYTP_SCi_RECI_RTIME] = 0;
+    }
 }
 
 1;
