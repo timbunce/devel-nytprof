@@ -112,7 +112,8 @@
 #define NYTP_SIi_PROFILE     7   /* ref to profile object */
 #define NYTP_SIi_REC_DEPTH   8   /* max recursion call depth */
 #define NYTP_SIi_RECI_RTIME  9   /* recursive incl real time in sub */
-#define NYTP_SIi_elements   10   /* highest index, plus 1 */
+#define NYTP_SIi_CALLED_BY  10   /* { fid => { line => [...] } } */
+#define NYTP_SIi_elements   11   /* highest index, plus 1 */
 
 /* indices to elements of the sub call info array */
 #define NYTP_SCi_CALL_COUNT  0   /* count of calls to sub */    
@@ -3252,6 +3253,8 @@ load_profile_data_from_stream(SV *cb)
                 if (!SvROK(sv))                   /* autoviv */
                     sv_setsv(sv, newRV_noinc((SV*)newHV()));
 
+                sv_setsv(*av_fetch(subinfo_av, NYTP_SIi_CALLED_BY, 1), sv);
+
                 len = sprintf(text, "%u", fid);
                 sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
                 if (!SvROK(sv))                   /* autoviv */
@@ -3579,6 +3582,7 @@ BOOT:
     newCONSTSUB(stash, "NYTP_SIi_PROFILE",      newSViv(NYTP_SIi_PROFILE));
     newCONSTSUB(stash, "NYTP_SIi_REC_DEPTH",    newSViv(NYTP_SIi_REC_DEPTH));
     newCONSTSUB(stash, "NYTP_SIi_RECI_RTIME",   newSViv(NYTP_SIi_RECI_RTIME));
+    newCONSTSUB(stash, "NYTP_SIi_CALLED_BY",    newSViv(NYTP_SIi_CALLED_BY));
     /* NYTP_SCi_* */
     newCONSTSUB(stash, "NYTP_SCi_CALL_COUNT",   newSViv(NYTP_SCi_CALL_COUNT));
     newCONSTSUB(stash, "NYTP_SCi_INCL_RTIME",   newSViv(NYTP_SCi_INCL_RTIME));

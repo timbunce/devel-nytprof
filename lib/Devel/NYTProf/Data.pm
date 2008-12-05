@@ -77,11 +77,12 @@ sub new {
 
     my $profile = load_profile_data_from_file($file);
     bless $profile => $class;
-    #use Data::Dumper; warn Dumper($profile->{fid_fileinfo});
 
     my $fid_fileinfo = $profile->{fid_fileinfo};
     my $sub_subinfo  = $profile->{sub_subinfo};
     my $sub_caller   = $profile->{sub_caller};
+
+    #use Data::Dumper; warn Dumper($sub_subinfo);
 
     # add profile ref so fidinfo & subinfo objects
     # XXX circular ref, add weaken

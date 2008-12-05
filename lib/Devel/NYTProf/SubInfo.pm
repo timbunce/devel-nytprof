@@ -8,7 +8,7 @@ use Devel::NYTProf::Constants qw(
     NYTP_SIi_FID NYTP_SIi_FIRST_LINE NYTP_SIi_LAST_LINE
     NYTP_SIi_CALL_COUNT NYTP_SIi_INCL_RTIME NYTP_SIi_EXCL_RTIME
     NYTP_SIi_SUB_NAME NYTP_SIi_PROFILE
-    NYTP_SIi_REC_DEPTH NYTP_SIi_RECI_RTIME
+    NYTP_SIi_REC_DEPTH NYTP_SIi_RECI_RTIME NYTP_SIi_CALLED_BY
 );
 
 use List::Util qw(sum min max);
@@ -24,6 +24,9 @@ sub profile    { shift->[NYTP_SIi_PROFILE] }
 sub package    { (my $pkg = shift->subname) =~ s/^(.*)::.*/$1/; return $pkg }
 sub recur_max_depth { shift->[NYTP_SIi_REC_DEPTH] }
 sub recur_incl_time { shift->[NYTP_SIi_RECI_RTIME] }
+
+# { fid => { line => [ count, incl_time ] } }
+sub callers    { shift->[NYTP_SIi_CALLED_BY] }
 
 sub is_xsub {
     my $self = shift;
@@ -77,18 +80,6 @@ sub _values_for_dump {
         NYTP_SIi_REC_DEPTH, NYTP_SIi_RECI_RTIME
     ];
     return \@values;
-}
-
-sub callers {
-    my $self = shift;
-
-    # { fid => { line => [ count, incl_time ] } }
-    my $callers = $self->profile->{sub_caller}->{$self->subname}
-        or return undef;
-
-    # XXX should 'collapse' data for calls from eval fids
-    # (with an option to not collapse)
-    return $callers;
 }
 
 sub caller_fids {
