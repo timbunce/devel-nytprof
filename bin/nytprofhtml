@@ -28,6 +28,10 @@ use Devel::NYTProf::Util qw(
 
 our $VERSION = 1.02;
 
+if ($VERSION != $Devel::NYTProf::Core::VERSION) {
+    die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
+}
+
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
 use constant SEVERITY_SEVERE => 2.0;    # above this deviation, a bottleneck
@@ -219,7 +223,6 @@ sub subroutine_table {
         # package and subname
         my $subname = $sub->subname;
         if (ref $subname) { # subs have been merged
-            warn "{@$subname}";
             push @hints, sprintf "merge of %d subs", scalar @$subname;
             $subname = $subname->[0];
         }
