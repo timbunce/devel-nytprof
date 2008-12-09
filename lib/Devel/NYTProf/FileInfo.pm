@@ -120,22 +120,6 @@ sub filename_without_inc {
     return $f->[0];
 }
 
-sub delete_subs_called_info {
-    my $self = shift;
-    my $profile = $self->profile;
-    my $sub_caller = $profile->{sub_caller}
-        or return;
-    my $fid = $self->fid;
-    my $total_sub_calls = 0;
-    # remove sub_caller info for calls made *from within* this file
-    for my $sci (values %$sub_caller) {
-        my $info = delete $sci->{$fid};
-        # NYTP_SCi_CALL_COUNT
-        $total_sub_calls += $_->[0] for values %$info;
-    }
-    $profile->{attribute}{total_sub_calls} -= $total_sub_calls;
-    return;
-}
 
 sub abs_filename {
     my $self = shift;

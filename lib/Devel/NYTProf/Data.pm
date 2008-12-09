@@ -80,10 +80,8 @@ sub new {
 
     my $fid_fileinfo = $profile->{fid_fileinfo};
     my $sub_subinfo  = $profile->{sub_subinfo};
-    my $sub_caller   = $profile->{sub_caller};
 
     #use Data::Dumper; warn Dumper($sub_subinfo);
-    #use Data::Dumper; warn Dumper($sub_caller);
 
     # add profile ref so fidinfo & subinfo objects
     # XXX circular ref, add weaken
@@ -97,16 +95,15 @@ sub new {
     # XXX merge evals - should become a method optionally called here
     # (which uses other methods to do the work and those methods
     # should also be called by Devel::NYTProf::SubInfo::callers())
-    my %anon_eval_subs_merged;
     while (my ($subname, $subinfo) = each %$sub_subinfo) {
 
         # add subname into sub_subinfo
-        $subinfo->[6] = $subname;
+        $subinfo->[6] = $subname; # XXX breaks encapsulation
         if ($subname =~ s/(::__ANON__\[\(\w*eval) \d+\)/$1 0)/) {
 
             # sub names like "PPI::Node::__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
             # aren't very useful, so we merge them by changing the eval to 0
-            my $oldname = $subinfo->[6];
+            my $oldname = $subinfo->subname; 
             delete $sub_subinfo->{$oldname};    # delete old name
             if (my $newinfo = $sub_subinfo->{$subname}) {
                 $newinfo->merge_in($subinfo);
@@ -116,43 +113,8 @@ sub new {
 
                 # is first to change, so just move ref to new name
                 $sub_subinfo->{$subname} = $subinfo;
-                $subinfo->[6] = $subname;
+                $subinfo->[6] = $subname; # XXX breaks encapsulation
                 warn "renamed sub_info $oldname into $subname\n" if $trace;
-            }
-
-            # delete sub_caller info and merge into new name
-            my $old_caller_info = delete $sub_caller->{$oldname};
-
-            # { 'pkg::sub' => { fid => { line => [ count, incl_time ] } } } */
-            if (my $newinfo = $sub_caller->{$subname}) {
-
-                # iterate over old and merge info new
-                while (my ($fid, $line_hash) = each %$old_caller_info) {
-                    my $new_line_hash = $newinfo->{$fid};
-                    if (!$new_line_hash) {
-                        $newinfo->{$fid} = $line_hash;
-                        warn "renamed sub_caller $oldname into $subname\n" if $trace;
-                        next;
-                    }
-                    warn "merged sub_caller $oldname into $subname\n" if $trace;
-
-                    # merge lines in %$line_hash into %$new_line_hash
-                    while (my ($line, $line_info) = each %$line_hash) {
-                        my $new_line_info = $new_line_hash->{$line};
-                        if (!$new_line_info) {
-                            $new_line_hash->{$line} = $line_info;
-                            next;
-                        }
-
-                        # merge @$line_info into @$new_line_info
-                        $new_line_info->[0] += $line_info->[0];
-                        $new_line_info->[1] += $line_info->[1];
-                    }
-
-                }
-            }
-            else {
-                $sub_caller->{$subname} = $old_caller_info;
             }
         }
     }
@@ -257,7 +219,7 @@ sub fileinfo_of {
     }
 
     # check if already a file info object
-    return $arg if ref $arg and $arg->isa('Devel::NYTProf::FileInfo');
+    return $arg if ref $arg and UNIVERSAL::can($arg,'fid') and $arg->isa('Devel::NYTProf::FileInfo');
 
     my $fid = $self->resolve_fid($arg);
     if (not $fid) {
@@ -320,72 +282,9 @@ place a subroutine was called from, plus one per subroutine.
 The default format is a Data::Dumper style whitespace-indented tree.
 The types of data present can depend on the options used when profiling.
 
-  {
-      attribute => {
-          basetime => 1207228764
-          ticks_per_sec => 1000000
-          xs_version => 1.13
-      }
-      fid_fileinfo => [
-          1: [
-              0: test01.p
-              1: 
-              2: 
-              3: 1
-              4: 0
-              5: 0
-              6: 0
-          ]
-      ]
-      fid_line_time => [
-          1: [
-              2: [ 4e-06 2 ]
-              3: [ 1.2e-05 2 ]
-              7: [ 4.6e-05 4 ]
-              11: [ 2e-06 1 ]
-              16: [ 1.2e-05 1 ]
-          ]
-      ]
-      sub_caller => {
-          main::bar => {
-              1 => {
-                  12 => 1 # main::bar was called by fid 1, line 12, 1 time.
-                  16 => 1
-                  3 => 2
-              }
-          }
-          main::foo => {
-              1 => {
-                  11 => 1
-              }
-          }
-      }
-      sub_subinfo => {
-          main::bar => [ 1 6 8 762 2e-06 ]
-          main::foo => [ 1 1 4 793 1.5e-06 ]
-      }
-  }
-
 If C<separator> is true then instead of whitespace, each item of data is
 indented with the I<path> through the structure with C<separator> used to
 separarate the elements of the path.
-
-  attribute	basetime	1207228260
-  attribute	ticks_per_sec	1000000
-  attribute	xs_version	1.13
-  fid_fileinfo	1	test01.p
-  fid_line_time	1	2	[ 4e-06 2 ]
-  fid_line_time	1	3	[ 1.1e-05 2 ]
-  fid_line_time	1	7	[ 4.4e-05 4 ]
-  fid_line_time	1	11	[ 2e-06 1 ]
-  fid_line_time	1	16	[ 1e-05 1 ]
-  sub_caller	main::bar	1	12	1
-  sub_caller	main::bar	1	16	1
-  sub_caller	main::bar	1	3	2
-  sub_caller	main::foo	1	11	1
-  sub_subinfo	main::bar	[ 1 6 8 762 2e-06 ]
-  sub_subinfo	main::foo	[ 1 1 4 793 1.5e-06 ]
-
 This format is especially useful for grep'ing and diff'ing.
 
 =cut
@@ -403,7 +302,9 @@ sub dump_profile_data {
     my $startnode = { %$self, sub_caller => my $sub_caller = {} };
     for my $si (values %{ $self->{sub_subinfo} }) {
         my $sc = $si->callers or next;
-        $sub_caller->{$si->subname} = $sc;
+        my $subname = $si->subname;
+        $subname = $subname->[0] if ref $subname;
+        $sub_caller->{$subname} = $sc;
     }
 
     $self->_clear_caches;
@@ -588,7 +489,7 @@ sub normalize_variables {
     # zero sub into and sub caller times
     $_->normalize_for_test for values %{ $self->{sub_subinfo} };
 
-    for my $info ($self->{sub_subinfo}, $self->{sub_caller}) {
+    for my $info ($self->{sub_subinfo}) {
 
         # normalize eval sequence numbers in sub names to 0
         for my $subname (keys %$info) {
@@ -838,8 +739,8 @@ sub resolve_fid {
 
 Returns a reference to a hash containing information about subroutine calls
 made at individual lines within a source file. The $file
-argument can be an integer file id (fid) or a file path. Returns undef if the
-profile contains no C<sub_caller> data for the $file.
+argument can be an integer file id (fid) or a file path. Returns undef if
+no subroutine calling information is available.
 
 The keys of the returned hash are line numbers. The values are references to
 hashes with fully qualified subroutine names as keys. Each hash value is an

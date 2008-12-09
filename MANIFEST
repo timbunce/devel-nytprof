@@ -108,6 +108,8 @@ t/test50-disable.rdt
 t/test50-disable.x
 t/test60-subname.p
 t/test60-subname.rdt
+t/test61-submerge.p
+t/test61-submerge.rdt
 t/test70-subexcl.p
 t/test80-recurs.p
 t/test80-recurs.rdt

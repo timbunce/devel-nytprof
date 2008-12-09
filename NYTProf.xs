@@ -2835,7 +2835,6 @@ load_profile_data_from_stream(SV *cb)
     AV* fid_block_time_av = NULL;
     AV* fid_sub_time_av = NULL;
     HV* sub_subinfo_hv = newHV();
-    HV* sub_callers_hv = newHV();
     SV *tmp_str_sv = newSVpvn("",0);
     HV *file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
 
@@ -3247,13 +3246,10 @@ load_profile_data_from_stream(SV *cb)
 
                 subinfo_av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
 
-                /* { 'pkg::sub' => { fid => { line => [ count, incl_time, excl_time ] } } } */
-                he = hv_fetch_ent(sub_callers_hv, subname_sv, 1, 0);
-                sv = HeVAL(he);
+                /* { caller_fid => { caller_line => [ count, incl_time, excl_time ] } } */
+                sv = *av_fetch(subinfo_av, NYTP_SIi_CALLED_BY, 1);
                 if (!SvROK(sv))                   /* autoviv */
                     sv_setsv(sv, newRV_noinc((SV*)newHV()));
-
-                sv_setsv(*av_fetch(subinfo_av, NYTP_SIi_CALLED_BY, 1), sv);
 
                 len = sprintf(text, "%u", fid);
                 sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
@@ -3267,8 +3263,9 @@ load_profile_data_from_stream(SV *cb)
                     sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newAV()));
-                    else warn("sub_caller info for %s %d:%d already exists!",
-                        SvPV_nolen(subname_sv), fid, line);
+                    else /* XXX the code below should accumulate instead of set values */
+                        warn("sub caller info for %s %d:%d already exists!",
+                            SvPV_nolen(subname_sv), fid, line);
                     sv = SvRV(sv);
                     sv_setuv(*av_fetch((AV *)sv, NYTP_SCi_CALL_COUNT, 1), count);
                     sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_RTIME, 1), incl_time);
@@ -3487,7 +3484,6 @@ load_profile_data_from_stream(SV *cb)
         SvREFCNT_dec(fid_block_time_av);
         SvREFCNT_dec(fid_sub_time_av);
         SvREFCNT_dec(sub_subinfo_hv);
-        SvREFCNT_dec(sub_callers_hv);
         SvREFCNT_dec(tmp_str_sv);
 
         return newHV(); /* dummy */
@@ -3540,7 +3536,6 @@ load_profile_data_from_stream(SV *cb)
         (void)hv_stores(profile_modes, "fid_sub_time", newSVpvf("sub"));
     }
     (void)hv_stores(profile_hv, "sub_subinfo",      newRV_noinc((SV*)sub_subinfo_hv));
-    (void)hv_stores(profile_hv, "sub_caller",       newRV_noinc((SV*)sub_callers_hv));
     (void)hv_stores(profile_hv, "profile_modes",    newRV_noinc((SV*)profile_modes));
     return profile_hv;
 }

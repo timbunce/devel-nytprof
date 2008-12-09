@@ -9,6 +9,7 @@ use Devel::NYTProf::Constants qw(
     NYTP_SIi_CALL_COUNT NYTP_SIi_INCL_RTIME NYTP_SIi_EXCL_RTIME
     NYTP_SIi_SUB_NAME NYTP_SIi_PROFILE
     NYTP_SIi_REC_DEPTH NYTP_SIi_RECI_RTIME NYTP_SIi_CALLED_BY
+
     NYTP_SCi_INCL_RTIME NYTP_SCi_EXCL_RTIME
     NYTP_SCi_INCL_UTIME NYTP_SCi_INCL_STIME NYTP_SCi_RECI_RTIME
 );
@@ -16,15 +17,33 @@ use Devel::NYTProf::Constants qw(
 use List::Util qw(sum min max);
 
 sub fid        { $_[0]->[NYTP_SIi_FID] || croak "No fid for $_[0][6]" }
+
 sub first_line { shift->[NYTP_SIi_FIRST_LINE] }
+
 sub last_line  { shift->[NYTP_SIi_LAST_LINE] }
+
 sub calls      { shift->[NYTP_SIi_CALL_COUNT] }
+
 sub incl_time  { shift->[NYTP_SIi_INCL_RTIME] }
+
 sub excl_time  { shift->[NYTP_SIi_EXCL_RTIME] }
-sub subname    { shift->[NYTP_SIi_SUB_NAME] }
+
+sub subname    {
+    my $subname = shift->[NYTP_SIi_SUB_NAME];
+    return $subname if not ref $subname;
+    # the subname of a merged sub is a ref to an array of the merged subnames
+    # XXX could be ref to an array of the merged subinfos
+    # XXX or better to add a separate accessor instead of abusing subname like this
+    return $subname if not defined(my $join = shift);
+    return join $join, @$subname;
+}
+
 sub profile    { shift->[NYTP_SIi_PROFILE] }
+
 sub package    { (my $pkg = shift->subname) =~ s/^(.*)::.*/$1/; return $pkg }
+
 sub recur_max_depth { shift->[NYTP_SIi_REC_DEPTH] }
+
 sub recur_incl_time { shift->[NYTP_SIi_RECI_RTIME] }
 
 # { fid => { line => [ count, incl_time ] } }
@@ -55,22 +74,60 @@ sub clone {             # shallow
 }
 
 # merge details of another sub into this one
-# there are few cases where this is sane thing to do
+# there are very few cases where this is sane thing to do
 # it's meant for merging things like anon-subs in evals
 # e.g., "PPI::Node::__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
 sub merge_in {
-    my $self    = shift;
+    my $self = shift;
     my $new = shift;
-    $self->[NYTP_SIi_FIRST_LINE] = min($self->[NYTP_SIi_FIRST_LINE], $new->[NYTP_SIi_FIRST_LINE]);
-    $self->[NYTP_SIi_LAST_LINE]  = max($self->[NYTP_SIi_LAST_LINE],  $new->[NYTP_SIi_LAST_LINE]);
+
+    $self->[NYTP_SIi_FIRST_LINE]  = min($self->[NYTP_SIi_FIRST_LINE], $new->[NYTP_SIi_FIRST_LINE]);
+    $self->[NYTP_SIi_LAST_LINE]   = max($self->[NYTP_SIi_LAST_LINE],  $new->[NYTP_SIi_LAST_LINE]);
     $self->[NYTP_SIi_CALL_COUNT] += $new->[NYTP_SIi_CALL_COUNT];
     $self->[NYTP_SIi_INCL_RTIME] += $new->[NYTP_SIi_INCL_RTIME];
     $self->[NYTP_SIi_EXCL_RTIME] += $new->[NYTP_SIi_EXCL_RTIME];
-    $self->[NYTP_SIi_SUB_NAME] = [ $self->[NYTP_SIi_SUB_NAME] ]
+    $self->[NYTP_SIi_SUB_NAME]    = [ $self->[NYTP_SIi_SUB_NAME] ]
         if not ref $self->[NYTP_SIi_SUB_NAME];
     push @{$self->[NYTP_SIi_SUB_NAME]}, $new->[NYTP_SIi_SUB_NAME];
-    $self->[NYTP_SIi_REC_DEPTH] = max($self->[NYTP_SIi_REC_DEPTH], $new->[NYTP_SIi_REC_DEPTH]);
-    $self->[9] = max($self->[NYTP_SIi_RECI_RTIME], $new->[NYTP_SIi_RECI_RTIME]); # ug, plausible
+    $self->[NYTP_SIi_REC_DEPTH]   = max($self->[NYTP_SIi_REC_DEPTH],  $new->[NYTP_SIi_REC_DEPTH]);
+    $self->[NYTP_SIi_RECI_RTIME]  = max($self->[NYTP_SIi_RECI_RTIME], $new->[NYTP_SIi_RECI_RTIME]); # ug, plausible
+
+    # { fid => { line => [ count, incl_time ] } }
+    my $dst_called_by = $self->[NYTP_SIi_CALLED_BY] ||= {};
+    my $src_called_by = $new ->[NYTP_SIi_CALLED_BY] ||  {};
+
+    my $trace = 0;
+    my $subname = $self->subname(' and ');
+
+    # iterate over src and merge into dst
+    while (my ($fid, $src_line_hash) = each %$src_called_by) {
+        my $dst_line_hash = $dst_called_by->{$fid};
+        if (!$dst_line_hash) {
+            $dst_called_by->{$fid} = $src_line_hash;
+            warn "renamed sub caller $self->[NYTP_SIi_SUB_NAME] into $subname\n" if $trace;
+            next;
+        }
+        warn "merged sub caller $self->[NYTP_SIi_SUB_NAME] into $subname\n" if $trace;
+
+        # merge lines in %$src_line_hash into %$dst_line_hash
+        while (my ($line, $src_line_info) = each %$src_line_hash) {
+            my $dst_line_info = $dst_line_hash->{$line};
+            if (!$dst_line_info) {
+                $dst_line_hash->{$line} = $src_line_info;
+                next;
+            }
+
+            # merge @$src_line_info into @$dst_line_info
+            $dst_line_info->[$_] += $src_line_info->[$_] for (
+                NYTP_SCi_INCL_RTIME, NYTP_SCi_EXCL_RTIME,
+                NYTP_SCi_INCL_UTIME, NYTP_SCi_INCL_STIME
+            );
+            # ug, we can't really combine recursive incl_time, but this is better than undef
+            $dst_line_info->[NYTP_SCi_RECI_RTIME] = max($dst_line_info->[NYTP_SCi_RECI_RTIME],
+                                                        $src_line_info->[NYTP_SCi_RECI_RTIME]);
+        }
+    }
+
     return;
 }
 
@@ -122,15 +179,17 @@ sub normalize_for_test {
     $self->[NYTP_SIi_EXCL_RTIME] = 0;
     $self->[NYTP_SIi_RECI_RTIME] = 0;
 
-    # zero per-call-location subroutine inclusive time
+    my $subname = $self->subname(' and ');
+
+    # { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } }
     my $callers = $self->callers || {};
-    # $callers => { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } }
-    for (map { values %$_ } values %$callers) {
-        $_->[NYTP_SCi_INCL_RTIME] =
-        $_->[NYTP_SCi_EXCL_RTIME] =
-        $_->[NYTP_SCi_INCL_UTIME] =
-        $_->[NYTP_SCi_INCL_STIME] =
-        $_->[NYTP_SCi_RECI_RTIME] = 0;
+    # zero per-call-location subroutine inclusive time
+    for my $sc (map { values %$_ } values %$callers) {
+        $sc->[NYTP_SCi_INCL_RTIME] =
+        $sc->[NYTP_SCi_EXCL_RTIME] =
+        $sc->[NYTP_SCi_INCL_UTIME] =
+        $sc->[NYTP_SCi_INCL_STIME] =
+        $sc->[NYTP_SCi_RECI_RTIME] = 0;
     }
 }
 
