@@ -396,14 +396,48 @@ sub dump_profile_data {
     my $args       = shift;
     my $separator  = $args->{separator} || '';
     my $filehandle = $args->{filehandle} || \*STDOUT;
-    my $startnode  = $args->{startnode} || $self;       # undocumented
-    croak "Invalid startnode" unless ref $startnode;
+
+    #skip_stdlib
+
+    # shallow clone and add sub_caller for migration of tests
+    my $startnode = { %$self, sub_caller => my $sub_caller = {} };
+    for my $si (values %{ $self->{sub_subinfo} }) {
+        my $sc = $si->callers or next;
+        $sub_caller->{$si->subname} = $sc;
+    }
+
     $self->_clear_caches;
-    _dump_elements($startnode, $separator, $filehandle, []);
+
+    my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
+    my @abs_inc = grep { $_ =~ $abs_path_regex } $self->inc;
+    my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
+
+    my $callback = sub {
+        my ($path, $value) = @_;
+
+        if ($args->{skip_stdlib}) {
+
+            # skip sub_subinfo data for 'library modules'
+            if ($path->[0] eq 'sub_subinfo' && @$path==2 && $value->[0]) {
+                my $fi = $self->fileinfo_of($value->[0]);
+                return 0 if $fi->filename =~ $is_lib_regex;
+            }
+
+            # skip fid_*_time data for 'library modules'
+            if ($path->[0] =~ /^fid_\w+_time$/ && @$path==2) {
+                my $fi = $self->fileinfo_of($path->[1]);
+                return 0 if $fi->filename =~ $is_lib_regex
+                         or $fi->filename =~ m!^/\.\.\./!;
+            }
+        }
+        return 1;
+    };
+
+    _dump_elements($startnode, $separator, $filehandle, [], $callback);
 }
 
 sub _dump_elements {
-    my ($r, $separator, $fh, $path) = @_;
+    my ($r, $separator, $fh, $path, $callback) = @_;
     my $pad = "    ";
     my $padN;
 
@@ -424,7 +458,6 @@ sub _dump_elements {
     my $format = {sub_subinfo => {compact => 1},};
 
     print $fh "$start\n" if $start;
-    $path = [@$path, undef];
     my $key1 = $path->[0] || $keys->[0];
     for my $key (@$keys) {
 
@@ -432,6 +465,8 @@ sub _dump_elements {
 
         # skip undef elements in array
         next if !defined($value) && !$is_hash;
+
+        next if $callback and not $callback->([ @$path, $key ], $value);
 
         $value = $value->_values_for_dump
             if blessed $value && $value->can('_values_for_dump');
@@ -447,6 +482,7 @@ sub _dump_elements {
                 (UNIVERSAL::isa($value, 'ARRAY') && @$value <= 9 && !grep { ref or !defined }
                     @$value);
         }
+        $as_compact = 0 if not ref $value eq 'ARRAY';
 
         # print the value intro
         print $fh "$padN$key$colon"
@@ -457,8 +493,7 @@ sub _dump_elements {
             printf $fh "[ %s ]\n", join(" ", map { defined($_) ? $_ : 'undef' } @$value);
         }
         elsif (ref $value) {
-            $path->[-1] = $key;
-            _dump_elements($value, $separator, $fh, $path);
+            _dump_elements($value, $separator, $fh, [ @$path, $key ], $callback);
         }
         else {
             print $fh "$value\n";
@@ -477,39 +512,6 @@ sub get_fid_line_data {
     $level ||= 'line';
     my $fid_line_data = $self->{"fid_${level}_time"};
     return $fid_line_data;
-}
-
-
-=head2 remove_internal_data_of
-
-  $profile->remove_internal_data_of( $fileinfo_or_fid );
-
-Removes from the profile all information relating to the internals of the specified file.
-Data for calls made from outside the file to subroutines defined within it, are kept.
-
-=cut
-
-
-sub remove_internal_data_of {
-    my $self     = shift;
-    my $fileinfo = $self->fileinfo_of(shift);
-    my $fid      = $fileinfo->fid;
-
-    # remove any timing data for inside this file
-    for my $level (qw(line block sub)) {
-        my $fid_line_data = $self->get_fid_line_data($level)
-            or next;
-        $fid_line_data->[$fid] = undef;
-    }
-
-    # remove all subs defined in this file
-    if (my $sub_subinfo = $self->{sub_subinfo}) {
-        while (my ($subname, $subinfo) = each %$sub_subinfo) {
-            delete $sub_subinfo->{$subname} if (($subinfo->fid||0) == $fid);
-        }
-    }
-
-    $fileinfo->delete_subs_called_info;
 }
 
 
@@ -545,10 +547,6 @@ filenames: path prefixes matching absolute paths in @INC are changed to "/.../"
 
 filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
 
-=item *
-
-calls remove_internal_data_of() for files loaded from absolute paths in @INC
-
 =back
 
 =cut
@@ -568,10 +566,8 @@ sub normalize_variables {
     my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
 
     my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
-    my $inc = [ $self->inc, '.' ];
     my @abs_inc = grep { $_ =~ $abs_path_regex } $self->inc;
     my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
-    my $editor = make_path_strip_editor([ $self->inc, '.' ], qr{^|\[}, '/.../');
 
     for my $fi ($self->all_fileinfos) {
 
@@ -600,54 +596,12 @@ sub normalize_variables {
             next if $newname eq $subname;
 
             # XXX should merge instead
-            warn "Discarded previous $newname info" if $info->{$newname};
+            warn "Normalizing evals discarded previous $newname info" if $info->{$newname};
             $info->{$newname} = delete $info->{$subname};
         }
     }
 
-    # final cleanup, to be done last
-    for my $fi ($self->all_fileinfos) {
-
-        # strip out internal details of library modules
-        # (the definition of which is quite vague at the moment)
-        $self->remove_internal_data_of($fi)
-            if $fi->filename =~ $is_lib_regex;
-    }
-
-    $self->make_filenames_relative($inc, '/.../');
-
     return;
-}
-
-
-sub make_filenames_relative {
-    my ($self, $roots, $replacement) = @_;
-    $roots ||= ['.'];    # e.g. [ @INC, '.' ]
-
-    warn "making filenames relative to @$roots\n"
-        if $trace;
-
-    my $editor = make_path_strip_editor($roots, qr{^|\[}, $replacement);
-
-    # strip prefix from start of string and also when embeded
-    # e.g., "(eval 42)[/foo/bar/...]"
-    for my $fi ($self->all_fileinfos) {
-        $editor->($fi->[0]); # XXX breaks encapsulation
-    }
-
-    # edit sub names, e.g., "__ANON__[/foo/bar/...:42]"
-    for my $info ($self->{sub_subinfo}, $self->{sub_caller}) {
-        for my $subname (keys %$info) {
-            $editor->(my $newname = $subname)
-                or next;
-            next if $newname eq $subname;
-            warn "Discarded previous $newname info" if $info->{$newname};
-            my $value = delete $info->{$subname};
-            $info->{$newname} = $value;
-            # update subname attribute of SubInfo XXX breaks encapsulation
-            $value->[6] = $newname if UNIVERSAL::can($value, 'subname');
-        }
-    }
 }
 
 

@@ -9,6 +9,8 @@ use Devel::NYTProf::Constants qw(
     NYTP_FIDi_FLAGS NYTP_FIDi_FILESIZE NYTP_FIDi_FILEMTIME NYTP_FIDi_PROFILE
     NYTP_FIDi_EVAL_FI NYTP_FIDi_HAS_EVALS NYTP_FIDi_SUBS_DEFINED NYTP_FIDi_SUBS_CALLED
     NYTP_FIDf_IS_PMC
+
+    NYTP_SCi_CALL_COUNT
 );
 
 sub filename  { shift->[NYTP_FIDi_FILENAME()] }
@@ -54,6 +56,8 @@ sub _values_for_dump {
         NYTP_FIDi_FLAGS, NYTP_FIDi_FILESIZE, NYTP_FIDi_FILEMTIME
     ];
     $values[0] = $self->filename_without_inc;
+    # XXX temp hack
+    $values[0] = "/.../$values[0]" unless $self->eval_fid;
     #push @values, $self->has_evals ? "evals:".join(",", map { $_->fid } @{$self->has_evals}) : "";
     return \@values;
 }
