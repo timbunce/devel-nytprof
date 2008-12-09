@@ -44,7 +44,8 @@ our $VERSION = '2.07';
 
 our @EXPORT_OK = qw(
     fmt_float
-    fmt_time fmt_incl_excl_time
+    fmt_time
+    fmt_incl_excl_time
     make_path_strip_editor
     strip_prefix_from_paths
     calculate_median_absolute_deviation
@@ -74,7 +75,7 @@ sub get_abs_paths_alternation_regex {
 
     # rewrite relative directories to be absolute
     # the logic here should match that in get_file_id()
-    my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
+    my $abs_path_regex = ($^O eq "MSWin32") ? qr,^\w:/, : qr,^/,;
     for (@inc) {
         next if $_ =~ $abs_path_regex;    # already absolute
         $_ =~ s/^\.\///;   # remove a leading './'

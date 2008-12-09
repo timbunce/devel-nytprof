@@ -343,3 +343,10 @@ Should then also be able to avoid newSV/free for subname_sv (which accounts for 
 
 Class::MOP should update %DB::sub (if $^P & 0x10 set) when it creates methods.
 Sub::Name should do same (extracting the file and line from the ANON[...:...])
+
+Add refs so a string eval fid can be related to its 'siblings' (other string
+eval fids from the same line in the 'parent' fid).
+
+Profile should report _both_ the 'raw original' filename (possibly relative)
+used by the application being profiled, plus an absolute filename determined
+ASAP (to avoid problems with scripts that chdir).
