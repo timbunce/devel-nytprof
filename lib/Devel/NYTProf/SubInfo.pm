@@ -131,16 +131,6 @@ sub merge_in {
     return;
 }
 
-sub _values_for_dump {
-    my $self   = shift;
-    my @values = @{$self}[
-        NYTP_SIi_FID, NYTP_SIi_FIRST_LINE, NYTP_SIi_LAST_LINE,
-        NYTP_SIi_CALL_COUNT, NYTP_SIi_INCL_RTIME, NYTP_SIi_EXCL_RTIME,
-        NYTP_SIi_REC_DEPTH, NYTP_SIi_RECI_RTIME
-    ];
-    return \@values;
-}
-
 sub caller_fids {
     my ($self, $merge_evals) = @_;
     my $callers = $self->callers($merge_evals) || {};
@@ -148,27 +138,21 @@ sub caller_fids {
     return @fids;    # count in scalar context
 }
 
-sub caller_count {
-    my ($self, $merge_evals) = @_;
-    my $callers = $self->callers($merge_evals) || {};
-
-    # count of the number of distinct locations sub is called from
-    return sum(map { scalar keys %$_ } values %$callers);
-}
+sub caller_count { return scalar shift->caller_places; } # XXX deprecate later
 
 sub caller_places {
     my ($self, $merge_evals) = @_;
-    my $callers = $self->callers
-        or return 0;
+    my $callers = $self->callers || {};
 
-    # scalar: count of the number of distinct locations sub is called from
-    # list: array of [ fid, line, @... ]
     my @callers;
-    warn "caller_places in list context not implemented/tested yet";
-    while (my ($fid, $lines) = each %$callers) {
-        push @callers, map { [$fid, $_, @{$lines->{$_}}] } keys %$lines;
+    for my $fid (sort { $a <=> $b } keys %$callers) {
+        my $lines_hash = $callers->{$fid};
+        for my $line (sort { $a <=> $b } keys %$lines_hash) {
+            push @callers, [ $fid, $line, $lines_hash->{$line} ];
+        }
     }
-    return \@callers;
+
+    return @callers; # scalar: number of distinct calling locations
 }
 
 sub normalize_for_test {
@@ -183,6 +167,7 @@ sub normalize_for_test {
 
     # { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } }
     my $callers = $self->callers || {};
+
     # zero per-call-location subroutine inclusive time
     for my $sc (map { values %$_ } values %$callers) {
         $sc->[NYTP_SCi_INCL_RTIME] =
@@ -190,6 +175,29 @@ sub normalize_for_test {
         $sc->[NYTP_SCi_INCL_UTIME] =
         $sc->[NYTP_SCi_INCL_STIME] =
         $sc->[NYTP_SCi_RECI_RTIME] = 0;
+    }
+}
+
+sub dump {
+    my ($self, $separator, $fh, $path, $prefix) = @_;
+
+    my @values = @{$self}[
+        NYTP_SIi_FID, NYTP_SIi_FIRST_LINE, NYTP_SIi_LAST_LINE,
+        NYTP_SIi_CALL_COUNT, NYTP_SIi_INCL_RTIME, NYTP_SIi_EXCL_RTIME,
+        NYTP_SIi_REC_DEPTH, NYTP_SIi_RECI_RTIME
+    ];
+    printf $fh "%s[ %s ]\n",
+        $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
+
+    my @caller_places = $self->caller_places;
+    for my $cp (@caller_places) {
+        my ($fid, $line, $sc) = @$cp;
+        printf $fh "%s%s%s%d%s%d%s[ %s ]\n",
+            $prefix,
+            'called_by', $separator,
+            $fid,  $separator,
+            $line, $separator,
+            join(" ", map { defined($_) ? $_ : 'undef' } @$sc);
     }
 }
 

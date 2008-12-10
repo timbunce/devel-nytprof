@@ -49,19 +49,6 @@ sub subs      { shift->[NYTP_FIDi_SUBS_DEFINED()] }
 sub sub_call_lines  { shift->[NYTP_FIDi_SUBS_CALLED()] }
 
 
-sub _values_for_dump {
-    my $self   = shift;
-    my @values = @{$self}[
-        NYTP_FIDi_FILENAME, NYTP_FIDi_EVAL_FID, NYTP_FIDi_EVAL_LINE, NYTP_FIDi_FID,
-        NYTP_FIDi_FLAGS, NYTP_FIDi_FILESIZE, NYTP_FIDi_FILEMTIME
-    ];
-    $values[0] = $self->filename_without_inc;
-    # XXX temp hack
-    $values[0] = "/.../$values[0]" unless $self->eval_fid;
-    #push @values, $self->has_evals ? "evals:".join(",", map { $_->fid } @{$self->has_evals}) : "";
-    return \@values;
-}
-
 sub line_time_data {
     my ($self, $levels) = @_;
     $levels ||= [ 'line' ];
@@ -162,5 +149,16 @@ sub srclines_array {
         or return undef;
     return [ <$fh> ];
 }
+
+sub dump {      
+    my ($self, $separator, $fh, $path, $prefix) = @_;
+    my @values = @{$self}[
+        NYTP_FIDi_FILENAME, NYTP_FIDi_EVAL_FID, NYTP_FIDi_EVAL_LINE, NYTP_FIDi_FID,
+        NYTP_FIDi_FLAGS, NYTP_FIDi_FILESIZE, NYTP_FIDi_FILEMTIME
+    ];
+    $values[0] = $self->filename_without_inc;
+    printf $fh "%s[ %s ]\n", $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
+}   
+
 
 1;

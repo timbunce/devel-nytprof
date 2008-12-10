@@ -299,13 +299,7 @@ sub dump_profile_data {
     #skip_stdlib
 
     # shallow clone and add sub_caller for migration of tests
-    my $startnode = { %$self, sub_caller => my $sub_caller = {} };
-    for my $si (values %{ $self->{sub_subinfo} }) {
-        my $sc = $si->callers or next;
-        my $subname = $si->subname;
-        $subname = $subname->[0] if ref $subname;
-        $sub_caller->{$subname} = $sc;
-    }
+    my $startnode = $self;
 
     $self->_clear_caches;
 
@@ -369,35 +363,38 @@ sub _dump_elements {
 
         next if $callback and not $callback->([ @$path, $key ], $value);
 
-        $value = $value->_values_for_dump
-            if blessed $value && $value->can('_values_for_dump');
-
         next if $key eq 'fid_srclines';
 
-        # special case some common cases to be more compact:
-        #		fid_*_time   [fid][line] = [N,N]
-        #		sub_subinfo {subname} = [fid,startline,endline,calls,incl_time]
-        my $as_compact = $format->{$key1}{compact};
-        if (not defined $as_compact) {    # so guess...
-            $as_compact =
-                (UNIVERSAL::isa($value, 'ARRAY') && @$value <= 9 && !grep { ref or !defined }
-                    @$value);
-        }
-        $as_compact = 0 if not ref $value eq 'ARRAY';
+        my $prefix = "$padN$key$colon";
 
-        # print the value intro
-        print $fh "$padN$key$colon"
-            unless ref $value && !$as_compact;
-
-        if ($as_compact) {
-            no warnings qw(uninitialized);
-            printf $fh "[ %s ]\n", join(" ", map { defined($_) ? $_ : 'undef' } @$value);
-        }
-        elsif (ref $value) {
-            _dump_elements($value, $separator, $fh, [ @$path, $key ], $callback);
+        if (UNIVERSAL::can($value,'dump')) {
+            $value->dump($separator, $fh, [ @$path, $key ], $prefix);
         }
         else {
-            print $fh "$value\n";
+            $value = $value->_values_for_dump
+                if blessed $value && $value->can('_values_for_dump');
+
+            # special case some common cases to be more compact:
+            #		fid_*_time   [fid][line] = [N,N]
+            #		sub_subinfo {subname} = [fid,startline,endline,calls,incl_time]
+            my $as_compact = $format->{$key1}{compact};
+            if (not defined $as_compact) {    # so guess...
+                $as_compact =
+                    (UNIVERSAL::isa($value, 'ARRAY') && @$value <= 9 && !grep { ref or !defined }
+                        @$value);
+            }
+            $as_compact = 0 if not ref $value eq 'ARRAY';
+
+            if ($as_compact) {
+                no warnings qw(uninitialized);
+                printf $fh "%s[ %s ]\n", $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @$value);
+            }
+            elsif (ref $value) {
+                _dump_elements($value, $separator, $fh, [ @$path, $key ], $callback);
+            }
+            else {
+                print $fh "$prefix$value\n";
+            }
         }
     }
     printf $fh "%s$end\n", ($pad x (@$path - 1)) if $end;
