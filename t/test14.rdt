@@ -19,10 +19,23 @@ fid_block_time	3	11	0	0
 fid_block_time	3	11	1	2
 fid_block_time	3	11	2	1	[ 0 1 ]
 fid_block_time	3	14	[ 0 1 ]
-fid_fileinfo	1	[ test14.p   1 2 0 0 ]
-fid_fileinfo	2	[ AutoLoader.pm   2 2 0 0 ]
-fid_fileinfo	3	[ test14.pm   3 2 0 0 ]
-fid_fileinfo	4	[ (eval 0)[test14.pm (autosplit into auto/test14/bar.al):11] 3 11 4 2 0 0 ]
+fid_fileinfo	1	[ test14.p   1 2 0 0 0 ]
+fid_fileinfo	1	sub	main::BEGIN	16-16
+fid_fileinfo	1	call	17	AutoLoader::AUTOLOAD	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	18	AutoLoader::AUTOLOAD	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	2	[ AutoLoader.pm   2 2 0 0 0 ]
+fid_fileinfo	2	sub	AutoLoader::AUTOLOAD	21-52
+fid_fileinfo	2	sub	AutoLoader::BEGIN	186-186
+fid_fileinfo	2	sub	AutoLoader::__ANON__[/usr/local/perl589/lib/5.8.9/AutoLoader.pm:31]	31-31
+fid_fileinfo	2	sub	AutoLoader::find_filename	54-126
+fid_fileinfo	2	sub	AutoLoader::import	128-181
+fid_fileinfo	2	sub	AutoLoader::unimport	183-193
+fid_fileinfo	2	call	23	AutoLoader::find_filename	[ 2 0 0 0 0 0 0 ]
+fid_fileinfo	3	[ test14.pm   3 2 0 0 1 ]
+fid_fileinfo	3	sub	test14::BEGIN	2-2
+fid_fileinfo	3	sub	test14::bar	10-12
+fid_fileinfo	3	sub	test14::foo	6-8
+fid_fileinfo	4	[ (eval 0)[test14.pm (autosplit into auto/test14/bar.al):11] 3 11 4 2 0 0 0 ]
 fid_line_time	1	17	[ 0 1 ]
 fid_line_time	1	18	[ 0 1 ]
 fid_line_time	3	7	[ 0 1 ]

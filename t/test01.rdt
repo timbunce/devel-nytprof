@@ -18,7 +18,16 @@ fid_block_time	1	11	[ 0 3 ]
 fid_block_time	1	16	[ 0 1 ]
 fid_block_time	1	17	[ 0 1 ]
 fid_block_time	1	18	[ 0 1 ]
-fid_fileinfo	1	[ test01.p   1 2 0 0 ]
+fid_fileinfo	1	[ test01.p   1 2 0 0 0 ]
+fid_fileinfo	1	sub	main::bar	6-8
+fid_fileinfo	1	sub	main::baz	10-14
+fid_fileinfo	1	sub	main::foo	1-4
+fid_fileinfo	1	call	3	main::bar	[ 2 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	12	main::bar	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	13	main::foo	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	16	main::bar	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	17	main::baz	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	18	main::foo	[ 1 0 0 0 0 0 0 ]
 fid_line_time	1	2	[ 0 2 ]
 fid_line_time	1	3	[ 0 2 ]
 fid_line_time	1	7	[ 0 4 ]

@@ -3191,7 +3191,7 @@ load_profile_data_from_stream(SV *cb)
                 sv_setuv(*av_fetch(av, NYTP_SIi_REC_DEPTH,  1),   0); /* rec_depth */
                 sv_setnv(*av_fetch(av, NYTP_SIi_RECI_RTIME, 1), 0.0); /* reci_time */
 
-                /* add sub to NYTP_FIDi_SUBS_DEFINED of fid */
+                /* add sub to NYTP_FIDi_SUBS_DEFINED hash */
                 sv = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
                 sv = SvRV(*av_fetch((AV *)sv, NYTP_FIDi_SUBS_DEFINED, 1));
                 (void)hv_store((HV *)sv, subname_pv, subname_len, newRV((SV*)av), 0);
@@ -3203,7 +3203,6 @@ load_profile_data_from_stream(SV *cb)
             {
                 char text[MAXPATHLEN*2];
                 SV *sv;
-                HE *he;
                 SV *subname_sv;
                 AV *subinfo_av;
                 int len;
@@ -3275,7 +3274,7 @@ load_profile_data_from_stream(SV *cb)
                     sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_RECI_RTIME, 1), reci_time);
                     sv_setuv(*av_fetch((AV *)sv, NYTP_SCi_REC_DEPTH,  1), rec_depth);
 
-                    /* add sub call to NYTP_FIDi_SUBS_CALLED of fid */
+                    /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
                     /* => { line => { subname => [ ... ] } } */
                     fi = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
                     fi = *av_fetch((AV *)fi, NYTP_FIDi_SUBS_CALLED, 1);

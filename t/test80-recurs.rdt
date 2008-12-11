@@ -14,7 +14,10 @@ attribute	total_sub_calls	2
 attribute	xs_version	0
 fid_block_time	1	2	[ 0 6 ]
 fid_block_time	1	7	[ 0 1 ]
-fid_fileinfo	1	[ test80-recurs.p   1 2 0 0 ]
+fid_fileinfo	1	[ test80-recurs.p   1 2 0 0 0 ]
+fid_fileinfo	1	sub	main::recurs	1-5
+fid_fileinfo	1	call	4	main::recurs	[ 1 0 0 0 0 0 1 ]
+fid_fileinfo	1	call	7	main::recurs	[ 1 0 0 0 0 0 0 ]
 fid_line_time	1	2	[ 0 2 ]
 fid_line_time	1	3	[ 0 2 ]
 fid_line_time	1	4	[ 0 2 ]

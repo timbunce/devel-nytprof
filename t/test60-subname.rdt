@@ -21,8 +21,18 @@ fid_block_time	1	18	[ 0 1 ]
 fid_block_time	1	19	[ 0 1 ]
 fid_block_time	1	24	[ 0 1 ]
 fid_block_time	1	25	[ 0 1 ]
-fid_fileinfo	1	[ test60-subname.p   1 2 0 0 ]
-fid_fileinfo	2	[ Devel/NYTProf/Test.pm   2 4 0 0 ]
+fid_fileinfo	1	[ test60-subname.p   1 2 0 0 0 ]
+fid_fileinfo	1	sub	main::BEGIN	2-2
+fid_fileinfo	1	sub	main::launch	24-24
+fid_fileinfo	1	call	5	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	9	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	12	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	16	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	19	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	25	main::launch	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	2	[ Devel/NYTProf/Test.pm   2 4 0 0 0 ]
+fid_fileinfo	2	sub	Devel::NYTProf::Test::example_sub	13-13
+fid_fileinfo	2	sub	Devel::NYTProf::Test::example_xsub	0-0
 fid_line_time	1	5	[ 0 1 ]
 fid_line_time	1	9	[ 0 1 ]
 fid_line_time	1	12	[ 0 1 ]

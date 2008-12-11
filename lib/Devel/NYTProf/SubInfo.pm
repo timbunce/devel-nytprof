@@ -125,6 +125,7 @@ sub merge_in {
             # ug, we can't really combine recursive incl_time, but this is better than undef
             $dst_line_info->[NYTP_SCi_RECI_RTIME] = max($dst_line_info->[NYTP_SCi_RECI_RTIME],
                                                         $src_line_info->[NYTP_SCi_RECI_RTIME]);
+            #push @{$src_line_info}, "merged"; # flag hack, for debug
         }
     }
 

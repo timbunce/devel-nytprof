@@ -10,7 +10,8 @@ use Devel::NYTProf::Constants qw(
     NYTP_FIDi_EVAL_FI NYTP_FIDi_HAS_EVALS NYTP_FIDi_SUBS_DEFINED NYTP_FIDi_SUBS_CALLED
     NYTP_FIDf_IS_PMC
 
-    NYTP_SCi_CALL_COUNT
+    NYTP_SCi_CALL_COUNT NYTP_SCi_INCL_RTIME NYTP_SCi_EXCL_RTIME
+    NYTP_SCi_INCL_UTIME NYTP_SCi_INCL_STIME NYTP_SCi_RECI_RTIME
 );
 
 sub filename  { shift->[NYTP_FIDi_FILENAME()] }
@@ -22,7 +23,7 @@ sub size      { shift->[NYTP_FIDi_FILESIZE()] }
 sub mtime     { shift->[NYTP_FIDi_FILEMTIME()] }
 sub profile   { shift->[NYTP_FIDi_PROFILE()] }
 
-# if fid is an eval then return fileinfo obj for the fid that executed the eval
+# if an eval then return fileinfo obj for the fid that executed the eval
 sub eval_fi   { shift->[NYTP_FIDi_EVAL_FI()] }
 
 # ref to array of fileinfo's for each string eval in the file, else undef
@@ -150,6 +151,24 @@ sub srclines_array {
     return [ <$fh> ];
 }
 
+
+sub normalize_for_test {
+    my $self = shift;
+
+    # normalize eval sequence numbers in 'file' names to 0
+    $self->[NYTP_FIDi_FILENAME] =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg;
+
+    for my $sc (map { values %$_ } values %{ $self->sub_call_lines }) {
+        $sc->[NYTP_SCi_INCL_RTIME] =
+        $sc->[NYTP_SCi_EXCL_RTIME] =
+        $sc->[NYTP_SCi_INCL_UTIME] =
+        $sc->[NYTP_SCi_INCL_STIME] =
+        $sc->[NYTP_SCi_RECI_RTIME] = 0;
+    }
+
+}
+
+
 sub dump {      
     my ($self, $separator, $fh, $path, $prefix) = @_;
     my @values = @{$self}[
@@ -157,8 +176,38 @@ sub dump {
         NYTP_FIDi_FLAGS, NYTP_FIDi_FILESIZE, NYTP_FIDi_FILEMTIME
     ];
     $values[0] = $self->filename_without_inc;
-    printf $fh "%s[ %s ]\n", $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
-}   
 
+    # include count of number of string eval fids
+    my $evals = $self->has_evals(0) || [];
+    push @values, scalar @$evals;
+
+    printf $fh "%s[ %s ]\n", $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
+
+    my $subs = $self->subs;
+    for my $subname (sort keys %$subs) {
+        my $si = $subs->{$subname};
+
+        printf $fh "%s%s%s%s%s%s-%s\n", 
+            $prefix, 'sub', $separator,
+            $si->subname(' and '),  $separator,
+            $si->first_line, $si->last_line;
+    }
+
+    # return a ref to a hash of { line => { subname => [...] }, ... }
+    my $sub_call_lines = $self->sub_call_lines;
+    for my $line (sort { $a <=> $b } keys %$sub_call_lines) {
+        my $subs_called = $sub_call_lines->{$line};
+
+        for my $subname (sort keys %$subs_called) {
+            my $sc = $subs_called->{$subname};
+
+            printf $fh "%s%s%s%s%s%s%s[ %s ]\n", 
+                $prefix, 'call', $separator,
+                $line,  $separator, $subname, $separator,
+                join(" ", map { defined($_) ? $_ : 'undef' } @$sc)
+        }
+    }
+
+}   
 
 1;

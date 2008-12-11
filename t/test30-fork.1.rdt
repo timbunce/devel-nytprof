@@ -17,7 +17,13 @@ fid_block_time	1	11	[ 0 2 ]
 fid_block_time	1	19	[ 0 1 ]
 fid_block_time	1	20	[ 0 1 ]
 fid_block_time	1	22	[ 0 1 ]
-fid_fileinfo	1	[ test30-fork.0.p   1 2 0 0 ]
+fid_fileinfo	1	[ test30-fork.0.p   1 2 0 0 0 ]
+fid_fileinfo	1	sub	main::other	6-8
+fid_fileinfo	1	sub	main::postfork	10-13
+fid_fileinfo	1	sub	main::prefork	1-4
+fid_fileinfo	1	call	12	main::other	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	19	main::postfork	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	20	main::other	[ 1 0 0 0 0 0 0 ]
 fid_line_time	1	7	[ 0 2 ]
 fid_line_time	1	11	[ 0 1 ]
 fid_line_time	1	12	[ 0 1 ]

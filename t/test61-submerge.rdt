@@ -18,10 +18,20 @@ fid_block_time	1	8	0	0
 fid_block_time	1	8	1	2
 fid_block_time	1	8	2	1	[ 0 3 ]
 fid_block_time	1	8	2	2	[ 0 3 ]
-fid_fileinfo	1	[ test61-submerge.p   1 2 0 0 ]
-fid_fileinfo	2	[ (eval 0)[test61-submerge.p:8] 1 8 2 2 0 0 ]
-fid_fileinfo	3	[ (eval 0)[test61-submerge.p:8] 1 8 3 2 0 0 ]
-fid_fileinfo	4	[ (eval 0)[test61-submerge.p:8] 1 8 4 2 0 0 ]
+fid_fileinfo	1	[ test61-submerge.p   1 2 0 0 3 ]
+fid_fileinfo	1	sub	main::foo	4-4
+fid_fileinfo	1	call	8	main::__ANON__[(eval 1)[test61-submerge.p:8]:1]	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	8	main::__ANON__[(eval 2)[test61-submerge.p:8]:1]	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	8	main::__ANON__[(eval 3)[test61-submerge.p:8]:1]	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	2	[ (eval 0)[test61-submerge.p:8] 1 8 2 2 0 0 0 ]
+fid_fileinfo	2	sub	main::__ANON__[(eval 1)[test61-submerge.p:8]:1]	1-1
+fid_fileinfo	2	call	1	main::foo	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	3	[ (eval 0)[test61-submerge.p:8] 1 8 3 2 0 0 0 ]
+fid_fileinfo	3	sub	main::__ANON__[(eval 0)[test61-submerge.p:8]:1] and main::__ANON__[(eval 1)[test61-submerge.p:8]:1] and main::__ANON__[(eval 3)[test61-submerge.p:8]:1]	1-1
+fid_fileinfo	3	call	1	main::foo	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	4	[ (eval 0)[test61-submerge.p:8] 1 8 4 2 0 0 0 ]
+fid_fileinfo	4	sub	main::__ANON__[(eval 3)[test61-submerge.p:8]:1]	1-1
+fid_fileinfo	4	call	1	main::foo	[ 1 0 0 0 0 0 0 ]
 fid_line_time	1	4	[ 0 3 ]
 fid_line_time	1	6	[ 0 1 ]
 fid_line_time	1	8	0	0

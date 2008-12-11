@@ -81,7 +81,7 @@ sub new {
     my $fid_fileinfo = $profile->{fid_fileinfo};
     my $sub_subinfo  = $profile->{sub_subinfo};
 
-    #use Data::Dumper; warn Dumper($sub_subinfo);
+    #warn _dumper($profile);
 
     # add profile ref so fidinfo & subinfo objects
     # XXX circular ref, add weaken
@@ -110,15 +110,19 @@ sub new {
                 warn "merged sub_info $oldname into $subname\n" if $trace;
             }
             else {
-
                 # is first to change, so just move ref to new name
                 $sub_subinfo->{$subname} = $subinfo;
                 $subinfo->[6] = $subname; # XXX breaks encapsulation
                 warn "renamed sub_info $oldname into $subname\n" if $trace;
             }
+
+            # XXX update fid_fileinfo NYTP_FIDi_SUBS_DEFINED
+            # XXX update fid_fileinfo NYTP_FIDi_SUBS_CALLED
         }
     }
     $profile->_clear_caches;
+
+    #warn _dumper($profile);
 
     return $profile;
 }
@@ -467,11 +471,6 @@ sub normalize_variables {
     my @abs_inc = grep { $_ =~ $abs_path_regex } $self->inc;
     my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
 
-    for my $fi ($self->all_fileinfos) {
-
-        # normalize eval sequence numbers in 'file' names to 0
-        $fi->[0] =~ s/$eval_regex/(${1}eval 0)/g;
-    }
 
     # normalize line data
     for my $level (qw(line block sub)) {
@@ -485,6 +484,7 @@ sub normalize_variables {
 
     # zero sub into and sub caller times
     $_->normalize_for_test for values %{ $self->{sub_subinfo} };
+    $_->normalize_for_test for $self->all_fileinfos;
 
     for my $info ($self->{sub_subinfo}) {
 
