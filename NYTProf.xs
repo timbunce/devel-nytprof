@@ -2736,6 +2736,17 @@ read_nv()
 }
 
 
+SV *
+normalize_eval_seqn(SV *sv) {
+    /* look for 'eval ' with instr()
+     * if present then check it's preceeded by '(' or '_' (for '(re_eval')
+     * and followed by one or more digits then ')'
+     * if so then edit sv inplace to replace 'eval <digits>' part with 'eval 0'
+     */
+    return sv;
+}
+
+
 static AV *
 lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
 {
@@ -3040,6 +3051,8 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int file_mtime    = read_int();
 
                 filename_sv = read_str(aTHX_ NULL);
+                if (eval_file_num)
+                    normalize_eval_seqn(filename_sv);
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3157,9 +3170,9 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int fid        = read_int();
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
-                SV *subname_sv = read_str(aTHX_ tmp_str_sv);
+                SV *subname_sv = normalize_eval_seqn(read_str(aTHX_ tmp_str_sv));
                 STRLEN subname_len;
-                char *subname_pv = SvPV(subname_sv, subname_len);
+                char *subname_pv;
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3176,10 +3189,13 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
+                subname_pv = SvPV(subname_sv, subname_len);
                 if (trace_level >= 2)
                     warn("Sub %s fid %u lines %u..%u\n",
                         subname_pv, fid, first_line, last_line);
                 av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
+                if (SvOK(*av_fetch(av, NYTP_SIi_FID, 1)))
+                    warn("Sub %s already defined!", subname_pv);
                 sv_setuv(*av_fetch(av, NYTP_SIi_FID,        1), fid);
                 sv_setuv(*av_fetch(av, NYTP_SIi_FIRST_LINE, 1), first_line);
                 sv_setuv(*av_fetch(av, NYTP_SIi_LAST_LINE,  1), last_line);
@@ -3215,7 +3231,7 @@ load_profile_data_from_stream(SV *cb)
                 NV scpu_time       = read_nv();
                 NV reci_time       = (file_minor >= 1) ? read_nv()  : 0;
                 UV rec_depth       = (file_minor >= 1) ? read_int() : 0;
-                subname_sv = read_str(aTHX_ tmp_str_sv);
+                subname_sv = normalize_eval_seqn(read_str(aTHX_ tmp_str_sv));
 
                 if (cb) {
                     PUSHMARK(SP);
