@@ -2104,29 +2104,42 @@ pp_entersub_profiler(pTHX)
             is_xs = 1;
         }
 
-        if (cv && CvGV(cv) && GvSTASH(CvGV(cv))) {
-            /* for a plain call of an imported sub the GV is of the current
-             * package, so we dig to find the original package
-             */
+        if (cv && CvGV(cv)) {
             GV *gv = CvGV(cv);
-            stash_name = HvNAME(GvSTASH(gv));
-            sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
+            /* Class::MOP can create CvGV where SvTYPE of GV is SVt_NULL */
+            if (SvTYPE(gv) == SVt_PVGV && GvSTASH(gv)) {
+                /* for a plain call of an imported sub the GV is of the current
+                * package, so we dig to find the original package
+                */
+                stash_name = HvNAME(GvSTASH(gv));
+                sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
+            }
+            else if (trace_level) {
+                warn("I'm confused about CV %p", cv);
+                /* looks like Class::MOP doesn't give the CV GV stash a name */
+                if (trace_level >= 2)
+                    sv_dump((SV*)cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP wierdo sub */
+            }
         }
-        else if (!SvOK(subname_sv)) {
 
-            if (!cv) { /* should never get here as pp_entersub would have croaked */
+        if (!SvOK(subname_sv)) {
+
+            if (!cv) {
+                /* should never get here as pp_entersub would have croaked */
                 const char *what = (is_xs) ? "xs" : "sub";
                 warn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
                 if (trace_level)
                     sv_dump(sub_sv);
                 sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
             }
-
-            /* unnamed CV, e.g. seen in mod_perl. XXX do better? */
-            sv_setpvn(subname_sv, "__ANON__", 8);
-            if (trace_level) {
-                warn("unknown entersub %s assumed to be anon cv '%s'", (is_xs) ? "xs" : "sub", SvPV_nolen(sub_sv));
-                sv_dump(sub_sv);
+            else {
+                /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
+                stash_name = HvNAME(CvSTASH(cv));
+                sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%x]", (stash_name)?stash_name:"__UNKNOWN__", cv);
+                if (trace_level) {
+                    warn("unknown entersub %s assumed to be anon cv '%s'", (is_xs) ? "xs" : "sub", SvPV_nolen(sub_sv));
+                    sv_dump(sub_sv);
+                }
             }
         }
         subname_pv = SvPV_nolen(subname_sv);
