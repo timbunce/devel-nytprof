@@ -10,7 +10,7 @@ attribute	ticks_per_sec	0
 attribute	total_stmts_discounted	0
 attribute	total_stmts_duration	0
 attribute	total_stmts_measured	0
-attribute	total_sub_calls	4
+attribute	total_sub_calls	2
 attribute	xs_version	0
 fid_block_time	1	17	[ 0 1 ]
 fid_block_time	1	18	[ 0 1 ]
@@ -24,13 +24,6 @@ fid_fileinfo	1	sub	main::BEGIN	16-16
 fid_fileinfo	1	call	17	AutoLoader::AUTOLOAD	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	1	call	18	AutoLoader::AUTOLOAD	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	2	[ AutoLoader.pm   2 2 0 0 0 ]
-fid_fileinfo	2	sub	AutoLoader::AUTOLOAD	21-52
-fid_fileinfo	2	sub	AutoLoader::BEGIN	186-186
-fid_fileinfo	2	sub	AutoLoader::__ANON__[/usr/local/perl589/lib/5.8.9/AutoLoader.pm:31]	31-31
-fid_fileinfo	2	sub	AutoLoader::find_filename	54-126
-fid_fileinfo	2	sub	AutoLoader::import	128-181
-fid_fileinfo	2	sub	AutoLoader::unimport	183-193
-fid_fileinfo	2	call	23	AutoLoader::find_filename	[ 2 0 0 0 0 0 0 ]
 fid_fileinfo	3	[ test14.pm   3 2 0 0 1 ]
 fid_fileinfo	3	sub	test14::BEGIN	2-2
 fid_fileinfo	3	sub	test14::bar	10-12

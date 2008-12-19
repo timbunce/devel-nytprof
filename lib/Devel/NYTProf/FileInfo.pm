@@ -170,7 +170,8 @@ sub normalize_for_test {
 
 
 sub dump {      
-    my ($self, $separator, $fh, $path, $prefix) = @_;
+    my ($self, $separator, $fh, $path, $prefix, $opts) = @_;
+
     my @values = @{$self}[
         NYTP_FIDi_FILENAME, NYTP_FIDi_EVAL_FID, NYTP_FIDi_EVAL_LINE, NYTP_FIDi_FID,
         NYTP_FIDi_FLAGS, NYTP_FIDi_FILESIZE, NYTP_FIDi_FILEMTIME
@@ -179,32 +180,34 @@ sub dump {
 
     # include count of number of string eval fids
     my $evals = $self->has_evals(0) || [];
-    push @values, scalar @$evals;
+    push @values, scalar @$evals; # XXX
 
     printf $fh "%s[ %s ]\n", $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
 
-    my $subs = $self->subs;
-    for my $subname (sort keys %$subs) {
-        my $si = $subs->{$subname};
+    if (not $opts->{skip_internal_details}) {
+        my $subs = $self->subs;
+        for my $subname (sort keys %$subs) {
+            my $si = $subs->{$subname};
 
-        printf $fh "%s%s%s%s%s%s-%s\n", 
-            $prefix, 'sub', $separator,
-            $si->subname(' and '),  $separator,
-            $si->first_line, $si->last_line;
-    }
+            printf $fh "%s%s%s%s%s%s-%s\n", 
+                $prefix, 'sub', $separator,
+                $si->subname(' and '),  $separator,
+                $si->first_line, $si->last_line;
+        }
 
-    # return a ref to a hash of { line => { subname => [...] }, ... }
-    my $sub_call_lines = $self->sub_call_lines;
-    for my $line (sort { $a <=> $b } keys %$sub_call_lines) {
-        my $subs_called = $sub_call_lines->{$line};
+        # { line => { subname => [...] }, ... }
+        my $sub_call_lines = $self->sub_call_lines;
+        for my $line (sort { $a <=> $b } keys %$sub_call_lines) {
+            my $subs_called = $sub_call_lines->{$line};
 
-        for my $subname (sort keys %$subs_called) {
-            my $sc = $subs_called->{$subname};
+            for my $subname (sort keys %$subs_called) {
+                my $sc = $subs_called->{$subname};
 
-            printf $fh "%s%s%s%s%s%s%s[ %s ]\n", 
-                $prefix, 'call', $separator,
-                $line,  $separator, $subname, $separator,
-                join(" ", map { defined($_) ? $_ : 'undef' } @$sc)
+                printf $fh "%s%s%s%s%s%s%s[ %s ]\n", 
+                    $prefix, 'call', $separator,
+                    $line,  $separator, $subname, $separator,
+                    join(" ", map { defined($_) ? $_ : 'undef' } @$sc)
+            }
         }
     }
 

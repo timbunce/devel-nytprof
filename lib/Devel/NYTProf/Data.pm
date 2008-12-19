@@ -316,20 +316,26 @@ sub dump_profile_data {
 
         if ($args->{skip_stdlib}) {
 
+            # for fid_fileinfo don't dump internal details of lib modules
+            if ($path->[0] eq 'fid_fileinfo' && @$path==2) {
+                my $is_lib = ($value->filename =~ $is_lib_regex) ? 1 : 0;
+                return { skip_internal_details => $is_lib };
+            }
+
             # skip sub_subinfo data for 'library modules'
             if ($path->[0] eq 'sub_subinfo' && @$path==2 && $value->[0]) {
                 my $fi = $self->fileinfo_of($value->[0]);
-                return 0 if $fi->filename =~ $is_lib_regex;
+                return undef if $fi->filename =~ $is_lib_regex;
             }
 
             # skip fid_*_time data for 'library modules'
             if ($path->[0] =~ /^fid_\w+_time$/ && @$path==2) {
                 my $fi = $self->fileinfo_of($path->[1]);
-                return 0 if $fi->filename =~ $is_lib_regex
+                return undef if $fi->filename =~ $is_lib_regex
                          or $fi->filename =~ m!^/\.\.\./!;
             }
         }
-        return 1;
+        return {};
     };
 
     _dump_elements($startnode, $separator, $filehandle, [], $callback);
@@ -360,23 +366,25 @@ sub _dump_elements {
     my $key1 = $path->[0] || $keys->[0];
     for my $key (@$keys) {
 
+        next if $key eq 'fid_srclines';
+
         my $value = ($is_hash) ? $r->{$key} : $r->[$key];
 
         # skip undef elements in array
         next if !defined($value) && !$is_hash;
 
-        next if $callback and not $callback->([ @$path, $key ], $value);
-
-        next if $key eq 'fid_srclines';
+        my $dump_opts = {};
+        if ($callback) {
+            $dump_opts = $callback->([ @$path, $key ], $value);
+            next if not $dump_opts;
+        }
 
         my $prefix = "$padN$key$colon";
 
         if (UNIVERSAL::can($value,'dump')) {
-            $value->dump($separator, $fh, [ @$path, $key ], $prefix);
+            $value->dump($separator, $fh, [ @$path, $key ], $prefix, $dump_opts);
         }
         else {
-            $value = $value->_values_for_dump
-                if blessed $value && $value->can('_values_for_dump');
 
             # special case some common cases to be more compact:
             #		fid_*_time   [fid][line] = [N,N]
