@@ -29,6 +29,8 @@ fid_fileinfo	1	sub	main::foo	1-5
 fid_fileinfo	1	call	11	main::foo	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	1	call	12	main::foo	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	1	call	13	main::bar	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	eval	2	[ 2 0 ]
+fid_fileinfo	1	eval	8	[ 3 0 ]
 fid_fileinfo	2	[ (eval 0)[test09.p:2] 1 2 2 2 0 0 0 ]
 fid_fileinfo	2	call	3	main::bar	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	3	[ (eval 0)[test09.p:8] 1 8 3 2 0 0 0 ]

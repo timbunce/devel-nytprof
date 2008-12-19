@@ -209,6 +209,24 @@ sub dump {
                     join(" ", map { defined($_) ? $_ : 'undef' } @$sc)
             }
         }
+
+        # string evals, group by the line the eval is on
+        my %eval_lines;
+        for my $eval_fi (@{ $self->has_evals(0) || [] }) {
+            push @{ $eval_lines{ $eval_fi->eval_line } }, $eval_fi;
+        }
+        for my $line (sort { $a <=> $b } keys %eval_lines) {
+            my $eval_fis = $eval_lines{$line};
+
+            my @has_evals = map { @{ $_->has_evals(1)||[] } } @$eval_fis;
+
+            printf $fh "%s%s%s%d%s[ %s %s ]\n", 
+                $prefix, 'eval', $separator,
+                $eval_fis->[0]->eval_line, $separator,
+                scalar @$eval_fis, # count of evals executed on this line
+                scalar @has_evals, # count of nested evals they executed
+        }
+
     }
 
 }   

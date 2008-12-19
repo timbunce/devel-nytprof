@@ -28,6 +28,7 @@ fid_fileinfo	3	[ test14.pm   3 2 0 0 1 ]
 fid_fileinfo	3	sub	test14::BEGIN	2-2
 fid_fileinfo	3	sub	test14::bar	10-12
 fid_fileinfo	3	sub	test14::foo	6-8
+fid_fileinfo	3	eval	11	[ 1 0 ]
 fid_fileinfo	4	[ (eval 0)[test14.pm (autosplit into auto/test14/bar.al):11] 3 11 4 2 0 0 0 ]
 fid_line_time	1	17	[ 0 1 ]
 fid_line_time	1	18	[ 0 1 ]
