@@ -352,3 +352,7 @@ used by the application being profiled, plus an absolute filename determined
 ASAP (to avoid problems with scripts that chdir).
 
 Add (very) basic nytprofhtml test (ie it runs and produces output) so we check the VERSION has been updated.
+
+Ponder setting PERLDBf_SAVESRC etc
+
+called by list: "by $subname line $line of $file" make the file not include the inc portion

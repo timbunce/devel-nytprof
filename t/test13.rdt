@@ -10,7 +10,7 @@ attribute	ticks_per_sec	0
 attribute	total_stmts_discounted	0
 attribute	total_stmts_duration	0
 attribute	total_stmts_measured	0
-attribute	total_sub_calls	5
+attribute	total_sub_calls	0
 attribute	xs_version	0
 fid_block_time	1	4	[ 0 3 ]
 fid_block_time	1	8	[ 0 1 ]
@@ -22,7 +22,7 @@ fid_block_time	1	19	1	1
 fid_block_time	1	19	2	1	[ 0 1 ]
 fid_block_time	1	20	[ 0 2 ]
 fid_block_time	1	21	[ 0 1 ]
-fid_fileinfo	1	[ test13.p   1 2 0 0 1 ]
+fid_fileinfo	1	[ test13.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::bar	7-9
 fid_fileinfo	1	sub	main::baz	11-17
 fid_fileinfo	1	sub	main::foo	3-5
@@ -31,7 +31,7 @@ fid_fileinfo	1	call	14	main::foo	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	1	call	20	main::bar	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	1	call	21	main::baz	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	1	eval	19	[ 1 0 ]
-fid_fileinfo	2	[ (eval 0)[test13.p:19] 1 19 2 2 0 0 0 ]
+fid_fileinfo	2	[ (eval 0)[test13.p:19] 1 19 2 2 0 0 ]
 fid_fileinfo	2	call	1	main::foo	[ 1 0 0 0 0 0 0 ]
 fid_line_time	1	4	[ 0 3 ]
 fid_line_time	1	8	[ 0 1 ]

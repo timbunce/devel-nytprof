@@ -178,10 +178,6 @@ sub dump {
     ];
     $values[0] = $self->filename_without_inc;
 
-    # include count of number of string eval fids
-    my $evals = $self->has_evals(0) || [];
-    push @values, scalar @$evals; # XXX
-
     printf $fh "%s[ %s ]\n", $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
 
     if (not $opts->{skip_internal_details}) {

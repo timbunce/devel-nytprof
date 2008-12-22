@@ -2135,7 +2135,8 @@ pp_entersub_profiler(pTHX)
             else {
                 /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
                 stash_name = HvNAME(CvSTASH(cv));
-                sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%x]", (stash_name)?stash_name:"__UNKNOWN__", cv);
+                sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%lx]",
+                    (stash_name)?stash_name:"__UNKNOWN__", (unsigned long)cv);
                 if (trace_level) {
                     warn("unknown entersub %s assumed to be anon cv '%s'", (is_xs) ? "xs" : "sub", SvPV_nolen(sub_sv));
                     sv_dump(sub_sv);

@@ -10,7 +10,7 @@ attribute	ticks_per_sec	0
 attribute	total_stmts_discounted	0
 attribute	total_stmts_duration	0
 attribute	total_stmts_measured	0
-attribute	total_sub_calls	6
+attribute	total_sub_calls	0
 attribute	xs_version	0
 fid_block_time	1	5	[ 0 2 ]
 fid_block_time	1	9	[ 0 2 ]
@@ -18,7 +18,7 @@ fid_block_time	1	13	[ 0 4 ]
 fid_block_time	1	19	[ 0 2 ]
 fid_block_time	1	22	[ 0 1 ]
 fid_block_time	1	23	[ 0 1 ]
-fid_fileinfo	1	[ test05.p   1 2 0 0 0 ]
+fid_fileinfo	1	[ test05.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::bar	12-17
 fid_fileinfo	1	sub	main::foo1	4-7
 fid_fileinfo	1	sub	main::foo2	8-11

@@ -469,6 +469,7 @@ sub normalize_variables {
         basetime xs_version perl_version clock_id ticks_per_sec nv_size
         profiler_duration profiler_end_time profiler_start_time
         total_stmts_duration total_stmts_measured total_stmts_discounted
+        total_sub_calls
     )) {
         $self->{attribute}{$attr} = 0;
     }

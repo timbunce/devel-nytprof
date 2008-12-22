@@ -10,12 +10,12 @@ attribute	ticks_per_sec	0
 attribute	total_stmts_discounted	0
 attribute	total_stmts_duration	0
 attribute	total_stmts_measured	0
-attribute	total_sub_calls	2
+attribute	total_sub_calls	0
 attribute	xs_version	0
 fid_block_time	1	1	[ 0 1 ]
 fid_block_time	1	2	[ 0 1 ]
 fid_block_time	1	5	[ 0 1 ]
-fid_fileinfo	1	[ test50-disable.p   1 2 0 0 0 ]
+fid_fileinfo	1	[ test50-disable.p   1 2 0 0 ]
 fid_fileinfo	1	call	4	DB::enable_profile	[ 1 0 0 0 0 0 0 ]
 fid_line_time	1	1	[ 0 1 ]
 fid_line_time	1	2	[ 0 1 ]
