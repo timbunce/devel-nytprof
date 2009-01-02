@@ -740,6 +740,20 @@ sub file_table {
     foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
         my $fi = $profile->fileinfo_of($filestats->{filename})
             or die "Can't find fileinfo for $filestats->{filename}";
+        my @extra;
+
+        my $has_evals = $fi->has_evals(1) || [];
+        #my $eval_stmts = 0;
+        if (@$has_evals) {
+            my $n_evals = scalar @$has_evals;
+            my $msg = sprintf "executed %d string eval%s", $n_evals, ($n_evals>1) ? "s" : "";
+            if (my @nested = grep { $_->eval_fid != $fi->fid } @$has_evals) {
+                $msg .= sprintf ": %d direct plus %d nested",
+                    $n_evals-@nested, scalar @nested;
+            }
+            push @extra, $msg;
+            #$eval_stmts += sum(map { $_->number_of_statements_executed } @$has_evals);
+        }
 
         print OUT qq{<tr class="index">};
 
@@ -763,8 +777,9 @@ sub file_table {
         } qw(line block sub);
         print OUT "<td>$rep_links</td>";
 
-        print OUT sprintf q{<td><a name="f%s" title="%s">%s</a></td>},
-            $fi->fid, $fi->abs_filename, $fi->filename_without_inc;
+        print OUT sprintf q{<td><a name="f%s" title="%s">%s</a> %s</td>},
+            $fi->fid, $fi->abs_filename, $fi->filename_without_inc,
+            (@extra) ? sprintf("(%s)", join ", ", @extra) : "";
         print OUT "</tr>\n";
     }
     print OUT "</tbody>\n";

@@ -14,6 +14,7 @@ use Devel::NYTProf::Constants qw(
     NYTP_SCi_INCL_UTIME NYTP_SCi_INCL_STIME NYTP_SCi_RECI_RTIME
 );
 
+
 sub filename  { shift->[NYTP_FIDi_FILENAME()] }
 sub eval_fid  { shift->[NYTP_FIDi_EVAL_FID()] }
 sub eval_line { shift->[NYTP_FIDi_EVAL_LINE()] }
@@ -71,6 +72,7 @@ sub excl_time { # total exclusive time for fid
     for (@$line_data) {
         next unless $_;
         $excl_time += $_->[0];
+        # XXX this old mechanism should be deprecated soon
         if (my $eval_lines = $_->[2]) {
             # line contains a string eval
             $excl_time += $_->[0] for values %$eval_lines;
@@ -78,6 +80,17 @@ sub excl_time { # total exclusive time for fid
     }
     return $excl_time;
 }
+
+
+sub number_of_statements_executed {
+    my ($self) = @_;
+    my $line_time_data = $self->line_time_data;
+    use Data::Dumper; warn Data::Dumper::Dumper($line_time_data);
+    my $stmts = 0;
+    $stmts += $_->[1]||0 for @$line_time_data;
+    return $stmts;
+}
+
 
 sub outer {
     my ($self, $recurse) = @_;
