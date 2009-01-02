@@ -81,8 +81,10 @@ sub merge_in {
     my $self = shift;
     my $new = shift;
 
-    $self->[NYTP_SIi_FIRST_LINE]  = min($self->[NYTP_SIi_FIRST_LINE], $new->[NYTP_SIi_FIRST_LINE]);
-    $self->[NYTP_SIi_LAST_LINE]   = max($self->[NYTP_SIi_LAST_LINE],  $new->[NYTP_SIi_LAST_LINE]);
+    $self->[NYTP_SIi_FIRST_LINE]  = min($self->[NYTP_SIi_FIRST_LINE], $new->[NYTP_SIi_FIRST_LINE])
+        if defined $new->[NYTP_SIi_FIRST_LINE];
+    $self->[NYTP_SIi_LAST_LINE]   = max($self->[NYTP_SIi_LAST_LINE],  $new->[NYTP_SIi_LAST_LINE])
+        if defined $new->[NYTP_SIi_LAST_LINE];
     $self->[NYTP_SIi_CALL_COUNT] += $new->[NYTP_SIi_CALL_COUNT];
     $self->[NYTP_SIi_INCL_RTIME] += $new->[NYTP_SIi_INCL_RTIME];
     $self->[NYTP_SIi_EXCL_RTIME] += $new->[NYTP_SIi_EXCL_RTIME];
