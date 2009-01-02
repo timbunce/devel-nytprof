@@ -34,6 +34,12 @@
 #ifndef OP_SETSTATE
 #define OP_SETSTATE OP_NEXTSTATE
 #endif
+#ifndef PERLDBf_SAVESRC
+#define PERLDBf_SAVESRC PERLDBf_SUBLINE
+#endif
+#ifndef PERLDBf_SAVESRC_NOSUBS
+#define PERLDBf_SAVESRC_NOSUBS 0
+#endif
 
 #if (PERL_VERSION < 8) || ((PERL_VERSION == 8) && (PERL_SUBVERSION < 8))
 /* If we're using DB::DB() instead of opcode redirection with an old perl
@@ -293,7 +299,7 @@ static unsigned int read_int(void);
 static SV *read_str(pTHX_ SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
 static void DB_stmt(pTHX_ OP *op);
-static void set_option(const char*, const char*);
+static void set_option(pTHX_ const char*, const char*);
 static int enable_profile(pTHX);
 static int disable_profile(pTHX);
 static void finish_profile(pTHX);
@@ -1758,7 +1764,7 @@ DB_leave(pTHX_ OP *op)
  * Sets or toggles the option specified by 'option'.
  */
 static void
-set_option(const char* option, const char* value)
+set_option(pTHX_ const char* option, const char* value)
 {
 
     if (strEQ(option, "file")) {
@@ -1785,6 +1791,10 @@ set_option(const char* option, const char* value)
         profile_opts = (atoi(value))
             ? profile_opts |  NYTP_OPTf_SAVESRC
             : profile_opts & ~NYTP_OPTf_SAVESRC;
+        if (profile_opts & NYTP_OPTf_SAVESRC) {
+            /* ask perl to keep the source lines so we can copy them */
+            PL_perldb |= PERLDBf_SAVESRC | PERLDBf_SAVESRC_NOSUBS;
+        }
     }
     else {
         struct NYTP_int_options_t *opt_p = options;
@@ -3644,6 +3654,8 @@ CODE:
 
 void
 set_option(const char *opt, const char *value)
+    C_ARGS:
+    aTHX, opt, value
 
 int
 init_profiler()
