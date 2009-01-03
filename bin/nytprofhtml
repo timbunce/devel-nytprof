@@ -297,47 +297,45 @@ sub package_tables {
             }
         }
 
+        my %pkg_summary;
+        while ( my ($pkg_name, $subinfos) = each %$pkgs_subinfos) {
+            my $pi = $pkg_summary{$pkg_name} ||= { pkg_name => $pkg_name };
+
+            # merge all sub infos into one pseudo-sub for package
+            my $sub;
+            for my $si (@$subinfos) {
+                ++$pi->{num_packages};
+                my $n = $si->subname;
+                ($sub) ? $sub->merge_in($si) : ($sub = $si->clone);
+            }
+            $pi->{merged_sub} = $sub;
+            $pi->{excl_time}  = $sub->excl_time;
+        }
+
+        my $dev_excl_time = calc_mad_from_hashes([values %pkg_summary], 'excl_time', 1);
+
         my $table_id = "pkg_table_$depth";
         $pkg_html .= qq{
             <table id="$table_id" border="1" cellpadding="0" class="tablesorter">
-            <caption>Packages - level $depth</caption>
+            <caption>Packages - subroutine times rolled up to level $depth package name</caption>
             <thead>
             <tr>
             <th>Exclusive<br />Time</th>
-            <th>Pkgs</th>
-            <th>Subs</th>
             <th>Package Name Prefix</th>
             </tr>
             </thead>
         };
-
-        #my $dev_excl_time  = calc_mad_from_objects(\@subs, 'excl_time',    1);
-            my $dev_excl_time = undef;
-
-        my @pkgs = sort keys %$pkgs_subinfos;
-
-        my @rows;
         $pkg_html .= "<tbody>\n";
-        for my $pkg_name (@pkgs) {
-            my $subinfos = $pkgs_subinfos->{$pkg_name};
-
-            my ($num_packages, $num_subs) = (0, 0);
-            my $sub;
-            for my $si (@$subinfos) {
-                ++$num_packages;
-                my $n = $si->subname;
-                $num_subs += (ref $n) ? @$n : 1;
-                ($sub) ? $sub->merge_in($si) : ($sub = $si->clone);
-            }
+        for my $pi (sort { $b->{excl_time} <=> $a->{excl_time} } values %pkg_summary) {
 
             $pkg_html .= "<tr>";
-            $pkg_html .= determine_severity($sub->excl_time    || 0, $dev_excl_time, 1,
-                sprintf("%.1f%%", $sub->excl_time/$profiler_duration*100)
+            $pkg_html .= determine_severity($pi->{excl_time}    || 0, $dev_excl_time, 1,
+                sprintf("%.1f%%", $pi->{excl_time}/$profiler_duration*100)
             );
-            $pkg_html .= determine_severity($num_packages      || 0, undef);
-            $pkg_html .= determine_severity($num_subs          || 0, undef);
             $pkg_html .= qq{<td class="sub_name">};
-            $pkg_html .= _escape_html($pkg_name);
+            my $name = $pi->{pkg_name};
+            $name .= " (includes $pi->{num_packages} packages)" if $pi->{num_packages} > 1;
+            $pkg_html .= _escape_html($name);
             $pkg_html .= qq{</td>};
             $pkg_html .= "</tr>\n";
         }
@@ -355,7 +353,12 @@ sub package_tables {
                 }
             });
         };
+
+        # no point in generating deeper levels if there isn't any more detail
+        # (e.g. A::B contains no subs just a single package A::B::C)
+        last if not grep { $_->{num_packages} > 1 } values %pkg_summary;
     }
+
     return $pkg_html;
 }
 
