@@ -24,7 +24,8 @@ Reporting:
   Dramatically increased performance of nytprofhtml
     relative to the 2.07 version.
 
-  Summary tables can be sorted by clicking on header columns.
+  Many tables in html reports are sortable by clicking on header columns
+    (requires JavaScript, uses jQuery and tablesorter.js)
 
   Statement timings are now shown as integers in appropriate
     units: seconds, milliseconds, microseconds or nanoseconds.

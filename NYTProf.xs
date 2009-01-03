@@ -2068,6 +2068,8 @@ pp_entersub_profiler(pTHX)
     sub_call_start_t sub_call_start;
 
     if (profile_subs && is_profiling) {
+        if (!profile_stmts)
+            reinit_if_forked(aTHX);
         get_time_of_day(sub_call_start.sub_call_time);
         sub_call_start.current_overhead_ticks = cumulative_overhead_ticks;
         sub_call_start.current_subr_secs = cumulative_subr_secs;
@@ -2075,9 +2077,9 @@ pp_entersub_profiler(pTHX)
 
     /*
      * for normal subs pp_entersub enters the sub
-     * and returns the first op *within* the sub (typically a dbstate).
+     * and returns the first op *within* the sub (typically a nextstate/dbstate).
      * for XS subs pp_entersub executes the entire sub
-     * and returning the op *after* the sub (PL_op->op_next)
+     * and returns the op *after* the sub (PL_op->op_next)
      */
     op = run_original_op(OP_ENTERSUB);            /* may croak */
 

@@ -344,10 +344,8 @@ sub package_tables {
             </table>
         };
 
-        # make table sortable if it contains all the subs
         push @on_ready_js, qq{
             \$("#$table_id").tablesorter({
-                sortList: [[0,1],[3,0]],
                 headers: {
                     0: { sorter: 'fmt_time' },
                 }
