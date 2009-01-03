@@ -93,6 +93,8 @@ t/test20-streval.x
 t/test21-streval3.p
 t/test21-streval3.rdt
 t/test21-streval3.x
+t/test22-strevala.p
+t/test22-strevala.rdt
 t/test30-fork.0.p
 t/test30-fork.0.rdt
 t/test30-fork.0.x
