@@ -414,15 +414,24 @@ See L</CLOCKS> for more information.
 
 =head1 RUN-TIME CONTROL OF PROFILING
 
-You can profile only parts of an application by calling DB::enable_profile()
-and DB::disable_profile() at the appropriate moments.
+You can profile only parts of an application by calling DB::disable_profile()
+to stop collecting profile data, and calling DB::enable_profile() to start
+collecting profile data.
 
-Using the C<start=no> option lets you leave the profiler disabled until the
-right moment, or circumstances, are reached.
+Using the C<start=no> option lets you leave the profiler disabled initially
+until you call DB::enable_profile() at the right moment.
 
 You can finish profiling completely by calling DB::finish_profile().
 This may be useful if perl is exiting abnormally, leaving the profile data file
 in an incomplete state,
+
+=head2 Multiple Output Files
+
+You can pass a filename argument to DB::enable_profile() to make NYTProf write
+future profile data to that file. The current output file, if any, is closed.
+Any existing file with the new name will be deleted before being written to.
+When combined with DB::disable_profile() this lets you profile individual
+sections of code.
 
 =head1 REPORTS
 

@@ -282,7 +282,7 @@ static unsigned int last_executed_fid;
 static        char *last_executed_fileptr;
 static unsigned int last_block_line;
 static unsigned int last_sub_line;
-static unsigned int is_profiling;
+static unsigned int is_profiling;       /* disable_profile() & enable_profile() */
 static Pid_t last_pid;
 static NV cumulative_overhead_ticks = 0.0;
 static NV cumulative_subr_secs = 0.0;
@@ -298,7 +298,7 @@ static void output_nv(NV nv);
 static unsigned int read_int(void);
 static SV *read_str(pTHX_ SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
-static void DB_stmt(pTHX_ OP *op);
+static void DB_stmt(pTHX_ COP *cop, OP *op);
 static void set_option(pTHX_ const char*, const char*);
 static int enable_profile(pTHX_ char *file);
 static int disable_profile(pTHX);
@@ -1606,13 +1606,12 @@ closest_cop(pTHX_ const COP *cop, const OP *o)
  * Main statement profiling function. Called before each breakable statement.
  */
 static void
-DB_stmt(pTHX_ OP *op)
+DB_stmt(pTHX_ COP *cop, OP *op)
 {
     int saved_errno;
     char *file;
     unsigned int elapsed;
     unsigned int overflow;
-    COP *cop;
 
     if (!is_profiling || !profile_stmts) {
         return;
@@ -1649,7 +1648,8 @@ DB_stmt(pTHX_ OP *op)
                 last_executed_line, elapsed, last_block_line, last_sub_line);
     }
 
-    cop = PL_curcop_nytprof;
+    if (!cop)
+        cop = PL_curcop_nytprof;
     if ( (last_executed_line = CopLINE(cop)) == 0 ) {
         /* Might be a cop that has been optimised away.  We can try to find such a
          * cop by searching through the optree starting from the sibling of PL_curcop.
@@ -1732,7 +1732,7 @@ DB_leave(pTHX_ OP *op)
      * (earlier than it would have been done)
      * and switch back to measuring the 'calling' statement
      */
-    DB_stmt(aTHX_ op);
+    DB_stmt(aTHX_ NULL, op);
 
     /* output a 'discount' marker to indicate the next statement time shouldn't
      * increment the count (because the time is not for a new statement but simply
@@ -2086,8 +2086,9 @@ pp_entersub_profiler(pTHX)
     dSP;
     SV *sub_sv = *SP;
     sub_call_start_t sub_call_start;
+    int profile_sub_call = (profile_subs && is_profiling);
 
-    if (profile_subs && is_profiling) {
+    if (profile_sub_call) {
         if (!profile_stmts)
             reinit_if_forked(aTHX);
         get_time_of_day(sub_call_start.sub_call_time);
@@ -2103,7 +2104,7 @@ pp_entersub_profiler(pTHX)
      */
     op = run_original_op(OP_ENTERSUB);            /* may croak */
 
-    if (profile_subs && is_profiling) {
+    if (profile_sub_call) {
         int saved_errno = errno;
 
         /* get line, file, and fid for statement *before* the call */
@@ -2273,7 +2274,7 @@ static OP *
 pp_stmt_profiler(pTHX)                            /* handles OP_DBSTATE, OP_SETSTATE, etc */
 {
     OP *op = run_original_op(PL_op->op_type);
-    DB_stmt(aTHX_ op);
+    DB_stmt(aTHX_ NULL, op);
     return op;
 }
 
@@ -2303,6 +2304,16 @@ enable_profile(pTHX_ char *file)
     /* enable the run-time aspects to profiling */
     int prev_is_profiling = is_profiling;
 
+    if (!out) {
+        warn("enable_profile: NYTProf not active");
+        return 0;
+    }
+
+    if (trace_level)
+        warn("NYTProf enable_profile (previously %s) to %s",
+            prev_is_profiling ? "enabled" : "disabled",
+            (file && *file) ? file : PROF_output_file);
+
     if (file && *file && strNE(file, PROF_output_file)) {
         /* caller wants output to go to a new file */
         close_output_file(aTHX);
@@ -2310,16 +2321,11 @@ enable_profile(pTHX_ char *file)
         open_output_file(aTHX_ PROF_output_file);
     }
 
-    if (!out) {
-        warn("enable_profile: NYTProf not active");
-        return 0;
-    }
-    if (trace_level)
-        warn("NYTProf enable_profile%s", (prev_is_profiling)?" (already enabled)":"");
-    is_profiling = 1;
-    last_executed_fileptr = NULL;
-    if (use_db_sub)
+    last_executed_fileptr = NULL;   /* discard cached OutCopFILE   */
+    is_profiling = 1;               /* enable NYTProf profilers    */
+    if (use_db_sub)                 /* set PL_DBsingle if required */
         sv_setiv(PL_DBsingle, 1);
+
     return prev_is_profiling;
 }
 
@@ -2336,7 +2342,8 @@ disable_profile(pTHX)
         is_profiling = 0;
     }
     if (trace_level)
-        warn("NYTProf disable_profile %d->%d", prev_is_profiling, is_profiling);
+        warn("NYTProf disable_profile (previously %s)",
+            prev_is_profiling ? "enabled" : "disabled");
     return prev_is_profiling;
 }
 
@@ -2352,7 +2359,7 @@ finish_profile(pTHX)
 
     /* write data for final statement, unless DB_leave has already */
     if (!profile_leave || use_db_sub)
-        DB_stmt(aTHX_ NULL);
+        DB_stmt(aTHX_ NULL, NULL);
 
     disable_profile(aTHX);
 
@@ -3699,7 +3706,7 @@ CODE:
     /* this sub gets aliased as "DB::DB" by NYTProf.pm if use_db_sub is true */
     PERL_UNUSED_VAR(items);
     if (use_db_sub)
-        DB_stmt(aTHX_ PL_op);
+        DB_stmt(aTHX_ NULL, PL_op);
     else if (1||trace_level)
         warn("DB called needlessly");
 
@@ -3717,6 +3724,13 @@ int
 enable_profile(char *file = NULL)
     C_ARGS:
     aTHX_ file
+    POSTCALL:
+    /* if profiler was previously disabled */
+    /* then arrange for the enable_profile call to be noted */
+    if (!RETVAL) {
+        DB_stmt(aTHX_ PL_curcop, PL_op);
+    }
+
 
 int
 disable_profile()

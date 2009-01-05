@@ -4,7 +4,7 @@
 0,1,0,1;
 0,1,0,DB::disable_profile();
 0,0,0,1;
-0,0,0,DB::enable_profile();
+0,1,0,DB::enable_profile();
 0,1,0,1;
 0,0,0,DB::disable_profile();
 0,0,0,1; # finish with profile disabled

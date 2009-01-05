@@ -109,6 +109,9 @@ t/test40pmc.x
 t/test50-disable.p
 t/test50-disable.rdt
 t/test50-disable.x
+t/test51-enable.p
+t/test51-enable.x
+t/test51-enable.rdt
 t/test60-subname.p
 t/test60-subname.rdt
 t/test61-submerge.p

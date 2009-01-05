@@ -759,12 +759,12 @@ sub file_table {
         print OUT qq{<tr class="index">};
 
         print OUT determine_severity($filestats->{'calls'},     undef, 0,
-            sprintf("%.1f%%", $filestats->{'calls'}/$allCalls*100)
+            ($allCalls) ? sprintf("%.1f%%", $filestats->{'calls'}/$allCalls*100) : ''
         );
         $t_stmt_exec += $filestats->{'calls'};
 
         print OUT determine_severity($filestats->{'time'},      $dev_time, 1,
-            sprintf("%.1f%%", $filestats->{'time'}/$allTimes*100)
+            ($allTimes) ? sprintf("%.1f%%", $filestats->{'time'}/$allTimes*100) : ''
         );
         $t_stmt_time += $filestats->{'time'};
 

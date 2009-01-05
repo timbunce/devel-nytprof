@@ -15,6 +15,9 @@ Core:
   Added savesrc=1 option to copy source code into the profile
     so reports are not affected by changes to the source files.
 
+  Added ability for DB::enable_profile() to specify a new file
+    for profile data to be written to.
+
 Reporting:
 
   Time spent within nested string evals is accounted for.
