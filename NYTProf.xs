@@ -2203,7 +2203,7 @@ pp_entersub_profiler(pTHX)
             sub_call_start.sub_av = av;
 
             if (stash_name) /* note that a sub in this package was called */
-                hv_fetch(pkg_fids_hv, stash_name, (I32)strlen(stash_name), 1);
+                (void)hv_fetch(pkg_fids_hv, stash_name, (I32)strlen(stash_name), 1);
         }
         else {
             sub_call_start.sub_av = (AV *)SvRV(sv_tmp);
@@ -2231,6 +2231,7 @@ pp_entersub_profiler(pTHX)
             }
             else {
                 /* copy struct to save stack (very efficient) */
+                /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
                 I32 save_ix = SSNEWa(sizeof(sub_call_start), MEM_ALIGNBYTES);
                 Copy(&sub_call_start, SSPTR(save_ix, sub_call_start_t *), 1, sub_call_start_t);
                 /* defer acculumating time spent until we leave the sub */
@@ -3694,7 +3695,7 @@ CODE:
 void
 set_option(const char *opt, const char *value)
     C_ARGS:
-    aTHX, opt, value
+    aTHX_ opt, value
 
 int
 init_profiler()
