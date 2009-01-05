@@ -120,7 +120,7 @@ for my $leave (@test_opt_leave) {
 
 sub run_all_tests {
     my ($env) = @_;
-    print "# Running tests with options: { @{[ %$env ]} }\n";
+    warn "# Running tests with options: { @{[ %$env ]} }\n";
     for my $test (@tests) {
         run_test($test, $env);
     }
