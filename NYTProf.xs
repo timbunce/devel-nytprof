@@ -300,7 +300,7 @@ static SV *read_str(pTHX_ SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
 static void DB_stmt(pTHX_ OP *op);
 static void set_option(pTHX_ const char*, const char*);
-static int enable_profile(pTHX);
+static int enable_profile(pTHX_ char *file);
 static int disable_profile(pTHX);
 static void finish_profile(pTHX);
 static void open_output_file(pTHX_ char *);
@@ -1862,11 +1862,31 @@ open_output_file(pTHX_ char *filename)
 }
 
 
+static void
+close_output_file(pTHX) {
+    if (!out)
+        return;
+
+    write_sub_line_ranges(aTHX);
+    write_sub_callers(aTHX);
+    /* mark end of profile data for last_pid pid
+     * which is the pid that this file relates to
+     */
+    output_tag_int(NYTP_TAG_PID_END, last_pid);
+    output_nv(gettimeofday_nv());
+
+    if (-1 == NYTP_close(out, 0))
+        warn("Error closing profile data file: %s", strerror(errno));
+    out = NULL;
+}
+
+
 static int
 reinit_if_forked(pTHX)
 {
     if (getpid() == last_pid)
         return 0;                                 /* not forked */
+
     /* we're now the child process */
     if (trace_level >= 1)
         warn("New pid %d (was %d)\n", getpid(), last_pid);
@@ -2277,15 +2297,19 @@ pp_exit_profiler(pTHX)                            /* handles OP_EXIT, OP_EXEC, e
 }
 
 
-/************************************
- * Shared Reader,NYTProf Functions  *
- ************************************/
-
 static int
-enable_profile(pTHX)
+enable_profile(pTHX_ char *file)
 {
     /* enable the run-time aspects to profiling */
     int prev_is_profiling = is_profiling;
+
+    if (file && *file && strNE(file, PROF_output_file)) {
+        /* caller wants output to go to a new file */
+        close_output_file(aTHX);
+        strncpy(PROF_output_file, file, sizeof(PROF_output_file)-1);
+        open_output_file(aTHX_ PROF_output_file);
+    }
+
     if (!out) {
         warn("enable_profile: NYTProf not active");
         return 0;
@@ -2332,20 +2356,7 @@ finish_profile(pTHX)
 
     disable_profile(aTHX);
 
-    if (out) {
-        write_sub_line_ranges(aTHX);
-        write_sub_callers(aTHX);
-
-        /* mark end of profile data for last_pid pid
-         * (which is the pid that relates to the out filehandle)
-         */
-        output_tag_int(NYTP_TAG_PID_END, last_pid);
-        output_nv(gettimeofday_nv());
-
-        if (-1 == NYTP_close(out, 0))
-            warn("Error closing profile data file: %s", strerror(errno));
-        out = NULL;
-    }
+    close_output_file(aTHX);
 
     SETERRNO(saved_errno, 0);
 }
@@ -2460,7 +2471,7 @@ init_profiler(pTHX)
     if (!PL_initav)  PL_initav  = newAV();
     if (!PL_endav)   PL_endav   = newAV();
     if (profile_start == NYTP_START_BEGIN) {
-        enable_profile(aTHX);
+        enable_profile(aTHX_ NULL);
     }
     /* else handled by _INIT */
     /* defer some init until INIT phase */
@@ -3703,9 +3714,9 @@ init_profiler()
     aTHX
 
 int
-enable_profile()
+enable_profile(char *file = NULL)
     C_ARGS:
-    aTHX
+    aTHX_ file
 
 int
 disable_profile()
@@ -3726,7 +3737,7 @@ void
 _INIT()
     CODE:
     if (profile_start == NYTP_START_INIT)  {
-        enable_profile(aTHX);
+        enable_profile(aTHX_ NULL);
     }
     else if (profile_start == NYTP_START_END) {
         SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
