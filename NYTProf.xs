@@ -1249,10 +1249,11 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             }
         }
     }
-    else if (trace_level >= 4) {
+    else        /* didn't insert a new entry */
+    if (trace_level >= 4) {
         if (found)
-            warn("fid %d: %.*s\n",   found->id, found->key_len, found->key);
-        else warn("fid %d: %.*s NOT FOUND\n", 0,  entry.key_len,  entry.key);
+             warn("fid %d: %.*s\n",  found->id, found->key_len, found->key);
+        else warn("fid -: %.*s HAS NO FID\n", 0, entry.key_len,  entry.key);
     }
 
     return (found) ? found->id : 0;
@@ -2845,12 +2846,9 @@ lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
          * 1: start_line - may be undef if not known and not known to be xs
          * 2: end_line - ditto
          */
-        /* call count */
-        sv_setuv(*av_fetch(av, 3, 1), 0);
-        /* incl_time */
-        sv_setnv(*av_fetch(av, 4, 1), 0);
-        /* excl_time */
-        sv_setnv(*av_fetch(av, 5, 1), 0);
+        sv_setuv(*av_fetch(av, NYTP_SIi_CALL_COUNT, 1), 0);
+        sv_setnv(*av_fetch(av, NYTP_SIi_INCL_RTIME, 1), 0);
+        sv_setnv(*av_fetch(av, NYTP_SIi_EXCL_RTIME, 1), 0);
         sv_setsv(sv, rv);
     }
     return (AV *)SvRV(sv);
@@ -3384,8 +3382,8 @@ load_profile_data_from_stream(SV *cb)
                 }
                 else {                            /* is meta-data about sub */
                     /* line == 0: is_xs - set line range to 0,0 as marker */
-                    sv_setiv(*av_fetch(subinfo_av, 1, 1), 0);
-                    sv_setiv(*av_fetch(subinfo_av, 2, 1), 0);
+                    sv_setiv(*av_fetch(subinfo_av, NYTP_SIi_FIRST_LINE, 1), 0);
+                    sv_setiv(*av_fetch(subinfo_av, NYTP_SIi_LAST_LINE,  1), 0);
                 }
 
                 /* accumulate per-sub totals into subinfo */
