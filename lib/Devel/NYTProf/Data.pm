@@ -122,7 +122,12 @@ sub new {
     }
     $profile->_clear_caches;
 
-    #warn _dumper($profile);
+    # a hack for testing/debugging
+    if (my $env = $ENV{NYTPROF_ONLOAD}) {
+        my %onload = map { split /=/, $_, 2 } split /:/, $env, -1;
+        warn _dumper($profile) if $onload{dump};
+        exit $onload{exit}     if defined $onload{exit};
+    }
 
     return $profile;
 }
@@ -823,6 +828,8 @@ sub package_fids {
 
 sub _dumper {
     require Data::Dumper;
+    local $Data::Dumper::Sortkeys = 1;
+    local $Data::Dumper::Indent = 1;
     return Data::Dumper::Dumper(@_);
 }
 
