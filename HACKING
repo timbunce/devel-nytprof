@@ -124,10 +124,6 @@ Then we can test things like not having the sub line range for some subs.
 
 *** For core only
 
-Add way for program being profiled to switch output to a new profile file.
-Perhaps via enable_profile($optional_new_filename)
-See http://search.cpan.org/dist/Devel-Profile/ for use case.
-
 Store raw NYTPROF option string in the data file. 
 Include parsed version in report index page.
 
