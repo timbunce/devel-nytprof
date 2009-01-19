@@ -2791,8 +2791,6 @@ normalize_eval_seqn(pTHX_ SV *sv) {
     char *src = start;
     char *dst = start;
 
-    return sv;  /* XXX currently disabled */
-
     if (len < 5)
         return sv;
 
@@ -3274,18 +3272,28 @@ load_profile_data_from_stream(SV *cb)
                     warn("Sub %s fid %u lines %u..%u\n",
                         subname_pv, fid, first_line, last_line);
                 av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
-                if (SvOK(*av_fetch(av, NYTP_SIi_FID, 1)))
-                    warn("Sub %s already defined!", subname_pv);
-                sv_setuv(*av_fetch(av, NYTP_SIi_FID,        1), fid);
-                sv_setuv(*av_fetch(av, NYTP_SIi_FIRST_LINE, 1), first_line);
-                sv_setuv(*av_fetch(av, NYTP_SIi_LAST_LINE,  1), last_line);
-                sv_setuv(*av_fetch(av, NYTP_SIi_CALL_COUNT, 1),   0); /* call count */
-                sv_setnv(*av_fetch(av, NYTP_SIi_INCL_RTIME, 1), 0.0); /* incl_time */
-                sv_setnv(*av_fetch(av, NYTP_SIi_EXCL_RTIME, 1), 0.0); /* excl_time */
-                sv_setsv(*av_fetch(av, NYTP_SIi_SUB_NAME,   1), subname_sv);
-                sv_setsv(*av_fetch(av, NYTP_SIi_PROFILE,    1), &PL_sv_undef); /* ref to profile */
-                sv_setuv(*av_fetch(av, NYTP_SIi_REC_DEPTH,  1),   0); /* rec_depth */
-                sv_setnv(*av_fetch(av, NYTP_SIi_RECI_RTIME, 1), 0.0); /* reci_time */
+                if (SvOK(*av_fetch(av, NYTP_SIi_FID, 1))) {
+                    /* should only happen for anon subs in string evals */
+                    /* so we warn for other cases */
+                    if (!instr(subname_pv, "__ANON__[(eval"))
+                        warn("Sub %s already defined!", subname_pv);
+                    /* XXX we simply discard fid etc here,
+                     * though the fileinfo NYTP_FIDi_SUBS_DEFINED hash does get
+                     * an entry for the sub from each fid (ie eval) that defines it
+                     */
+                }
+                else {
+                    sv_setuv(*av_fetch(av, NYTP_SIi_FID,        1), fid);
+                    sv_setuv(*av_fetch(av, NYTP_SIi_FIRST_LINE, 1), first_line);
+                    sv_setuv(*av_fetch(av, NYTP_SIi_LAST_LINE,  1), last_line);
+                    sv_setuv(*av_fetch(av, NYTP_SIi_CALL_COUNT, 1),   0); /* call count */
+                    sv_setnv(*av_fetch(av, NYTP_SIi_INCL_RTIME, 1), 0.0); /* incl_time */
+                    sv_setnv(*av_fetch(av, NYTP_SIi_EXCL_RTIME, 1), 0.0); /* excl_time */
+                    sv_setsv(*av_fetch(av, NYTP_SIi_SUB_NAME,   1), subname_sv);
+                    sv_setsv(*av_fetch(av, NYTP_SIi_PROFILE,    1), &PL_sv_undef); /* ref to profile */
+                    sv_setuv(*av_fetch(av, NYTP_SIi_REC_DEPTH,  1),   0); /* rec_depth */
+                    sv_setnv(*av_fetch(av, NYTP_SIi_RECI_RTIME, 1), 0.0); /* reci_time */
+                }
 
                 /* add sub to NYTP_FIDi_SUBS_DEFINED hash */
                 sv = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
@@ -3353,22 +3361,31 @@ load_profile_data_from_stream(SV *cb)
 
                 if (fid) {
                     SV *fi;
+                    AV *av;
                     len = sprintf(text, "%u", line);
 
                     sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newAV()));
-                    else /* XXX the code below should accumulate instead of set values */
-                        warn("sub caller info for %s %d:%d already exists!",
+                    else if (!instr(SvPV_nolen(subname_sv), "__ANON__[(eval") || trace_level)
+                        warn("Merging extra sub caller info for %s %d:%d",
                             SvPV_nolen(subname_sv), fid, line);
-                    sv = SvRV(sv);
-                    sv_setuv(*av_fetch((AV *)sv, NYTP_SCi_CALL_COUNT, 1), count);
-                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_RTIME, 1), incl_time);
-                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_EXCL_RTIME, 1), excl_time);
-                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_UTIME, 1), ucpu_time);
-                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_INCL_STIME, 1), scpu_time);
-                    sv_setnv(*av_fetch((AV *)sv, NYTP_SCi_RECI_RTIME, 1), reci_time);
-                    sv_setuv(*av_fetch((AV *)sv, NYTP_SCi_REC_DEPTH,  1), rec_depth);
+                    av = (AV *)SvRV(sv);
+                    sv = *av_fetch(av, NYTP_SCi_CALL_COUNT, 1);
+                    sv_setuv(sv, (SvOK(sv)) ? SvUV(sv) + count : count);
+                    sv = *av_fetch(av, NYTP_SCi_INCL_RTIME, 1);
+                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + incl_time : incl_time);
+                    sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
+                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + excl_time : excl_time);
+                    sv = *av_fetch(av, NYTP_SCi_INCL_UTIME, 1);
+                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + ucpu_time : ucpu_time);
+                    sv = *av_fetch(av, NYTP_SCi_INCL_STIME, 1);
+                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + scpu_time : scpu_time);
+                    sv = *av_fetch(av, NYTP_SCi_RECI_RTIME, 1);
+                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + scpu_time : reci_time);
+                    sv = *av_fetch(av, NYTP_SCi_REC_DEPTH,  1);
+                    if (!SvOK(sv) || SvUV(sv) < rec_depth) /* max() */
+                        sv_setuv(sv, rec_depth);
 
                     /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
                     /* => { line => { subname => [ ... ] } } */
@@ -3378,7 +3395,7 @@ load_profile_data_from_stream(SV *cb)
                     if (!SvROK(fi))               /* autoviv */
                         sv_setsv(fi, newRV_noinc((SV*)newHV()));
                     fi = HeVAL(hv_fetch_ent((HV *)SvRV(fi), subname_sv, 1, 0));
-                    sv_setsv(fi, newRV(sv));
+                    sv_setsv(fi, newRV((SV *)av));
                 }
                 else {                            /* is meta-data about sub */
                     /* line == 0: is_xs - set line range to 0,0 as marker */

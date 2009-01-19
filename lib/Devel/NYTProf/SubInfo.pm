@@ -81,6 +81,8 @@ sub merge_in {
     my $self = shift;
     my $new = shift;
 
+    # see also "case NYTP_TAG_SUB_CALLERS:" in load_profile_data_from_stream()
+
     $self->[NYTP_SIi_FIRST_LINE]  = min($self->[NYTP_SIi_FIRST_LINE], $new->[NYTP_SIi_FIRST_LINE])
         if defined $new->[NYTP_SIi_FIRST_LINE];
     $self->[NYTP_SIi_LAST_LINE]   = max($self->[NYTP_SIi_LAST_LINE],  $new->[NYTP_SIi_LAST_LINE])
@@ -91,8 +93,9 @@ sub merge_in {
     $self->[NYTP_SIi_SUB_NAME]    = [ $self->[NYTP_SIi_SUB_NAME] ]
         if not ref $self->[NYTP_SIi_SUB_NAME];
     push @{$self->[NYTP_SIi_SUB_NAME]}, $new->[NYTP_SIi_SUB_NAME];
-    $self->[NYTP_SIi_REC_DEPTH]   = max($self->[NYTP_SIi_REC_DEPTH],  $new->[NYTP_SIi_REC_DEPTH]);
-    $self->[NYTP_SIi_RECI_RTIME]  = max($self->[NYTP_SIi_RECI_RTIME], $new->[NYTP_SIi_RECI_RTIME]); # ug, plausible
+    $self->[NYTP_SIi_REC_DEPTH]   = max($self->[NYTP_SIi_REC_DEPTH], $new->[NYTP_SIi_REC_DEPTH]);
+    # adding reci_rtime is correct only if one sub doesn't call the other
+    $self->[NYTP_SIi_RECI_RTIME] += $new->[NYTP_SIi_RECI_RTIME]; # XXX
 
     # { fid => { line => [ count, incl_time ] } }
     my $dst_called_by = $self->[NYTP_SIi_CALLED_BY] ||= {};

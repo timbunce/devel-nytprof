@@ -18,7 +18,7 @@ fid_block_time	1	1	2	1	[ 0 1 ]
 fid_block_time	1	1	2	2	[ 0 1 ]
 fid_block_time	1	2	[ 0 1 ]
 fid_fileinfo	1	[ test10.p   1 2 0 0 ]
-fid_fileinfo	1	call	2	main::__ANON__[(eval 1)[test10.p:1]:1]	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	2	main::__ANON__[(eval 0)[test10.p:1]:1]	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	1	eval	1	[ 1 0 ]
 fid_fileinfo	2	[ (eval 0)[test10.p:1] 1 1 2 2 0 0 ]
 fid_fileinfo	2	sub	main::__ANON__[(eval 0)[test10.p:1]:1]	1-1
