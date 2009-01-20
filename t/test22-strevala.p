@@ -1,6 +1,6 @@
 # test merging of anon subs from evals
 
-my $code = 'sub { 1 }';
+my $code = 'sub { print "sub called\n" }';
 
 # call once from particular line
 eval($code)->();
