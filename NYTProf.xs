@@ -1253,7 +1253,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     if (trace_level >= 4) {
         if (found)
              warn("fid %d: %.*s\n",  found->id, found->key_len, found->key);
-        else warn("fid -: %.*s HAS NO FID\n", 0, entry.key_len,  entry.key);
+        else warn("fid -: %.*s HAS NO FID\n",    entry.key_len,  entry.key);
     }
 
     return (found) ? found->id : 0;
@@ -1796,6 +1796,9 @@ set_option(pTHX_ const char* option, const char* value)
             /* ask perl to keep the source lines so we can copy them */
             PL_perldb |= PERLDBf_SAVESRC | PERLDBf_SAVESRC_NOSUBS;
         }
+    }
+    else if (strEQ(option, "zero")) {
+        profile_zero = atoi(value);
     }
     else {
         struct NYTP_int_options_t *opt_p = options;
@@ -2844,9 +2847,13 @@ lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
          * 1: start_line - may be undef if not known and not known to be xs
          * 2: end_line - ditto
          */
-        sv_setuv(*av_fetch(av, NYTP_SIi_CALL_COUNT, 1), 0);
-        sv_setnv(*av_fetch(av, NYTP_SIi_INCL_RTIME, 1), 0);
-        sv_setnv(*av_fetch(av, NYTP_SIi_EXCL_RTIME, 1), 0);
+        sv_setsv(*av_fetch(av, NYTP_SIi_SUB_NAME,   1), newSVsv(subname_sv));
+        sv_setuv(*av_fetch(av, NYTP_SIi_CALL_COUNT, 1),   0); /* call count */
+        sv_setnv(*av_fetch(av, NYTP_SIi_INCL_RTIME, 1), 0.0); /* incl_time */
+        sv_setnv(*av_fetch(av, NYTP_SIi_EXCL_RTIME, 1), 0.0); /* excl_time */
+        sv_setsv(*av_fetch(av, NYTP_SIi_PROFILE,    1), &PL_sv_undef); /* ref to profile */
+        sv_setuv(*av_fetch(av, NYTP_SIi_REC_DEPTH,  1),   0); /* rec_depth */
+        sv_setnv(*av_fetch(av, NYTP_SIi_RECI_RTIME, 1), 0.0); /* reci_time */
         sv_setsv(sv, rv);
     }
     return (AV *)SvRV(sv);
@@ -3248,6 +3255,7 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int fid        = read_int();
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
+                int skip_subinfo_store = 0;
                 SV *subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str_sv));
                 STRLEN subname_len;
                 char *subname_pv;
@@ -3271,28 +3279,32 @@ load_profile_data_from_stream(SV *cb)
                 if (trace_level >= 2)
                     warn("Sub %s fid %u lines %u..%u\n",
                         subname_pv, fid, first_line, last_line);
+
                 av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
                 if (SvOK(*av_fetch(av, NYTP_SIi_FID, 1))) {
-                    /* should only happen for anon subs in string evals */
-                    /* so we warn for other cases */
+                    /* We've already seen this subroutine name.
+                     * Should only happen for anon subs in string evals so we warn
+                     * for other cases.
+                     */
                     if (!instr(subname_pv, "__ANON__[(eval"))
                         warn("Sub %s already defined!", subname_pv);
-                    /* XXX we simply discard fid etc here,
-                     * though the fileinfo NYTP_FIDi_SUBS_DEFINED hash does get
-                     * an entry for the sub from each fid (ie eval) that defines it
+
+                    /* We could always discard the fid+first_line+last_line here,
+                     * because we already have them stored, but for consistency
+                     * (and for the stability of the tests) we'll prefer the lowest fid
+                     */
+                    if (fid > SvUV(*av_fetch(av, NYTP_SIi_FID, 1)))
+                        skip_subinfo_store = 1;
+
+                    /* Finally, note that the fileinfo NYTP_FIDi_SUBS_DEFINED hash,
+                     * updated below, does get an entry for the sub *from each fid*
+                     * (ie string eval) that defines the subroutine.
                      */
                 }
-                else {
+                if (!skip_subinfo_store) {
                     sv_setuv(*av_fetch(av, NYTP_SIi_FID,        1), fid);
                     sv_setuv(*av_fetch(av, NYTP_SIi_FIRST_LINE, 1), first_line);
                     sv_setuv(*av_fetch(av, NYTP_SIi_LAST_LINE,  1), last_line);
-                    sv_setuv(*av_fetch(av, NYTP_SIi_CALL_COUNT, 1),   0); /* call count */
-                    sv_setnv(*av_fetch(av, NYTP_SIi_INCL_RTIME, 1), 0.0); /* incl_time */
-                    sv_setnv(*av_fetch(av, NYTP_SIi_EXCL_RTIME, 1), 0.0); /* excl_time */
-                    sv_setsv(*av_fetch(av, NYTP_SIi_SUB_NAME,   1), subname_sv);
-                    sv_setsv(*av_fetch(av, NYTP_SIi_PROFILE,    1), &PL_sv_undef); /* ref to profile */
-                    sv_setuv(*av_fetch(av, NYTP_SIi_REC_DEPTH,  1),   0); /* rec_depth */
-                    sv_setnv(*av_fetch(av, NYTP_SIi_RECI_RTIME, 1), 0.0); /* reci_time */
                 }
 
                 /* add sub to NYTP_FIDi_SUBS_DEFINED hash */
