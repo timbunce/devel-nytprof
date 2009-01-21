@@ -6,9 +6,9 @@ my $code = 'sub { print "sub called\n" }';
 eval($code)->();
 
 # call twice from the same line
-eval($code)->() for (1,2);
+eval($code)->(); eval($code)->();
 
 # called from inside a string eval
 eval q{
-    eval($code)->() for (1,2);
+    eval($code)->(); eval($code)->();
 };
