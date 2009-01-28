@@ -3416,21 +3416,17 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 /* accumulate per-sub totals into subinfo */
-                /* sub call count */
-                sv = *av_fetch(subinfo_av, 3, 1);
+                sv = *av_fetch(subinfo_av, NYTP_SIi_CALL_COUNT, 1);
                 sv_setuv(sv, count     + (SvOK(sv) ? SvUV(sv) : 0));
-                /* sub incl_time */
-                sv = *av_fetch(subinfo_av, 4, 1);
+                sv = *av_fetch(subinfo_av, NYTP_SIi_INCL_RTIME, 1);
                 sv_setnv(sv, incl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
-                /* sub excl_time */
-                sv = *av_fetch(subinfo_av, 5, 1);
+                sv = *av_fetch(subinfo_av, NYTP_SIi_EXCL_RTIME, 1);
                 sv_setnv(sv, excl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
                 /* sub rec_depth - record the maximum */
-                sv = *av_fetch(subinfo_av, 8, 1);
+                sv = *av_fetch(subinfo_av, NYTP_SIi_REC_DEPTH, 1);
                 if (!SvOK(sv) || rec_depth > SvUV(sv))
                     sv_setuv(sv, rec_depth);
-                /* sub reci_time */
-                sv = *av_fetch(subinfo_av, 9, 1);
+                sv = *av_fetch(subinfo_av, NYTP_SIi_RECI_RTIME, 1);
                 sv_setnv(sv, reci_time + (SvOK(sv) ? SvNV(sv) : 0.0));
 
                 total_sub_calls += count;

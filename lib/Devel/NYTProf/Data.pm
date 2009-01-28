@@ -92,34 +92,6 @@ sub new {
     (my $sub_class = $class) =~ s/\w+$/SubInfo/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
-    # XXX merge evals - should become a method optionally called here
-    # (which uses other methods to do the work and those methods
-    # should also be called by Devel::NYTProf::SubInfo::callers())
-    while (my ($subname, $subinfo) = each %$sub_subinfo) {
-
-        # add subname into sub_subinfo
-        $subinfo->[6] = $subname; # XXX breaks encapsulation
-        if ($subname =~ s/(::__ANON__\[\(\w*eval) \d+\)/$1 0)/) {
-
-            # sub names like "PPI::Node::__ANON__[(eval 286)[PPI/Node.pm:642]:4]"
-            # aren't very useful, so we merge them by changing the eval to 0
-            my $oldname = $subinfo->subname; 
-            delete $sub_subinfo->{$oldname};    # delete old name
-            if (my $newinfo = $sub_subinfo->{$subname}) {
-                $newinfo->merge_in($subinfo);
-                warn "merged sub_info $oldname into $subname\n" if $trace;
-            }
-            else {
-                # is first to change, so just move ref to new name
-                $sub_subinfo->{$subname} = $subinfo;
-                $subinfo->[6] = $subname; # XXX breaks encapsulation
-                warn "renamed sub_info $oldname into $subname\n" if $trace;
-            }
-
-            # XXX update fid_fileinfo NYTP_FIDi_SUBS_DEFINED
-            # XXX update fid_fileinfo NYTP_FIDi_SUBS_CALLED
-        }
-    }
     $profile->_clear_caches;
 
     # a hack for testing/debugging
@@ -479,8 +451,6 @@ sub normalize_variables {
         $self->{attribute}{$attr} = 0;
     }
 
-    my $eval_regex = qr/ \( ((?:re_)?) eval \s \d+ \) /x;
-
     my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
     my @abs_inc = grep { $_ =~ $abs_path_regex } $self->inc;
     my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
@@ -499,19 +469,6 @@ sub normalize_variables {
     # zero sub into and sub caller times
     $_->normalize_for_test for values %{ $self->{sub_subinfo} };
     $_->normalize_for_test for $self->all_fileinfos;
-
-    for my $info ($self->{sub_subinfo}) {
-
-        # normalize eval sequence numbers in sub names to 0
-        for my $subname (keys %$info) {
-            (my $newname = $subname) =~ s/$eval_regex/(${1}eval 0)/g;
-            next if $newname eq $subname;
-
-            # XXX should merge instead
-            warn "Normalizing evals discarded previous $newname info" if $info->{$newname};
-            $info->{$newname} = delete $info->{$subname};
-        }
-    }
 
     return;
 }
