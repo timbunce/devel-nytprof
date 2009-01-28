@@ -33,6 +33,8 @@ use constant MP2 => (exists $ENV{MOD_PERL_API_VERSION} && $ENV{MOD_PERL_API_VERS
     ? 1
     : 0;
 
+# https://rt.cpan.org/Ticket/Display.html?id=42862
+die "Threads not supported" if $^O eq 'MSWin32';
 
 sub child_init {
     DB::enable_profile() unless $ENV{NYTPROF} =~ m/\b start = (?: no | end ) \b/x;
@@ -116,6 +118,11 @@ command line.
       PerlModule Devel::NYTProf::Apache
   </IfDefine>
 
+
+=head1 LIMITATIONS
+
+Profiling mod_perl on Windows is not supported because NYTProf currently
+doesn't support threads.
 
 =head1 SEE ALSO
 
