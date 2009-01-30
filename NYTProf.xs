@@ -1714,8 +1714,8 @@ static void
 DB_leave(pTHX_ OP *op)
 {
     int saved_errno = errno;
-    int prev_last_executed_fid  = last_executed_fid;
-    int prev_last_executed_line = last_executed_line;
+    unsigned int prev_last_executed_fid  = last_executed_fid;
+    unsigned int prev_last_executed_line = last_executed_line;
     const unsigned char tag = NYTP_TAG_DISCOUNT;
 
     /* Called _after_ ops that indicate we've completed a statement
