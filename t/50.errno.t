@@ -1,4 +1,4 @@
-use Test::More tests => 4;
+use Test::More tests => 5;
 
 my $nytprof_out;
 BEGIN {
@@ -19,9 +19,12 @@ my $size1 = -s $nytprof_out;
 ok $size1, "$nytprof_out should be non-empty";
 
 $! = 9999;
-example_xsub();
 example_sub();
-is 0+$!, 9999, '$! should not be altered by assigning fids to previously unprofiled modules';
+is 0+$!, 9999, "\$! should not be altered by assigning fids to previously unprofiled modules ($!)";
+
+$! = 9999;
+example_xsub();
+is 0+$!, 9999, "\$! should not be altered by assigning fids to previously unprofiled modules ($!)";
 
 $! = 9999;
 while (-s $nytprof_out == $size1) {

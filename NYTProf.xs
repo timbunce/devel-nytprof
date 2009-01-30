@@ -1947,10 +1947,11 @@ typedef struct sub_call_start_st
 static void
 incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
 {
+    int saved_errno = errno;
     AV *av = sub_call_start->sub_av;
     SV *subname_sv = sub_call_start->subname_sv;
-    SV *incl_time_sv = *av_fetch(av, 1, 1);
-    SV *excl_time_sv = *av_fetch(av, 2, 1);
+    SV *incl_time_sv = *av_fetch(av, NYTP_SCi_INCL_RTIME, 1);
+    SV *excl_time_sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
     /* statement overheads we've accumulated since we entered the sub */
     NV overhead_ticks = (int)(cumulative_overhead_ticks - sub_call_start->current_overhead_ticks);
     /* seconds spent in subroutines called by this subroutine */
@@ -2004,6 +2005,7 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     sv_free(sub_call_start->subname_sv);
 
     cumulative_subr_secs += excl_subr_sec;
+    SETERRNO(saved_errno, 0);
 }
 
 
@@ -2093,11 +2095,13 @@ pp_entersub_profiler(pTHX)
     int profile_sub_call = (profile_subs && is_profiling);
 
     if (profile_sub_call) {
+        int saved_errno = errno;
         if (!profile_stmts)
             reinit_if_forked(aTHX);
         get_time_of_day(sub_call_start.sub_call_time);
         sub_call_start.current_overhead_ticks = cumulative_overhead_ticks;
         sub_call_start.current_subr_secs = cumulative_subr_secs;
+        SETERRNO(saved_errno, 0);
     }
 
     /*
@@ -2700,7 +2704,7 @@ write_sub_callers(pTHX)
             AV *av = (AV *)SvRV(sv);
 
             unsigned int fid = 0, line = 0;
-            sscanf(fid_line_string, "%u:%u", &fid, &line);
+            (void)sscanf(fid_line_string, "%u:%u", &fid, &line);
 
             output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
             output_int(line);
