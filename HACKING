@@ -98,7 +98,7 @@ TODO (unsorted, unprioritized, unconsidered, even unreasonable and daft :)
 Refactor the subs in t/20.runtests.t into a library of subs in a
 t/lib/NYTProfTest.pm module. We should aim to be able to write new tests as
 traditional t/*.t files that use NYTProfTest and call the subs to do the work.
-This will free us from the consraints imposed by the current harness.
+This will free us from the constraints imposed by the current harness.
 Specifically there's no way to directly test the data model methods.
 Once refactored we'd be able to simply add
 	is $profile->foo, bar, 'foo should be bar';
