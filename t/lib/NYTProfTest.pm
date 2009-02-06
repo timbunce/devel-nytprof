@@ -16,6 +16,11 @@ use Devel::NYTProf::Reader;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 
 
+my $profile_datafile = 'nytprof_t.out';     # non-default to test override works
+
+my $tests_per_extn = {p => 1, rdt => 1, x => 3};
+
+
 my %opts = (
     profperlopts => '-d:NYTProf',
     html         => $ENV{NYTPROF_TEST_HTML},
@@ -23,14 +28,8 @@ my %opts = (
 GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i/)
     or exit 1;
 
-$opts{v} ||= $opts{d};
+$opts{v}    ||= $opts{d};
 $opts{html} ||= $opts{open};
-
-my $opt_perl         = $opts{p};
-my $opt_include      = $opts{I};
-my $opt_leave        = $opts{leave};
-my $opt_use_db_sub   = $opts{use_db_sub};
-my $profile_datafile = 'nytprof_t.out';     # non-default to test override works
 
 # note some env vars that might impact the tests
 $ENV{$_} && warn "$_=$ENV{$_}\n" for qw(PERL5DB PERL5OPT PERL_UNICODE PERLIO);
@@ -48,9 +47,6 @@ $NYTPROF_TEST{file} = $profile_datafile;
 
 chdir('t') if -d 't';
 
-my $tests_per_extn = {p => 1, rdt => 1, x => 3};
-
-my $path_sep = $Config{path_sep} || ':';
 if (-d '../blib') {
     unshift @INC, '../blib/arch', '../blib/lib';
 }
@@ -58,14 +54,15 @@ my $bindir      = (grep {-d} qw(./bin ../bin))[0];
 my $nytprofcsv  = "$bindir/nytprofcsv";
 my $nytprofhtml = "$bindir/nytprofhtml";
 
-my $perl5lib = $opt_include || join($path_sep, @INC);
-my $perl     = $opt_perl    || $^X;
+my $path_sep = $Config{path_sep} || ':';
+my $perl5lib = $opts{I} || join($path_sep, @INC);
+my $perl     = $opts{p} || $^X;
 
 # turn ./perl into ../perl, because of chdir(t) above.
 $perl = ".$perl" if $perl =~ m|^\./|;
 
-my @test_opt_leave      = (defined $opt_leave)      ? ($opt_leave)      : (1, 0);
-my @test_opt_use_db_sub = (defined $opt_use_db_sub) ? ($opt_use_db_sub) : (0, 1);
+my @test_opt_leave      = (defined $opts{leave})      ? ($opts{leave})      : (1, 0);
+my @test_opt_use_db_sub = (defined $opts{use_db_sub}) ? ($opts{use_db_sub}) : (0, 1);
 
 # build @env_combinations
 my @env_combinations;
@@ -81,19 +78,21 @@ for my $leave (@test_opt_leave) {
 
 
 sub run_test_group {
-    my ($group) = @_;
+    my ($test_count, $test_code) = @_;
 
-    unless ($group) {
-        # obtain group from file name
-        my $file = (caller)[1];
-        if ($file =~ /([^\/\\]+)\.t$/) {
-            $group = $1;
-        } else {
-            croak "Can't determine test group";
-        }
+    # no warnings "undefined value";
+    $test_count ||= 0;
+    $test_count = 0 unless $test_code;
+
+    # obtain group from file name
+    my $group;
+    if ((caller)[1] =~ /([^\/\\]+)\.t$/) {
+        $group = $1;
+    } else {
+        croak "Can't determine test group";
     }
 
-    my @tests = grep { -f $_ } map { join('.', $group, $_) } keys %$tests_per_extn;
+    my @tests = grep { -f $_ } map { join('.', $group, $_) } sort keys %$tests_per_extn;
 
     if ($opts{v}) {
         print "tests: @tests\n";
@@ -102,6 +101,10 @@ sub run_test_group {
         print "nytprofcvs: $nytprofcsv\n";
     }
 
+    my $tests_per_env = number_of_tests(@tests) + $test_count;
+
+    plan tests => 1 + $tests_per_env * @env_combinations;
+
     # Windows emulates the executable bit based on file extension only
     ok($^O eq "MSWin32" ? -f $nytprofcsv : -x $nytprofcsv, "Found nytprofcsv as $nytprofcsv");
 
@@ -109,11 +112,22 @@ sub run_test_group {
         for my $test (@tests) {
             run_test_with_env($test, $env);
         }
+
+        if ($test_code) {
+            my $profile = eval { Devel::NYTProf::Data->new({filename => $profile_datafile}) };
+            if ($@) {
+                diag($@);
+                fail("extra tests group '$group'") foreach (1 .. $test_count);
+                return;
+            }
+
+            $test_code->($profile, $env);
+        }
     }
 }
 
 sub run_test_with_env {
-    my ($test, $env) = @_;
+    my ($test, $env, $test_code) = @_;
 
     my %env = (%$env, %NYTPROF_TEST);
     local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} sort keys %env;

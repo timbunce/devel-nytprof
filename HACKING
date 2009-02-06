@@ -55,6 +55,24 @@ Writing tests is easy!
    time with a .x suffix: t/test##-description.x
    You still need to verify the .x.new file of course!
 
+4) Create a test script like this:
+
+     use strict;
+     use Test::More;
+     use lib qw(t/lib);
+     use NYTProfTest;
+
+     run_test_group;
+
+   You can add additional tests as parameters to run_test_group:
+
+     run_test_group(2 => sub {
+         my ($profile, $env) = @_;
+         is $profile->foo, 'bar', "...";
+         is $profile->baz, 'bax', "...";
+     });
+
+
 Note:  While writing a test, it is helpful to be able to run it directly, 
 without the test harness.  This allows you to view more output stdout and 
 stderr.  Fortunately, its easy to do:
@@ -94,15 +112,6 @@ TODO (unsorted, unprioritized, unconsidered, even unreasonable and daft :)
 ----
 
 *** For build/test
-
-Refactor the subs in t/20.runtests.t into a library of subs in a
-t/lib/NYTProfTest.pm module. We should aim to be able to write new tests as
-traditional t/*.t files that use NYTProfTest and call the subs to do the work.
-This will free us from the constraints imposed by the current harness.
-Specifically there's no way to directly test the data model methods.
-Once refactored we'd be able to simply add
-	is $profile->foo, bar, 'foo should be bar';
-to the .t file.
 
 Add (very) basic nytprofhtml test (ie it runs and produces output)
 
