@@ -26,7 +26,7 @@ use Devel::NYTProf::Util qw(
     html_safe_filename
 );
 
-our $VERSION = 2.07;
+our $VERSION = 2.08;
 
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";

@@ -4,7 +4,7 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
-=head2 Changes in Devel::NYTProf 2.08
+=head2 Changes in Devel::NYTProf 2.08 (svn r685) 15th Feb 2009
 
 Core:
 

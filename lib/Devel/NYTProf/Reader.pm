@@ -11,7 +11,7 @@
 ###########################################################
 package Devel::NYTProf::Reader;
 
-our $VERSION = '2.07';
+our $VERSION = '2.08';
 
 use warnings;
 use strict;
