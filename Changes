@@ -4,6 +4,11 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
+=head2 Changes in Devel::NYTProf 2.09 (svn rXXX)
+
+  Fixed report filename generation to remove colons,
+    reported by Adam Kennedy in rt bug #43798.
+
 =head2 Changes in Devel::NYTProf 2.08 (svn r685) 15th Feb 2009
 
 Core:
@@ -35,6 +40,8 @@ Reporting:
 
   Hovering over times in subroutine or file summary tables
     now shows the percentage time.
+
+  Added tables showing timings rolled up per package name depth.
 
   Improved HTML conformance thanks to Leland Johnson.
 
