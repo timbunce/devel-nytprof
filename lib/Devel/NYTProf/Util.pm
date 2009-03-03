@@ -216,8 +216,12 @@ sub calculate_median_absolute_deviation {
 
 sub html_safe_filename {
     my ($fname) = @_;
-    $fname =~ s{ ^[/\\] }{}x;                      # remove leading / or \
-    $fname =~ s{  [/\\] }{-}xg;                    # replace / and \ with html safe -
+    # replace / and \ with html safe '-', we also do a bunch of other
+    # chars, especially ':' for Windows, to make the namer simpler and safer
+    $fname =~ s{  [-/\\:\*\?"'<>|]+ }{-}xg;
+    # remove any leading or trailing '-' chars
+    $fname =~ s{^-}{};
+    $fname =~ s{-$}{};
     return $fname;
 }
 

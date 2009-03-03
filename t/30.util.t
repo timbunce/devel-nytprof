@@ -1,6 +1,9 @@
-use Test::More tests => 20;
+use Test::More tests => 25;
 
-use Devel::NYTProf::Util qw(fmt_time fmt_incl_excl_time);
+use Devel::NYTProf::Util qw(
+    fmt_time fmt_incl_excl_time
+    html_safe_filename
+);
 
 my $us = "&micro;s";
 
@@ -27,3 +30,9 @@ is(fmt_incl_excl_time(3, 2.997), "3.00s (3.00+3.00ms)");
 is(fmt_incl_excl_time(0.1, 0.0997), "100ms (99.7+300$us)");
 is(fmt_incl_excl_time(1.1e-5, 3.5e-6), "11$us (4+8)");
 
+is html_safe_filename('/foo/bar'), 'foo-bar';
+is html_safe_filename('\foo\bar'), 'foo-bar';
+is html_safe_filename('\foo/bar'), 'foo-bar';
+is html_safe_filename('C:foo'), 'C-foo';
+is html_safe_filename('C:\foo'), 'C-foo';
+is html_safe_filename('<lots>of|\'really\'special*"chars"?'), 'lots-of-really-special-chars';
