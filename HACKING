@@ -357,3 +357,7 @@ Add caller sub name (via $profile->subname_at_file_line($fid, $line)) to sub
 caller info so report_src_line() doesn't have to do the expensive lookup.
 It's also a useful step on the road to the profiler storing the calling sub's
 name when generating the profile.
+
+Monitor and report when method cache is invalidated. Watch generation number
+and output a tag when it changes. Report locations of changes. Highlight those
+that happen after INIT phase.
