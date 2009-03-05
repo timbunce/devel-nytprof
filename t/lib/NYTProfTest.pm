@@ -13,7 +13,7 @@ use base qw(Exporter);
 our @EXPORT = qw(run_test_group);
 
 use Devel::NYTProf::Reader;
-use Devel::NYTProf::Util qw(strip_prefix_from_paths);
+use Devel::NYTProf::Util qw(strip_prefix_from_paths html_safe_filename);
 
 
 my $profile_datafile = 'nytprof_t.out';     # non-default to test override works
@@ -259,6 +259,7 @@ sub verify_csv_report {
     # foo.pm => foo.pm.csv is tested by foo.pm.x
     $csvfile =~ s/\.x//;
     $csvfile .= ".p" unless $csvfile =~ /\.p/;
+    $csvfile = html_safe_filename($csvfile);
     $csvfile = "$outdir/${csvfile}-line.csv";
     unlink $csvfile;
 
