@@ -1,4 +1,4 @@
-use Test::More tests => 25;
+use Test::More tests => 26;
 
 use Devel::NYTProf::Util qw(
     fmt_time fmt_incl_excl_time
