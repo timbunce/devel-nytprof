@@ -1114,6 +1114,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 {
 
     Hash_entry entry, *found;
+    AV *src_av = Nullav;
 
     /* AutoLoader adds some information to Perl's internal file name that we have
        to remove or else the file path will be borked */
@@ -1126,137 +1127,136 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     entry.key_len = (unsigned int)file_name_len;
 
     /* inserted new entry */
-    if (1 == hash_op(entry, &found, (bool)(created_via ? 1 : 0))) {
-        AV *src_av = Nullav;
-
-        /* if this is a synthetic filename for an 'eval'
-         * ie "(eval 42)[/some/filename.pl:line]"
-         * then ensure we've already generated an id for the underlying
-         * filename
-         */
-        if ('(' == file_name[0] && ']' == file_name[file_name_len-1]) {
-            char *start = strchr(file_name, '[');
-            const char *colon = ":";
-            /* can't use strchr here (not nul terminated) so use rninstr */
-            char *end = rninstr(file_name, file_name+file_name_len-1, colon, colon+1);
-
-            if (!start || !end || start > end) {    /* should never happen */
-                warn("NYTProf unsupported filename syntax '%s'", file_name);
-                return 0;
-            }
-            ++start;                              /* move past [ */
-            /* recurse */
-            found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
-            found->eval_line_num = atoi(end+1);
+    if (1 != hash_op(entry, &found, (bool)(created_via ? 1 : 0))) {
+        if (trace_level >= 4) {
+            if (found)
+                 warn("fid %d: %.*s\n",  found->id, found->key_len, found->key);
+            else warn("fid -: %.*s HAS NO FID\n",    entry.key_len,  entry.key);
         }
-
-        /* determine absolute path if file_name is relative */
-        found->key_abs = NULL;
-        if (!found->eval_fid &&
-            !(file_name_len==1 && strEQ(file_name,"-" )) &&
-            !(file_name_len==2 && strEQ(file_name,"-e")) &&
-#ifdef WIN32
-            /* XXX should we check for UNC names too? */
-            (file_name_len < 3 || !isALPHA(file_name[0]) || file_name[1] != ':' ||
-             (file_name[2] != '/' && file_name[2] != '\\'))
-#else
-            *file_name != '/'
-#endif
-           )
-        {
-            char file_name_abs[MAXPATHLEN * 2];
-            /* Note that the current directory may have changed
-             * between loading the file and profiling it.
-             * We don't use realpath() or similar here because we want to
-             * keep the view of symlinks etc. as the program saw them.
-             */
-            if (!getcwd(file_name_abs, sizeof(file_name_abs))) {
-                /* eg permission */
-                warn("getcwd: %s\n", strerror(errno));
-            }
-            else {
-#ifdef WIN32
-                char *p = file_name_abs;
-                while (*p) {
-                    if ('\\' == *p)
-                        *p = '/';
-                    ++p;
-                }
-                if (p[-1] != '/')
-#else
-                if (strNE(file_name_abs, "/"))
-#endif
-                {
-                    if (strnEQ(file_name, "./", 2))
-                        ++file_name;
-                    else
-                        strcat(file_name_abs, "/");
-                }
-                strncat(file_name_abs, file_name, file_name_len);
-                found->key_abs = strdup(file_name_abs);
-            }
-        }
-
-        if (fid_is_pmc(aTHX_ found))
-            found->fid_flags |= NYTP_FIDf_IS_PMC;
-        found->fid_flags |= created_via; /* NYTP_FIDf_VIA_STMT or NYTP_FIDf_VIA_SUB */
-
-        emit_fid(found);
-
-        /* if it's a string eval or a synthetic filename from CODE ref in @INC,
-         * or the command line -e '...code...'
-         * then think about writing out the source code */
-        if (found->eval_fid
-        || (found->key_len > 10 && found->key[9] == 'x' && strnEQ(found->key, "/loader/0x", 10))
-        || (found->key_len == 1 && strnEQ(found->key, "-",  1))
-        || (found->key_len == 2 && strnEQ(found->key, "-e", 2))
-        || (profile_opts & NYTP_OPTf_SAVESRC)
-        ) {
-            /* source only available if PERLDB_LINE or PERLDB_SAVESRC is true */
-            src_av = GvAV(gv_fetchfile(found->key));
-            if (!src_av && trace_level >= 3)
-                warn("No source available for fid %d%s\n",
-                    found->id, use_db_sub ? "" : ", set use_db_sub=1 option");
-        }
-
-        if (trace_level >= 2) {
-            /* including last_executed_fid can be handy for tracking down how
-             * a file got loaded */
-            warn("New fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s%s\n",
-                found->id, last_executed_fid, last_executed_line,
-                found->fid_flags, found->eval_fid, found->eval_line_num,
-                found->key_len, found->key, (found->key_abs) ? found->key_abs : "",
-                src_av ? ", with src" : ""
-            );
-        }
-
-        if (src_av) {
-            I32 lines = av_len(src_av);
-            int line;
-            if (trace_level >= 4)
-                warn("fid %d has %ld src lines", found->id, (long)lines+1);
-            for (line = 1; line <= lines; ++line) { /* lines start at 1 */
-                SV **svp = av_fetch(src_av, line, 0);
-                STRLEN len = 0;
-                char *src = (svp) ? SvPV(*svp, len) : "";
-                /* outputting the tag and fid for each (non empty) line
-                 * is a little inefficient, but not enough to worry about */
-                output_tag_int(NYTP_TAG_SRC_LINE, found->id);
-                output_int(line);
-                output_str(src, (I32)len);    /* includes newline */
-                if (trace_level >= 5)
-                    warn("fid %d src line %d: %s", found->id, line, src);
-            }
-        }
-    }
-    else        /* didn't insert a new entry */
-    if (trace_level >= 4) {
-        if (found)
-             warn("fid %d: %.*s\n",  found->id, found->key_len, found->key);
-        else warn("fid -: %.*s HAS NO FID\n",    entry.key_len,  entry.key);
+        return (found) ? found->id : 0;
     }
 
-    return (found) ? found->id : 0;
+    /* if this is a synthetic filename for an 'eval'
+        * ie "(eval 42)[/some/filename.pl:line]"
+        * then ensure we've already generated an id for the underlying
+        * filename
+        */
+    if ('(' == file_name[0] && ']' == file_name[file_name_len-1]) {
+        char *start = strchr(file_name, '[');
+        const char *colon = ":";
+        /* can't use strchr here (not nul terminated) so use rninstr */
+        char *end = rninstr(file_name, file_name+file_name_len-1, colon, colon+1);
+
+        if (!start || !end || start > end) {    /* should never happen */
+            warn("NYTProf unsupported filename syntax '%s'", file_name);
+            return 0;
+        }
+        ++start;                              /* move past [ */
+        /* recurse */
+        found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
+        found->eval_line_num = atoi(end+1);
+    }
+
+    /* determine absolute path if file_name is relative */
+    found->key_abs = NULL;
+    if (!found->eval_fid &&
+        !(file_name_len==1 && strEQ(file_name,"-" )) &&
+        !(file_name_len==2 && strEQ(file_name,"-e")) &&
+#ifdef WIN32
+        /* XXX should we check for UNC names too? */
+        (file_name_len < 3 || !isALPHA(file_name[0]) || file_name[1] != ':' ||
+            (file_name[2] != '/' && file_name[2] != '\\'))
+#else
+        *file_name != '/'
+#endif
+        )
+    {
+        char file_name_abs[MAXPATHLEN * 2];
+        /* Note that the current directory may have changed
+            * between loading the file and profiling it.
+            * We don't use realpath() or similar here because we want to
+            * keep the view of symlinks etc. as the program saw them.
+            */
+        if (!getcwd(file_name_abs, sizeof(file_name_abs))) {
+            /* eg permission */
+            warn("getcwd: %s\n", strerror(errno));
+        }
+        else {
+#ifdef WIN32
+            char *p = file_name_abs;
+            while (*p) {
+                if ('\\' == *p)
+                    *p = '/';
+                ++p;
+            }
+            if (p[-1] != '/')
+#else
+            if (strNE(file_name_abs, "/"))
+#endif
+            {
+                if (strnEQ(file_name, "./", 2))
+                    ++file_name;
+                else
+                    strcat(file_name_abs, "/");
+            }
+            strncat(file_name_abs, file_name, file_name_len);
+            found->key_abs = strdup(file_name_abs);
+        }
+    }
+
+    if (fid_is_pmc(aTHX_ found))
+        found->fid_flags |= NYTP_FIDf_IS_PMC;
+    found->fid_flags |= created_via; /* NYTP_FIDf_VIA_STMT or NYTP_FIDf_VIA_SUB */
+
+    emit_fid(found);
+
+    /* if it's a string eval or a synthetic filename from CODE ref in @INC,
+        * or the command line -e '...code...'
+        * then think about writing out the source code */
+    if (found->eval_fid
+    || (found->key_len > 10 && found->key[9] == 'x' && strnEQ(found->key, "/loader/0x", 10))
+    || (found->key_len == 1 && strnEQ(found->key, "-",  1))
+    || (found->key_len == 2 && strnEQ(found->key, "-e", 2))
+    || (profile_opts & NYTP_OPTf_SAVESRC)
+    ) {
+        /* source only available if PERLDB_LINE or PERLDB_SAVESRC is true */
+        src_av = GvAV(gv_fetchfile(found->key));
+        if (!src_av && trace_level >= 3)
+            warn("No source available for fid %d%s\n",
+                found->id, use_db_sub ? "" : ", set use_db_sub=1 option");
+    }
+
+    if (trace_level >= 2) {
+        /* including last_executed_fid can be handy for tracking down how
+            * a file got loaded */
+        warn("New fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s%s\n",
+            found->id, last_executed_fid, last_executed_line,
+            found->fid_flags, found->eval_fid, found->eval_line_num,
+            found->key_len, found->key, (found->key_abs) ? found->key_abs : "",
+            src_av ? ", with src" : ""
+        );
+    }
+
+    if (src_av) {
+        I32 lines = av_len(src_av);
+        int line;
+        if (trace_level >= 4)
+            warn("fid %d has %ld src lines", found->id, (long)lines+1);
+        for (line = 1; line <= lines; ++line) { /* lines start at 1 */
+            SV **svp = av_fetch(src_av, line, 0);
+            STRLEN len = 0;
+            char *src = (svp) ? SvPV(*svp, len) : "";
+            /* outputting the tag and fid for each (non empty) line
+                * is a little inefficient, but not enough to worry about */
+            output_tag_int(NYTP_TAG_SRC_LINE, found->id);
+            output_int(line);
+            output_str(src, (I32)len);    /* includes newline */
+            if (trace_level >= 5)
+                warn("fid %d src line %d: %s", found->id, line, src);
+        }
+    }
+
+    return found->id;
 }
 
 
