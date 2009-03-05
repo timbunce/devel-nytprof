@@ -1438,7 +1438,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
         }
         o = o->op_next;
     }
-    if (trace_level >= 1) {
+    if (trace_level >= 3) {
         warn("\tstart_cop_of_context: can't find next cop for %s line %ld\n",
             block_type[CxTYPE(cx)], (long)CopLINE(PL_curcop_nytprof));
         do_op_dump(1, PerlIO_stderr(), start_op);

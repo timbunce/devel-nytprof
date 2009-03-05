@@ -1,4 +1,4 @@
-use Test::More tests => 26;
+use Test::More tests => 27;
 
 use Devel::NYTProf::Util qw(
     fmt_time fmt_incl_excl_time
@@ -36,3 +36,4 @@ is html_safe_filename('\foo/bar'), 'foo-bar';
 is html_safe_filename('C:foo'), 'C-foo';
 is html_safe_filename('C:\foo'), 'C-foo';
 is html_safe_filename('<lots>of|\'really\'special*"chars"?'), 'lots-of-really-special-chars';
+is html_safe_filename('no.dots.please'), 'no-dots-please';
