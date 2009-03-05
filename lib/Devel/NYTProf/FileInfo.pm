@@ -127,6 +127,9 @@ sub abs_filename {
 
     my $filename = $self->filename;
 
+    # strip of autosplit annotation, if any
+    $filename =~ s/ \(autosplit into .*//;
+
     # if it's a .pmc then assume that's the file we want to look at
     # (because the main use for .pmc's are related to perl6)
     $filename .= "c" if $self->is_pmc;

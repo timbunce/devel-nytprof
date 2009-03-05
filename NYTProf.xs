@@ -76,6 +76,7 @@
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
 #define NYTP_FIDf_VIA_SUB        0x0004 /* fid first seen by sub profiler */
+#define NYTP_FIDf_IS_AUTOSPLIT   0x0008 /* fid is cone of the 'parent' fid it was autosplit from */
 
 #define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
 #define NYTP_TAG_COMMENT         '#'    /* till newline */
@@ -134,6 +135,8 @@
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
 
+static int next_fid = 1;         /* 0 is reserved */
+
 typedef struct hash_entry
 {
     unsigned int id;
@@ -147,6 +150,7 @@ typedef struct hash_entry
     unsigned int fid_flags;
     char *key_abs;
     void* next_inserted;                          /* linked list in insertion order */
+    /* update autosplit logic in get_file_id if fields are added or changed */
 } Hash_entry;
 
 typedef struct hash_table
@@ -955,7 +959,6 @@ hash (char* _str, unsigned int len)
 static char
 hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
 {
-    static int next_fid = 1;                      /* 0 is reserved */
     unsigned long h = hash(entry.key, entry.key_len) % hashtable.size;
 
     Hash_entry* found = hashtable.table[h];
@@ -1093,9 +1096,17 @@ write_cached_fids()
 {
     Hash_entry *e = hashtable.first_inserted;
     while (e) {
-        emit_fid(e);
+        if ( !(e->fid_flags & NYTP_FIDf_IS_AUTOSPLIT) )
+            emit_fid(e);
         e = (Hash_entry *)e->next_inserted;
     }
+}
+
+
+static Hash_entry *
+find_autosplit_parent(pTHX_ char* file_name)
+{
+    return NULL;
 }
 
 
@@ -1113,16 +1124,9 @@ static unsigned int
 get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 {
 
-    Hash_entry entry, *found;
+    Hash_entry entry, *found, *parent_entry;
     AV *src_av = Nullav;
 
-    /* AutoLoader adds some information to Perl's internal file name that we have
-       to remove or else the file path will be borked */
-    if (')' == file_name[file_name_len - 1]) {
-        char* new_end = strstr(file_name, " (autosplit ");
-        if (new_end)
-            file_name_len = new_end - file_name;
-    }
     entry.key = file_name;
     entry.key_len = (unsigned int)file_name_len;
 
@@ -1137,10 +1141,10 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     }
 
     /* if this is a synthetic filename for an 'eval'
-        * ie "(eval 42)[/some/filename.pl:line]"
-        * then ensure we've already generated an id for the underlying
-        * filename
-        */
+     * ie "(eval 42)[/some/filename.pl:line]"
+     * then ensure we've already generated an id for the underlying
+     * filename
+     */
     if ('(' == file_name[0] && ']' == file_name[file_name_len-1]) {
         char *start = strchr(file_name, '[');
         const char *colon = ":";
@@ -1155,6 +1159,39 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         /* recurse */
         found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
         found->eval_line_num = atoi(end+1);
+    }
+
+    /* if the file is an autosplit, with a file_name like
+     * "../../lib/POSIX.pm (autosplit into ../../lib/auto/POSIX/errno.al)"
+     * then we want it to have the same fid as the file it was split from.
+     * Thankfully that file will almost certainly be in the fid hash,
+     * so we can find it and copy the details.
+     * We do this after the string eval check above in the (untested) hope
+     * that string evals inside autoloaded subs get treated properly! XXX
+     */
+    if (   ')' == file_name[file_name_len-1]
+        && strstr(file_name, " (autosplit ")
+        && (parent_entry = find_autosplit_parent(aTHX_ file_name))
+    ) {
+        /* copy some details from parent_entry to found */
+        found->id            = parent_entry->id;
+        found->eval_fid      = parent_entry->eval_fid;
+        found->eval_line_num = parent_entry->eval_line_num;
+        found->file_size     = parent_entry->file_size;
+        found->file_mtime    = parent_entry->file_mtime;
+        found->fid_flags     = parent_entry->fid_flags;
+        /* prevent write_cached_fids() from writing this fid */
+        found->fid_flags |= NYTP_FIDf_IS_AUTOSPLIT;
+        /* avoid a gap in the fid sequence */
+        --next_fid;
+        /* write a log message if tracing */
+        if (trace_level >= 2)
+            warn("Old fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s%s\n",
+                found->id, last_executed_fid, last_executed_line,
+                found->fid_flags, found->eval_fid, found->eval_line_num,
+                found->key_len, found->key, (found->key_abs) ? found->key_abs : "");
+        /* bail out without calling emit_fid() */
+        return found->id;
     }
 
     /* determine absolute path if file_name is relative */
