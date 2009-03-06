@@ -16,6 +16,10 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
           .js and .css     file to only have one period/dot
     for greater portability.  VMS ODS-2 files can only have
     one period/dot.
+  Added t/92-file_port.t as a developer-only and
+    request-using-ENV test, to help maintain portable files,
+    currently .indent.pro and .perltidyrc fall foul of portable
+    filename characters as defined by ANSI C and perlport.
 
 =head2 Changes in Devel::NYTProf 2.08 (svn r685) 15th Feb 2009
 

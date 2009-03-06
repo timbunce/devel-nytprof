@@ -41,6 +41,7 @@ t/50-errno.t
 t/80-version.t
 t/90-pod.t
 t/91-pod_coverage.t
+t/92-file_port.t
 t/lib/NYTProfTest.pm
 t/test01.p
 t/test01.rdt
