@@ -13,6 +13,7 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
   Renamed t/\d\d.test.t    files to t/\d\d_test.t 
           t/test*.pm.x     files to t/test*.pm_x 
           t/test*fork.\d.* files to t/test*fork-\d.*
+          .js and .css     file to only have one period/dot
     for greater portability.  VMS ODS-2 files can only have
     one period/dot.
 
