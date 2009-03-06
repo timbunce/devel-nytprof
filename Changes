@@ -10,8 +10,11 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
     for Windows, reported by Adam Kennedy in rt bug #43798.
   Fixed report filename generation to remove dots, for VMS.
   Added missing t/test22-strevala.t to MANIFEST.
-  Renamed t/\d\d.test.t files to t/\d\d_test.t for greater
-    portability, VMS ODS-2 files can only have one period/dot. 
+  Renamed t/\d\d.test.t    files to t/\d\d_test.t 
+          t/test*.pm.x     files to t/test*.pm_x 
+          t/test*fork.\d.* files to t/test*fork-\d.*
+    for greater portability.  VMS ODS-2 files can only have
+    one period/dot.
 
 =head2 Changes in Devel::NYTProf 2.08 (svn r685) 15th Feb 2009
 

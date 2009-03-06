@@ -1,4 +1,4 @@
-attribute	application	test30-fork.0.p
+attribute	application	test30-fork-0.p
 attribute	basetime	0
 attribute	clock_id	0
 attribute	nv_size	0
@@ -20,7 +20,7 @@ fid_block_time	1	17	[ 0 1 ]
 fid_block_time	1	19	[ 0 1 ]
 fid_block_time	1	20	[ 0 1 ]
 fid_block_time	1	22	[ 0 1 ]
-fid_fileinfo	1	[ test30-fork.0.p   1 2 0 0 ]
+fid_fileinfo	1	[ test30-fork-0.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::other	6-8
 fid_fileinfo	1	sub	main::postfork	10-13
 fid_fileinfo	1	sub	main::prefork	1-4
