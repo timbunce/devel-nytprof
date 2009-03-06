@@ -9,7 +9,7 @@ my @arr;
 eval {
     for_chunks {
 	push(@arr, [$., @_]);
-    } filename => "$base.v20.out";
+    } filename => "$base-v20.out";
 };
 SKIP: {
     if ($@) {
