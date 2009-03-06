@@ -1875,6 +1875,9 @@ open_output_file(pTHX_ char *filename)
 #ifdef WIN32
     mode = "wb";
 #endif
+#ifdef VMS
+    mode = "wb";
+#endif
 
     if ((profile_opts & NYTP_OPTf_ADDPID)
     || out /* already opened so assume forking */

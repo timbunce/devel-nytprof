@@ -20,6 +20,8 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
     request-using-ENV test, to help maintain portable files,
     currently .indent.pro and .perltidyrc fall foul of portable
     filename characters as defined by ANSI C and perlport.
+  NYTProf.xs's open_output_file use mode 'wb' and not 'wbx'
+    to avoid unsupported error when on VMS.
 
 =head2 Changes in Devel::NYTProf 2.08 (svn r685) 15th Feb 2009
 
