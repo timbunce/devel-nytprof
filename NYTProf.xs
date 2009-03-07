@@ -1186,7 +1186,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         --next_fid;
         /* write a log message if tracing */
         if (trace_level >= 2)
-            warn("Old fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s%s\n",
+            warn("Old fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s\n",
                 found->id, last_executed_fid, last_executed_line,
                 found->fid_flags, found->eval_fid, found->eval_line_num,
                 found->key_len, found->key, (found->key_abs) ? found->key_abs : "");

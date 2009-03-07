@@ -63,15 +63,23 @@ $perl = ".$perl" if $perl =~ m|^\./|;
 
 my @test_opt_leave      = (defined $opts{leave})      ? ($opts{leave})      : (1, 0);
 my @test_opt_use_db_sub = (defined $opts{use_db_sub}) ? ($opts{use_db_sub}) : (0, 1);
+my @test_opt_savesrc    = (defined $opts{savesrc})    ? ($opts{savesrc})    : (0, 1);
+my @test_opt_compress   = (defined $opts{compress})   ? ($opts{compress})   : (0, 1);
 
 # build @env_combinations
 my @env_combinations;
 for my $leave (@test_opt_leave) {
     for my $use_db_sub (@test_opt_use_db_sub) {
-        push @env_combinations, {
-            start      => 'init',
-            leave      => $leave,
-            use_db_sub => $use_db_sub,
+        for my $savesrc (@test_opt_savesrc) {
+            for my $compress (@test_opt_compress) {
+                push @env_combinations, {
+                    start      => 'init',
+                    leave      => $leave,
+                    use_db_sub => $use_db_sub,
+                    #    savesrc    => $savesrc,
+                    compress   => $compress,
+                }
+            }
         }
     }
 }
@@ -131,6 +139,7 @@ sub run_test_with_env {
 
     my %env = (%$env, %NYTPROF_TEST);
     local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} sort keys %env;
+    warn "NYTPROF=$ENV{NYTPROF}\n" if $opts{v};
 
     #print $test . '.'x (20 - length $test);
     $test =~ / (.+?) \. (?:(\d)\.)? (\w+) $/x or do {
@@ -170,7 +179,7 @@ sub run_test_with_env {
 }
 
 sub run_command {
-    my ($cmd) = @_;
+    my ($cmd, $show_stdout) = @_;
     warn "NYTPROF=$ENV{NYTPROF}\n" if $opts{v} && $ENV{NYTPROF};
     local $ENV{PERL5LIB} = $perl5lib;
     warn "$cmd\n" if $opts{v};
@@ -178,7 +187,8 @@ sub run_command {
     open(RV, "$cmd |") or die "Can't execute $cmd: $!\n";
     my @results = <RV>;
     my $ok = close RV;
-    warn "Error status $? from $cmd!\n\n" if not $ok;
+    if ($show_stdout or not $ok) { warn $_ for @results }
+    warn "Error status $? from $cmd!\n" if not $ok;
     return $ok;
 }
 
@@ -399,4 +409,4 @@ sub unlink_old_profile_datafiles {
 
 1;
 
-# vim:ts=8:sw=2
+# vim:ts=8:sw=4
