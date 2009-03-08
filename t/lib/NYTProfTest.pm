@@ -25,7 +25,7 @@ my %opts = (
     profperlopts => '-d:NYTProf',
     html         => $ENV{NYTPROF_TEST_HTML},
 );
-GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i/)
+GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i savesrc=i compress=i abort/)
     or exit 1;
 
 $opts{v}    ||= $opts{d};
@@ -76,7 +76,7 @@ for my $leave (@test_opt_leave) {
                     start      => 'init',
                     leave      => $leave,
                     use_db_sub => $use_db_sub,
-                    #    savesrc    => $savesrc,
+                    savesrc    => $savesrc,
                     compress   => $compress,
                 }
             }
@@ -117,8 +117,14 @@ sub run_test_group {
     ok($^O eq "MSWin32" ? -f $nytprofcsv : -x $nytprofcsv, "Found nytprofcsv as $nytprofcsv");
 
     for my $env (@env_combinations) {
+
+        my %env = (%$env, %NYTPROF_TEST);
+        local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} sort keys %env;
+        my $context = "NYTPROF=$ENV{NYTPROF}\n";
+        ($opts{v}) ? warn $context : print $context;
+
         for my $test (@tests) {
-            run_test_with_env($test, $env);
+            run_test($test);
         }
 
         if ($test_code) {
@@ -134,12 +140,8 @@ sub run_test_group {
     }
 }
 
-sub run_test_with_env {
-    my ($test, $env, $test_code) = @_;
-
-    my %env = (%$env, %NYTPROF_TEST);
-    local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} sort keys %env;
-    warn "NYTPROF=$ENV{NYTPROF}\n" if $opts{v};
+sub run_test {
+    my ($test) = @_;
 
     #print $test . '.'x (20 - length $test);
     $test =~ / (.+?) \. (?:(\d)\.)? (\w+) $/x or do {
@@ -175,6 +177,13 @@ sub run_test_with_env {
     }
     else {
         warn "Unrecognized extension '$type' on test file '$test'\n";
+    }
+
+    if ($opts{abort}) {
+        my $test_builder = Test::More->builder;
+        my @summary = $test_builder->summary;
+        BAIL_OUT("Aborting after test failure")
+            if grep { !$_ } @summary;
     }
 }
 
