@@ -9,7 +9,9 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
   Fixed report filename generation to remove colons,
     for Windows, reported by Adam Kennedy in rt bug #43798.
   Fixed report filename generation to remove dots, for VMS.
+  Fixed savesrc which wasn't safe and reliable.
   Added missing t/test22-strevala.t to MANIFEST.
+  Extended testing to exercise compress and savesrc options.
 
 Ported to VMS, thanks to Peter (Stig) Edwards:
 

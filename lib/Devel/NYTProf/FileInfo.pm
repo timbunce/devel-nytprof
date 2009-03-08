@@ -5,6 +5,8 @@ use strict;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 
 use Devel::NYTProf::Constants qw(
+    NYTP_FIDf_HAS_SRC NYTP_FIDf_SAVE_SRC
+
     NYTP_FIDi_FILENAME NYTP_FIDi_EVAL_FID NYTP_FIDi_EVAL_LINE NYTP_FIDi_FID
     NYTP_FIDi_FLAGS NYTP_FIDi_FILESIZE NYTP_FIDi_FILEMTIME NYTP_FIDi_PROFILE
     NYTP_FIDi_EVAL_FI NYTP_FIDi_HAS_EVALS NYTP_FIDi_SUBS_DEFINED NYTP_FIDi_SUBS_CALLED
@@ -173,6 +175,9 @@ sub normalize_for_test {
 
     # normalize eval sequence numbers in 'file' names to 0
     $self->[NYTP_FIDi_FILENAME] =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg;
+
+    # normalize flags to avoid failures due to savesrc and perl version
+    $self->[NYTP_FIDi_FLAGS] &= ~(NYTP_FIDf_HAS_SRC|NYTP_FIDf_SAVE_SRC);
 
     for my $sc (map { values %$_ } values %{ $self->sub_call_lines }) {
         $sc->[NYTP_SCi_INCL_RTIME] =
