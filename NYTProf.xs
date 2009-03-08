@@ -676,10 +676,14 @@ NYTP_write(NYTP_file ofile, const void *buffer, size_t len) {
     size_t result = 0;
 #endif
     if (FILE_STATE(ofile) == NYTP_FILE_STDIO) {
+        /* fwrite with len==0 is problematic */
+        /* http://www.opengroup.org/platform/resolutions/bwg98-007.html */
+        if (len == 0)
+            return len;
         if (fwrite(buffer, 1, len, ofile->file) < 1) {
             dTHX;
-            croak("fwrite error %d: %s", errno,
-                    strerror(errno));
+            croak("fwrite error %d writing %ld bytes to fd%d: %s",
+                errno, (long)len, fileno(ofile->file), strerror(errno));
         }
         return len;
     }
@@ -1257,7 +1261,11 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     || (profile_opts & NYTP_OPTf_SAVESRC)
     ) {
         /* source only available if PERLDB_LINE or PERLDB_SAVESRC is true */
+#ifdef gv_fetchfile_flags
+        src_av = GvAV(gv_fetchfile_flags(found->key, found->key_len, 0));
+#else
         src_av = GvAV(gv_fetchfile(found->key));
+#endif
         if (!src_av && trace_level >= 3)
             warn("No source available for fid %d%s\n",
                 found->id, use_db_sub ? "" : ", set use_db_sub=1 option");
@@ -1278,7 +1286,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         I32 lines = av_len(src_av);
         int line;
         if (trace_level >= 4)
-            warn("fid %d has %ld src lines", found->id, (long)lines+1);
+            warn("fid %d has %ld src lines", found->id, (long)lines);
         for (line = 1; line <= lines; ++line) { /* lines start at 1 */
             SV **svp = av_fetch(src_av, line, 0);
             STRLEN len = 0;
