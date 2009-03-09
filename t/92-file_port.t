@@ -3,18 +3,21 @@
 use strict;
 use warnings;
 
-use Test::More qw(no_plan);
+use Test::More;
 
-eval "use Test::Portability::Files";
+plan skip_all => "This currently a developer-only test"
+    unless -d '.svn';
 
-# Skipping tests this way because of the way Test::Portability::Files::import
-# sets a plan, and if multiple "plan skip_all =>" are used this causes a failure
-# when Test::Portability::Files is available - "You tried to plan twice".
+eval "require Test::Portability::Files;";
+plan skip_all => "Test::Portability::Files required for testing filename portability ($@)"
+    if $@;
 
-SKIP: {
-    skip "Test::Portability::Files required for testing filenames portability, this currently a developer-only test", 1 unless (!$@ && (-d '.svn') && ($ENV{'NYTPROF_TEST_PORTABILITY_FILES'}) );
-    options(all_tests => 1);  # to be hyper-strict
-    run_tests();
-}
+plan skip_all => "Set NYTPROF_TEST_PORTABILITY_FILES env var to enable test"
+    unless $ENV{'NYTPROF_TEST_PORTABILITY_FILES'};
+
+Test::Portability::Files->import(); # calls plan()
+#options(use_file_find => 1); # test all files not just those in MANIFEST (lots of .svn/* errors)
+#options(all_tests => 1);     # to be hyper-strict (e.g., lots of DOS 8.3 length errors)
+run_tests();
 
 1;
