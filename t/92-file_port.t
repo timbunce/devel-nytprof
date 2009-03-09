@@ -9,7 +9,7 @@ plan skip_all => "This currently a developer-only test"
     unless -d '.svn';
 
 eval "require Test::Portability::Files;";
-plan skip_all => "Test::Portability::Files required for testing filename portability ($@)"
+plan skip_all => "Test::Portability::Files required for testing filename portability. ${ $@=~s/ \(\@INC contains.*//, \$@ }"
     if $@;
 
 plan skip_all => "Set NYTPROF_TEST_PORTABILITY_FILES env var to enable test"
