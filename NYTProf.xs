@@ -1824,10 +1824,6 @@ set_option(pTHX_ const char* option, const char* value)
         profile_opts = (atoi(value))
             ? profile_opts |  NYTP_OPTf_SAVESRC
             : profile_opts & ~NYTP_OPTf_SAVESRC;
-        if (profile_opts & NYTP_OPTf_SAVESRC) {
-            /* ask perl to keep the source lines so we can copy them */
-            PL_perldb |= PERLDBf_SAVESRC | PERLDBf_SAVESRC_NOSUBS;
-        }
     }
     else if (strEQ(option, "zero")) {
         profile_zero = atoi(value);
@@ -2455,6 +2451,11 @@ init_profiler(pTHX)
     if (profile_opts & NYTP_OPTf_OPTIMIZE)
          PL_perldb &= ~PERLDBf_NOOPT;
     else PL_perldb |=  PERLDBf_NOOPT;
+
+    if (profile_opts & NYTP_OPTf_SAVESRC) {
+        /* ask perl to keep the source lines so we can copy them */
+        PL_perldb |= PERLDBf_SAVESRC | PERLDBf_SAVESRC_NOSUBS;
+    }
 
     if (trace_level)
         warn("NYTProf init pid %d, clock %d%s\n", last_pid, profile_clock,
