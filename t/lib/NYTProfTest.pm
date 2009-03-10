@@ -197,8 +197,12 @@ sub run_command {
     open(RV, "$cmd |") or die "Can't execute $cmd: $!\n";
     my @results = <RV>;
     my $ok = close RV;
-    if ($show_stdout or not $ok) { warn $_ for @results }
-    warn "Error status $? from $cmd!\n" if not $ok;
+    if (not $ok) {
+        warn "Error status $? from $cmd!\n";
+        warn "NYTPROF=$ENV{NYTPROF}\n" if $ENV{NYTPROF} and not $opts{v};
+        $show_stdout = 1;
+    }
+    if ($show_stdout) { warn $_ for @results }
     return $ok;
 }
 
