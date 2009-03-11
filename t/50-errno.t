@@ -16,7 +16,7 @@ $! = 9999;
 is 0+$!, 9999, '$! should not be altered by NYTProf';
 
 my $size1 = -s $nytprof_out;
-ok $size1, "$nytprof_out should be non-empty";
+cmp_ok $size1, '>', 0, "$nytprof_out should exist and not be empty";
 
 $! = 9999;
 example_sub();
