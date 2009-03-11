@@ -1243,7 +1243,9 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
                 if (strnEQ(file_name, "./", 2))
                     ++file_name;
                 else
+#ifndef VMS
                     strcat(file_name_abs, "/");
+#endif
             }
             strncat(file_name_abs, file_name, file_name_len);
             found->key_abs = strdup(file_name_abs);
