@@ -5,7 +5,7 @@ use warnings;
 
 use Test::More;
 
-plan skip_all => "This currently a developer-only test"
+plan skip_all => "Currently a developer-only test"
     unless -d '.svn';
 
 eval "require Test::Portability::Files;";

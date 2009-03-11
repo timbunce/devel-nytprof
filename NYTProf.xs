@@ -64,6 +64,9 @@
 
 #ifdef HAS_ZLIB
 #include <zlib.h>
+#define default_compression_level 6
+#else
+#define default_compression_level 0
 #endif
 
 #define NYTP_START_NO            0
@@ -233,11 +236,7 @@ static struct NYTP_int_options_t options[] = {
 #define use_db_sub options[6].option_value
     { "use_db_sub", 0 },
 #define compression_level options[7].option_value
-#ifdef HAS_ZLIB
-    { "compress", 6 },
-#else
-    { "compress", 0 },
-#endif
+    { "compress", default_compression_level },
 #define profile_clock options[8].option_value
     { "clock", -1 },
 #define profile_stmts options[9].option_value
@@ -3814,6 +3813,8 @@ BOOT:
     newCONSTSUB(stash, "NYTP_SCi_INCL_STIME",   newSViv(NYTP_SCi_INCL_STIME));
     newCONSTSUB(stash, "NYTP_SCi_RECI_RTIME",   newSViv(NYTP_SCi_RECI_RTIME));
     newCONSTSUB(stash, "NYTP_SCi_REC_DEPTH",    newSViv(NYTP_SCi_REC_DEPTH));
+    /* others */
+    newCONSTSUB(stash, "NYTP_DEFAULT_COMPRESSION", newSViv(default_compression_level));
 }
 
 
