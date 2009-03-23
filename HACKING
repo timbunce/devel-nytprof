@@ -366,6 +366,7 @@ Fix testing of t/*.pm_x files which are currently being ignored.
 
 The autosplit handling doesn't address the naming of pseudo-fids from string
 evals, like "(eval 0)[test14.pm (autosplit into auto/test14/bar.al):17]"
-The fidinfo struct for alias fid should probably have the name adjusted
-to be the name of the parent. That would make aliases more transparent.
+The 'file name' for the eval fid needs to be edited when read in to remove the
+' (autosplit...', but care should be taken to not remove the text for evals in
+autosplit files for which we've not been able to alias to the parent.
 
