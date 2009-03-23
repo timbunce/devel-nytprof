@@ -25,9 +25,9 @@ fid_fileinfo	1	sub	main::BEGIN	16-16
 fid_fileinfo	1	call	17	AutoLoader::AUTOLOAD	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	1	call	18	AutoLoader::AUTOLOAD	[ 1 0 0 0 0 0 0 ]
 fid_fileinfo	2	[ AutoLoader.pm   2 2 0 0 ]
-fid_fileinfo	3	[ test14.pm (autosplit into auto/test14/foo.al)   3 2 0 0 ]
+fid_fileinfo	3	[ test14.pm (autosplit into auto/test14/foo.al)   3 10 0 0 ]
 fid_fileinfo	3	sub	test14::foo	6-8
-fid_fileinfo	4	[ test14.pm (autosplit into auto/test14/bar.al)   4 2 0 0 ]
+fid_fileinfo	4	[ test14.pm (autosplit into auto/test14/bar.al)   4 10 0 0 ]
 fid_fileinfo	4	sub	test14::bar	10-12
 fid_fileinfo	4	eval	11	[ 1 0 ]
 fid_fileinfo	5	[ (eval 0)[test14.pm (autosplit into auto/test14/bar.al):11] 4 11 5 2 0 0 ]

@@ -82,9 +82,10 @@
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
 #define NYTP_FIDf_VIA_SUB        0x0004 /* fid first seen by sub profiler */
-#define NYTP_FIDf_IS_AUTOSPLIT   0x0008 /* fid is cone of the 'parent' fid it was autosplit from */
+#define NYTP_FIDf_IS_AUTOSPLIT   0x0008 /* fid is an autosplit (see AutoLoader) */
 #define NYTP_FIDf_HAS_SRC        0x0010 /* src is available to profiler */
 #define NYTP_FIDf_SAVE_SRC       0x0020 /* src will be saved by profiler, if NYTP_FIDf_HAS_SRC also set */
+#define NYTP_FIDf_IS_ALIAS       0x0040 /* fid is cone of the 'parent' fid it was autosplit from */
 
 #define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
 #define NYTP_TAG_COMMENT         '#'    /* till newline */
@@ -1105,7 +1106,7 @@ write_cached_fids()
 {
     Hash_entry *e = hashtable.first_inserted;
     while (e) {
-        if ( !(e->fid_flags & NYTP_FIDf_IS_AUTOSPLIT) )
+        if ( !(e->fid_flags & NYTP_FIDf_IS_ALIAS) )
             emit_fid(e);
         e = (Hash_entry *)e->next_inserted;
     }
@@ -1115,7 +1116,49 @@ write_cached_fids()
 static Hash_entry *
 find_autosplit_parent(pTHX_ char* file_name)
 {
-    return NULL;
+    /* extract basename from file_name, then search for most recent entry
+     * in hashtable that has the same basename
+     */
+    Hash_entry *e = hashtable.first_inserted;
+    Hash_entry *match = NULL;
+    char *sep = "/";
+    char *base_end   = strstr(file_name, " (autosplit");
+    char *base_start = rninstr(file_name, base_end, sep, sep+1);
+    STRLEN base_len;
+    base_start = (base_start) ? base_start+1 : file_name;
+    base_len = base_end - base_start;
+
+    if (trace_level >= 3)
+        warn("find_autosplit_parent of '%.*s' (%s)\n",
+            base_len, base_start, file_name);
+
+    for ( ; e; e = (Hash_entry *)e->next_inserted) {
+        char *e_name;
+
+        if (e->fid_flags & NYTP_FIDf_IS_AUTOSPLIT)
+            continue;
+        if (trace_level >= 4)
+            warn("find_autosplit_parent: checking '%.*s'\n", e->key_len, e->key);
+
+        /* skip if key is too small to match */
+        if (e->key_len < base_len)
+            continue;
+        /* skip if the last base_len bytes don't match the base name */
+        e_name = e->key + e->key_len - base_len;
+        if (memcmp(e_name, base_start, base_len) != 0)
+            continue;
+        /* skip if the char before the matched key isn't a separator */
+        if (e->key_len > base_len && *(e_name-1) != *sep)
+            continue;
+
+        if (trace_level >= 3)
+            warn("matched autosplit '%.*s' to parent fid %d '%.*s' (%c|%c)\n",
+                base_len, base_start, e->id, e->key_len, e->key, *(e_name-1),*sep);
+        match = e;
+        /* keep looking, so we'll return the most recently profiled match */
+    }
+
+    return match;
 }
 
 
@@ -1170,6 +1213,11 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         found->eval_line_num = atoi(end+1);
     }
 
+    if (   ')' == file_name[file_name_len-1] && strstr(file_name, " (autosplit ")) {
+        /* flag as autosplit */
+        found->fid_flags |= NYTP_FIDf_IS_AUTOSPLIT;
+    }
+
     /* if the file is an autosplit, with a file_name like
      * "../../lib/POSIX.pm (autosplit into ../../lib/auto/POSIX/errno.al)"
      * then we want it to have the same fid as the file it was split from.
@@ -1178,8 +1226,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
      * We do this after the string eval check above in the (untested) hope
      * that string evals inside autoloaded subs get treated properly! XXX
      */
-    if (   ')' == file_name[file_name_len-1]
-        && strstr(file_name, " (autosplit ")
+    if (found->fid_flags & NYTP_FIDf_IS_AUTOSPLIT
         && (parent_entry = find_autosplit_parent(aTHX_ file_name))
     ) {
         /* copy some details from parent_entry to found */
@@ -1190,12 +1237,12 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         found->file_mtime    = parent_entry->file_mtime;
         found->fid_flags     = parent_entry->fid_flags;
         /* prevent write_cached_fids() from writing this fid */
-        found->fid_flags |= NYTP_FIDf_IS_AUTOSPLIT;
+        found->fid_flags |= NYTP_FIDf_IS_ALIAS;
         /* avoid a gap in the fid sequence */
         --next_fid;
         /* write a log message if tracing */
         if (trace_level >= 2)
-            warn("Old fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s\n",
+            warn("Use fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s\n",
                 found->id, last_executed_fid, last_executed_line,
                 found->fid_flags, found->eval_fid, found->eval_line_num,
                 found->key_len, found->key, (found->key_abs) ? found->key_abs : "");
@@ -1280,7 +1327,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     if (trace_level >= 2) {
         /* including last_executed_fid can be handy for tracking down how
             * a file got loaded */
-        warn("New fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s %s,%s\n",
+        warn("New fid %2u (after %2u:%-4u) %02x e%u:%u %.*s %s %s,%s\n",
             found->id, last_executed_fid, last_executed_line,
             found->fid_flags, found->eval_fid, found->eval_line_num,
             found->key_len, found->key, (found->key_abs) ? found->key_abs : "",
@@ -2276,7 +2323,7 @@ pp_entersub_profiler(pTHX)
          * have already left the sub, unlike the non-xs case.        */
         sub_call_start.call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
 
-        if (trace_level >= 3)
+        if (trace_level >= 2)
             fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %gt, sub %gs)\n",
                 (is_xs) ? "xsub" : " sub", subname_pv, fid, line,
                 sub_call_start.call_depth,
@@ -3780,6 +3827,7 @@ BOOT:
     newCONSTSUB(stash, "NYTP_FIDf_VIA_STMT",     newSViv(NYTP_FIDf_VIA_STMT));
     newCONSTSUB(stash, "NYTP_FIDf_VIA_SUB",      newSViv(NYTP_FIDf_VIA_SUB));
     newCONSTSUB(stash, "NYTP_FIDf_IS_AUTOSPLIT", newSViv(NYTP_FIDf_IS_AUTOSPLIT));
+    newCONSTSUB(stash, "NYTP_FIDf_IS_ALIAS",     newSViv(NYTP_FIDf_IS_ALIAS));
     newCONSTSUB(stash, "NYTP_FIDf_HAS_SRC",      newSViv(NYTP_FIDf_HAS_SRC));
     newCONSTSUB(stash, "NYTP_FIDf_SAVE_SRC",     newSViv(NYTP_FIDf_SAVE_SRC));
     /* NYTP_FIDi_* */

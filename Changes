@@ -6,6 +6,8 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 2.09 (svn rXXX)
 
+  Added support for modules using AutoLoader, e.g., POSIX & Storable,
+    to fix the "Unable to open '... (autosplit into ...)'" warnings.
   Fixed report filename generation to remove colons,
     for Windows, reported by Adam Kennedy in rt bug #43798.
   Fixed report filename generation to remove dots, for VMS.
