@@ -14,5 +14,6 @@ BEGIN {
 }
 
 use test14;
+test14::pre();
 test14::foo();
 test14::bar();

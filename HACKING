@@ -361,3 +361,11 @@ name when generating the profile.
 Monitor and report when method cache is invalidated. Watch generation number
 and output a tag when it changes. Report locations of changes. Highlight those
 that happen after INIT phase.
+
+Fix testing of t/*.pm_x files which are currently being ignored.
+
+The autosplit handling doesn't address the naming of pseudo-fids from string
+evals, like "(eval 0)[test14.pm (autosplit into auto/test14/bar.al):17]"
+The fidinfo struct for alias fid should probably have the name adjusted
+to be the name of the parent. That would make aliases more transparent.
+

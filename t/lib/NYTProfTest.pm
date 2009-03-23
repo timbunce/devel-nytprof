@@ -86,11 +86,10 @@ for my $leave (@test_opt_leave) {
 
 
 sub run_test_group {
-    my ($test_count, $test_code) = @_;
-
-    # no warnings "undefined value";
-    $test_count ||= 0;
-    $test_count = 0 unless $test_code;
+    my ($opts) = @_;
+    my $override_env     = $opts->{override_env} || {};
+    my $extra_test_code  = $opts->{extra_test_code};
+    my $extra_test_count = $opts->{extra_test_count} || 0;
 
     # obtain group from file name
     my $group;
@@ -109,7 +108,7 @@ sub run_test_group {
         print "nytprofcvs: $nytprofcsv\n";
     }
 
-    my $tests_per_env = number_of_tests(@tests) + $test_count;
+    my $tests_per_env = number_of_tests(@tests) + $extra_test_count;
 
     plan tests => 1 + $tests_per_env * @env_combinations;
 
@@ -118,7 +117,7 @@ sub run_test_group {
 
     for my $env (@env_combinations) {
 
-        my %env = (%$env, %NYTPROF_TEST);
+        my %env = (%$env, %$override_env, %NYTPROF_TEST);
         local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} sort keys %env;
         my $context = "NYTPROF=$ENV{NYTPROF}\n";
         ($opts{v}) ? warn $context : print $context;
@@ -127,15 +126,15 @@ sub run_test_group {
             run_test($test);
         }
 
-        if ($test_code) {
+        if ($extra_test_code) {
             my $profile = eval { Devel::NYTProf::Data->new({filename => $profile_datafile}) };
             if ($@) {
                 diag($@);
-                fail("extra tests group '$group'") foreach (1 .. $test_count);
+                fail("extra tests group '$group'") foreach (1 .. $extra_test_count);
                 return;
             }
 
-            $test_code->($profile, $env);
+            $extra_test_code->($profile, $env);
         }
     }
 }
