@@ -4,14 +4,14 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
-=head2 Changes in Devel::NYTProf 2.09 (svn rXXX)
+=head2 Changes in Devel::NYTProf 2.09 (svn r718) 24th March 2009
 
   Added support for modules using AutoLoader, e.g., POSIX & Storable,
     to fix the "Unable to open '... (autosplit into ...)'" warnings.
   Fixed report filename generation to remove colons,
     for Windows, reported by Adam Kennedy in rt bug #43798.
   Fixed report filename generation to remove dots, for VMS.
-  Fixed savesrc which wasn't safe and reliable.
+  Fixed savesrc option which wasn't safe and reliable.
   Added missing t/test22-strevala.t to MANIFEST.
   Extended testing to exercise compress and savesrc options.
 
