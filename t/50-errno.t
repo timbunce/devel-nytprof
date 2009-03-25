@@ -1,4 +1,4 @@
-use Test::More tests => 5;
+use Test::More tests => 6;
 
 my $nytprof_out;
 BEGIN {
@@ -16,7 +16,12 @@ $! = 9999;
 is 0+$!, 9999, '$! should not be altered by NYTProf';
 
 my $size1 = -s $nytprof_out;
-cmp_ok $size1, '>', 0, "$nytprof_out should exist and not be empty";
+cmp_ok $size1, '>=', 0, "$nytprof_out should exist";
+
+SKIP: {
+    skip 'On VMS buffer is not flushed', 1 if ($^O eq 'VMS'); 
+    cmp_ok $size1, '>', 0, "$nytprof_out should not be empty";
+}
 
 $! = 9999;
 example_sub();
