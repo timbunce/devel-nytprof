@@ -257,7 +257,7 @@ sub subroutine_table {
         $("#subs_table").tablesorter({
             headers: {
                 3: { sorter: 'fmt_time' },
-                4: { sorter: 'fmt_time' },
+                4: { sorter: 'fmt_time' }
             }
         });
     } if @subs_to_show == @subs;
