@@ -160,7 +160,7 @@ sub run_test {
         verify_data($test, $test_datafile);
     }
     elsif ($type eq 'x') {
-        my $outdir = "$basename.outdir";
+        my $outdir = $basename.'_outdir';
         mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
         unlink <$outdir/*>;
 
@@ -224,14 +224,16 @@ sub verify_data {
         return;
     }
 
-    $profile->normalize_variables;
-    dump_profile_to_file($profile, "$test.new");
-    my @got      = slurp_file("$test.new");
-    my @expected = slurp_file($test);
-
-    is_deeply(\@got, \@expected, "$test match generated profile data")
-        ? unlink("$test.new")
-        : diff_files($test, "$test.new");
+    SKIP: {
+        skip 'Expected profile data does not have VMS paths',1 if(($^O eq 'VMS') && ($test =~m/test60|test14/i));
+	$profile->normalize_variables;
+        dump_profile_to_file($profile, $test.'_new');
+        my @got      = slurp_file($test.'_new');
+        my @expected = slurp_file($test);
+        is_deeply(\@got, \@expected, "$test match generated profile data")
+            ? unlink($test.'_new')
+            : diff_files($test, $test.'_new');
+    }
 }
 
 
@@ -355,8 +357,8 @@ sub verify_csv_report {
     }
 
     is_deeply(\@got, \@expected, "$test match generated CSV data") or do {
-        spit_file("$test.new", join("", @got));
-        diff_files($test, "$test.new");
+        spit_file($test.'_new', join("", @got));
+        diff_files($test, $test.'_new');
     };
     is(join("\n", @accuracy_errors), '', "$test times should be reasonable");
 }
