@@ -481,9 +481,7 @@ sub report_src_line {
             }
 
             my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
-
-	    my $filename_with_regexp_escaped = quotemeta($filename);
-            $line_desc =~ s/ of $filename_with_regexp_escaped$// if $filename eq $thisfile;
+            $line_desc =~ s/ of \Q$filename\E$// if $filename eq $thisfile;
 
             push @prologue,
                 sprintf q{# %*s times%s%s at <a href="%s#%d">%s</a>%s},
