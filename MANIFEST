@@ -150,3 +150,4 @@ typemap
 xt/test45-overload.p
 xt/test71-while.p
 xt/test90-stress.p
+META.yml                                 Module meta-data (added by MakeMaker)

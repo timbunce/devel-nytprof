@@ -32,11 +32,15 @@ example_xsub();
 is 0+$!, 9999, "\$! should not be altered by assigning fids to previously unprofiled modules ($!)";
 
 $! = 9999;
-while (-s $nytprof_out == $size1) {
-    # execute lots of statements to force some i/o even if zipping
-    busy();
+
+SKIP: {
+    skip 'On VMS buffer does not flush', 1 if($^O eq 'VMS');
+    while (-s $nytprof_out == $size1) {
+        # execute lots of statements to force some i/o even if zipping
+        busy();
+    }
+    is 0+$!, 9999, '$! should not be altered by NYTProf i/o';
 }
-is 0+$!, 9999, '$! should not be altered by NYTProf i/o';
 
 exit 0;
 
