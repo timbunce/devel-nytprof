@@ -199,11 +199,20 @@ ctidy_bcpp:
 
 sub dynamic {
     my $make = shift->SUPER::dynamic(@_);
+
+    my $xsl_dest_dir = '$(INST_LIB)/$(PARENT_NAME)/auto/$(FULLEXT)';
+    my $xsl_dest     = '$(XSL_DEST_DIR)/$(DLBASE).$(DLEXT)';
+
+    if($^O eq 'VMS'){
+        $xsl_dest_dir = File::Spec->catdir('blib','lib','Devel','auto','Devel','NYTProf');
+        $xsl_dest     = File::Spec->catfile('blib','lib','Devel','auto','Devel','NYTProf','PL_Devel__NYTProf'.'.exe');
+    }
+
     $make .= join "\n",
         '# Copy extension to where XSLoader looks to avoid fallback to DynaLoader',
         '# See t/test14.p for more details',
-        'XSL_DEST_DIR = $(INST_LIB)/$(PARENT_NAME)/auto/$(FULLEXT)',
-        'XSL_DEST = $(XSL_DEST_DIR)/$(DLBASE).$(DLEXT)',
+        "XSL_DEST_DIR = $xsl_dest_dir",
+        "XSL_DEST = $xsl_dest",
         '',
         'dynamic :: $(INST_DYNAMIC)',
         "\t" . '$(NOECHO) $(MKPATH) $(XSL_DEST_DIR)',
