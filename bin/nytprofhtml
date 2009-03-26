@@ -481,7 +481,12 @@ sub report_src_line {
             }
 
             my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
-            $line_desc =~ s/ of $filename$// if $filename eq $thisfile;
+	    # if $filename conatins F-2 (NYTPROF-2??) then get error - invalid regexp range in line below, F-2
+	    my $filename_with_regexp_escaped = $filename;
+            $filename_with_regexp_escaped =~ s/\-/\\-/g;
+            $filename_with_regexp_escaped =~ s/\[/\\[/g;
+            $filename_with_regexp_escaped =~ s/\]/\\]/g;
+            $line_desc =~ s/ of $filename_with_regexp_escaped$// if $filename eq $thisfile;
 
             push @prologue,
                 sprintf q{# %*s times%s%s at <a href="%s#%d">%s</a>%s},
