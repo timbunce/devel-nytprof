@@ -481,11 +481,8 @@ sub report_src_line {
             }
 
             my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
-	    # if $filename conatins F-2 (NYTPROF-2??) then get error - invalid regexp range in line below, F-2
-	    my $filename_with_regexp_escaped = $filename;
-            $filename_with_regexp_escaped =~ s/\-/\\-/g;
-            $filename_with_regexp_escaped =~ s/\[/\\[/g;
-            $filename_with_regexp_escaped =~ s/\]/\\]/g;
+
+	    my $filename_with_regexp_escaped = quotemeta($filename);
             $line_desc =~ s/ of $filename_with_regexp_escaped$// if $filename eq $thisfile;
 
             push @prologue,
