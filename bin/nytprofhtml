@@ -347,7 +347,7 @@ sub package_tables {
         push @on_ready_js, qq{
             \$("#$table_id").tablesorter({
                 headers: {
-                    0: { sorter: 'fmt_time' },
+                    0: { sorter: 'fmt_time' }
                 }
             });
         };
