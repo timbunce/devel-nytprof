@@ -223,6 +223,12 @@ sub html_safe_filename {
     # remove any leading or trailing '-' chars
     $fname =~ s{^-}{};
     $fname =~ s{-$}{};
+    if($^O eq 'VMS'){
+        # ODS-2 is limited to 39.39 chars (39 filename, 39 extension)
+	# Reader.pm appends -LEVEL onto html safe filename so must
+	# subtract 1 + max length of (sub block line), so 6.
+        $fname = substr($fname,-33);
+    }
     return $fname;
 }
 
