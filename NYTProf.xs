@@ -1130,7 +1130,7 @@ find_autosplit_parent(pTHX_ char* file_name)
 
     if (trace_level >= 3)
         warn("find_autosplit_parent of '%.*s' (%s)\n",
-            base_len, base_start, file_name);
+            (int)base_len, base_start, file_name);
 
     for ( ; e; e = (Hash_entry *)e->next_inserted) {
         char *e_name;
@@ -1153,7 +1153,7 @@ find_autosplit_parent(pTHX_ char* file_name)
 
         if (trace_level >= 3)
             warn("matched autosplit '%.*s' to parent fid %d '%.*s' (%c|%c)\n",
-                base_len, base_start, e->id, e->key_len, e->key, *(e_name-1),*sep);
+                (int)base_len, base_start, e->id, e->key_len, e->key, *(e_name-1),*sep);
         match = e;
         /* keep looking, so we'll return the most recently profiled match */
     }
@@ -2870,7 +2870,7 @@ write_src_of_files(pTHX)
     }
 
     if (trace_level >= 1)
-        warn("wrote %d source lines for %d files (%d skipped without savesrc option, %d others had no source available)\n",
+        warn("wrote %ld source lines for %d files (%d skipped without savesrc option, %d others had no source available)\n",
             t_lines, t_save_src, t_has_src-t_save_src, t_no_src);
 }
 
