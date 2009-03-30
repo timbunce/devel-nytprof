@@ -370,3 +370,8 @@ The 'file name' for the eval fid needs to be edited when read in to remove the
 ' (autosplit...', but care should be taken to not remove the text for evals in
 autosplit files for which we've not been able to alias to the parent.
 
+Add a FID_ATTRIB tag to allow additional info about fids to be generated after
+the initial fid info is output.
+
+Use FID_ATTRIB tag to record autoload fids being aliases to a fid so that
+reports can include a list of autoloaded subs.

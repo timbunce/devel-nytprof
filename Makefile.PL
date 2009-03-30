@@ -118,7 +118,7 @@ WriteMakefile(
     clean => { FILES => join " ",
 		"nytprof demo-out",
 		map { ("t/$_", "xt/$_") }
-			qw(nytprof nytprof*.out *_outdir test*.*.new auto)
+			qw(nytprof nytprof*.out *_outdir test*.*_new auto)
     },
     dist  => {
         DIST_DEFAULT => 'clean distcheck disttest tardist',
