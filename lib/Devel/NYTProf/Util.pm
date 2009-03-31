@@ -38,7 +38,7 @@ use base qw'Exporter';
 use Carp;
 use Cwd qw(getcwd);
 use List::Util qw(sum);
-use UNIVERSAL qw( isa can VERSION );
+#use UNIVERSAL qw( isa can VERSION );
 
 our $VERSION = '2.09';
 
