@@ -9,6 +9,7 @@ NYTProf.xs
 README
 benchmark.pl
 bin/nytprofcsv
+bin/nytprofcg
 bin/nytprofhtml
 demo/README
 demo/demo-code.pl

@@ -1,0 +1,141 @@
+#!/usr/bin/perl
+##########################################################
+## This script is part of the Devel::NYTProf distribution
+##
+## Copyright, contact and other information can be found
+## at the bottom of this file, or by going to:
+## http://search.cpan.org/~akaplan/Devel-NYTProf
+##
+##########################################################
+# $Id: /mirror/devel-nytprof/bin/nytprofhtml 13295 2009-04-06T20:34:49.946854Z tim.bunce  $
+###########################################################
+use warnings;
+use strict;
+use Devel::NYTProf::Data;
+use Getopt::Long;
+
+my %opt = (
+    file => 'nytprof.out',
+    out  => 'nytprof',
+);
+
+process_cli();
+
+print "Generating report...\n";
+
+my $profile = Devel::NYTProf::Data->new( { filename => $opt{file},
+                                           quiet => 1 } );
+
+open my $fh, '>', $opt{out};
+
+print $fh "events: Ticks".$/;
+print $fh $/;
+
+
+my %callmap;
+
+for my $sub (values %{ $profile->{sub_subinfo} }) {
+    my $callers = $sub->callers;
+    next unless ($callers && %$callers);
+    my $fi = eval { $sub->fileinfo };
+
+    print $fh 'fl='.( $fi ? $fi->filename : "Unknown").$/;
+    print $fh 'fn='.$sub->subname.$/;
+    print $fh join(' ',$sub->first_line, int($sub->excl_time * 1000000)).$/;
+    print $fh $/;
+
+    my @callers;
+    while ( my ( $fid, $fid_line_info ) = each %$callers ) {
+        for my $line ( keys %$fid_line_info ) {
+            my ( $count, $incl_time, $excl_time ) = @{ $fid_line_info->{$line} };
+            my @subnames = $profile->subname_at_file_line( $fid, $line );
+            ref $_ and $_ = sprintf "%s (merge of %d subs)", $_->[0], scalar @$_
+                for @subnames;
+            my $subname = (@subnames) ? join( " or ", @subnames ) : "__main";
+
+            my $fi        = $profile->fileinfo_of($fid);
+            my $filename  = $fi->filename($fid);
+            my $line_desc = "line $line of $filename";
+
+            # chase string eval chain back to a real file
+            while ( my ( $outer_fileinfo, $outer_line ) = $fi->outer ) {
+                ( $filename, $line ) = ( $outer_fileinfo->filename, $outer_line );
+                $line_desc .= sprintf " at line %s of %s", $line, $filename;
+                $fi = $outer_fileinfo;
+            }
+
+            push @{ $callmap{$subname} }, [ $filename, $line, $sub, $count, $incl_time, $excl_time ];
+        }
+    }
+
+}
+
+for (keys %callmap) {
+    for my $entry (@{$callmap{$_}}) {
+        my ($filename, $line, $sub, $count, $incl_time, $excl_time) = @$entry;
+        print $fh "fl=$filename$/";
+        print $fh 'fn='.$_.$/;
+        print $fh "cfl=".(eval { $sub->fileinfo->filename } || 'Unknown').$/;
+        print $fh "cfn=".$sub->subname.$/;
+        # calls=(Call Count) (Destination position)
+        # (Source position) (Inclusive cost of call)
+        print $fh "calls=$count ".$sub->first_line.$/;
+        print $fh "$line ".int(1000000 * $incl_time).$/;
+        print $fh $/;
+    }
+}
+
+sub process_cli {
+    GetOptions( \%opt, qw/file|f=s delete|d out|o=s lib|l=s help|h open/ ) or exit 1;
+
+    if ( defined( $opt{help} ) ) {
+        &usage;
+        exit 1;
+    }
+
+    # handle file selection option
+    if ( !-r $opt{file} ) {
+        die "$0: Unable to access $opt{file}\n";
+    }
+
+    # handle handle output location
+    if ( !-e $opt{out} ) {
+
+        # will be created
+    }
+    elsif ( !-w $opt{out} ) {
+        die "$0: Unable to write to output file `$opt{out}'\n";
+    }
+
+    # handle deleting old db's
+    if ( defined( $opt{'delete'} ) ) {
+        # XXX don't need to
+    }
+
+    # handle custom lib path
+    if ( defined( $opt{lib} ) ) {
+        if ( -d $opt{lib} ) {
+            unshift( @INC, $opt{lib} );
+        }
+        else {
+            die "$0: Specified lib directory `$opt{lib}' does not exist.\n";
+        }
+    }
+}
+
+sub usage {
+    print <<END
+usage: [perl] nytprofcg [opts]
+ --file <file>, -f <file>  Use the specified file as Devel::NYTProf database
+                            file. [default: ./nytprof.out]
+ --out <dir>,   -o <dir>   Place generated files here [default: ./nytprof]
+ --delete,      -d         Delete the old output [uses --out]
+ --help,        -h         Print this message
+
+This script of part of the Devel::NYTProf package by Adam J Kaplan.
+Copyright 2008 Adam J Kaplan, http://search.cpan.org/~akaplan, Released under
+the same terms as Perl itself.
+END
+}
+
+__END__
