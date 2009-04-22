@@ -1,0 +1,13 @@
+#log {
+	position:absolute;
+	top:0;
+	right:0;
+	font-weight: bold;
+	font-size: 1.1em;
+	margin: 0;
+	color: #9FD4FF;
+	padding: 8px 4px;
+	background-color:#222;
+	text-align:center;
+	z-index:3000;
+}

@@ -104,8 +104,8 @@ $reporter->set_param(
             For ${ \($profile->{attribute}{application}) }
         };
 
-        get_html_header("Profile: !~FILENAME~!")
-            . get_header(
+        get_html_header("NYTProf Profile: !~FILENAME~!")
+            . get_page_header(
             profile  => $profile,
             title    => "Performance Profile",
             subtitle => $subhead,
@@ -270,6 +270,7 @@ sub subroutine_table {
 #
 sub package_tables {
     my ($profile) = @_;
+    my $pkg_html;
 
     # XXX may not be appropriate if profiling wasn't continuous
     my $profiler_duration = $profile->{attribute}{profiler_duration};
@@ -296,50 +297,6 @@ sub package_tables {
     # merged:
     # { pkgname => [ single_merged_subinfo ], ...  }
     my $package_subinfo_map = $profile->package_subinfo_map(1);
-
-    local $Data::Dumper::Sortkeys = 1;
-    local $Data::Dumper::Indent = 1;
-    local $Data::Dumper::Maxdepth = 0;
-    #die Data::Dumper::Dumper($profile->package_subinfo_map(1,1));
-    my $package_tree_subinfo_map = $profile->package_subinfo_map(1,1);
-    use JSON::Any;
-sub h2a {
-    my ($h, $t) = @_;
-    local $_;
-    return [ map {
-        my $v = $h->{$_};
-        (ref $v eq 'HASH')
-            ? [ $_, h2a($v, ($t) ? "$t\::$_" : $_) ]
-            : [ $t, $v->[0]->excl_time ]
-    } keys %$h ];
-};
-    my $ary = h2a($package_tree_subinfo_map, "");
-    #die Data::Dumper::Dumper($ary);
-    my $json = JSON::Any->new->objToJson($ary);
-    #die $json;
-
-    my $pkg_html;
-    $pkg_html .= qq{
-        <div><div id="tm">\nXXX\n</div></div><br>
-    };
-
-push @on_ready_js, qq{
-    function getTreemapData(el) {
-        return $json;
-    }
-    jQuery("div#tm").treemap(800,600,{
-        getData: getTreemapData,
-        colorDiscrete: false,
-        headHeight: 12,
-        target: "div#tm",
-        sort: true
-    });
-    jQuery("div#tm div.treemapCell").hover(
-        function(){jQuery(this).addClass("selected")},
-        function(){jQuery(this).removeClass("selected")}
-    );
-};
-
 
     # generate a separate table for each depth
     for my $depth (0..@$pkg_depth-1) {
@@ -595,11 +552,12 @@ $reporter->report();
 
 output_subs_indexpage($reporter, "index-subs-excl.html", 'excl_time');
 output_subs_indexpage($reporter, "index-subs-incl.html", 'incl_time');
+output_package_treemap($reporter, "package-treemap.html");
 output_indexpage($reporter, "index.html");
 
 output_js_files($reporter);
 
-browse("$opt{out}/index.html") if $opt{open};
+open_browser_on("$opt{out}/index.html") if $opt{open};
 
 exit 0;
 
@@ -615,8 +573,8 @@ sub output_subs_indexpage {
     open(OUT, '>', "$opt{out}/$filename")
         or croak "Unable to open file $opt{out}/$filename: $!";
 
-    print OUT get_html_header();
-    print OUT get_header(profile => $profile, title => "Performance Profile Subroutine Index");
+    print OUT get_html_header("Subroutine Index - NYTProf");
+    print OUT get_page_header(profile => $profile, title => "Performance Profile Subroutine Index");
     print OUT qq{<div class="body_content"><br />};
 
     # Show top subs across all files
@@ -640,7 +598,7 @@ sub output_indexpage {
         or croak "Unable to open file $opt{out}/$filename: $!";
 
     print OUT get_html_header();
-    print OUT get_header(profile => $profile, title => "Performance Profile Index");
+    print OUT get_page_header(profile => $profile, title => "Performance Profile Index");
     print OUT qq{
         <div class="body_content"><br />
     };
@@ -687,6 +645,8 @@ sub output_indexpage {
 
     print OUT file_table($profile, $stats, 1);
 
+    print OUT q{<br/><a href="package-treemap.html">Package treemap</a><br/>};
+
     print OUT package_tables($profile);
 
     my $footer = get_footer($profile);
@@ -695,12 +655,110 @@ sub output_indexpage {
 }
 
 
+sub output_package_treemap {
+    my ($r, $filename) = @_;
+    my $profile = $reporter->{profile};
+
+    open(OUT, '>', "$opt{out}/$filename")
+        or croak "Unable to open file $opt{out}/$filename: $!";
+
+    my $treemap_head = q{
+        <link type="text/css" rel="stylesheet" href="jit/infovis.css" />  
+        <link type="text/css" rel="stylesheet" href="jit/treemap.css" />  
+        <script type="text/javascript" src="jit/mootools-1.2.js"></script>  
+        <script type="text/javascript" src="jit/Treemap.js" ></script>  
+    };
+
+    print OUT get_html_header("Package Treemap - NYTProf", {
+        skip_style => 1,
+        skip_jquery => 1,
+        head_epilogue => $treemap_head,
+    });
+    print OUT get_page_header(
+        profile => $profile,
+        title => "Performance Profile Subroutine Index",
+        body_onload => "init();"
+    ) if 0;
+    print OUT qq{<body onload="init();">};
+
+    local $Data::Dumper::Sortkeys = 1;
+    local $Data::Dumper::Indent = 1;
+    local $Data::Dumper::Maxdepth = 3;
+    warn Data::Dumper::Dumper($profile->package_subinfo_map(1,1));
+    my $package_tree_subinfo_map = $profile->package_subinfo_map(1,1);
+    use JSON::Any;
+
+    # {   "id":"node02", "name":"0.2", "data":[ {"key":"key1", "value":195}, {"key":"key2", "value":5}], "children":[ ... ] }
+    my $node = 1;
+    my $node_mapper;
+    $node_mapper = sub {
+        my ($k, $v, $title) = @_;
+        # { main => { '' => [...] } }
+        # { Foo => { '' => [...], '::Bar' => { ''=>[...], '::Baz'=>[...] } } }
+        warn "pkgtree2treemapnode: $title\n";
+        my $n = { id => "n".++$node };
+
+        if (ref $v eq 'ARRAY') { # leaf node
+            $n->{name} = "subs";
+            $n->{data} = [ { key=>"key1", value=>$v->[0]->excl_time } ],
+            $n->{children} = [];
+        }
+        else {
+            $title = ($title) ? '::'.$k : $k;
+            my @kids = map { $node_mapper->($_, $v->{$_}, $title) } keys %$v;
+            $n->{name} = "$title";
+            $n->{children} = \@kids;
+            $n->{data} = [ { key=>"key1", value=>sum(map { $_->{data}[0]{value} } @kids) } ];
+        }
+
+        return $n;
+    };
+
+    my $ary = $node_mapper->('', $package_tree_subinfo_map, '');
+    $ary->{name} = "Treemap of time spent in package hierarchy of $profile->{attribute}{application}";
+    my $json = JSON::Any->new->objToJson($ary);
+
+    print OUT qq{
+        <script type="text/javascript" >
+        var treemap;
+        function init() {  
+            var json = $json;
+            treemap = new TM.Squarified();
+            treemap.loadFromJSON(json);  
+        }
+        </script>  
+    };
+    my $pkg_html;
+    $pkg_html .= qq{
+    <div id="infovis" /> </div>
+    <div id="left">
+        <div id="details" class="toggler left-item">Details</div>
+        <div class="element contained-item">
+            <div class="inner" id="inner-details">
+                <input id="opera_right_button" value="go to parent" type="button" onclick="treemap.out()" />
+            </div>
+        </div>
+    </div>
+    };
+    print OUT $pkg_html;
+
+    #push @on_ready_js, qq{ };
+
+    my $footer = ""; # get_footer($profile);
+    print OUT "</div>$footer</body></html>";
+    close OUT;
+}
+
+
 sub output_js_files {
     my ($profile) = @_;
     # find the js, gif, css etc files installed with Devel::NYTProf
+    # XXX hackish, needs a rewrite
     (my $lib = $INC{"Devel/NYTProf/Data.pm"}) =~ s/Data\.pm$//;
-    for my $src (<$lib/js/*>) {
-        (my $file = $src) =~ s/.*\///;
+    mkdir "$opt{out}/jit";
+    for my $src (<$lib/js/*>, <$lib/js/jit/*>) {
+        next unless -f $src;
+        (my $file = $src) =~ s{.*/js/}{};
         unlink "$opt{out}/$file";
         copy($src, "$opt{out}/$file")
             or warn "Unable to copy $src to $opt{out}/$file: $!";
@@ -708,7 +766,7 @@ sub output_js_files {
 }
 
 
-sub browse {
+sub open_browser_on {
     my $index = shift;
     if (eval { require ActiveState::Browser; 1 }) {
         ActiveState::Browser::open($index);
@@ -1016,8 +1074,10 @@ sub get_footer {
 
 # returns the generic header string.  Here only to make the code more readable.
 sub get_html_header {
-    my $title = shift || "Profile Index";
-    return <<EOD
+    my $title = shift || "Profile Index - NYTProf";
+    my $opts = shift || {};
+
+    my $html = <<EOD;
 <!DOCTYPE html
      PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
      "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -1028,19 +1088,14 @@ This file was generated by Devel::NYTProf version $Devel::NYTProf::Core::VERSION
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"></meta>
     <meta http-equiv="Content-Language" content="en-us"></meta>
-    <link rel="stylesheet" type="text/css" href="style.css"></link>
     <title>$title</title>
-    <script type="text/javascript" src="jquery-min.js"></script> 
+EOD
 
-    <script type="text/javascript" src="jquery-treemap.js"></script> 
-    <style type="text/css">
-        .treemapView { background-color:#dddddd }
-        .treemapSquare {}
-        .treemapHead { font-size:10px; background:none }
-        .treemapCell { font-size:8px;  font-style:italic }
-        .treemapCell.selected, .treemapCell.selected .treemapCell.selected {background-color:#ff9999}
-        .treemapCell.selected .treemapCell                                 {background-color:#ffff99}
-    </style>
+    $html .= qq{<link rel="stylesheet" type="text/css" href="style.css"></link>\n}
+        unless $opts->{skip_style};
+
+    $html .= <<EOD unless $opts->{skip_jquery};
+    <script type="text/javascript" src="jquery-min.js"></script> 
 
     <script type="text/javascript" src="jquery-tablesorter-min.js"></script> 
     <link rel="stylesheet" type="text/css" href="style-tablesorter.css"></link>
@@ -1071,12 +1126,17 @@ This file was generated by Devel::NYTProf version $Devel::NYTProf::Core::VERSION
         type: 'numeric' // set type, either numeric or text 
     }); 
     </script> 
+EOD
+    $html .= $opts->{head_epilogue} if $opts->{head_epilogue};
 
+    $html .= <<EOD;
 </head>
 EOD
+
+    return $html;
 }
 
-sub get_header {
+sub get_page_header {
     my %args = @_;
     my ($profile, $head1, $head2, $right1, $right2, $mode) = (
         $args{profile}, $args{title},     $args{subtitle},
@@ -1095,7 +1155,11 @@ sub get_header {
         </div>};
     }
 
-    return qq{<body> 
+    my @body_attribs;
+    push @body_attribs, qq{onload="$args{body_onload}"} if $args{body_onload};
+    my $body_attribs = join "; ", @body_attribs;
+
+    return qq{<body $body_attribs> 
 <div class="header" style="position: relative; overflow-x: hidden; overflow-y: hidden; z-index: 0; ">
 $back_link
 <div class="headerForeground" style="float: left">
