@@ -9,7 +9,7 @@ foo();
 # switch to new file and (re)enable profiling
 DB::enable_profile("nytprof-test51-b.out");
 foo();
-
+DB::finish_profile();
 # switch to new file while already enabled
 DB::enable_profile("nytprof-test51-c.out");
 foo();

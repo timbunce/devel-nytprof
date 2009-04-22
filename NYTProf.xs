@@ -2393,11 +2393,6 @@ enable_profile(pTHX_ char *file)
     /* enable the run-time aspects to profiling */
     int prev_is_profiling = is_profiling;
 
-    if (!out) {
-        warn("enable_profile: NYTProf not active");
-        return 0;
-    }
-
     if (trace_level)
         warn("NYTProf enable_profile (previously %s) to %s",
             prev_is_profiling ? "enabled" : "disabled",
@@ -2407,6 +2402,9 @@ enable_profile(pTHX_ char *file)
         /* caller wants output to go to a new file */
         close_output_file(aTHX);
         strncpy(PROF_output_file, file, sizeof(PROF_output_file)-1);
+    }
+
+    if (!out) {
         open_output_file(aTHX_ PROF_output_file);
     }
 

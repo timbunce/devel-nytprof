@@ -12,7 +12,7 @@
 0,0,0,# switch to new file and (re)enable profiling
 0,0,0,DB::enable_profile("nytprof-test51-b.out");
 0,0,0,foo();
-0,0,0,
+0,0,0,DB::finish_profile();
 0,0,0,# switch to new file while already enabled
 0,0,0,DB::enable_profile("nytprof-test51-c.out");
 0,0,0,foo();

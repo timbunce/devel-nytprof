@@ -423,7 +423,9 @@ until you call DB::enable_profile() at the right moment.
 
 You can finish profiling completely by calling DB::finish_profile().
 This may be useful if perl is exiting abnormally, leaving the profile data file
-in an incomplete state,
+in an incomplete state.  You can use DB::enable_profile() after
+DB::finish_profile() to enable profiling again.  If the filename is not given,
+the current profile output file will be overwritten.
 
 =head2 Multiple Output Files
 
