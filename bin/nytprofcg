@@ -1,10 +1,8 @@
 #!/usr/bin/perl
 ##########################################################
 ## This script is part of the Devel::NYTProf distribution
-##
-## Copyright, contact and other information can be found
-## at the bottom of this file, or by going to:
-## http://search.cpan.org/~akaplan/Devel-NYTProf
+## Released under the same terms as Perl 5.8.0
+## See http://search.cpan.org/dist/Devel-NYTProf/
 ##
 ##########################################################
 # $Id: /mirror/devel-nytprof/bin/nytprofhtml 13295 2009-04-06T20:34:49.946854Z tim.bunce  $
@@ -16,27 +14,36 @@ use Getopt::Long;
 
 my %opt = (
     file => 'nytprof.out',
-    out  => 'nytprof',
+    out  => 'nytprof.callgrind',
 );
 
 process_cli();
 
-print "Generating report...\n";
+print "Reading $opt{file} ...\n";
 
 my $profile = Devel::NYTProf::Data->new( { filename => $opt{file},
                                            quiet => 1 } );
 
-open my $fh, '>', $opt{out};
+print "Writing $opt{out} ...\n";
+
+# calltree format specification
+# http://kcachegrind.sourceforge.net/cgi-bin/show.cgi/KcacheGrindCalltreeFormat
+
+open my $fh, '>', $opt{out}
+    or die "Can't write to $opt{out}: $!\n";
 
 print $fh "events: Ticks".$/;
 print $fh $/;
 
 
 my %callmap;
+my $subname_subinfo_map = $profile->subname_subinfo_map;
 
-for my $sub (values %{ $profile->{sub_subinfo} }) {
+for my $sub (values %$subname_subinfo_map) {
+
     my $callers = $sub->callers;
     next unless ($callers && %$callers);
+
     my $fi = eval { $sub->fileinfo };
 
     print $fh 'fl='.( $fi ? $fi->filename : "Unknown").$/;
@@ -48,6 +55,7 @@ for my $sub (values %{ $profile->{sub_subinfo} }) {
     while ( my ( $fid, $fid_line_info ) = each %$callers ) {
         for my $line ( keys %$fid_line_info ) {
             my ( $count, $incl_time, $excl_time ) = @{ $fid_line_info->{$line} };
+
             my @subnames = $profile->subname_at_file_line( $fid, $line );
             ref $_ and $_ = sprintf "%s (merge of %d subs)", $_->[0], scalar @$_
                 for @subnames;
@@ -86,40 +94,12 @@ for (keys %callmap) {
 }
 
 sub process_cli {
-    GetOptions( \%opt, qw/file|f=s delete|d out|o=s lib|l=s help|h open/ ) or exit 1;
+    GetOptions( \%opt, qw/file|f=s out|o=s help|h/ )
+        or exit 1;
 
     if ( defined( $opt{help} ) ) {
-        &usage;
+        usage();
         exit 1;
-    }
-
-    # handle file selection option
-    if ( !-r $opt{file} ) {
-        die "$0: Unable to access $opt{file}\n";
-    }
-
-    # handle handle output location
-    if ( !-e $opt{out} ) {
-
-        # will be created
-    }
-    elsif ( !-w $opt{out} ) {
-        die "$0: Unable to write to output file `$opt{out}'\n";
-    }
-
-    # handle deleting old db's
-    if ( defined( $opt{'delete'} ) ) {
-        # XXX don't need to
-    }
-
-    # handle custom lib path
-    if ( defined( $opt{lib} ) ) {
-        if ( -d $opt{lib} ) {
-            unshift( @INC, $opt{lib} );
-        }
-        else {
-            die "$0: Specified lib directory `$opt{lib}' does not exist.\n";
-        }
     }
 }
 
@@ -132,9 +112,9 @@ usage: [perl] nytprofcg [opts]
  --delete,      -d         Delete the old output [uses --out]
  --help,        -h         Print this message
 
-This script of part of the Devel::NYTProf package by Adam J Kaplan.
-Copyright 2008 Adam J Kaplan, http://search.cpan.org/~akaplan, Released under
-the same terms as Perl itself.
+This script of part of the Devel::NYTProf distribution.
+Released under the same terms as Perl 5.8.0
+See http://search.cpan.org/dist/Devel-NYTProf/
 END
 }
 

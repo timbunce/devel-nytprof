@@ -4,6 +4,13 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
+=head2 Changes in Devel::NYTProf 2.10 (svn rXXX) XXX
+
+  Fixed call count for XSubs that was one too high.
+
+  Added nytprofcg utility to generate callgrind data for
+    viewing via Kcachegrind, thanks to Chia-liang Kao.
+
 =head2 Changes in Devel::NYTProf 2.09 (svn r733) 29th March 2009
 
   Added support for modules using AutoLoader, e.g., POSIX & Storable,

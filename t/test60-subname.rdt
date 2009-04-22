@@ -55,7 +55,7 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	Devel::NYTProf::Test::example_sub	[ 2 13 13 0 0 0 0 0 ]
-sub_subinfo	Devel::NYTProf::Test::example_xsub	[ 2 0 0 6 0 0 0 0 ]
+sub_subinfo	Devel::NYTProf::Test::example_xsub	[ 2 0 0 5 0 0 0 0 ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	5	[ 1 0 0 0 0 0 0 ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	9	[ 1 0 0 0 0 0 0 ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	12	[ 1 0 0 0 0 0 0 ]

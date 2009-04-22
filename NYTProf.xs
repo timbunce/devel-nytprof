@@ -329,7 +329,6 @@ orig_ppaddr_t *PL_ppaddr_orig;
 static OP *pp_entersub_profiler(pTHX);
 static OP *pp_leaving_profiler(pTHX);
 static HV *sub_callers_hv;
-static HV *sub_xsubs_hv;    /* like PL_DBsub but for xsubs only */
 static HV *pkg_fids_hv;     /* currently just package names */
 
 /* macros for outputing profile data */
@@ -1742,7 +1741,8 @@ DB_stmt(pTHX_ COP *cop, OP *op)
             cop = PL_curcop_nytprof;
         last_executed_line = CopLINE(cop);
         if (!last_executed_line) {                /* i.e. finish_profile called by END */
-            if (op)                               /* should never happen */
+            /* XXX maybe code due to command line options, like -Mblib */
+            if (op)
                 warn("Unable to determine line number in %s", OutCopFILE(cop));
             last_executed_line = 1;               /* don't want zero line numbers in data */
         }
@@ -2284,9 +2284,10 @@ pp_entersub_profiler(pTHX)
             HV *hv = newHV();
             sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
 
-            if (is_xs) { /* create dummy item to hold flag to indicate xs */
+            if (is_xs) {
+                /* create dummy item with fid=0 & line=0 to act as flag to indicate xs */
                 AV *av = new_sub_call_info_av(aTHX);
-                /* flag to indicate xs */
+                av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(0));
                 sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
 
                 if (cv && SvTYPE(cv) == SVt_PVCV) {
@@ -2452,6 +2453,12 @@ finish_profile(pTHX)
 
     close_output_file(aTHX);
 
+    /* reset sub profiler data  */
+    hv_clear(sub_callers_hv);
+    /* reset other state */
+    cumulative_overhead_ticks = 0;
+    cumulative_subr_secs = 0;
+
     SETERRNO(saved_errno, 0);
 }
 
@@ -2523,9 +2530,8 @@ init_profiler(pTHX)
 #endif
 
     /* create file id mapping hash */
-    hashtable_memwidth = sizeof(Hash_entry*) * hashtable.size;
-    hashtable.table = (Hash_entry**)safemalloc(hashtable_memwidth);
-    memset(hashtable.table, 0, hashtable_memwidth);
+    hashtable.table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * hashtable.size);
+    memset(hashtable.table, 0, sizeof(Hash_entry*) * hashtable.size);
 
     open_output_file(aTHX_ PROF_output_file);
 
@@ -2562,8 +2568,6 @@ init_profiler(pTHX)
         sub_callers_hv = newHV();
     if (!pkg_fids_hv)
         pkg_fids_hv = newHV();
-    if (!sub_xsubs_hv)
-        sub_xsubs_hv = newHV();
     PL_ppaddr[OP_ENTERSUB] = pp_entersub_profiler;
 
     if (!PL_checkav) PL_checkav = newAV();
@@ -3025,20 +3029,25 @@ eval_outer_fid(pTHX_
     unsigned int *eval_file_num_ptr,
     unsigned int *eval_line_num_ptr
 ) {
+    unsigned int outer_fid;
     AV *av;
     SV *fid_info_rvav = *av_fetch(fid_fileinfo_av, fid, 1);
     if (!SvROK(fid_info_rvav)) /* should never happen */
         return 0;
     av = (AV *)SvRV(fid_info_rvav);
-    fid = (unsigned int)SvUV(*av_fetch(av,NYTP_FIDi_EVAL_FID,1));
-    if (!fid)
+    outer_fid = (unsigned int)SvUV(*av_fetch(av,NYTP_FIDi_EVAL_FID,1));
+    if (!outer_fid)
         return 0;
+    if (outer_fid == fid) {
+        warn("Possible corruption: eval_outer_fid of %d is %d!\n", fid, outer_fid);
+        return 0;
+    }
     if (eval_file_num_ptr)
-        *eval_file_num_ptr = fid;
+        *eval_file_num_ptr = outer_fid;
     if (eval_line_num_ptr)
         *eval_line_num_ptr = (unsigned int)SvUV(*av_fetch(av,NYTP_FIDi_EVAL_LINE,1));
     if (recurse)
-        eval_outer_fid(aTHX_ fid_fileinfo_av, fid, recurse, eval_file_num_ptr, eval_line_num_ptr);
+        eval_outer_fid(aTHX_ fid_fileinfo_av, outer_fid, recurse, eval_file_num_ptr, eval_line_num_ptr);
     return 1;
 }
 

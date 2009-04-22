@@ -421,19 +421,30 @@ collecting profile data.
 Using the C<start=no> option lets you leave the profiler disabled initially
 until you call DB::enable_profile() at the right moment.
 
-You can finish profiling completely by calling DB::finish_profile().
-This may be useful if perl is exiting abnormally, leaving the profile data file
-in an incomplete state.  You can use DB::enable_profile() after
-DB::finish_profile() to enable profiling again.  If the filename is not given,
-the current profile output file will be overwritten.
+The profile output file can't be used until it's been properly completed and
+closed.  Calling DB::disable_profile() doesn't do that.  To make a profile file
+usable before the profiled application has completed you can call
+DB::finish_profile(). Alternatively you could call DB::enable_profile($newfile).
 
-=head2 Multiple Output Files
+=head2 DB::disable_profile()
 
-You can pass a filename argument to DB::enable_profile() to make NYTProf write
-future profile data to that file. The current output file, if any, is closed.
-Any existing file with the new name will be deleted before being written to.
-When combined with DB::disable_profile() this lets you profile individual
-sections of code.
+Stops collection of profile data.
+
+Subroutine calls which were made while profiling was enabled and are still on
+the call stack (have not yet exited) will still have their profile data
+collected when they exit.
+
+=head2 DB::enable_profile($newfile)
+
+Enables collection of profile data. If $newfile is true the profile data will be
+written to $newfile (after completing and closing the previous file, if any).
+If $newfile already exists it will be deleted first.
+
+=head2 DB::finish_profile()
+
+Calls DB::disable_profile(), then completes the profile data file by writing
+subroutine profile data, and then closes the file. The in memory subroutine
+profile data is then discarded.
 
 =head1 REPORTS
 
