@@ -608,6 +608,10 @@ but the cost is dispersed across possibly many calling locations).
 
 The C<goto &foo;> isn't recognised as a subroutine call by the subroutine profiler.
 
+=head2 Calls to XSubs which exit via an exception
+
+Calls to XSubs which exit via an exception are not recorded by subroutine profiler.
+
 =head2 #line directives
 
 The reporting code currently doesn't handle #line directives, but at least it

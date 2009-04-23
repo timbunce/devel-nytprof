@@ -2276,9 +2276,19 @@ pp_entersub_profiler(pTHX)
             : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
         fid_line_key_len = sprintf(fid_line_key, "%u:%d", fid, line);
 
-        /* { subname => { "fid:line" => [ count, incl_time ] } } */
+        /* { called_subname => { "fid:line" => [ count, incl_time ] } } */
         sv_tmp = *hv_fetch(sub_callers_hv, subname_pv,
             (I32)SvCUR(subname_sv), 1);
+
+        /* XXX fid:line can be ambiguous, e.g sub foo { return sub { ... } }
+         * We could add subname_sv to the [ count, incl_time ] array
+         * and check it on each call. To improve performance we could also
+         * add the op and so avoid the string compare if the op's are the same.
+         * If there's a call with a different subname_sv value, then we
+         * could interpose a hash to hold per-subname values:
+         * old => { "fid:line" =>           [ count, incl_time, "sub1" ]          }
+         * new => { "fid:line" => { "sub1"=>[ count, incl_time ], "sub2"=>[...] } }
+         */
 
         if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this subname from anywhere */
             HV *hv = newHV();
