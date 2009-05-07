@@ -663,89 +663,115 @@ sub output_package_treemap {
         or croak "Unable to open file $opt{out}/$filename: $!";
 
     my $treemap_head = q{
-        <link type="text/css" rel="stylesheet" href="jit/infovis.css" />  
-        <link type="text/css" rel="stylesheet" href="jit/treemap.css" />  
-        <script type="text/javascript" src="jit/mootools-1.2.js"></script>  
-        <script type="text/javascript" src="jit/Treemap.js" ></script>  
+        <script type="text/javascript" src="js/uk.org.zowie.Treemap-0.9.js" ></script>  
     };
 
     print OUT get_html_header("Package Treemap - NYTProf", {
         skip_style => 1,
         skip_jquery => 1,
         head_epilogue => $treemap_head,
+        not_xhtml => 1, # XXX js-treemap doesn't worth with xhtml at the moment
     });
     print OUT get_page_header(
         profile => $profile,
         title => "Performance Profile Subroutine Index",
         body_onload => "init();"
     ) if 0;
-    print OUT qq{<body onload="init();">};
+    print OUT qq{<body onload="createGUI();">};
 
     local $Data::Dumper::Sortkeys = 1;
     local $Data::Dumper::Indent = 1;
     local $Data::Dumper::Maxdepth = 3;
     warn Data::Dumper::Dumper($profile->package_subinfo_map(1,1));
     my $package_tree_subinfo_map = $profile->package_subinfo_map(1,1);
-    use JSON::Any;
 
     # {   "id":"node02", "name":"0.2", "data":[ {"key":"key1", "value":195}, {"key":"key2", "value":5}], "children":[ ... ] }
-    my $node = 1;
     my $node_mapper;
     $node_mapper = sub {
-        my ($k, $v, $title) = @_;
+        my ($k, $v, $path, $depth) = @_;
         # { main => { '' => [...] } }
         # { Foo => { '' => [...], '::Bar' => { ''=>[...], '::Baz'=>[...] } } }
-        warn "pkgtree2treemapnode: $title\n";
-        my $n = { id => "n".++$node };
+        my $pad = "\t" x $depth;
 
+        #if (ref $v eq 'HASH' and keys %$v == 1 and $v->{''}) { $v = $v->{''}; }
+
+        my $title = @$path ? '::'.$path->[-1] : $k || 'main';
         if (ref $v eq 'ARRAY') { # leaf node
-            $n->{name} = "subs";
-            $n->{data} = [ { key=>"key1", value=>$v->[0]->excl_time } ],
-            $n->{children} = [];
+            return sprintf qq{%snew TreeNode( "%s", %s )},
+                $pad, "subs", $v->[0]->excl_time;
         }
-        else {
-            $title = ($title) ? '::'.$k : $k;
-            my @kids = map { $node_mapper->($_, $v->{$_}, $title) } keys %$v;
-            $n->{name} = "$title";
-            $n->{children} = \@kids;
-            $n->{data} = [ { key=>"key1", value=>sum(map { $_->{data}[0]{value} } @kids) } ];
-        }
-
-        return $n;
+        my @kids = map { $node_mapper->($_, $v->{$_}, [ @$path, $_ ], $depth+1) } keys %$v;
+        return sprintf qq{%snew TreeParentNode( "%s", [\n%s\n%s] )},
+            $pad, $title, join(",\n", @kids), $pad;
     };
 
-    my $ary = $node_mapper->('', $package_tree_subinfo_map, '');
-    $ary->{name} = "Treemap of time spent in package hierarchy of $profile->{attribute}{application}";
-    my $json = JSON::Any->new->objToJson($ary);
+    my $nodes = $node_mapper->('', $package_tree_subinfo_map, [], 0);
+    warn $nodes;
 
     print OUT qq{
-        <script type="text/javascript" >
-        var treemap;
-        function init() {  
-            var json = $json;
-            treemap = new TM.Squarified();
-            treemap.loadFromJSON(json);  
+<script type="text/javascript">
+
+function createGUI()
+{
+    // Load the XML from the server
+    var filename = "js/treeNodes.json";
+
+    var request = createAjaxRequest();
+    request.onreadystatechange = function () {
+        if( request.readyState != 4 )
+            return;
+        if( 0 != request.status && request.status != 200 ) {
+            alert("Cannot GET '" + filename + "' (" + request.status + ")");
+            return;
         }
-        </script>  
+
+        // Evaluate the JSON
+        var rootNode = $nodes;
+
+        // Render the DIV treemap
+        var mapDIV = document.getElementById( "myDiv" );
+        var map = new DivTreeMap( mapDIV, rootNode, {
+                shader: new TreeNodeShader( rootNode )
+        } );
+
+        // Set up surrounding GUI controls
+        var infoBox = document.getElementById( "infoBox" );
+        var backButton = document.getElementById( "backButton" );
+        backButton.disabled = true;
+        
+        map.onMouseOver = function( node ) { infoBox.innerHTML = node.toString(); }; 
+        map.onMouseOut = function( node ) { infoBox.innerHTML = ""; }; 
+        map.onZoomClick = function( node ) { map.zoom(); backButton.disabled = false; }
+        backButton.onclick = function() { backButton.disabled = ( 0 === map.unzoom() ); };
+
+        // Define & plug in a resize hook
+        window.onresize = function() { map.checkResize(); };
+        map.checkResize();
+    };
+    request.open( 'GET', filename, true );
+    request.send( null );
+}
+
+function attrToString( attr )
+{
+    return attr.nodeName + "=" + attr.nodeValue;
+}
+</script>
     };
     my $pkg_html;
     $pkg_html .= qq{
-    <div id="infovis" /> </div>
-    <div id="left">
-        <div id="details" class="toggler left-item">Details</div>
-        <div class="element contained-item">
-            <div class="inner" id="inner-details">
-                <input id="opera_right_button" value="go to parent" type="button" onclick="treemap.out()" />
-            </div>
-        </div>
-    </div>
+<div class="divBox" style="position: relative; width: 100%; margin-top: 3px">
+	<button style="right: 0px;" id="backButton">Back</button>
+	<span id="infoBox"></span>
+</div>
+<div class="divBox" id="myDiv" style="height: 80%; width: 100%; background: #7777AA"></div>
     };
     print OUT $pkg_html;
 
     #push @on_ready_js, qq{ };
 
     my $footer = ""; # get_footer($profile);
-    print OUT "</div>$footer</body></html>";
+    print OUT "$footer</body></html>";
     close OUT;
 }
 
@@ -753,15 +779,25 @@ sub output_package_treemap {
 sub output_js_files {
     my ($profile) = @_;
     # find the js, gif, css etc files installed with Devel::NYTProf
-    # XXX hackish, needs a rewrite
-    (my $lib = $INC{"Devel/NYTProf/Data.pm"}) =~ s/Data\.pm$//;
-    mkdir "$opt{out}/jit";
-    for my $src (<$lib/js/*>, <$lib/js/jit/*>) {
-        next unless -f $src;
-        (my $file = $src) =~ s{.*/js/}{};
-        unlink "$opt{out}/$file";
-        copy($src, "$opt{out}/$file")
-            or warn "Unable to copy $src to $opt{out}/$file: $!";
+    (my $lib = $INC{"Devel/NYTProf/Data.pm"}) =~ s/\/Data\.pm$//;
+    _copy_dir("$lib/js", "$opt{out}/js");
+}
+
+sub _copy_dir {
+    my ($srcdir, $dstdir) = @_;
+    mkdir $dstdir or die "Can't create $dstdir directory: $!\n"
+        unless -d $dstdir;
+    for my $src (glob("$srcdir/*")) {
+        (my $name = $src) =~ s{.*/}{};
+        next if $name =~ m/^\./; # skip . and .. etc
+        my $dstname = "$dstdir/$name";
+        if (not -f $src) {
+            _copy_dir($src, $dstname) if -d $src; # recurse
+            next; # skip non-ordinary-files
+        }
+        unlink $dstname;
+        copy($src, $dstname)
+            or warn "Unable to copy $src to $dstname: $!";
     }
 }
 
@@ -1078,10 +1114,11 @@ sub get_html_header {
     my $opts = shift || {};
 
     my $html = <<EOD;
-<!DOCTYPE html
-     PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml">
+EOD
+    $html = "<html>" if $opts->{not_xhtml};
+    $html .= <<EOD;
 <!--
 This file was generated by Devel::NYTProf version $Devel::NYTProf::Core::VERSION
 -->
@@ -1095,9 +1132,9 @@ EOD
         unless $opts->{skip_style};
 
     $html .= <<EOD unless $opts->{skip_jquery};
-    <script type="text/javascript" src="jquery-min.js"></script> 
+    <script type="text/javascript" src="js/jquery-min.js"></script> 
 
-    <script type="text/javascript" src="jquery-tablesorter-min.js"></script> 
+    <script type="text/javascript" src="js/jquery-tablesorter-min.js"></script> 
     <link rel="stylesheet" type="text/css" href="style-tablesorter.css"></link>
     <script type="text/javascript">
     // when a column is first clicked on to sort it, use descending order
