@@ -375,3 +375,5 @@ the initial fid info is output.
 
 Use FID_ATTRIB tag to record autoload fids being aliases to a fid so that
 reports can include a list of autoloaded subs.
+
+Check if pp_leavegiven and pp_leavewhen need handling in init_profiler().

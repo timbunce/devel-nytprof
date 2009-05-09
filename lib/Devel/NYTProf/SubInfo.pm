@@ -73,6 +73,24 @@ sub clone {             # shallow
     return bless [ @$self ] => ref $self;
 }
 
+sub _min {
+    my ($a, $b) = @_;
+    $a = $b if not defined $a;
+    $b = $a if not defined $b;
+    # either both are defined or both are undefined here
+    return undef unless defined $a;
+    return min($a, $b);
+}
+
+sub _max {
+    my ($a, $b) = @_;
+    $a = $b if not defined $a;
+    $b = $a if not defined $b;
+    # either both are defined or both are undefined here
+    return undef unless defined $a;
+    return max($a, $b);
+}
+
 # merge details of another sub into this one
 # there are very few cases where this is sane thing to do
 # it's meant for merging things like anon-subs in evals
@@ -83,10 +101,9 @@ sub merge_in {
 
     # see also "case NYTP_TAG_SUB_CALLERS:" in load_profile_data_from_stream()
 
-    $self->[NYTP_SIi_FIRST_LINE]  = min($self->[NYTP_SIi_FIRST_LINE], $new->[NYTP_SIi_FIRST_LINE])
-        if defined $new->[NYTP_SIi_FIRST_LINE];
-    $self->[NYTP_SIi_LAST_LINE]   = max($self->[NYTP_SIi_LAST_LINE],  $new->[NYTP_SIi_LAST_LINE])
-        if defined $new->[NYTP_SIi_LAST_LINE];
+    $self->[NYTP_SIi_FIRST_LINE]  = _min($self->[NYTP_SIi_FIRST_LINE], $new->[NYTP_SIi_FIRST_LINE]);
+    $self->[NYTP_SIi_LAST_LINE]   = _max($self->[NYTP_SIi_LAST_LINE],  $new->[NYTP_SIi_LAST_LINE]);
+
     $self->[NYTP_SIi_CALL_COUNT] += $new->[NYTP_SIi_CALL_COUNT];
     $self->[NYTP_SIi_INCL_RTIME] += $new->[NYTP_SIi_INCL_RTIME];
     $self->[NYTP_SIi_EXCL_RTIME] += $new->[NYTP_SIi_EXCL_RTIME];
