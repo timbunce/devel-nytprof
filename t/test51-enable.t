@@ -16,14 +16,14 @@ run_test_group({
         my $file_b = "nytprof-test51-b.out";
         my $file_c = "nytprof-test51-c.out";
 
-        my $pb = Devel::NYTProf::Data->new( { filename => $file_b, quiet => 1 } );
+        my $pb = Devel::NYTProf::Data->new( { filename => $file_b, quiet => 0 } );
         is_deeply(sub_calls($pb), {
             'main::sub1' => 1,
             'main::sub3' => 1,
             'DB::disable_profile' => 1,
         }, "$file_b sub calls");
 
-        my $pc = Devel::NYTProf::Data->new( { filename => $file_c, quiet => 1 } );
+        my $pc = Devel::NYTProf::Data->new( { filename => $file_c, quiet => 0 } );
         is_deeply(sub_calls($pc), {
             'main::sub7' => 1,
             'DB::finish_profile' => 1,

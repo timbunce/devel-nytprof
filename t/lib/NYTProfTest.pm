@@ -42,6 +42,15 @@ if ($ENV{NYTPROF}) {                        # avoid external interference
 # options the user wants to override when running tests
 my %NYTPROF_TEST = map { split /=/, $_, 2 } split /:/, $ENV{NYTPROF_TEST} || '';
 
+# set some NYTProf options for this process in case 'extra tests' call
+# Devel::NYTProf::Data methods directly. This is a hack because the options
+# are global and there's no way to discover defaults or restore previous values.
+# So we just do trace for now.
+for my $opt (qw(trace)) {
+    DB::set_option($opt, $NYTPROF_TEST{$opt}) if defined $NYTPROF_TEST{$opt};
+}
+
+
 # but we'll force a specific test data file
 $NYTPROF_TEST{file} = $profile_datafile;
 
@@ -127,6 +136,7 @@ sub run_test_group {
         }
 
         if ($extra_test_code) {
+            note("running $extra_test_count extra tests...");
             my $profile = eval { Devel::NYTProf::Data->new({filename => $profile_datafile}) };
             if ($@) {
                 diag($@);
@@ -200,6 +210,7 @@ sub run_command {
         warn "Error status $? from $cmd!\n";
         warn "NYTPROF=$ENV{NYTPROF}\n" if $ENV{NYTPROF} and not $opts{v};
         $show_stdout = 1;
+        sleep 2;
     }
     if ($show_stdout) { warn $_ for @results }
     return $ok;
