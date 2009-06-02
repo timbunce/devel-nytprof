@@ -1212,13 +1212,14 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         found->eval_line_num = atoi(end+1);
     }
 
+    /* is the file is an autosplit, e.g., has a file_name like
+     * "../../lib/POSIX.pm (autosplit into ../../lib/auto/POSIX/errno.al)"
+     */
     if (   ')' == file_name[file_name_len-1] && strstr(file_name, " (autosplit ")) {
-        /* flag as autosplit */
         found->fid_flags |= NYTP_FIDf_IS_AUTOSPLIT;
     }
 
-    /* if the file is an autosplit, with a file_name like
-     * "../../lib/POSIX.pm (autosplit into ../../lib/auto/POSIX/errno.al)"
+    /* if the file is an autosplit
      * then we want it to have the same fid as the file it was split from.
      * Thankfully that file will almost certainly be in the fid hash,
      * so we can find it and copy the details.
@@ -1983,13 +1984,15 @@ reinit_if_forked(pTHX)
     if (sub_callers_hv)
         hv_clear(sub_callers_hv);
 
-    /* any data that was unflushed in the parent when it forked
-     * is now duplicated unflushed in this child process.
-     * We need to be a little devious to prevent it getting flushed.
-     */
-    NYTP_close(out, 1); /* 1: discard output, to stop it being flushed to disk */
+    if (out) {
+        /* any data that was unflushed in the parent when it forked
+        * is now duplicated unflushed in this child process.
+        * We need to be a little devious to prevent it getting flushed.
+        */
+        NYTP_close(out, 1); /* 1: discard output, to stop it being flushed to disk */
 
-    open_output_file(aTHX_ PROF_output_file);
+        open_output_file(aTHX_ PROF_output_file);
+    }
 
     return 1;                                     /* have forked */
 }
@@ -2408,6 +2411,8 @@ enable_profile(pTHX_ char *file)
         warn("NYTProf enable_profile (previously %s) to %s",
             prev_is_profiling ? "enabled" : "disabled",
             (file && *file) ? file : PROF_output_file);
+
+    reinit_if_forked(aTHX);
 
     if (file && *file && strNE(file, PROF_output_file)) {
         /* caller wants output to go to a new file */
