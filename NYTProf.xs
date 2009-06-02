@@ -867,7 +867,7 @@ output_header(pTHX)
     NYTP_printf(out, ":%s=%u\n",       "ticks_per_sec", ticks_per_sec);
     NYTP_printf(out, ":%s=%lu\n",      "nv_size", (long unsigned int)sizeof(NV));
     /* $0 - application name */
-    mg_get(sv = get_sv("0",GV_ADDWARN));
+    sv = get_sv("0",GV_ADDWARN);
     NYTP_printf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
 
 #ifdef HAS_ZLIB
@@ -2485,7 +2485,6 @@ finish_profile(pTHX)
 static int
 init_profiler(pTHX)
 {
-    unsigned int hashtable_memwidth;
 #ifndef HAS_GETTIMEOFDAY
     SV **svp;
 #endif
