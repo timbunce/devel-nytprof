@@ -10,6 +10,9 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
   Fixed enable_profile() after fork thanks to delamonpansie
     http://code.google.com/p/perl-devel-nytprof/issues/detail?id=15
 
+  Changed enable_profile() to discard the time spent since
+    profile was disabled.
+
   Added nytprofcg utility to generate callgrind data for
     viewing via Kcachegrind, thanks to Chia-liang Kao.
 

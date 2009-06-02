@@ -2429,6 +2429,9 @@ enable_profile(pTHX_ char *file)
     if (use_db_sub)                 /* set PL_DBsingle if required */
         sv_setiv(PL_DBsingle, 1);
 
+    /* discard time spent since profiler was disabled */
+    get_time_of_day(start_time);
+
     return prev_is_profiling;
 }
 
