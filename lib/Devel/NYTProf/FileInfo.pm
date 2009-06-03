@@ -5,7 +5,7 @@ use strict;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 
 use Devel::NYTProf::Constants qw(
-    NYTP_FIDf_HAS_SRC NYTP_FIDf_SAVE_SRC
+    NYTP_FIDf_HAS_SRC NYTP_FIDf_SAVE_SRC NYTP_FIDf_IS_FAKE
 
     NYTP_FIDi_FILENAME NYTP_FIDi_EVAL_FID NYTP_FIDi_EVAL_LINE NYTP_FIDi_FID
     NYTP_FIDi_FLAGS NYTP_FIDi_FILESIZE NYTP_FIDi_FILEMTIME NYTP_FIDi_PROFILE
@@ -164,9 +164,15 @@ sub srclines_array {
     }
 
     my $filename = $self->abs_filename;
-    open my $fh, "<", $filename
-        or return undef;
-    return [ <$fh> ];
+    if (open my $fh, "<", $filename) {
+        return [ <$fh> ];
+    }
+
+    if ($self->flags & NYTP_FIDf_IS_FAKE) {
+        return [ "# NYTP_FIDf_IS_FAKE - e.g., unknown caller of an eval.\n" ];
+    }
+
+    return undef;
 }
 
 

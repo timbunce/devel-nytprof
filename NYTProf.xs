@@ -85,7 +85,8 @@
 #define NYTP_FIDf_IS_AUTOSPLIT   0x0008 /* fid is an autosplit (see AutoLoader) */
 #define NYTP_FIDf_HAS_SRC        0x0010 /* src is available to profiler */
 #define NYTP_FIDf_SAVE_SRC       0x0020 /* src will be saved by profiler, if NYTP_FIDf_HAS_SRC also set */
-#define NYTP_FIDf_IS_ALIAS       0x0040 /* fid is cone of the 'parent' fid it was autosplit from */
+#define NYTP_FIDf_IS_ALIAS       0x0040 /* fid is clone of the 'parent' fid it was autosplit from */
+#define NYTP_FIDf_IS_FAKE        0x0080 /* eg dummy caller of a string eval that doesn't have a filename */
 
 #define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
 #define NYTP_TAG_COMMENT         '#'    /* till newline */
@@ -1191,31 +1192,42 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         return (found) ? found->id : 0;
     }
 
-    /* if this is a synthetic filename for an 'eval'
+    /* if this is a synthetic filename for a string eval
      * ie "(eval 42)[/some/filename.pl:line]"
-     * then ensure we've already generated an id for the underlying
-     * filename
+     * then ensure we've already generated a fid for the underlying
+     * filename, and associate that fid with this eval fid
      */
-    if ('(' == file_name[0] && ']' == file_name[file_name_len-1]) {
-        char *start = strchr(file_name, '[');
-        const char *colon = ":";
-        /* can't use strchr here (not nul terminated) so use rninstr */
-        char *end = rninstr(file_name, file_name+file_name_len-1, colon, colon+1);
+    if ('(' == file_name[0]) {
+        if (']' == file_name[file_name_len-1]) {
+            char *start = strchr(file_name, '[');
+            const char *colon = ":";
+            /* can't use strchr here (not nul terminated) so use rninstr */
+            char *end = rninstr(file_name, file_name+file_name_len-1, colon, colon+1);
 
-        if (!start || !end || start > end) {    /* should never happen */
-            warn("NYTProf unsupported filename syntax '%s'", file_name);
-            return 0;
+            if (!start || !end || start > end) {    /* should never happen */
+                warn("NYTProf unsupported filename syntax '%s'", file_name);
+                return 0;
+            }
+            ++start;                              /* move past [ */
+            /* recurse */
+            found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
+            found->eval_line_num = atoi(end+1);
         }
-        ++start;                              /* move past [ */
-        /* recurse */
-        found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
-        found->eval_line_num = atoi(end+1);
+        else if (strnEQ(file_name, "(eval ", 6)) {
+            /* strange eval that doesn't have a filename associated */
+            /* seen in mod_perl, possibly from eval_sv(sv) api call */
+            char *eval_file = "/unknown-eval-invoker";
+            found->eval_fid = get_file_id(aTHX_ eval_file, strlen(eval_file),
+                NYTP_FIDf_IS_FAKE | created_via
+            );
+            found->eval_line_num = 1;
+        }
     }
 
     /* is the file is an autosplit, e.g., has a file_name like
      * "../../lib/POSIX.pm (autosplit into ../../lib/auto/POSIX/errno.al)"
      */
-    if (   ')' == file_name[file_name_len-1] && strstr(file_name, " (autosplit ")) {
+    if ( ')' == file_name[file_name_len-1] && strstr(file_name, " (autosplit ")) {
         found->fid_flags |= NYTP_FIDf_IS_AUTOSPLIT;
     }
 
@@ -3852,9 +3864,10 @@ BOOT:
     newCONSTSUB(stash, "NYTP_FIDf_VIA_STMT",     newSViv(NYTP_FIDf_VIA_STMT));
     newCONSTSUB(stash, "NYTP_FIDf_VIA_SUB",      newSViv(NYTP_FIDf_VIA_SUB));
     newCONSTSUB(stash, "NYTP_FIDf_IS_AUTOSPLIT", newSViv(NYTP_FIDf_IS_AUTOSPLIT));
-    newCONSTSUB(stash, "NYTP_FIDf_IS_ALIAS",     newSViv(NYTP_FIDf_IS_ALIAS));
     newCONSTSUB(stash, "NYTP_FIDf_HAS_SRC",      newSViv(NYTP_FIDf_HAS_SRC));
     newCONSTSUB(stash, "NYTP_FIDf_SAVE_SRC",     newSViv(NYTP_FIDf_SAVE_SRC));
+    newCONSTSUB(stash, "NYTP_FIDf_IS_ALIAS",     newSViv(NYTP_FIDf_IS_ALIAS));
+    newCONSTSUB(stash, "NYTP_FIDf_IS_FAKE",      newSViv(NYTP_FIDf_IS_FAKE));
     /* NYTP_FIDi_* */
     newCONSTSUB(stash, "NYTP_FIDi_FILENAME",  newSViv(NYTP_FIDi_FILENAME));
     newCONSTSUB(stash, "NYTP_FIDi_EVAL_FID",  newSViv(NYTP_FIDi_EVAL_FID));
@@ -3901,6 +3914,18 @@ void
 example_xsub(...)
     CODE:
     PERL_UNUSED_VAR(items);
+
+void
+example_xsub_eval(...)
+    CODE:
+    PERL_UNUSED_VAR(items);
+    /* to enable testing of string evals in embedded environments
+     * where there's no caller file information available.
+     * Only it doesn't actually do that because perl knows
+     * what it's executing at the time eval_pv() gets called.
+     * We need a better test, closer to true embedded.
+     */
+    eval_pv("Devel::NYTProf::Test::example_xsub()", 1);
 
 
 MODULE = Devel::NYTProf     PACKAGE = DB
