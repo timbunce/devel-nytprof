@@ -59,7 +59,7 @@ chdir('t') if -d 't';
 if (-d '../blib') {
     unshift @INC, '../blib/arch', '../blib/lib';
 }
-my $bindir      = (grep {-d} qw(./bin ../bin))[0];
+my $bindir      = (grep {-d} qw(./blib/script ../blib/script))[0];
 my $nytprofcsv  = "$bindir/nytprofcsv";
 my $nytprofhtml = "$bindir/nytprofhtml";
 

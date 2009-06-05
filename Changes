@@ -9,6 +9,8 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
   Fixed call count for XSubs that was one too high.
   Fixed enable_profile() after fork thanks to delamonpansie
     http://code.google.com/p/perl-devel-nytprof/issues/detail?id=15
+  Fixed to use correct scripts during test and so avoid permissions
+    issues, thanks to David Golden.
 
   Changed enable_profile() to discard the time spent since
     profile was disabled.
