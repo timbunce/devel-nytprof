@@ -2886,7 +2886,11 @@ write_src_of_files(pTHX)
         if (trace_level >= 4)
             warn("fid %d has %ld src lines", e->id, (long)lines);
         /* for perl 5.10.0 or 5.8.8 (or earlier) use_db_sub is needed to get src */
-        if (0 == lines && !use_db_sub) { /* give a hint */
+        /* give a hint for the common case */
+        if (0 == lines && !use_db_sub
+            &&   ( (e->key_len == 1 && strnEQ(e->key, "-",  1))
+                || (e->key_len == 2 && strnEQ(e->key, "-e", 2)) )
+        ) {
             av_store(src_av, 1, newSVpv("# source not available, try using use_db_sub=1 option.\n",0));
             lines = 1;
         }

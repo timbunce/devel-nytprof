@@ -32,7 +32,7 @@ for my $test ( @tests ) {
         $got{$k} = $v;
     };
     
-    # Unload the class.
+    # (pretend to) Unload the class.
     delete $INC{'Devel/NYTProf/Core.pm'};
 
     # Test the class's parsing.
@@ -40,3 +40,4 @@ for my $test ( @tests ) {
     require Devel::NYTProf::Core;
     is_deeply( \%got, $expected, "Parsed \$ENV{NYTPROF}='$nytprof' ok" );
 }
+
