@@ -95,7 +95,10 @@ for (keys %callmap) {
 
 sub process_cli {
     GetOptions( \%opt, qw/file|f=s out|o=s help|h/ )
-        or exit 1;
+        or do {
+            usage();
+            exit 1;
+        };
 
     if ( defined( $opt{help} ) ) {
         usage();
