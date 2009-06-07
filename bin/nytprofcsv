@@ -36,7 +36,7 @@ GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h delim=s annotated|a/) or e
 
 if (defined($opt{help})) {
     &usage;
-    exit 1;
+    exit;
 }
 
 $opt{delim} = $delimiters{ $opt{delim} } if exists $delimiters{ $opt{delim} };

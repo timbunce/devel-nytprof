@@ -99,7 +99,7 @@ sub process_cli {
 
     if ( defined( $opt{help} ) ) {
         usage();
-        exit 1;
+        exit;
     }
 }
 
