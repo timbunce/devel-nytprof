@@ -38,6 +38,7 @@ t/00-load.t
 t/22-readstream-v20.out
 t/22-readstream.t
 t/30-util.t
+t/31-env.t
 t/50-errno.t
 t/80-version.t
 t/90-pod.t

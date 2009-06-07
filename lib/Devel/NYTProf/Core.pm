@@ -21,6 +21,7 @@ XSLoader::load('Devel::NYTProf', $VERSION);
 if (my $NYTPROF = $ENV{NYTPROF}) {
     for my $optval ( $NYTPROF =~ /((?:[^\\:]+|\\.)+)/g) {
         my ($opt, $val) = $optval =~ /^((?:[^\\=]+|\\.)+)=((?:[^\\=]+|\\.)+)\z/;
+        s/\\(.)/$1/g for $opt, $val;
         DB::set_option($opt, $val);
     }
 }
