@@ -666,8 +666,20 @@ sub output_package_treemap {
     open(OUT, '>', "$opt{out}/$filename")
         or croak "Unable to open file $opt{out}/$filename: $!";
 
-    my $treemap_head = q{
-        <script type="text/javascript" src="js/uk.org.zowie.Treemap-0.9.js" ></script>  
+    my $jstmdir = "js/js-treemap";
+    my $treemap_head = qq{
+	<script language="JavaScript" src="$jstmdir/BoxAnimator.js"></script>
+	<script language="JavaScript" src="$jstmdir/Decorators.js"></script>
+	<script language="JavaScript" src="$jstmdir/TreeMap.js"></script>
+	<script language="JavaScript" src="$jstmdir/DivTreeMap.js"></script>
+	<script language="JavaScript" src="$jstmdir/NodeFacade.js"></script>
+	<script language="JavaScript" src="$jstmdir/Rectangle.js"></script>
+	<script language="JavaScript" src="$jstmdir/TreeNode.js"></script>
+	<script language="JavaScript" src="$jstmdir/TreeNodeAdaptor.js"></script>
+	<script language="JavaScript" src="$jstmdir/TreeNodeShader.js"></script>
+	<script language="JavaScript" src="$jstmdir/Util.js"></script>
+	<script language="JavaScript" src="$jstmdir/XmlAdaptor.js"></script>
+	<script language="JavaScript" src="$jstmdir/XmlShader.js"></script>
     };
 
     print OUT get_html_header("Package Treemap - NYTProf", {
