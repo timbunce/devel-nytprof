@@ -274,7 +274,7 @@ sub subroutine_table {
 #
 sub package_tables {
     my ($profile) = @_;
-    my $pkg_html;
+    my $pkg_html = "";
 
     # XXX may not be appropriate if profiling wasn't continuous
     my $profiler_duration = $profile->{attribute}{profiler_duration};

@@ -2885,12 +2885,17 @@ write_src_of_files(pTHX)
         lines = av_len(src_av);
         if (trace_level >= 4)
             warn("fid %d has %ld src lines", e->id, (long)lines);
+        /* for perl 5.10.0 or 5.8.8 (or earlier) use_db_sub is needed to get src */
+        if (0 == lines && !use_db_sub) { /* give a hint */
+            av_store(src_av, 1, newSVpv("# source not available, try using use_db_sub=1 option.\n",0));
+            lines = 1;
+        }
         for (line = 1; line <= lines; ++line) { /* lines start at 1 */
             SV **svp = av_fetch(src_av, line, 0);
             STRLEN len = 0;
             char *src = (svp) ? SvPV(*svp, len) : "";
             /* outputting the tag and fid for each (non empty) line
-                * is a little inefficient, but not enough to worry about */
+             * is a little inefficient, but not enough to worry about */
             output_tag_int(NYTP_TAG_SRC_LINE, e->id);
             output_int(line);
             output_str(src, (I32)len);    /* includes newline */
