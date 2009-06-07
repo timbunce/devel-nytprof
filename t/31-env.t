@@ -1,4 +1,16 @@
 use Test::More;
+require XSLoader;
+
+# Disable "once" warnings
+BEGIN {
+    my $ok = eval { require warnings; 1 };
+    if ( $ok ) {
+        warnings->unimport( qw( once redefine ) );
+    }
+    else {
+        $^W = 0;
+    }
+}
 
 my @tests = (
     [ 'start=no:file=nytprof.out'  => { start => 'no', file => 'nytprof.out' } ],
