@@ -35,7 +35,7 @@ my %opt = (
 GetOptions(\%opt, qw/file|f=s delete|d out|o=s help|h delim=s annotated|a/) or exit 1;
 
 if (defined($opt{help})) {
-    &usage;
+    usage();
     exit;
 }
 
