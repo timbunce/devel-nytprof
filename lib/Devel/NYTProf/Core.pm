@@ -19,8 +19,8 @@ our $VERSION = '2.09';    # increment with XS changes too
 XSLoader::load('Devel::NYTProf', $VERSION);
 
 if (my $NYTPROF = $ENV{NYTPROF}) {
-    for my $optval (split /:/, $NYTPROF) {
-        my ($opt, $val) = split /=/, $optval, 2;
+    for my $optval ( $NYTPROF =~ /((?:[^\\:]+|\\.)+)/g) {#split /:/, $NYTPROF) {
+        my ($opt, $val) = $optval =~ /^((?:[^\\=]+|\\.)+)=((?:[^\\=]+|\\.)+)\z/;
         DB::set_option($opt, $val);
     }
 }
