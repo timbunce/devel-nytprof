@@ -107,7 +107,7 @@ WriteMakefile(
     AUTHOR    => 'Adam Kaplan <akaplan@cpan.org>, Tim Bunce <timb@cpan.org>',
     PREREQ_PM => {
         'List::Util'   => 0,
-        'Test::More'   => 0,
+        'Test::More'   => '0.81_01',
         'XSLoader'     => 0,
         'Getopt::Long' => 0,
     },
