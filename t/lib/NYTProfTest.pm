@@ -8,6 +8,7 @@ use Config;
 use ExtUtils::testlib;
 use Getopt::Long;
 use Test::More;
+use Data::Dumper;
 
 use base qw(Exporter);
 our @EXPORT = qw(run_test_group);
@@ -124,7 +125,10 @@ sub run_test_group {
     # Windows emulates the executable bit based on file extension only
     ok($^O eq "MSWin32" ? -f $nytprofcsv : -x $nytprofcsv, "Found nytprofcsv as $nytprofcsv");
 
+    my %env_influence;
+
     for my $env (@env_combinations) {
+        my $prev_failures = count_of_failed_tests();
 
         my %env = (%$env, %$override_env, %NYTPROF_TEST);
         local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} sort keys %env;
@@ -146,7 +150,34 @@ sub run_test_group {
 
             $extra_test_code->($profile, $env);
         }
+
+        # did any tests fail?
+        my $failed = (count_of_failed_tests() - $prev_failures) ? 1 : 0;
+        # record what env settings may have influenced the failure
+        ++$env_influence{$_}{$env->{$_}}{$failed ? 'fail' : 'pass'} for keys %$env;
     }
+
+    # report which env vars influenced the failures, if any
+    my @env_influence;
+    for my $envvar (sort keys %env_influence) {
+        my $variants = $env_influence{$envvar};
+        local $Data::Dumper::Indent   = 0;
+        local $Data::Dumper::Sortkeys = 1;
+        local $Data::Dumper::Terse    = 1;
+        local $Data::Dumper::Quotekeys= 0;
+        local $Data::Dumper::Pair     = ' ';
+        $variants->{$_} = Dumper($variants->{$_}) for keys %$variants;
+        my $v = (values %$variants)[0]; # use one as a reference
+        # all the same?
+        next if keys %$variants == grep { $_ eq $v } values %$variants;
+        push @env_influence, sprintf "%15s: %s\n", $envvar,
+            join ', ', map { "$_ => $variants->{$_}" } sort keys %$variants;
+    }
+    if (@env_influence) {
+        diag "Test failures of $group related to settings:";
+        diag $_ for @env_influence;
+    }
+
 }
 
 
@@ -430,6 +461,12 @@ sub unlink_old_profile_datafiles {
     print "Unlinking old @profile_datafiles\n"
         if @profile_datafiles and $opts{v};
     1 while unlink @profile_datafiles;
+}
+
+
+sub count_of_failed_tests {
+    my @details = Test::Builder->new->details;
+    return scalar grep { not $_->{ok} } @details;
 }
 
 
