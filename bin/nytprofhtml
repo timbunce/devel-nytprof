@@ -756,8 +756,9 @@ function createGUI()
         backButton.disabled = true;
         
         map.onMouseOver = function( node ) { infoBox.innerHTML = node.toString(); }; 
-        map.onMouseOut = function( node ) { infoBox.innerHTML = ""; }; 
+        map.onMouseOut  = function( node ) { infoBox.innerHTML = "&nbsp;"; }; 
         map.onZoomClick = function( node ) { map.zoom(); backButton.disabled = false; }
+        map.onBoxClick  = function( node ) { map.zoom(); backButton.disabled = false; }
         backButton.onclick = function() { backButton.disabled = ( 0 === map.unzoom() ); };
 
         // Define & plug in a resize hook
