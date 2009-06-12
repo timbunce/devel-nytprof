@@ -3323,6 +3323,7 @@ load_profile_data_from_stream(SV *cb)
             {
                 AV *av;
                 SV *rv;
+                SV **svp;
                 SV *filename_sv;
                 unsigned int file_num      = read_int();
                 unsigned int eval_file_num = read_int();
@@ -3361,20 +3362,20 @@ load_profile_data_from_stream(SV *cb)
                         fid_flags, file_size, file_mtime);
                 }
 
-                if (av_exists(fid_fileinfo_av, file_num)) {
-                    /* should never happen, perhaps file is corrupt */
-                    AV *old_av = (AV *)SvRV(*av_fetch(fid_fileinfo_av, file_num, 1));
-                    SV *old_name = *av_fetch(old_av, 0, 1);
-                    warn("Fid %d redefined from %s to %s", file_num,
-                        SvPV_nolen(old_name), SvPV_nolen(filename_sv));
-                }
-
                 /* [ name, eval_file_num, eval_line_num, fid, flags, size, mtime, ... ]
                  */
                 av = newAV();
                 rv = newRV_noinc((SV*)av);
                 sv_bless(rv, file_info_stash);
-                av_store(fid_fileinfo_av, file_num, rv);
+
+                svp = av_fetch(fid_fileinfo_av, file_num, 1);
+                if (SvOK(*svp)) { /* should never happen, perhaps file is corrupt */
+                    AV *old_av = (AV *)SvRV(*av_fetch(fid_fileinfo_av, file_num, 1));
+                    SV *old_name = *av_fetch(old_av, 0, 1);
+                    warn("Fid %d redefined from %s to %s", file_num,
+                        SvPV_nolen(old_name), SvPV_nolen(filename_sv));
+                }
+                sv_setsv(*svp, rv);
 
                 av_store(av, NYTP_FIDi_FILENAME, filename_sv); /* av now owns the sv */
                 if (eval_file_num) {
