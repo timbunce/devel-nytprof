@@ -1753,10 +1753,25 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         if (!cop)
             cop = PL_curcop_nytprof;
         last_executed_line = CopLINE(cop);
-        if (!last_executed_line) {                /* i.e. finish_profile called by END */
-            /* XXX maybe code due to command line options, like -Mblib */
-            if (op)
-                warn("Unable to determine line number in %s", OutCopFILE(cop));
+        if (!last_executed_line) {
+            /* XXX command line options, like -n, -p, -Mfoo etc can cause this
+             * as perl effectively treats those as 'line 0' so we try not to warn
+             * in that case (there's probably a better way to detect this)
+             */
+            /* for -n/-p flags we can use strEQ(CopLABEL(cop),"LINE")
+             * but that's doesn't work for -Mfoo.
+             * XXX We could probably check for various stack pointers
+             * being (nearly?) empty as a good indicator of being at the
+             * outermost level of perl.
+             */
+            int is_preamble = (strEQ(CopSTASHPV(cop),"main"));
+
+            /* op is used a a flag as it's null when called via finish_profile called by END */
+            if (!is_preamble && op) {
+                warn("Unable to determine line number in %s", OutCopFILE(cop)); */
+                if (trace_level > 5)
+                    do_op_dump(1, PerlIO_stderr(), cop);
+            }
             last_executed_line = 1;               /* don't want zero line numbers in data */
         }
     }
@@ -3372,7 +3387,7 @@ load_profile_data_from_stream(SV *cb)
                 if (SvOK(*svp)) { /* should never happen, perhaps file is corrupt */
                     AV *old_av = (AV *)SvRV(*av_fetch(fid_fileinfo_av, file_num, 1));
                     SV *old_name = *av_fetch(old_av, 0, 1);
-                    warn("Fid %d redefined from %s to %s", file_num,
+                    warn("Fid %d redefined from %s to %s\n", file_num,
                         SvPV_nolen(old_name), SvPV_nolen(filename_sv));
                 }
                 sv_setsv(*svp, rv);
@@ -3383,7 +3398,7 @@ load_profile_data_from_stream(SV *cb)
                     /* this eval fid refers to the fid that contained the eval */
                     SV *eval_fi = *av_fetch(fid_fileinfo_av, eval_file_num, 1);
                     if (!SvROK(eval_fi)) { /* should never happen */
-                        warn("Eval '%s' (fid %d) has unknown invoking fid %d",
+                        warn("Eval '%s' (fid %d) has unknown invoking fid %d\n",
                             SvPV_nolen(filename_sv), file_num, eval_file_num);
                         /* so make it look like a real file instead of an eval */
                         av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
