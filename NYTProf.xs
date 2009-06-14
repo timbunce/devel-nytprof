@@ -1754,21 +1754,14 @@ DB_stmt(pTHX_ COP *cop, OP *op)
             cop = PL_curcop_nytprof;
         last_executed_line = CopLINE(cop);
         if (!last_executed_line) {
-            /* XXX command line options, like -n, -p, -Mfoo etc can cause this
-             * as perl effectively treats those as 'line 0' so we try not to warn
-             * in that case (there's probably a better way to detect this)
+            /* perl options, like -n, -p, -Mfoo etc can cause this as perl effectively
+             * treats those as 'line 0', so we try not to warn in that case
              */
-            /* for -n/-p flags we can use strEQ(CopLABEL(cop),"LINE")
-             * but that's doesn't work for -Mfoo.
-             * XXX We could probably check for various stack pointers
-             * being (nearly?) empty as a good indicator of being at the
-             * outermost level of perl.
-             */
-            int is_preamble = (strEQ(CopSTASHPV(cop),"main"));
+            int is_preamble = (PL_retstack_ix <= 2 && strEQ(CopSTASHPV(cop),"main"));
 
-            /* op is used a a flag as it's null when called via finish_profile called by END */
+            /* op is null when called via finish_profile called by END */
             if (!is_preamble && op) {
-                warn("Unable to determine line number in %s", OutCopFILE(cop)); */
+                warn("Unable to determine line number in %s", OutCopFILE(cop));
                 if (trace_level > 5)
                     do_op_dump(1, PerlIO_stderr(), cop);
             }
@@ -1783,7 +1776,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
                 (long)getpid(), (int)CopLINE(cop), OutCopFILE(cop));
         }
     }
-    if (file != last_executed_fileptr) {
+    if (file != last_executed_fileptr) { /* cache (hit ratio ~50% e.g. for perlcritic) */
         last_executed_fileptr = file;
         last_executed_fid = get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_STMT);
     }
