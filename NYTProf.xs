@@ -1755,15 +1755,15 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         last_executed_line = CopLINE(cop);
         if (!last_executed_line) {
             /* perl options, like -n, -p, -Mfoo etc can cause this as perl effectively
-             * treats those as 'line 0', so we try not to warn in that case
+             * treats those as 'line 0', so we try not to warn in those cases.
              */
-            int is_preamble = (PL_retstack_ix <= 2 && strEQ(CopSTASHPV(cop),"main"));
+            int is_preamble = (PL_scopestack_ix <= 6 && strEQ(CopSTASHPV(cop),"main"));
 
             /* op is null when called via finish_profile called by END */
             if (!is_preamble && op) {
                 warn("Unable to determine line number in %s", OutCopFILE(cop));
                 if (trace_level > 5)
-                    do_op_dump(1, PerlIO_stderr(), cop);
+                    do_op_dump(1, PerlIO_stderr(), (OP*)cop);
             }
             last_executed_line = 1;               /* don't want zero line numbers in data */
         }
