@@ -86,6 +86,18 @@ $mm_opts{LICENSE}  = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
 $mm_opts{OPTIMIZE} = '-g'   if $opt_g;
 $mm_opts{CCFLAGS}  = "-pg"  if $opt_pg;
 
+if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
+    $mm_opts{META_MERGE} = {
+        resources => {
+            license     => 'http://dev.perl.org/licenses/',
+            homepage    => 'http://perl-devel-nytprof.googlecode.com',
+            bugtracker  => 'http://rt.cpan.org/Public/Dist/Display.html?Name=Devel-NYTProf',
+            repository  => 'http://perl-devel-nytprof.googlecode.com/svn',
+            MailingList => 'http://groups.google.com/group/develnytprof-dev',
+        }
+    }
+}
+
 if (my $gccversion = $Config{gccversion}) {    # ask gcc to be more pedantic
     print "Your perl was compiled with gcc (version $Config{gccversion}), okay.\n";
     $gccversion =~ s/[^\d\.]//g;               # just a number please
