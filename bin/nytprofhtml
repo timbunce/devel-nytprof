@@ -556,7 +556,7 @@ $reporter->report();
 
 output_subs_indexpage($reporter, "index-subs-excl.html", 'excl_time');
 output_subs_indexpage($reporter, "index-subs-incl.html", 'incl_time');
-output_package_treemap($reporter, "package-treemap.html");
+#output_package_treemap($reporter, "package-treemap.html");
 output_indexpage($reporter, "index.html");
 
 output_js_files($reporter);
@@ -649,7 +649,7 @@ sub output_indexpage {
 
     print OUT file_table($profile, $stats, 1);
 
-    print OUT q{<br/><a href="package-treemap.html">Package treemap</a><br/>};
+    #print OUT q{<br/><a href="package-treemap.html">Package treemap</a><br/>};
 
     print OUT package_tables($profile);
 
@@ -698,7 +698,7 @@ sub output_package_treemap {
     local $Data::Dumper::Sortkeys = 1;
     local $Data::Dumper::Indent = 1;
     local $Data::Dumper::Maxdepth = 3;
-    warn Data::Dumper::Dumper($profile->package_subinfo_map(1,1));
+    #warn Data::Dumper::Dumper($profile->package_subinfo_map(1,1));
     my $package_tree_subinfo_map = $profile->package_subinfo_map(1,1);
 
     # {   "id":"node02", "name":"0.2", "data":[ {"key":"key1", "value":195}, {"key":"key2", "value":5}], "children":[ ... ] }
@@ -722,7 +722,7 @@ sub output_package_treemap {
     };
 
     my $nodes = $node_mapper->('', $package_tree_subinfo_map, [], 0);
-    warn $nodes;
+    #warn $nodes;
 
     print OUT qq{
 <script type="text/javascript">

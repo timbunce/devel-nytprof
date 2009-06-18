@@ -1340,7 +1340,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     if (trace_level >= 2) {
         /* including last_executed_fid can be handy for tracking down how
             * a file got loaded */
-        warn("New fid %2u (after %2u:%-4u) %02x e%u:%u %.*s %s %s,%s\n",
+        warn("New fid %2u (after %2u:%-4u) 0x%02x e%u:%u %.*s %s %s,%s\n",
             found->id, last_executed_fid, last_executed_line,
             found->fid_flags, found->eval_fid, found->eval_line_num,
             found->key_len, found->key, (found->key_abs) ? found->key_abs : "",
@@ -1757,7 +1757,8 @@ DB_stmt(pTHX_ COP *cop, OP *op)
             /* perl options, like -n, -p, -Mfoo etc can cause this as perl effectively
              * treats those as 'line 0', so we try not to warn in those cases.
              */
-            int is_preamble = (PL_scopestack_ix <= 6 && strEQ(CopSTASHPV(cop),"main"));
+            char *pkg_name = CopSTASHPV(cop);
+            int is_preamble = (PL_scopestack_ix <= 6 && strEQ(pkg_name,"main"));
 
             /* op is null when called via finish_profile called by END */
             if (!is_preamble && op) {
