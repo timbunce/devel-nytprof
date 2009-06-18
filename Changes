@@ -4,7 +4,7 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
-=head2 Changes in Devel::NYTProf 2.10 (svn rXXX) XXX
+=head2 Changes in Devel::NYTProf 2.10 (svn r774) 18th June 2009
 
   Fixed call count for XSubs that was one too high.
   Fixed enable_profile() after fork thanks to delamonpansie

@@ -3,7 +3,7 @@ package Devel::NYTProf::ReadStream;
 use warnings;
 use strict;
 
-our $VERSION = '2.09';
+our $VERSION = '2.10';
 
 use base 'Exporter';
 our @EXPORT_OK = qw(
