@@ -150,6 +150,7 @@ t/test70-subexcl.t
 t/test80-recurs.p
 t/test80-recurs.rdt
 t/test80-recurs.t
+t/zzz.t
 typemap
 xt/test23-strevalxs.p
 xt/test23-strevalxs.rdt

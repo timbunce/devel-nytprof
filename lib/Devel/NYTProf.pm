@@ -261,6 +261,9 @@ example:
 
   export NYTPROF=trace=2:start=init:file=/tmp/nytprof.out
 
+Any colon or equal characters in a value can be escaped by preceeding them with
+a backslash.
+
 =head2 addpid=1
 
 Append the current process id to the end of the filename.
