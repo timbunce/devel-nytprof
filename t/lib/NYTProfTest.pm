@@ -353,8 +353,10 @@ sub verify_csv_report {
 
     # if it was slower than expected then we're very generous, to allow for
     # slow systems, e.g. cpan-testers running in cpu-starved virtual machines.
+    # e.g., http://www.nntp.perl.org/group/perl.cpan.testers/2009/06/msg4227689.html
     my $max_time_overrun_percentage = ($ENV{AUTOMATED_TESTING}) ? 400 : 200;
-    my $max_time_underrun_percentage = 95;
+    # e.g., http://www.nntp.perl.org/group/perl.cpan.testers/2009/06/msg4230206.html
+    my $max_time_underrun_percentage = 90;
 
     my @accuracy_errors;
     $index = 0;
