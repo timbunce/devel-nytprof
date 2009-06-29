@@ -122,6 +122,7 @@ WriteMakefile(
         'Test::More'   => '0.81_01',
         'XSLoader'     => 0,
         'Getopt::Long' => 0,
+	'JSON::Any'    => 0,
     },
     LIBS      => [join ' ', @libs],
     EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv'],

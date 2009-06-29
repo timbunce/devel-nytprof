@@ -4,6 +4,10 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
+=head2 Changes in Devel::NYTProf 2.11
+
+  Added treemap view of package and subroutine times, with drill-down.
+
 =head2 Changes in Devel::NYTProf 2.10 (svn r774) 18th June 2009
 
   Fixed call count for XSubs that was one too high.

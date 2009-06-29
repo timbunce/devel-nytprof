@@ -38,6 +38,12 @@ sub subname    {
     return join $join, @$subname;
 }
 
+sub subname_without_package {
+    my $subname = shift->[NYTP_SIi_SUB_NAME];
+    $subname =~ s/.*:://;
+    return $subname;
+}
+
 sub profile    { shift->[NYTP_SIi_PROFILE] }
 
 sub package    { (my $pkg = shift->subname) =~ s/^(.*)::.*/$1/; return $pkg }

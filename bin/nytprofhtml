@@ -16,6 +16,7 @@ use Carp;
 use Getopt::Long;
 use List::Util qw(sum max);
 use File::Copy;
+use JSON::Any;
 
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
@@ -270,8 +271,6 @@ sub subroutine_table {
 }
 
 
-# http://www.jquery.info/The-TreeMap-plugin
-#
 sub package_tables {
     my ($profile) = @_;
     my $pkg_html = "";
@@ -556,7 +555,7 @@ $reporter->report();
 
 output_subs_indexpage($reporter, "index-subs-excl.html", 'excl_time');
 output_subs_indexpage($reporter, "index-subs-incl.html", 'incl_time');
-#output_package_treemap($reporter, "package-treemap.html");
+output_package_treemap($reporter, "package-treemap.html");
 output_indexpage($reporter, "index.html");
 
 output_js_files($reporter);
@@ -649,13 +648,137 @@ sub output_indexpage {
 
     print OUT file_table($profile, $stats, 1);
 
-    #print OUT q{<br/><a href="package-treemap.html">Package treemap</a><br/>};
+    print OUT q{<br/><a href="package-treemap.html">Package treemap</a><br/>};
 
     print OUT package_tables($profile);
 
     my $footer = get_footer($profile);
     print OUT "</div>$footer</body></html>";
     close OUT;
+}
+
+
+sub js_for_new_treemap {
+    my ($name, $new_args, $tree_data) = @_;
+
+    my $default_new_args = {
+        # no titles (titleHeight:0) looks good but then there's no way to drill down
+        # titleHeight => 0,
+        addLeftClickHandler => 1,   # zoom in
+        addRightClickHandler => 1, # zoom out (XXX but disables right click menu)
+        offset => 0, # (0/2/4) extra padding around nested levels
+
+        Color => {      # not used yet
+            allow => 1,  
+            # value range for the $color property
+            minValue => -100,  
+            maxValue => 100,  
+            # corresponding color range [R,G,B]:
+            maxColorValue => [0, 255, 50],  
+            minColorValue => [255, 0, 50]  ,
+        },
+
+        Tips => {  
+            allow => 1,
+            offsetX => 20,  
+            offsetY => 20,  
+        },
+
+        selectPathOnHover => 1, # adds "over-<foo>" css class to elements
+    };
+    exists $new_args->{$_} or $new_args->{$_} = $default_new_args->{$_}
+        for keys %$default_new_args;
+
+    our $json_any ||= JSON::Any->new;
+    my $new_args_json  = $json_any->objToJson($new_args);
+    my $tree_data_json = $json_any->objToJson($tree_data);
+
+    my $js = qq{
+        function init_$name() {
+            var tm_args = $new_args_json;
+
+            //This method is invoked when a DOM element is created.  
+            //Its useful to set DOM event handlers here or manipulate  
+            //the DOM Treemap nodes.  
+            tm_args.onCreateElement = function(content, tree, isLeaf, leaf){  
+                //Add background image for cushion effect
+                if(isLeaf) {  
+                    var style = leaf.style,   
+                    width = parseInt(style.width) - 2,   
+                    height = parseInt(style.height) - 2;  
+                    leaf.innerHTML = tree.name +   
+                        "<img src=\\"js/jit/gradient20.png\\" " +  
+                        " style=\\"position:absolute;top:0;left:0;width:" +   
+                        width+"px;height:" + height+"px;\\" />";  
+                    style.width = width + "px";  
+                    style.height = height + "px";  
+                }  
+            };
+
+            // add content to the tooltip when a node is hovered  
+            // move to separate function later
+            tm_args.Tips.onShow = function(tip, node, isLeaf, domElement) {
+                tip.innerHTML = "<b>name:</b> " + node.data.subname;
+            };
+
+            var $name = new TM.Squarified(tm_args);
+
+            var json = $tree_data_json;
+
+            $name.loadJSON(json);
+        }
+    };
+    return $js;
+}
+
+
+sub package_subinfo_map_to_tm_data {
+    my ($package_tree_subinfo_map, $area_sub, $merge_subs) = @_;
+
+    my $leaf_data_sub = sub {
+        my ($subinfo, $area_from) = @_;
+        my $data = {
+            '$area' => $area_from->($subinfo),
+            '$color' => 100,
+            map({ $_ => $subinfo->$_() }
+                qw(subname incl_time excl_time))
+        };
+        return $data;
+    };
+
+    our $nid;
+    my $node_mapper;
+    $node_mapper = sub {
+        my ($k, $v, $title) = @_;
+        my $n = { id => "n".++$nid };
+        my @kids;
+        if (ref $v eq 'ARRAY') { # leaf node at package level
+            $n->{name} = "subs";
+            if ($merge_subs) {
+                $n->{data} = $leaf_data_sub->($v->[0], $area_sub);
+            }
+            else {
+                @kids = map { {
+                    id => "n".++$nid,
+                    name => $_->subname_without_package,
+                    data => $leaf_data_sub->($_, $area_sub),
+                    children => [],
+                } } @$v;
+            }
+        }
+        else {
+            $title = ($title) ? '::'.$k : $k;
+            @kids = map { $node_mapper->($_, $v->{$_}, $title) } keys %$v;
+            $n->{name} = "$title";
+        }
+        $n->{data}{'$area'} = sum(map { $_->{data}{'$area'} } @kids)
+            unless defined $n->{data}{'$area'};
+        $n->{children} = \@kids;
+
+        return $n;
+    };
+
+    return $node_mapper->('', $package_tree_subinfo_map, '');
 }
 
 
@@ -666,128 +789,55 @@ sub output_package_treemap {
     open(OUT, '>', "$opt{out}/$filename")
         or croak "Unable to open file $opt{out}/$filename: $!";
 
-    my $jstmdir = "js/js-treemap";
     my $treemap_head = qq{
-	<script language="JavaScript" src="$jstmdir/BoxAnimator.js"></script>
-	<script language="JavaScript" src="$jstmdir/Decorators.js"></script>
-	<script language="JavaScript" src="$jstmdir/TreeMap.js"></script>
-	<script language="JavaScript" src="$jstmdir/DivTreeMap.js"></script>
-	<script language="JavaScript" src="$jstmdir/NodeFacade.js"></script>
-	<script language="JavaScript" src="$jstmdir/Rectangle.js"></script>
-	<script language="JavaScript" src="$jstmdir/TreeNode.js"></script>
-	<script language="JavaScript" src="$jstmdir/TreeNodeAdaptor.js"></script>
-	<script language="JavaScript" src="$jstmdir/TreeNodeShader.js"></script>
-	<script language="JavaScript" src="$jstmdir/Util.js"></script>
-	<script language="JavaScript" src="$jstmdir/XmlAdaptor.js"></script>
-	<script language="JavaScript" src="$jstmdir/XmlShader.js"></script>
+	<link type="text/css" rel="stylesheet" href="js/jit/Treemap.css" />
+	<script language="JavaScript" src="js/jit/jit.js"></script>
     };
 
     print OUT get_html_header("Package Treemap - NYTProf", {
-        skip_style => 1,
-        skip_jquery => 1,
         head_epilogue => $treemap_head,
-        not_xhtml => 1, # XXX js-treemap doesn't worth with xhtml at the moment
     });
     print OUT get_page_header(
         profile => $profile,
-        title => "Performance Profile Subroutine Index",
-        body_onload => "init();"
-    ) if 0;
-    print OUT qq{<body onload="createGUI();">};
+        title => "Performance Profile Treemap",
+    );
 
-    local $Data::Dumper::Sortkeys = 1;
-    local $Data::Dumper::Indent = 1;
-    local $Data::Dumper::Maxdepth = 3;
-    #warn Data::Dumper::Dumper($profile->package_subinfo_map(1,1));
-    my $package_tree_subinfo_map = $profile->package_subinfo_map(1,1);
-
-    # {   "id":"node02", "name":"0.2", "data":[ {"key":"key1", "value":195}, {"key":"key2", "value":5}], "children":[ ... ] }
-    my $node_mapper;
-    $node_mapper = sub {
-        my ($k, $v, $path, $depth) = @_;
-        # { main => { '' => [...] } }
-        # { Foo => { '' => [...], '::Bar' => { ''=>[...], '::Baz'=>[...] } } }
-        my $pad = "\t" x $depth;
-
-        #if (ref $v eq 'HASH' and keys %$v == 1 and $v->{''}) { $v = $v->{''}; }
-
-        my $title = @$path ? '::'.$path->[-1] : $k || 'main';
-        if (ref $v eq 'ARRAY') { # leaf node
-            return sprintf qq{%snew TreeNode( "%s", %s )},
-                $pad, "subs", $v->[0]->excl_time;
-        }
-        my @kids = map { $node_mapper->($_, $v->{$_}, [ @$path, $_ ], $depth+1) } keys %$v;
-        return sprintf qq{%snew TreeParentNode( "%s", [\n%s\n%s] )},
-            $pad, $title, join(",\n", @kids), $pad;
+    my @specs;
+    push @specs, {
+        id => 1,
+        merge_subs => 0,
+        area_sub => sub { shift->excl_time },
+        title => "Treemap of subroutine exclusive time",
     };
+    push @specs, {
+        id => 2,
+        merge_subs => 0,
+        area_sub => sub { shift->incl_time },
+        title => "Treemap of subroutine inclusive time",
+    } if 0; # XXX overlays first treemap!
 
-    my $nodes = $node_mapper->('', $package_tree_subinfo_map, [], 0);
-    #warn $nodes;
+    my @root_ids;
+    for my $spec (@specs) {
 
-    print OUT qq{
-<script type="text/javascript">
+        my $tm_id = 'tm'.$spec->{id};
+        my $root_id = 'infovis'.$spec->{id};
+        my $map = $profile->package_subinfo_map($spec->{merge_subs},1);
+        my $ary = package_subinfo_map_to_tm_data(
+            $map, $spec->{area_sub}, $spec->{merge_subs}
+        );
+        $ary->{name} = $spec->{title};
 
-function createGUI()
-{
-    // Load the XML from the server
-    var filename = "js/treeNodes.json";
+        my $tm_js = js_for_new_treemap($tm_id, { rootId => $root_id }, $ary);
+        print OUT qq{<script type="text/javascript">$tm_js\n</script>\n};
+        push @root_ids, $root_id;
+        push @on_ready_js, qq{init_$tm_id(); };
+    }
 
-    var request = createAjaxRequest();
-    request.onreadystatechange = function () {
-        if( request.readyState != 4 )
-            return;
-        if( 0 != request.status && request.status != 200 ) {
-            alert("Cannot GET '" + filename + "' (" + request.status + ")");
-            return;
-        }
+    print OUT qq{<div id="infovis">\n};
+    print OUT qq{<br /><div id="$_"></div>\n} for @root_ids;
+    print OUT qq{</div>\n};
 
-        // Evaluate the JSON
-        var rootNode = $nodes;
-
-        // Render the DIV treemap
-        var mapDIV = document.getElementById( "myDiv" );
-        var map = new DivTreeMap( mapDIV, rootNode, {
-                shader: new TreeNodeShader( rootNode )
-        } );
-
-        // Set up surrounding GUI controls
-        var infoBox = document.getElementById( "infoBox" );
-        var backButton = document.getElementById( "backButton" );
-        backButton.disabled = true;
-        
-        map.onMouseOver = function( node ) { infoBox.innerHTML = node.toString(); }; 
-        map.onMouseOut  = function( node ) { infoBox.innerHTML = "&nbsp;"; }; 
-        map.onZoomClick = function( node ) { map.zoom(); backButton.disabled = false; }
-        map.onBoxClick  = function( node ) { map.zoom(); backButton.disabled = false; }
-        backButton.onclick = function() { backButton.disabled = ( 0 === map.unzoom() ); };
-
-        // Define & plug in a resize hook
-        window.onresize = function() { map.checkResize(); };
-        map.checkResize();
-    };
-    request.open( 'GET', filename, true );
-    request.send( null );
-}
-
-function attrToString( attr )
-{
-    return attr.nodeName + "=" + attr.nodeValue;
-}
-</script>
-    };
-    my $pkg_html;
-    $pkg_html .= qq{
-<div class="divBox" style="position: relative; width: 100%; margin-top: 3px">
-	<button style="right: 0px;" id="backButton">Back</button>
-	<span id="infoBox"></span>
-</div>
-<div class="divBox" id="myDiv" style="height: 80%; width: 100%; background: #7777AA"></div>
-    };
-    print OUT $pkg_html;
-
-    #push @on_ready_js, qq{ };
-
-    my $footer = ""; # get_footer($profile);
+    my $footer = get_footer($profile);
     print OUT "$footer</body></html>";
     close OUT;
 }
@@ -1140,19 +1190,19 @@ EOD
 This file was generated by Devel::NYTProf version $Devel::NYTProf::Core::VERSION
 -->
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"></meta>
-    <meta http-equiv="Content-Language" content="en-us"></meta>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="Content-Language" content="en-us" />
     <title>$title</title>
 EOD
 
-    $html .= qq{<link rel="stylesheet" type="text/css" href="style.css"></link>\n}
+    $html .= qq{<link rel="stylesheet" type="text/css" href="style.css" />\n}
         unless $opts->{skip_style};
 
     $html .= <<EOD unless $opts->{skip_jquery};
     <script type="text/javascript" src="js/jquery-min.js"></script> 
 
     <script type="text/javascript" src="js/jquery-tablesorter-min.js"></script> 
-    <link rel="stylesheet" type="text/css" href="style-tablesorter.css"></link>
+    <link rel="stylesheet" type="text/css" href="style-tablesorter.css" />
     <script type="text/javascript">
     // when a column is first clicked on to sort it, use descending order
     // XXX doesn't seem to work (and not just because the tablesorter formatSortingOrder() is broken)
@@ -1318,9 +1368,8 @@ body { font-family: sans-serif; margin: 0px; }
 .footer > a:link,
 .footer > a:visited {
     color: #cccccc;
-    text-decoration: none;
 }
-.footer { margin: 8px; }
+.footer { margin: 30px; }
 
 table { 
     border-collapse: collapse; 
