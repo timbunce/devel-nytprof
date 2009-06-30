@@ -6,10 +6,15 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 2.11
 
-  Added treemap view of package and subroutine times, with drill-down.
+  Fixed risk of infinite recursion if trace enabled and
+    $SIG{__WARN__} was set to a code reference.
+
+  Added interactive treemap view of package and subroutine times.
+    Left-click to zoom in (drill-down) one level, right-click to zoom out.
 
   Added sysops=1 option which enables profiling of perl opcodes
-    that make potentially slow system calls.
+    that make potentially slow system calls. They appear as xsubs
+    in the current package with names prefixed by "CORE:".
 XXX needs docs and more ops
 
 =head2 Changes in Devel::NYTProf 2.10 (svn r774) 18th June 2009
