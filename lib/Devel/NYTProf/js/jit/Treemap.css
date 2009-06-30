@@ -42,9 +42,7 @@
 
 #infovis .content {
 }
-
 #infovis .over-content {
-    background-color: teal;
 }
 
 #infovis .head {
@@ -53,28 +51,23 @@
     font-weight:bold;
     background-color:#dddddd;
 }
-
 #infovis .over-head {
     background-color:#FFFF00;
 }
-
 #infovis .head.in-path {
     background-color:#FFFF00;
 }
 
-#infovis .body {
-}
 
 #infovis .leaf {
     display:table-cell;
     vertical-align:middle;
     background-color:white;
-    border:solid 1px #cccccc;
+    border:solid 1px transparent;
 }
-
 #infovis .over-leaf {
-    border:1px solid red;
-    /* outline: 5px solid red; outline-offset: -5px; */
+    /* border:1px solid red; */
+    outline: 2px solid red; outline-offset: -2px;
 }
 
 
@@ -86,8 +79,11 @@
     font-family:monospace;
     color: white;
     background-color: black;
-    padding: 5px;
+    opacity: 0.7;
+    padding: 15px;
     border-radius: 5px;
+    -webkit-border-radius: 5px;
+       -moz-border-radius: 5px;
     -webkit-box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
        -moz-box-shadow: black 5px 5px 5px;
 }

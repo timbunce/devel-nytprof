@@ -271,6 +271,12 @@ sub subroutine_table {
 }
 
 
+sub subroutine_treemap {
+    my ($profile, $filestr) = @_;
+    return "";
+}
+
+
 sub package_tables {
     my ($profile) = @_;
     my $pkg_html = "";
@@ -386,9 +392,12 @@ $reporter->set_param(
     sub {
         my ($profile, $filestr) = @_;
 
-        my $sub_links = subroutine_table($profile, $filestr, undef, undef);
+        my $sub_table = subroutine_table($profile, $filestr, undef, undef);
+        my $treemap = subroutine_treemap($profile, $filestr);
 
-        return qq{$sub_links
+        return qq{
+        $sub_table
+        $treemap
       <table border="1" cellpadding="0">
       <thead>
       <tr><th>Line</th><th>Stmts.</th><th>Exclusive<br />Time</th><th>Avg.</th><th class="left_indent_header">Code</th>
@@ -555,7 +564,7 @@ $reporter->report();
 
 output_subs_indexpage($reporter, "index-subs-excl.html", 'excl_time');
 output_subs_indexpage($reporter, "index-subs-incl.html", 'incl_time');
-output_package_treemap($reporter, "package-treemap.html");
+output_package_treemappage($reporter, "package-treemap.html");
 output_indexpage($reporter, "index.html");
 
 output_js_files($reporter);
@@ -646,9 +655,9 @@ sub output_indexpage {
         }, "index-subs-excl.html", $all_subs;
     }
 
-    print OUT file_table($profile, $stats, 1);
+    print OUT q{<br/><a href="package-treemap.html">View as treemap</a><br/>};
 
-    print OUT q{<br/><a href="package-treemap.html">Package treemap</a><br/>};
+    print OUT file_table($profile, $stats, 1);
 
     print OUT package_tables($profile);
 
@@ -785,21 +794,30 @@ sub package_subinfo_map_to_tm_data {
 
             if (ref $infos eq 'HASH') { # recurse into subpackages
                 push @kids, $node_mapper->($pkg_elem, $infos, $title);
+                next;
             }
-            else { # subs within this package
-                our $color_seqn; # all subs in pkg get same color
-                my $color = $colors[ $color_seqn++ % @colors ];
 
-                push @kids, map { {
-                    id => "n".++$nid,
-                    name => $_->subname_without_package,
-                    data => $leaf_data_sub->($_, $area_sub, $color),
+            # subs within this package
+            our $color_seqn; # all subs in pkg get same color
+            my $color = $colors[ $color_seqn++ % @colors ];
+
+            for my $info (@$infos) {
+
+                # don't both including subs that don't have any data
+                # (unless we've not got any subs yet, to avoid problems elsewhere)
+                next if $area_sub->($info) <= 0;
+
+                push @kids, {
+                    id => ++$nid."-".$info->subname,
+                    name => $info->subname_without_package,
+                    data => $leaf_data_sub->($info, $area_sub, $color),
                     children => [],
-                } } @$infos;
+                };
             }
         }
-        $n->{data}{'$area'} = sum(map { $_->{data}{'$area'} } @kids)
-            unless defined $n->{data}{'$area'};
+
+        $n->{data}{'$area'} = (@kids) ? sum(map { $_->{data}{'$area'} } @kids) : 0
+            if not defined $n->{data}{'$area'};
         $n->{children} = \@kids;
 
         return $n;
@@ -825,7 +843,7 @@ sub output_treemap_code {
 }
 
 
-sub output_package_treemap {
+sub output_package_treemappage {
     my ($r, $filename) = @_;
     my $profile = $reporter->{profile};
 
