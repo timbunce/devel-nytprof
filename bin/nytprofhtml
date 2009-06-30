@@ -667,14 +667,14 @@ sub js_for_new_treemap {
         addRightClickHandler => 1, # zoom out (XXX but disables right click menu)
         offset => 0, # (0/2/4) extra padding around nested levels
 
-        Color => {      # not used yet
+        Color => {
             allow => 1,  
             # value range for the $color property
             minValue => 0,  
             maxValue => 10,  
             # corresponding color range [R,G,B]:
             minColorValue => [0, 255, 50],  
-            maxColorValue => [255, 0, 50]  ,
+            maxColorValue => [255, 0, 50],
         },
 
         Tips => {  
@@ -701,10 +701,15 @@ sub js_for_new_treemap {
             //the DOM Treemap nodes.  
             tm_args.onCreateElement = function(content, tree, isLeaf, leaf){  
                 //Add background image for cushion effect
-                if(isLeaf) {  
+                if(isLeaf) { 
                     var style = leaf.style,   
                     width = parseInt(style.width) - 2,   
                     height = parseInt(style.height) - 2;  
+                    // don't add gradient if too small to be worth the cost
+                    if (width < 10 || height < 10) {   // is narrow
+                        if (width < 50 && height < 50) // is small
+                            return;
+                    }
                     leaf.innerHTML = tree.name +   
                         "<img src=\\"js/jit/gradient20.png\\" " +  
                         " style=\\"position:absolute;top:0;left:0;width:" +   
@@ -721,7 +726,7 @@ sub js_for_new_treemap {
             };
 
             TM.Squarified.implement({
-                'onLeftClick': function(elem) {
+                'onLeftClick': function(elem) { // zoom in one level
                     //if is leaf
                     var node = TreeUtil.getSubtree(this.tree, elem.parentNode.id);
                     if(node.children && node.children.length == 0) {
@@ -749,7 +754,7 @@ sub js_for_new_treemap {
 
 
 sub package_subinfo_map_to_tm_data {
-    my ($package_tree_subinfo_map, $area_sub, $merge_subs) = @_;
+    my ($package_tree_subinfo_map, $area_sub) = @_;
 
     my $leaf_data_sub = sub {
         my ($subinfo, $area_from, $color) = @_;
@@ -767,28 +772,31 @@ sub package_subinfo_map_to_tm_data {
     my $node_mapper;
     $node_mapper = sub {
         my ($k, $v, $title) = @_;
-        my $n = { id => "n".++$nid };
+        $title = ($title) ? '::'.$k : $k;
+
+        my $n = {
+            id => "n".++$nid,
+            name => $title,
+        };
+
         my @kids;
-        if (ref $v eq 'ARRAY') { # leaf node at package level
-            our $color_seqn;
-            my $color = $colors[ $color_seqn++ % @colors ];
-            $n->{name} = "subs ($color)";
-            if ($merge_subs) {
-                $n->{data} = $leaf_data_sub->($v->[0], $area_sub, $color);
+        for my $pkg_elem (keys %$v) {
+            my $infos = $v->{$pkg_elem};
+
+            if (ref $infos eq 'HASH') { # recurse into subpackages
+                push @kids, $node_mapper->($pkg_elem, $infos, $title);
             }
-            else {
-                @kids = map { {
+            else { # subs within this package
+                our $color_seqn; # all subs in pkg get same color
+                my $color = $colors[ $color_seqn++ % @colors ];
+
+                push @kids, map { {
                     id => "n".++$nid,
                     name => $_->subname_without_package,
                     data => $leaf_data_sub->($_, $area_sub, $color),
                     children => [],
-                } } @$v;
+                } } @$infos;
             }
-        }
-        else {
-            $title = ($title) ? '::'.$k : $k;
-            @kids = map { $node_mapper->($_, $v->{$_}, $title) } keys %$v;
-            $n->{name} = "$title";
         }
         $n->{data}{'$area'} = sum(map { $_->{data}{'$area'} } @kids)
             unless defined $n->{data}{'$area'};
@@ -801,6 +809,22 @@ sub package_subinfo_map_to_tm_data {
 }
 
 
+sub output_treemap_code {
+    my (%spec) = @_;
+    my $tm_id = 'tm'.$spec{id};
+    my $root_id = 'infovis'.$spec{id};
+
+    my $treemap_data = $spec{get_data}->();
+    $treemap_data->{name} = $spec{title} if $spec{title};
+
+    my $tm_js = js_for_new_treemap($tm_id, { rootId => $root_id }, $treemap_data);
+    print OUT qq{<script type="text/javascript">$tm_js\n</script>\n};
+
+    push @on_ready_js, qq{init_$tm_id(); };
+    return $root_id;
+}
+
+
 sub output_package_treemap {
     my ($r, $filename) = @_;
     my $profile = $reporter->{profile};
@@ -808,48 +832,36 @@ sub output_package_treemap {
     open(OUT, '>', "$opt{out}/$filename")
         or croak "Unable to open file $opt{out}/$filename: $!";
 
-    my $treemap_head = qq{
-	<link type="text/css" rel="stylesheet" href="js/jit/Treemap.css" />
-	<script language="JavaScript" src="js/jit/jit.js"></script>
-    };
-
-    print OUT get_html_header("Package Treemap - NYTProf", {
-        head_epilogue => $treemap_head,
-    });
-    print OUT get_page_header(
-        profile => $profile,
-        title => "Performance Profile Treemap",
-    );
+    my $title = "Performance Profile Treemap";
+    print OUT get_html_header($title, { add_jit => 1 });
+    print OUT get_page_header( profile => $profile, title => $title );
 
     my @specs;
     push @specs, {
         id => 1,
-        merge_subs => 0,
-        area_sub => sub { shift->excl_time },
         title => "Treemap of subroutine exclusive time",
+        get_data => sub {
+            package_subinfo_map_to_tm_data(
+                $profile->package_subinfo_map(0,1),
+                sub { shift->excl_time }, 0);
+        }
     };
     push @specs, {
         id => 2,
-        merge_subs => 0,
-        area_sub => sub { shift->incl_time },
         title => "Treemap of subroutine inclusive time",
+        get_data => sub {
+            package_subinfo_map_to_tm_data(
+                $profile->package_subinfo_map(0,1),
+                sub { shift->incl_time }, 0);
+        }
     } if 0; # XXX overlays first treemap!
 
     my @root_ids;
     for my $spec (@specs) {
-
-        my $tm_id = 'tm'.$spec->{id};
-        my $root_id = 'infovis'.$spec->{id};
-        my $map = $profile->package_subinfo_map($spec->{merge_subs},1);
-        my $ary = package_subinfo_map_to_tm_data(
-            $map, $spec->{area_sub}, $spec->{merge_subs}
+        push @root_ids, output_treemap_code(
+            profile => $profile,
+            %$spec
         );
-        $ary->{name} = $spec->{title};
-
-        my $tm_js = js_for_new_treemap($tm_id, { rootId => $root_id }, $ary);
-        print OUT qq{<script type="text/javascript">$tm_js\n</script>\n};
-        push @root_ids, $root_id;
-        push @on_ready_js, qq{init_$tm_id(); };
     }
 
     print OUT qq{<div id="infovis">\n};
@@ -1216,6 +1228,11 @@ EOD
 
     $html .= qq{<link rel="stylesheet" type="text/css" href="style.css" />\n}
         unless $opts->{skip_style};
+
+    if ($opts->{add_jit}) {
+        $html .= qq{<link rel="stylesheet" type="text/css" href="js/jit/Treemap.css" />\n};
+        $html .= qq{<script language="JavaScript" src="js/jit/jit.js"></script>\n};
+    }
 
     $html .= <<EOD unless $opts->{skip_jquery};
     <script type="text/javascript" src="js/jquery-min.js"></script> 
