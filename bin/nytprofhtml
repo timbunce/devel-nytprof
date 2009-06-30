@@ -662,8 +662,7 @@ sub js_for_new_treemap {
     my ($name, $new_args, $tree_data) = @_;
 
     my $default_new_args = {
-        # no titles (titleHeight:0) looks good but then there's no way to drill down
-        # titleHeight => 0,
+        titleHeight => 0, # no titles
         addLeftClickHandler => 1,   # zoom in
         addRightClickHandler => 1, # zoom out (XXX but disables right click menu)
         offset => 0, # (0/2/4) extra padding around nested levels
@@ -671,11 +670,11 @@ sub js_for_new_treemap {
         Color => {      # not used yet
             allow => 1,  
             # value range for the $color property
-            minValue => -100,  
-            maxValue => 100,  
+            minValue => 0,  
+            maxValue => 10,  
             # corresponding color range [R,G,B]:
-            maxColorValue => [0, 255, 50],  
-            minColorValue => [255, 0, 50]  ,
+            minColorValue => [0, 255, 50],  
+            maxColorValue => [255, 0, 50]  ,
         },
 
         Tips => {  
@@ -721,6 +720,23 @@ sub js_for_new_treemap {
                 tip.innerHTML = "<b>name:</b> " + node.data.subname;
             };
 
+            TM.Squarified.implement({
+                'onLeftClick': function(elem) {
+                    //if is leaf
+                    var node = TreeUtil.getSubtree(this.tree, elem.parentNode.id);
+                    if(node.children && node.children.length == 0) {
+                        var oldparent = node, newparent = node;
+                        while(newparent.id != this.shownTree.id) {
+                            oldparent = newparent;
+                            newparent = TreeUtil.getParent(this.tree, newparent.id);
+                        }
+                        this.view(oldparent.id);
+                    } else {
+                      this.enter(elem);
+                    }
+                }
+            });
+
             var $name = new TM.Squarified(tm_args);
 
             var json = $tree_data_json;
@@ -736,16 +752,17 @@ sub package_subinfo_map_to_tm_data {
     my ($package_tree_subinfo_map, $area_sub, $merge_subs) = @_;
 
     my $leaf_data_sub = sub {
-        my ($subinfo, $area_from) = @_;
+        my ($subinfo, $area_from, $color) = @_;
         my $data = {
             '$area' => $area_from->($subinfo),
-            '$color' => 100,
+            '$color' => $color,
             map({ $_ => $subinfo->$_() }
                 qw(subname incl_time excl_time))
         };
         return $data;
     };
 
+    my @colors = (0..10);
     our $nid;
     my $node_mapper;
     $node_mapper = sub {
@@ -753,15 +770,17 @@ sub package_subinfo_map_to_tm_data {
         my $n = { id => "n".++$nid };
         my @kids;
         if (ref $v eq 'ARRAY') { # leaf node at package level
-            $n->{name} = "subs";
+            our $color_seqn;
+            my $color = $colors[ $color_seqn++ % @colors ];
+            $n->{name} = "subs ($color)";
             if ($merge_subs) {
-                $n->{data} = $leaf_data_sub->($v->[0], $area_sub);
+                $n->{data} = $leaf_data_sub->($v->[0], $area_sub, $color);
             }
             else {
                 @kids = map { {
                     id => "n".++$nid,
                     name => $_->subname_without_package,
-                    data => $leaf_data_sub->($_, $area_sub),
+                    data => $leaf_data_sub->($_, $area_sub, $color),
                     children => [],
                 } } @$v;
             }
