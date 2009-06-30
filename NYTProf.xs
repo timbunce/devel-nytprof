@@ -242,7 +242,9 @@ static struct NYTP_int_options_t options[] = {
 #define profile_clock options[8].option_value
     { "clock", -1 },
 #define profile_stmts options[9].option_value
-    { "stmts", 1 }                               /* statement exclusive times */
+    { "stmts", 1 },                              /* statement exclusive times */
+#define profile_sysops options[10].option_value
+    { "sysops", 0 }                              /* opcodes that make slow system calls */
 };
 
 /* time tracking */
@@ -2422,6 +2424,122 @@ pp_exit_profiler(pTHX)                            /* handles OP_EXIT, OP_EXEC, e
 }
 
 
+static OP *
+pp_sysop_profiler(pTHX)                           /* handles ops that make slow system calls */
+{
+    OP *next_op;
+    COP *prev_cop = PL_curcop;                    /* not PL_curcop_nytprof here */
+    sub_call_start_t sysop_call_start;
+    int profile_sysop_call = (profile_subs && is_profiling);
+
+    if (profile_sysop_call) {
+        int saved_errno = errno;
+        if (!profile_stmts)
+            reinit_if_forked(aTHX);
+        get_time_of_day(sysop_call_start.sub_call_time);
+        sysop_call_start.current_overhead_ticks = cumulative_overhead_ticks;
+        sysop_call_start.current_subr_secs = cumulative_subr_secs;
+        SETERRNO(saved_errno, 0);
+    }
+
+    next_op = run_original_op(PL_op->op_type);            /* may croak */
+
+    if (profile_sysop_call) {
+        int saved_errno = errno;
+
+        /* get line, file, and fid for statement *before* the call */
+
+        char *file = OutCopFILE(prev_cop);
+        unsigned int fid;
+        /* XXX could use same closest_cop as DB_stmt() but it doesn't seem
+         * to be needed here. Line is 0 only when call is from embedded
+         * C code like mod_perl (at least in my testing so far)
+         */
+        int line = CopLINE(prev_cop);
+        char fid_line_key[50];
+        int fid_line_key_len;
+        char *stash_name = "CORE::GLOBAL";
+        SV *subname_sv = newSV(0);
+        char *subname_pv;
+        SV *sv_tmp;
+
+        /* XXX not quite right, but close enough for now */
+        sv_setpvf(subname_sv, "%s::%s", stash_name, OP_NAME_safe(PL_op));
+        subname_pv = SvPV_nolen(subname_sv);
+
+        fid = (file == last_executed_fileptr)
+            ? last_executed_fid
+            : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
+        fid_line_key_len = sprintf(fid_line_key, "%u:%d", fid, line);
+
+        /* { called_subname => { "fid:line" => [ count, incl_time ] } } */
+        sv_tmp = *hv_fetch(sub_callers_hv, subname_pv,
+            (I32)SvCUR(subname_sv), 1);
+
+        /* XXX fid:line can be ambiguous, e.g sub foo { return sub { ... } }
+         * We could add subname_sv to the [ count, incl_time ] array
+         * and check it on each call. To improve performance we could also
+         * add the op and so avoid the string compare if the op's are the same.
+         * If there's a call with a different subname_sv value, then we
+         * could interpose a hash to hold per-subname values:
+         * old => { "fid:line" =>           [ count, incl_time, "sub1" ]          }
+         * new => { "fid:line" => { "sub1"=>[ count, incl_time ], "sub2"=>[...] } }
+         */
+
+        if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this subname from anywhere */
+            HV *hv = newHV();
+            sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
+
+            if (1) { /* is_xs */
+                /* create dummy item with fid=0 & line=0 to act as flag to indicate xs */
+                AV *av = new_sub_call_info_av(aTHX);
+                av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(0));
+                sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
+
+                SV *sv = *hv_fetch(GvHV(PL_DBsub), subname_pv, (I32)SvCUR(subname_sv), 1);
+                sv_setpv(sv, ":0-0"); /* empty file name */
+                if (trace_level >= 2)
+                    warn("Adding fake DBsub entry for '%s' sysop\n", subname_pv);
+            }
+        }
+
+        /* drill-down to array of sub call information for this fid_line_key */
+        sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
+        if (!SvROK(sv_tmp)) {                     /* autoviv array ref */
+            AV *av = new_sub_call_info_av(aTHX);
+
+            sv_setsv(sv_tmp, newRV_noinc((SV *)av));
+            sysop_call_start.sub_av = av;
+
+            if (stash_name) /* note that a sub in this package was called */
+                (void)hv_fetch(pkg_fids_hv, stash_name, (I32)strlen(stash_name), 1);
+        }
+        else {
+            sysop_call_start.sub_av = (AV *)SvRV(sv_tmp);
+            sv_inc(AvARRAY(sysop_call_start.sub_av)[0]); /* ++call count */
+        }
+
+        if (trace_level >= 2)
+            fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %gt, sub %gs)\n",
+                "sysop", subname_pv, fid, line,
+                sysop_call_start.call_depth,
+                sysop_call_start.current_overhead_ticks,
+                sysop_call_start.current_subr_secs
+            );
+
+        sysop_call_start.call_depth = 1; /* dummy */
+        sysop_call_start.subname_sv = subname_sv;
+        strcpy(sysop_call_start.fid_line, fid_line_key);
+        /* acculumate now time we've just spent in the sysop */
+        incr_sub_inclusive_time(aTHX_ &sysop_call_start);
+
+        SETERRNO(saved_errno, 0);
+    }
+
+    return next_op;
+}
+
+
 static int
 enable_profile(pTHX_ char *file)
 {
@@ -2599,6 +2717,33 @@ init_profiler(pTHX)
             PL_ppaddr[OP_EXIT]       = pp_exit_profiler;
             PL_ppaddr[OP_EXEC]       = pp_exit_profiler;
         }
+    }
+
+    if (profile_sysops) {
+        /* possible list of sys ops to profile:
+            sysopen open close readline rcatline getc read
+            print prtf sysread syswrite send recv
+            eof tell seek sysseek readdir telldir seekdir rewinddir
+            crypt dbmopen dbmclose
+            stat lstat readlink link unlink rename symlink truncate
+            sselect select pipe_op bind connect listen accept shutdown
+            ftatime ftblk ftchr ftctime ftdir fteexec fteowned fteread
+            ftewrite ftfile ftis ftlink ftmtime ftpipe ftrexec ftrowned
+            ftrread ftsgid ftsize ftsock ftsuid fttty ftzero ftrwrite ftsvtx
+            fttext ftbinary custom
+            ghbyname ghbyaddr ghostent shostent ehostent      -- hosts
+            gnbyname gnbyaddr gnetent snetent enetent         -- networks
+            gpbyname gpbynumber gprotoent sprotoent eprotoent -- protocols
+            gsbyname gsbyport gservent sservent eservent      -- services
+            gpwnam gpwuid gpwent spwent epwent getlogin       -- users
+            ggrnam ggrgid ggrent sgrent egrent                -- groups
+            open_dir closedir mkdir rmdir utime chmod chown fcntl
+            backtick system fork wait waitpid glob
+            msgget msgrcv msgsnd semget semop
+            chdir flock ioctl sleep syscall dump chroot
+            Perhaps make configurable. Could interate with Opcode module.
+        */
+        PL_ppaddr[OP_SLEEP] = pp_sysop_profiler;
     }
 
     /* redirect opcodes for caller tracking */
