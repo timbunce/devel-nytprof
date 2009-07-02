@@ -18,6 +18,9 @@ Subclass->example_xsub();
 my $subname = "Devel::NYTProf::Test::example_xsub";
 &$subname("foo");
 
+# call builtin (will be recorded if sysops=1 option set)
+wait();
+
 # XXX currently goto isn't noticed by the profiler
 # it's as if the call never happened. This most frequently
 # affects AUTOLOAD subs.

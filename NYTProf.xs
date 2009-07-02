@@ -330,6 +330,7 @@ typedef OP * (CPERLscope(*orig_ppaddr_t))(pTHX);
 orig_ppaddr_t *PL_ppaddr_orig;
 #define run_original_op(type) CALL_FPTR(PL_ppaddr_orig[type])(aTHX)
 static OP *pp_entersub_profiler(pTHX);
+static OP *pp_subcall_profiler(pTHX_ int type);
 static OP *pp_leave_profiler(pTHX);
 static HV *sub_callers_hv;
 static HV *pkg_fids_hv;     /* currently just package names */
@@ -2207,15 +2208,30 @@ resolve_sub(pTHX_ SV *sv, SV *subname_out_sv)
 static OP *
 pp_entersub_profiler(pTHX)
 {
+    return pp_subcall_profiler(aTHX_ 0);
+}
+
+static OP *
+pp_sysop_profiler(pTHX)
+{
+    return pp_subcall_profiler(aTHX_ 1);
+}
+
+static OP *
+pp_subcall_profiler(pTHX_ int is_sysop)
+{
     OP *op;
     COP *prev_cop = PL_curcop;                    /* not PL_curcop_nytprof here */
     OP *next_op = PL_op->op_next;                 /* op to execute after sub returns */
+    /* pp_entersub can be called with PL_op->op_type==0 */
+    OPCODE op_type = (is_sysop) ? PL_op->op_type : OP_ENTERSUB;
     dSP;
-    SV *sub_sv = *SP;
+    SV *sub_sv;
     sub_call_start_t sub_call_start;
     int profile_sub_call = (profile_subs && is_profiling);
 
     if (profile_sub_call) {
+        sub_sv = *SP;
         int saved_errno = errno;
         if (!profile_stmts)
             reinit_if_forked(aTHX);
@@ -2231,7 +2247,7 @@ pp_entersub_profiler(pTHX)
      * for XS subs pp_entersub executes the entire sub
      * and returns the op *after* the sub (PL_op->op_next)
      */
-    op = run_original_op(OP_ENTERSUB);            /* may croak */
+    op = run_original_op(op_type);            /* may croak */
 
     if (profile_sub_call) {
         int saved_errno = errno;
@@ -2252,56 +2268,68 @@ pp_entersub_profiler(pTHX)
         SV *sv_tmp;
         char *stash_name = NULL;
         CV *cv;
-        int is_xs;
+        char *is_xs;
 
-        if (op != next_op) {                      /* have entered a sub */
-            /* use cv of sub we've just entered to get name */
-            cv = cxstack[cxstack_ix].blk_sub.cv;
-            is_xs = 0;
+        if (is_sysop) {
+            /* pretend builtins are xsubs in the same package
+            * but with "CORE:" (one colon) prepended to the name.
+            */
+            cv = NULL;
+            is_xs = "sysop";
+            stash_name = CopSTASHPV(PL_curcop);
+            sv_setpvf(subname_sv, "%s::CORE:%s", stash_name, OP_NAME_safe(PL_op));
+            subname_pv = SvPV_nolen(subname_sv);
         }
-        else {                                    /* have returned from XS so use sub_sv for name */
-            /* determine the original fully qualified name for sub */
-            /* CV or NULL */
-            cv = (CV *)resolve_sub(aTHX_ sub_sv, subname_sv);
-            is_xs = 1;
-        }
-
-        if (cv && CvGV(cv)) {
-            GV *gv = CvGV(cv);
-            /* Class::MOP can create CvGV where SvTYPE of GV is SVt_NULL */
-            if (SvTYPE(gv) == SVt_PVGV && GvSTASH(gv)) {
-                /* for a plain call of an imported sub the GV is of the current
-                * package, so we dig to find the original package
-                */
-                stash_name = HvNAME(GvSTASH(gv));
-                sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
+        else {
+            if (op != next_op) {                      /* have entered a sub */
+                /* use cv of sub we've just entered to get name */
+                cv = cxstack[cxstack_ix].blk_sub.cv;
+                is_xs = NULL;
             }
-            else if (trace_level) {
-                logwarn("I'm confused about CV %p", cv);
-                /* looks like Class::MOP doesn't give the CV GV stash a name */
-                if (trace_level >= 2)
-                    sv_dump((SV*)cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP wierdo sub */
+            else {                                    /* have returned from XS so use sub_sv for name */
+                /* determine the original fully qualified name for sub */
+                /* CV or NULL */
+                cv = (CV *)resolve_sub(aTHX_ sub_sv, subname_sv);
+                is_xs = "xsub";
             }
-        }
 
-        if (!SvOK(subname_sv)) {
-
-            if (!cv) {
-                /* should never get here as pp_entersub would have croaked */
-                const char *what = (is_xs) ? "xs" : "sub";
-                logwarn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
-                if (trace_level)
-                    sv_dump(sub_sv);
-                sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
+            if (cv && CvGV(cv)) {
+                GV *gv = CvGV(cv);
+                /* Class::MOP can create CvGV where SvTYPE of GV is SVt_NULL */
+                if (SvTYPE(gv) == SVt_PVGV && GvSTASH(gv)) {
+                    /* for a plain call of an imported sub the GV is of the current
+                    * package, so we dig to find the original package
+                    */
+                    stash_name = HvNAME(GvSTASH(gv));
+                    sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
+                }
+                else if (trace_level) {
+                    logwarn("I'm confused about CV %p", cv);
+                    /* looks like Class::MOP doesn't give the CV GV stash a name */
+                    if (trace_level >= 2)
+                        sv_dump((SV*)cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP wierdo sub */
+                }
             }
-            else {
-                /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
-                stash_name = HvNAME(CvSTASH(cv));
-                sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%lx]",
-                    (stash_name)?stash_name:"__UNKNOWN__", (unsigned long)cv);
-                if (trace_level) {
-                    logwarn("unknown entersub %s assumed to be anon cv '%s'", (is_xs) ? "xs" : "sub", SvPV_nolen(sub_sv));
-                    sv_dump(sub_sv);
+
+            if (!SvOK(subname_sv)) {
+
+                if (!cv) {
+                    /* should never get here as pp_entersub would have croaked */
+                    const char *what = (is_xs) ? is_xs : "sub";
+                    logwarn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
+                    if (trace_level)
+                        sv_dump(sub_sv);
+                    sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
+                }
+                else {
+                    /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
+                    stash_name = HvNAME(CvSTASH(cv));
+                    sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%lx]",
+                        (stash_name)?stash_name:"__UNKNOWN__", (unsigned long)cv);
+                    if (trace_level) {
+                        logwarn("unknown entersub %s assumed to be anon cv '%s'", (is_xs) ? is_xs : "sub", SvPV_nolen(sub_sv));
+                        sv_dump(sub_sv);
+                    }
                 }
             }
         }
@@ -2340,7 +2368,7 @@ pp_entersub_profiler(pTHX)
                 av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(0));
                 sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
 
-                if (cv && SvTYPE(cv) == SVt_PVCV) {
+                if ((cv && SvTYPE(cv) == SVt_PVCV) || (is_xs && 's' == *is_xs)) {
                     /* We just use an empty string as the filename for xsubs
                      * because CvFILE() isn't reliable on perl 5.8.[78]
                      * and the name of the .c file isn't very useful anyway.
@@ -2377,7 +2405,7 @@ pp_entersub_profiler(pTHX)
 
         if (trace_level >= 2)
             fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %gt, sub %gs)\n",
-                (is_xs) ? "xsub" : " sub", subname_pv, fid, line,
+                (is_xs) ? is_xs : " sub", subname_pv, fid, line,
                 sub_call_start.call_depth,
                 sub_call_start.current_overhead_ticks,
                 sub_call_start.current_subr_secs
@@ -2435,125 +2463,6 @@ pp_exit_profiler(pTHX)                            /* handles OP_EXIT, OP_EXEC, e
     if (PL_op->op_type == OP_EXEC)
         finish_profile(aTHX);                     /* this is the last chance we'll get */
     return run_original_op(PL_op->op_type);
-}
-
-
-static OP *
-pp_sysop_profiler(pTHX)                           /* handles ops that make slow system calls */
-{
-    OP *next_op;
-    COP *prev_cop = PL_curcop;                    /* not PL_curcop_nytprof here */
-    sub_call_start_t sysop_call_start;
-    int profile_sysop_call = (profile_subs && is_profiling);
-
-    if (profile_sysop_call) {
-        int saved_errno = errno;
-        if (!profile_stmts)
-            reinit_if_forked(aTHX);
-        get_time_of_day(sysop_call_start.sub_call_time);
-        sysop_call_start.current_overhead_ticks = cumulative_overhead_ticks;
-        sysop_call_start.current_subr_secs = cumulative_subr_secs;
-        SETERRNO(saved_errno, 0);
-    }
-
-    next_op = run_original_op(PL_op->op_type);            /* may croak */
-
-    if (profile_sysop_call) {
-        int saved_errno = errno;
-
-        /* get line, file, and fid for statement *before* the call */
-
-        char *file = OutCopFILE(prev_cop);
-        unsigned int fid;
-        /* XXX could use same closest_cop as DB_stmt() but it doesn't seem
-         * to be needed here. Line is 0 only when call is from embedded
-         * C code like mod_perl (at least in my testing so far)
-         */
-        int line = CopLINE(prev_cop);
-        char fid_line_key[50];
-        int fid_line_key_len;
-        char *stash_name = CopSTASHPV(PL_curcop);
-        SV *subname_sv = newSV(0);
-        char *subname_pv;
-        SV *sv_tmp;
-
-        /* pretend builtins are in a ...::CORE:: subpackage of the current
-         * package. (We recklessly assume that won't clash with anything.)
-         * That's much more useful than putting them all in one place.
-         */
-        sv_setpvf(subname_sv, "%s::CORE:%s", stash_name, OP_NAME_safe(PL_op));
-        subname_pv = SvPV_nolen(subname_sv);
-
-        fid = (file == last_executed_fileptr)
-            ? last_executed_fid
-            : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
-        fid_line_key_len = sprintf(fid_line_key, "%u:%d", fid, line);
-
-        /* { called_subname => { "fid:line" => [ count, incl_time ] } } */
-        sv_tmp = *hv_fetch(sub_callers_hv, subname_pv,
-            (I32)SvCUR(subname_sv), 1);
-
-        /* XXX fid:line can be ambiguous, e.g sub foo { return sub { ... } }
-         * We could add subname_sv to the [ count, incl_time ] array
-         * and check it on each call. To improve performance we could also
-         * add the op and so avoid the string compare if the op's are the same.
-         * If there's a call with a different subname_sv value, then we
-         * could interpose a hash to hold per-subname values:
-         * old => { "fid:line" =>           [ count, incl_time, "sub1" ]          }
-         * new => { "fid:line" => { "sub1"=>[ count, incl_time ], "sub2"=>[...] } }
-         */
-
-        if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this subname from anywhere */
-            HV *hv = newHV();
-            sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
-
-            if (1) { /* is_xs */
-                /* create dummy item with fid=0 & line=0 to act as flag to indicate xs */
-                AV *av = new_sub_call_info_av(aTHX);
-                av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(0));
-                sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
-
-                SV *sv = *hv_fetch(GvHV(PL_DBsub), subname_pv, (I32)SvCUR(subname_sv), 1);
-                sv_setpv(sv, ":0-0"); /* empty file name */
-                if (trace_level >= 2)
-                    logwarn("Adding fake DBsub entry for '%s' sysop\n", subname_pv);
-            }
-        }
-
-        /* drill-down to array of sub call information for this fid_line_key */
-        sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
-        if (!SvROK(sv_tmp)) {                     /* autoviv array ref */
-            AV *av = new_sub_call_info_av(aTHX);
-
-            sv_setsv(sv_tmp, newRV_noinc((SV *)av));
-            sysop_call_start.sub_av = av;
-
-            if (stash_name) /* note that a sub in this package was called */
-                (void)hv_fetch(pkg_fids_hv, stash_name, (I32)strlen(stash_name), 1);
-        }
-        else {
-            sysop_call_start.sub_av = (AV *)SvRV(sv_tmp);
-            sv_inc(AvARRAY(sysop_call_start.sub_av)[0]); /* ++call count */
-        }
-
-        if (trace_level >= 2)
-            fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %gt, sub %gs)\n",
-                "sysop", subname_pv, fid, line,
-                sysop_call_start.call_depth,
-                sysop_call_start.current_overhead_ticks,
-                sysop_call_start.current_subr_secs
-            );
-
-        sysop_call_start.call_depth = 1; /* dummy */
-        sysop_call_start.subname_sv = subname_sv;
-        strcpy(sysop_call_start.fid_line, fid_line_key);
-        /* acculumate now time we've just spent in the sysop */
-        incr_sub_inclusive_time(aTHX_ &sysop_call_start);
-
-        SETERRNO(saved_errno, 0);
-    }
-
-    return next_op;
 }
 
 
@@ -2741,7 +2650,7 @@ init_profiler(pTHX)
             sysopen open close readline rcatline getc read
             print prtf sysread syswrite send recv
             eof tell seek sysseek readdir telldir seekdir rewinddir
-            crypt dbmopen dbmclose
+            rand srand dbmopen dbmclose
             stat lstat readlink link unlink rename symlink truncate
             sselect select pipe_op bind connect listen accept shutdown
             ftatime ftblk ftchr ftctime ftdir fteexec fteowned fteread
@@ -2772,6 +2681,9 @@ init_profiler(pTHX)
         PL_ppaddr[OP_OPEN_DIR] = pp_sysop_profiler;
         PL_ppaddr[OP_CLOSEDIR] = pp_sysop_profiler;
         PL_ppaddr[OP_READDIR] = pp_sysop_profiler;
+        PL_ppaddr[OP_RAND] = pp_sysop_profiler;
+        PL_ppaddr[OP_SRAND] = pp_sysop_profiler;
+        PL_ppaddr[OP_WAIT] = pp_sysop_profiler;
     }
 
     /* redirect opcodes for caller tracking */
