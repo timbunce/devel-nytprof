@@ -19,19 +19,19 @@
 #infovis div {
     position:absolute;
     overflow:hidden;
-    background-color:transparent;
+    background-color: #666666;
 }
 
 #infovis1 div {
     position:absolute;
     overflow:hidden;
-    background-color:transparent;
+    background-color: #666666;
 }
 
 #infovis2 div {
     position:absolute;
     overflow:hidden;
-    background-color:transparent;
+    background-color: #666666;
 }
 
 /*

@@ -347,11 +347,9 @@ logwarn(const char *pat, ...)
     /* we avoid using any perl mechanisms here */
     va_list args;
     va_start(args, pat);
-
     if (!logfh)
         logfh = stderr;
     vfprintf(logfh, pat, args);
-
     va_end(args);
 }
 

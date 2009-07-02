@@ -33,6 +33,8 @@ if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
 }
 
+my @treemap_colors = (0..10);
+
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
 use constant SEVERITY_SEVERE => 2.0;    # above this deviation, a bottleneck
@@ -673,14 +675,14 @@ sub js_for_new_treemap {
     my $default_new_args = {
         titleHeight => 0, # no titles
         addLeftClickHandler => 1,   # zoom in
-        addRightClickHandler => 1, # zoom out (XXX but disables right click menu)
+        #addRightClickHandler => 1, # zoom out (XXX but disables right click menu)
         offset => 0, # (0/2/4) extra padding around nested levels
 
         Color => {
             allow => 1,  
             # value range for the $color property
             minValue => 0,  
-            maxValue => 10,  
+            maxValue => scalar @treemap_colors,  
             # corresponding color range [R,G,B]:
             minColorValue => [0, 255, 50],  
             maxColorValue => [255, 0, 50],
@@ -751,6 +753,20 @@ sub js_for_new_treemap {
                 }
             });
 
+            TM.Squarified.implement({
+                createBox: function(json, coord, html) {
+                    if((coord.width * coord.height > 1) && json.data.\$area > 0) {
+                        if(!this.leaf(json))
+                            var box = this.headBox(json, coord) + this.bodyBox(html, coord);
+                        else
+                            var box = this.leafBox(json, coord);
+                        return this.contentBox(json, coord, box);
+                    } else {
+                        return ""; //return empty string
+                    }
+                }
+            });
+
             var $name = new TM.Squarified(tm_args);
 
             var json = $tree_data_json;
@@ -776,7 +792,6 @@ sub package_subinfo_map_to_tm_data {
         return $data;
     };
 
-    my @colors = (0..10);
     our $nid;
     my $node_mapper;
     $node_mapper = sub {
@@ -799,7 +814,7 @@ sub package_subinfo_map_to_tm_data {
 
             # subs within this package
             our $color_seqn; # all subs in pkg get same color
-            my $color = $colors[ $color_seqn++ % @colors ];
+            my $color = $treemap_colors[ $color_seqn++ % @treemap_colors ];
 
             for my $info (@$infos) {
 

@@ -665,9 +665,6 @@ L</SMP Systems>.
 
 Processor affinity can be set using the C<taskset> command on Linux.
 
-Future versions of NYTProf could support setting processor affinity automatically
-(e.g. via sched_setaffinity() on Linux). Patches welcome!
-
 Note that processor affinity is inherited by child processes, so if the process
 you're profiling spawns cpu intensive sub processes then your process will be
 impacted by those more than it otherwise would.
