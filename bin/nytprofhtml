@@ -937,6 +937,7 @@ sub output_subs_treemap_page {
         );
     }
 
+    print OUT qq{<div class="vis_header"><br/>Boxes represent time spent in a subroutine. Coloring represents packages. Click to drill-down into package hierarchy.</div>\n};
     print OUT qq{<div id="infovis">\n};
     print OUT qq{<br /><div id="$_"></div>\n} for @root_ids;
     print OUT qq{</div>\n};
@@ -1745,6 +1746,12 @@ pre,.s {
 .calls:hover a:hover { color: red; }
 /* give a little headroom to the summary of calls into a sub */
 .calls .calls_in { margin-top: 5px; }
+
+.vis_header {
+    text-align:center;
+    font-style: italic;
+    padding-top: 5px; color: gray;
+}
 
 EOD
 }
