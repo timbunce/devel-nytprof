@@ -111,10 +111,10 @@ $reporter->set_param(
             For ${ \($profile->{attribute}{application}) }
         };
 
-        get_html_header("NYTProf Profile: !~FILENAME~!")
+        get_html_header("Profile of !~FILENAME~!")
             . get_page_header(
             profile  => $profile,
-            title    => "Performance Profile",
+            title    => "NYTProf Performance Profile",
             subtitle => $subhead,
             mode     => qq/-$level/
             )
@@ -564,10 +564,14 @@ $reporter->_output_additional('style.css', get_css());
 # generate the files
 $reporter->report();
 
-output_subs_indexpage($reporter, "index-subs-excl.html", 'excl_time');
-output_subs_indexpage($reporter, "index-subs-incl.html", 'incl_time');
-output_package_treemappage($reporter, "package-treemap.html");
-output_indexpage($reporter, "index.html");
+output_subs_index_page($reporter, "index-subs-excl.html", 'excl_time');
+output_subs_index_page($reporter, "index-subs-incl.html", 'incl_time');
+output_subs_treemap_page($reporter, "subs-treemap-excl.html",
+    "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
+output_subs_treemap_page($reporter, "subs-treemap-incl.html",
+    "Subroutine Inclusive Time Treemap", sub { shift->incl_time });
+#output_subs_callgraph_page($reporter, "subs-callgraph.html");
+output_index_page($reporter, "index.html");
 
 output_js_files($reporter);
 
@@ -580,7 +584,7 @@ exit 0;
 #
 
 # output an html indexing page or subroutines
-sub output_subs_indexpage {
+sub output_subs_index_page {
     my ($r, $filename, $sortby) = @_;
     my $profile = $reporter->{profile};
 
@@ -602,7 +606,7 @@ sub output_subs_indexpage {
 
 # output an html indexing page with some information to help navigate potential
 # large numbers of profiled files. Optional, recommended
-sub output_indexpage {
+sub output_index_page {
     my ($r, $filename) = @_;
     my $profile = $reporter->{profile};
     my $stats   = $r->get_file_stats();
@@ -657,7 +661,8 @@ sub output_indexpage {
         }, "index-subs-excl.html", $all_subs;
     }
 
-    print OUT q{<br/><a href="package-treemap.html">View as treemap</a><br/>};
+    print OUT q{<br/>You can view subroutines as treemap of <a href="subs-treemap-excl.html">exclusive</a> or <a href="subs-treemap-incl.html">inclusive</a> time, grouped by package.<br/>};
+    #print OUT q{<br/><a href="subs-callgraph.html">View subroutine call graph</a><br/>};
 
     print OUT file_table($profile, $stats, 1);
 
@@ -668,6 +673,9 @@ sub output_indexpage {
     close OUT;
 }
 
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# treemap subs
 
 sub js_for_new_treemap {
     my ($name, $new_args, $tree_data) = @_;
@@ -733,7 +741,7 @@ sub js_for_new_treemap {
             // add content to the tooltip when a node is hovered  
             // move to separate function later
             tm_args.Tips.onShow = function(tip, node, isLeaf, domElement) {
-                tip.innerHTML = "<b>name:</b> " + node.data.subname;
+                tip.innerHTML = node.data.tip;
             };
 
             TM.Squarified.implement({
@@ -778,14 +786,46 @@ sub js_for_new_treemap {
 }
 
 
+sub pl {    # dumb but sufficient pluralization
+    my ($fmt, $n) = @_;
+    sprintf $fmt.($n == 1 ? "" : "s"), $n;
+}
+
+
 sub package_subinfo_map_to_tm_data {
     my ($package_tree_subinfo_map, $area_sub) = @_;
+
+    my $sub_tip_html = sub {
+        my $si = shift;
+        my @html;
+        push @html, sprintf "<p><b>%s</b></p><p>", $si->subname;
+
+        push @html, sprintf "Called %s from %s in %s",
+            pl("%d time", $si->calls),
+            pl("%d place", scalar $si->caller_places),
+            pl("%d file", scalar $si->caller_fids);
+
+        my $excl_time = $si->excl_time;
+        push @html, sprintf "Exclusive time: %s",
+            fmt_time($excl_time);
+        my $incl_time = $si->incl_time;
+        push @html, sprintf "Inclusive time: %s",
+            fmt_time($incl_time);
+
+        if (my $mrd = $si->recur_max_depth) {
+            push @html, sprintf "Recursion: max depth %d, recursive inclusive time %s",
+                $mrd, fmt_time($si->recur_incl_time);
+        }
+
+        return join("<br />", @html)."</p>";
+    };
 
     my $leaf_data_sub = sub {
         my ($subinfo, $area_from, $color) = @_;
         my $data = {
             '$area' => $area_from->($subinfo),
             '$color' => $color,
+            tip => $sub_tip_html->($subinfo),
             map({ $_ => $subinfo->$_() }
                 qw(subname incl_time excl_time))
         };
@@ -818,7 +858,7 @@ sub package_subinfo_map_to_tm_data {
 
             for my $info (@$infos) {
 
-                # don't both including subs that don't have any data
+                # don't bother including subs that don't have any data
                 # (unless we've not got any subs yet, to avoid problems elsewhere)
                 next if $area_sub->($info) <= 0;
 
@@ -858,16 +898,16 @@ sub output_treemap_code {
 }
 
 
-sub output_package_treemappage {
-    my ($r, $filename) = @_;
+sub output_subs_treemap_page {
+    my ($r, $filename, $title, $area_sub) = @_;
     my $profile = $reporter->{profile};
 
     open(OUT, '>', "$opt{out}/$filename")
         or croak "Unable to open file $opt{out}/$filename: $!";
 
-    my $title = "Performance Profile Treemap";
-    print OUT get_html_header($title, { add_jit => 1 });
-    print OUT get_page_header( profile => $profile, title => $title );
+    $title ||= "Subroutine Time Treemap";
+    print OUT get_html_header("$title - NYTProf", { add_jit => "Treemap" });
+    print OUT get_page_header( profile => $profile, title => $title);
 
     my @specs;
     push @specs, {
@@ -876,7 +916,7 @@ sub output_package_treemappage {
         get_data => sub {
             package_subinfo_map_to_tm_data(
                 $profile->package_subinfo_map(0,1),
-                sub { shift->excl_time }, 0);
+                $area_sub || sub { shift->excl_time }, 0);
         }
     };
     push @specs, {
@@ -906,6 +946,166 @@ sub output_package_treemappage {
     close OUT;
 }
 
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# callgraph subs
+
+sub js_for_new_callgraph {
+    my ($name, $new_args, $tree_data) = @_;
+
+    my $default_new_args = {
+    };
+    exists $new_args->{$_} or $new_args->{$_} = $default_new_args->{$_}
+        for keys %$default_new_args;
+
+    our $json_any ||= JSON::Any->new;
+    my $new_args_json  = $json_any->objToJson($new_args);
+    my $tree_data_json = $json_any->objToJson($tree_data);
+
+    #http://thejit.org/Jit/Examples/RGraph/example2.code.html
+
+    my $js = qq{
+        function init_$name() {
+
+            //Create a new canvas instance.
+            var canvas = new Canvas('mycanvas', {
+                //Where to inject the canvas. Any div container will do.
+                'injectInto':'infovis1',
+                //width and height for canvas. Default's to 200.
+                'width': 900, 'height':500,
+                //Optional: Create a background canvas  
+                //for painting concentric circles.  
+                'backgroundCanvas': {  
+                    'styles': {  
+                        'strokeStyle': '#444',
+                    },
+                    'impl': {  
+                        'init': function(){},  
+                        'plot': function(canvas, ctx){  
+                            var times = 6, d = 100;  
+                            var pi2 = Math.PI * 2;  
+                            for (var i = 1; i <= times; i++) {  
+                                ctx.beginPath();  
+                                ctx.arc(0, 0, i * d, 0, pi2, true);  
+                                ctx.stroke();  
+                                ctx.closePath();  
+                            }  
+                        }  
+                    }  
+                },
+            });
+
+            var $name = new RGraph(canvas, {
+                //interpolation type, can be linear or polar
+                interpolation: 'linear',
+                //parent-children distance
+                levelDistance: 100,
+                //Set node/edge styles
+                Node: { color: '#ccddee' },
+                Edge: { color: '#772277' },
+
+                //This method is called only once, on label creation.  
+                onCreateLabel: function(domElement, node) {
+                    //Add a controller to make the tree move on click.
+                    domElement.onclick = function() { $name.onClick(node.id); };
+                    //Add the node's name into the label  
+                    domElement.innerHTML = node.name;  
+                },
+
+                //Change the node's style based on its position.  
+                //This method is called each time a label is rendered/positioned  
+                //during an animation.  
+                onPlaceLabel: function(domElement, node){  
+                    var style = domElement.style;  
+                    style.display = '';  
+            
+                    if (node._depth <= 1) {  
+                        style.fontSize = "0.8em";  
+                        style.color = "#ccc";  
+                    
+                    } else if(node._depth == 2){  
+                        style.fontSize = "0.7em";  
+                        style.color = "#494949";  
+                    
+                    } else {  
+                        style.display = 'none';  
+                    }  
+            
+                    var left = parseInt(style.left);  
+                    var w = domElement.offsetWidth;  
+                    style.left = (parseInt(style.left) - w / 2) + 'px';  
+                }  
+
+            });
+
+            var json = $tree_data_json;
+            //load tree from tree data.
+            $name.loadJSON(json);
+            //compute positions and plot
+            $name.refresh();
+        }
+    };
+    return $js;
+}
+
+
+sub output_callgraph_code {
+    my (%spec) = @_;
+    my $cg_id = 'cg'.$spec{id};
+    my $root_id = 'infovis'.$spec{id};
+
+    my $callgraph_data = $spec{get_data}->();
+    $callgraph_data->{name} = $spec{title} if $spec{title};
+
+    my $cg_js = js_for_new_callgraph($cg_id, { rootId => $root_id }, $callgraph_data);
+    print OUT qq{<script type="text/javascript">$cg_js\n</script>\n};
+
+    push @on_ready_js, qq{init_$cg_id(); };
+    return $root_id;
+}
+
+
+sub sub_callgraph_data {
+}
+
+
+sub output_subs_callgraph_page {
+    my ($r, $filename) = @_;
+    my $profile = $reporter->{profile};
+
+    open(OUT, '>', "$opt{out}/$filename")
+        or croak "Unable to open file $opt{out}/$filename: $!";
+
+    print OUT get_html_header("Subroutine Call Graph - NYTProf", { add_jit => "RGraph" });
+    print OUT get_page_header( profile => $profile, title => "Subroutine Call Graph" );
+
+    my @specs;
+    push @specs, {
+        id => 1,
+        title => "Subroutine Call Graph",
+        get_data => sub {
+            sub_callgraph_data();
+        }
+    };
+
+    my @root_ids;
+    for my $spec (@specs) {
+        push @root_ids, output_callgraph_code(
+            profile => $profile,
+            %$spec
+        );
+    }
+
+    print OUT qq{<div id="infovis">\n};
+    print OUT qq{<br /><div id="$_"></div>\n} for @root_ids;
+    print OUT qq{</div>\n};
+
+    my $footer = get_footer($profile);
+    print OUT "$footer</body></html>";
+    close OUT;
+}
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 sub output_js_files {
     my ($profile) = @_;
@@ -1262,8 +1462,8 @@ EOD
     $html .= qq{<link rel="stylesheet" type="text/css" href="style.css" />\n}
         unless $opts->{skip_style};
 
-    if ($opts->{add_jit}) {
-        $html .= qq{<link rel="stylesheet" type="text/css" href="js/jit/Treemap.css" />\n};
+    if (my $css = $opts->{add_jit}) {
+        $html .= qq{<link rel="stylesheet" type="text/css" href="js/jit/$css.css" />\n};
         $html .= qq{<script language="JavaScript" src="js/jit/jit.js"></script>\n};
     }
 
