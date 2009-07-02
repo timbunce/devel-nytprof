@@ -17,6 +17,11 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
     in the current package with names prefixed by "CORE:".
 XXX needs docs and more ops
 
+  Added columns to the main source code reports to show
+    a count of sub calls and time spent in those calls.
+
+  Assorted cosmetic improvements.
+
 =head2 Changes in Devel::NYTProf 2.10 (svn r774) 18th June 2009
 
   Fixed call count for XSubs that was one too high.

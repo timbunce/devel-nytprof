@@ -18,6 +18,8 @@ use strict;
 use Carp;
 use Config;
 
+use List::Util qw(sum);
+
 use Devel::NYTProf::Data;
 use Devel::NYTProf::Util qw(
     strip_prefix_from_paths
@@ -102,11 +104,6 @@ sub new {
         callsfunc         => undef,
         timefunc          => undef,
         'time/callsfunc'  => undef,
-        numeric_precision => {
-            time        => 7,
-            calls       => 0,
-            'time/call' => 7
-        },
     };
 
     bless($self, $class);
@@ -288,10 +285,14 @@ sub _generate_report {
         # (should equal sum of $stats_accum)
         my $runningTotalCalls = 0; # holds the running total number of calls.
 
+        # { linenumber => { subname => [ count, time ] } }
+        my $subcalls_at_line = $profile->line_calls_for_file($filestr, 1);
+
         # note that a file may have no source lines executed, so no keys here
         # (but is included because some xsubs in the package were executed)
-        foreach my $key (keys %{$data->{$filestr}}) {
-            my $a = $data->{$filestr}->{$key};
+        foreach my $linenum (keys %{$data->{$filestr}}) {
+            my $a = $data->{$filestr}->{$linenum};
+            my $line_stats = $stats_by_line{$linenum} ||= {};
 
             if (0 == $a->[1]) {
 
@@ -316,10 +317,20 @@ sub _generate_report {
             push(@{$stats_accum{'calls'}},     $a->[1]);
             push(@{$stats_accum{'time/call'}}, $time / $a->[1]);
 
-            $stats_by_line{$key}->{'time'}  += $time;
-            $stats_by_line{$key}->{'calls'} += $a->[1];
-            $stats_by_line{$key}->{'time/call'} =
-                $stats_by_line{$key}->{'time'} / $stats_by_line{$key}->{'calls'};
+            $line_stats->{'time'}  += $time;
+            $line_stats->{'calls'} += $a->[1];
+            $line_stats->{'time/call'} =
+                $line_stats->{'time'} / $line_stats->{'calls'};
+
+            if (my $subcalls = $subcalls_at_line->{$linenum}) {
+                my $subcall_count = sum(map { $_->[0] } values %$subcalls);
+                my $subcall_time  = sum(map { $_->[1] } values %$subcalls);
+                $line_stats->{'subcall_count'} = $subcall_count;
+                $line_stats->{'subcall_time'}  = $subcall_time;
+                $line_stats->{'subcall_info'}  = $subcalls;
+                push @{$stats_accum{'subcall_count'}}, $subcall_count;
+                push @{$stats_accum{'subcall_time'}},  $subcall_time;
+            }
 
             $runningTotalTime  += $time;
             $runningTotalCalls += $a->[1];
@@ -336,9 +347,10 @@ sub _generate_report {
             'calls'     => calculate_median_absolute_deviation($stats_accum{'calls'}||[]),
             'time'      => calculate_median_absolute_deviation($stats_accum{'time'}||[]),
             'time/call' => calculate_median_absolute_deviation($stats_accum{'time/call'}||[]),
+            subcall_count => calculate_median_absolute_deviation($stats_accum{subcall_count}||[]),
+            subcall_time  => calculate_median_absolute_deviation($stats_accum{subcall_time}||[]),
         );
 
-        my $line_calls_hash = $profile->line_calls_for_file($filestr, 1);
         my $subs_defined_hash = $profile->subs_defined_in_file($filestr, 1);
 
         # the output file name that will be open later.  Not including directory at this time.
@@ -412,7 +424,7 @@ sub _generate_report {
                     unless our $line_directive_warn->{$filestr}++; # once per file
             }
 
-            my $makes_calls_to = $line_calls_hash->{$LINE}   || {};
+            my $makes_calls_to = $subcalls_at_line->{$LINE}   || {};
             my $subs_defined   = $subs_defined_hash->{$LINE} || [];
             my $stats_for_line = $stats_by_line{$LINE} || {};
 

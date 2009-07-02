@@ -402,7 +402,14 @@ $reporter->set_param(
         $treemap
       <table border="1" cellpadding="0">
       <thead>
-      <tr><th>Line</th><th>Stmts.</th><th>Exclusive<br />Time</th><th>Avg.</th><th class="left_indent_header">Code</th>
+      <tr><th>Line</th>
+      <th><span title="Number of statements executed">State<br />-ments</span></th>
+      <th><span title="Time spend executing statements on the line,
+        excluding time spent executing statements in any called subroutines">Time<br />on line</span></th>
+      <th><span title="Average exclusive time per statement execution">Avg.<br />Time</span></th>
+      <th><span title="Number of subroutines calls">Calls</span></th>
+      <th><span title="Time spent in subroutines called">Time<br />in subs</span></th>
+      <th class="left_indent_header">Code</th>
       </tr>\n
       </thead>
       <tbody>
@@ -425,7 +432,7 @@ sub mk_report_source_line {
     my $l = sprintf(qq{<td class="h"><a name="%s"></a>%s</td>}, $linenum, $linenum);
     my $s = report_src_line(undef, $linenum, $line, $profile, $subs_defined, $makes_calls_to, $filestr);
 
-    return "<tr>$l<td></td><td></td><td></td>$s</tr>\n"
+    return "<tr>$l<td></td><td></td><td></td><td></td><td></td>$s</tr>\n"
         if not %$stats_for_line;
 
     return join "",
@@ -433,6 +440,8 @@ sub mk_report_source_line {
         determine_severity($stats_for_line->{'calls'},     $stats_for_file->{'calls'}),
         determine_severity($stats_for_line->{'time'},      $stats_for_file->{'time'}, 1),
         determine_severity($stats_for_line->{'time/call'}, $stats_for_file->{'time/call'}, 1),
+        determine_severity($stats_for_line->{'subcall_count'}, $stats_for_file->{subcall_count}, 0),
+        determine_severity($stats_for_line->{'subcall_time'},  $stats_for_file->{subcall_time}, 1),
         $s, "</tr>\n";
 }
 
@@ -1654,6 +1663,7 @@ th,.h {
     background-color: #dddddd;
     border: solid 1px #666666;
     padding: 0em 0.4em 0em 0.4em;
+    font-size:0.8em;
 }
 td { 
     border: solid 1px #cccccc; 
