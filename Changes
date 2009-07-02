@@ -8,6 +8,9 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
   Fixed risk of infinite recursion if trace enabled and
     $SIG{__WARN__} was set to a code reference.
+  Fixed recursion depth measurement.
+
+  Changed colors on report pages to be less saturated.
 
   Added interactive treemap view of package and subroutine times.
     Left-click to zoom in (drill-down) one level, right-click to zoom out.

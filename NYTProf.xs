@@ -2119,7 +2119,7 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
         SV *max_depth_sv = *av_fetch(av, NYTP_SCi_REC_DEPTH, 1);
         sv_setnv(reci_time_sv, (SvOK(reci_time_sv)) ? SvNV(reci_time_sv)+incl_subr_sec : incl_subr_sec);
         /* we track recursion depth here, which is call_depth-1 */
-        if (!SvOK(max_depth_sv) || sub_call_start->call_depth > SvIV(max_depth_sv)-1)
+        if (!SvOK(max_depth_sv) || sub_call_start->call_depth-1 > SvIV(max_depth_sv))
             sv_setiv(max_depth_sv, sub_call_start->call_depth-1);
     }
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
@@ -2684,6 +2684,7 @@ init_profiler(pTHX)
         PL_ppaddr[OP_RAND] = pp_sysop_profiler;
         PL_ppaddr[OP_SRAND] = pp_sysop_profiler;
         PL_ppaddr[OP_WAIT] = pp_sysop_profiler;
+        PL_ppaddr[OP_SELECT] = pp_sysop_profiler;
     }
 
     /* redirect opcodes for caller tracking */

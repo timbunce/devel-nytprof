@@ -1716,10 +1716,10 @@ pre,.s {
  *   c3  : path covered or coverage = 100%
  */
 .c0, .c1, .c2, .c3 { text-align: right; }
-.c0 { background-color: #ff9999; }
-.c1 { background-color: #ffcc99; }
-.c2 { background-color: #ffff99; }
-.c3 { background-color: #99ff99; }
+.c0 { background-color: #ffb3b3; }  /* red */
+.c1 { background-color: #ffd9b4; }  /* orange */
+.c2 { background-color: #ffffB4; }  /* yellow */
+.c3 { background-color: #B4ffB4; }  /* green */
 
 /* warnings */
 .warn {

@@ -46,7 +46,7 @@ sub fib {
     return $n if $n < 2;
     fib($n-1) + fib($n-2);
 }
-fib(42);
+fib(7);
 
 # --- File::Find ---
 
