@@ -2242,8 +2242,8 @@ pp_subcall_profiler(pTHX_ int is_sysop)
     int profile_sub_call = (profile_subs && is_profiling);
 
     if (profile_sub_call) {
-        sub_sv = *SP;
         int saved_errno = errno;
+        sub_sv = *SP;
         if (!profile_stmts)
             reinit_if_forked(aTHX);
         get_time_of_day(sub_call_start.initial_call_time);
