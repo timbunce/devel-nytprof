@@ -298,6 +298,7 @@ static unsigned int is_profiling;       /* disable_profile() & enable_profile() 
 static Pid_t last_pid;
 static NV cumulative_overhead_ticks = 0.0;
 static NV cumulative_subr_secs = 0.0;
+static UV cumulative_subr_seqn = 0;
 
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
 
@@ -342,8 +343,9 @@ static HV *pkg_fids_hv;     /* currently just package names */
 
 static FILE *logfh;
 
-void
+static void
 logwarn(const char *pat, ...)
+    __attribute__format__(__printf__,1,2)
 {
     /* we avoid using any perl mechanisms here */
     va_list args;
@@ -1721,8 +1723,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 {
     int saved_errno;
     char *file;
-    unsigned int elapsed;
-    unsigned int overflow;
+    long elapsed, overflow;
 
     if (!is_profiling || !profile_stmts) {
         return;
@@ -1891,6 +1892,15 @@ set_option(pTHX_ const char* option, const char* value)
     if (strEQ(option, "file")) {
         strncpy(PROF_output_file, value, MAXPATHLEN);
     }
+    else if (strEQ(option, "log")) {
+        FILE *fp = fopen(value, "a");
+        if (!fp) {
+            logwarn("Can't open log file '%s' for writing: %s\n",
+                value, strerror(errno));
+            return;
+        }
+        logfh = fp;
+    }
     else if (strEQ(option, "start")) {
         if      (strEQ(value,"begin")) profile_start = NYTP_START_BEGIN;
         else if (strEQ(value,"init"))  profile_start = NYTP_START_INIT;
@@ -2056,14 +2066,15 @@ new_sub_call_info_av(pTHX)
 
 typedef struct sub_call_start_st
 {
-    time_of_day_t sub_call_time;
+    time_of_day_t initial_call_time;
     char fid_line[50];
     SV *subname_sv;
     AV *sub_av;
     CV *sub_cv;
     int call_depth;
-    NV current_overhead_ticks;
-    NV current_subr_secs;
+    NV initial_overhead_ticks;
+    NV initial_subr_secs;
+    UV seqn;
 } sub_call_start_t;
 
 static void
@@ -2075,9 +2086,9 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     SV *incl_time_sv = *av_fetch(av, NYTP_SCi_INCL_RTIME, 1);
     SV *excl_time_sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
     /* statement overheads we've accumulated since we entered the sub */
-    NV overhead_ticks = (int)(cumulative_overhead_ticks - sub_call_start->current_overhead_ticks);
+    NV overhead_ticks = cumulative_overhead_ticks - sub_call_start->initial_overhead_ticks;
     /* seconds spent in subroutines called by this subroutine */
-    NV called_sub_secs = (cumulative_subr_secs - sub_call_start->current_subr_secs);
+    NV called_sub_secs = (cumulative_subr_secs - sub_call_start->initial_subr_secs);
     NV incl_subr_sec;
     NV excl_subr_sec;
 
@@ -2087,26 +2098,26 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     }
     else {
         time_of_day_t sub_end_time;
-        unsigned int ticks, overflow;
+        long ticks, overflow;
 
         /* calculate ticks since we entered the sub */
         get_time_of_day(sub_end_time);
-        get_ticks_between(sub_call_start->sub_call_time, sub_end_time, ticks, overflow);
+        get_ticks_between(sub_call_start->initial_call_time, sub_end_time, ticks, overflow);
         
         incl_subr_sec = overflow + (ticks / (NV)ticks_per_sec);
         /* subtract statement measurement overheads */
-        incl_subr_sec -= (overhead_ticks / (NV)ticks_per_sec);
+        incl_subr_sec -= (overhead_ticks / ticks_per_sec);
         /* exclusive = inclusive - time spent in subroutines called by this subroutine */
         excl_subr_sec = incl_subr_sec - called_sub_secs;
     }
-
+ 
     if (trace_level >= 3)
-        logwarn(" <-     %s after %"NVff"s incl - %"NVff"s = %"NVff"s excl (sub %g-%g=%g, oh %g-%g=%gt) d%d @%s\n",
-            SvPV_nolen(subname_sv), incl_subr_sec, called_sub_secs, excl_subr_sec,
-            cumulative_subr_secs, sub_call_start->current_subr_secs, called_sub_secs,
-            cumulative_overhead_ticks, sub_call_start->current_overhead_ticks, overhead_ticks,
+        logwarn(" <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%s #%lu\n",
+            SvPV_nolen(subname_sv), excl_subr_sec, incl_subr_sec, called_sub_secs,
+            cumulative_subr_secs, sub_call_start->initial_subr_secs,
+            cumulative_overhead_ticks, sub_call_start->initial_overhead_ticks, overhead_ticks,
             (int)sub_call_start->call_depth,
-            sub_call_start->fid_line);
+            sub_call_start->fid_line, sub_call_start->seqn);
 
     /* only count inclusive time for the outer-most calls */
     if (sub_call_start->call_depth <= 1) {
@@ -2235,9 +2246,10 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         int saved_errno = errno;
         if (!profile_stmts)
             reinit_if_forked(aTHX);
-        get_time_of_day(sub_call_start.sub_call_time);
-        sub_call_start.current_overhead_ticks = cumulative_overhead_ticks;
-        sub_call_start.current_subr_secs = cumulative_subr_secs;
+        get_time_of_day(sub_call_start.initial_call_time);
+        sub_call_start.initial_overhead_ticks = cumulative_overhead_ticks;
+        sub_call_start.initial_subr_secs = cumulative_subr_secs;
+        sub_call_start.seqn = ++cumulative_subr_seqn;
         SETERRNO(saved_errno, 0);
     }
 
@@ -2246,8 +2258,17 @@ pp_subcall_profiler(pTHX_ int is_sysop)
      * and returns the first op *within* the sub (typically a nextstate/dbstate).
      * for XS subs pp_entersub executes the entire sub
      * and returns the op *after* the sub (PL_op->op_next)
+     * Other ops we profile (eg sysops) act like xsubs.
      */
-    op = run_original_op(op_type);            /* may croak */
+    /* May croak (in xsub, in sysops, or in pp_entersub e.g., sub not found).
+     * If it does croak then currently we don't record the call at all.
+     * Such cases are relatively rare, so it's not a significant problem.
+     * (The xsub case is probably the most significant, especially if the
+     * xsub calls back into perl code which then croaks. In that case the
+     * entersub to perl, and any calls made by the perl code, will get recorded
+     * but the xsub call itself won't)
+     */
+    op = run_original_op(op_type);
 
     if (profile_sub_call) {
         int saved_errno = errno;
@@ -2404,11 +2425,12 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         sub_call_start.call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
 
         if (trace_level >= 2)
-            fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %gt, sub %gs)\n",
+            fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
                 (is_xs) ? is_xs : " sub", subname_pv, fid, line,
                 sub_call_start.call_depth,
-                sub_call_start.current_overhead_ticks,
-                sub_call_start.current_subr_secs
+                sub_call_start.initial_overhead_ticks,
+                sub_call_start.initial_subr_secs,
+                sub_call_start.seqn
             );
 
         if (profile_subs) {
@@ -2916,6 +2938,7 @@ write_sub_callers(pTHX)
         while (NULL != (sv = hv_iternextsv(fid_lines_hv, &fid_line_string, &fid_line_len))) {
             NV sc[NYTP_SCi_elements];
             AV *av = (AV *)SvRV(sv);
+            int trace = (trace_level >= 3);
 
             unsigned int fid = 0, line = 0;
             (void)sscanf(fid_line_string, "%u:%u", &fid, &line);
@@ -2931,7 +2954,13 @@ write_sub_callers(pTHX)
             sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0) * 1.0;
             output_str(sub_name, sub_name_len);
 
-            if (trace_level >= 3)
+            /* sanity check - early warning */
+            if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {
+                logwarn("%s call has negative time!", sub_name);
+                trace = 1;
+            }
+
+            if (trace)
                 logwarn("%s called by %u:%u: count %"NVff" (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%"NVff" ri%"NVff"s)\n",
                     sub_name, fid, line, sc[NYTP_SCi_CALL_COUNT],
                     sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],

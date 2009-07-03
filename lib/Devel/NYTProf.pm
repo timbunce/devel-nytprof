@@ -272,7 +272,13 @@ This avoids concurrent, or consecutive, processes from overwriting the same file
 
 =head2 trace=N
 
-Set trace level to N. 0 is off (the default). Higher values cause more detailed trace output.
+Set trace level to N. 0 is off (the default). Higher values cause more detailed
+trace output. Trace output is written to STDERR or wherever the L</log=F>
+option has specified.
+
+=head2 log=F
+
+Specify the name of the file that L</trace=N> output should be written to.
 
 =head2 start=...
 
