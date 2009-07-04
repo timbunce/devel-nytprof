@@ -3643,7 +3643,7 @@ load_profile_data_from_stream(SV *cb)
                 /* add sub to NYTP_FIDi_SUBS_DEFINED hash */
                 sv = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
                 sv = SvRV(*av_fetch((AV *)sv, NYTP_FIDi_SUBS_DEFINED, 1));
-                (void)hv_store((HV *)sv, subname_pv, subname_len, newRV((SV*)av), 0);
+                (void)hv_store((HV *)sv, subname_pv, (I32)subname_len, newRV((SV*)av), 0);
 
                 break;
             }
