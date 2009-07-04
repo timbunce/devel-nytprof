@@ -1224,7 +1224,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             char *end = rninstr(file_name, file_name+file_name_len-1, colon, colon+1);
 
             if (!start || !end || start > end) {    /* should never happen */
-                logwarn("NYTProf unsupported filename syntax '%s'", file_name);
+                logwarn("NYTProf unsupported filename syntax '%s'\n", file_name);
                 return 0;
             }
             ++start;                              /* move past [ */
@@ -1543,7 +1543,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
         }
         /* should never get here but we do */
         if (trace_level >= trace) {
-            logwarn("\tstart_cop_of_context %s op '%s' isn't a cop",
+            logwarn("\tstart_cop_of_context %s op '%s' isn't a cop\n",
                 block_type[CxTYPE(cx)], OP_NAME(o));
             if (trace_level >  trace)
                 do_op_dump(1, PerlIO_stderr(), o);
@@ -1673,7 +1673,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
         }
         /* shouldn't happen! */
         if (trace_level >= 5)
-            logwarn("at %d: %s in different file (%s, %s)",
+            logwarn("at %d: %s in different file (%s, %s)\n",
                 last_executed_line, block_type[CxTYPE(cx)],
                 OutCopFILE(near_cop), OutCopFILE(PL_curcop_nytprof));
         return 1;                                 /* stop looking */
@@ -1741,7 +1741,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         get_ticks_between(start_time, end_time, elapsed, overflow);
     }
     if (overflow)                                 /* XXX later output overflow to file */
-        logwarn("profile time overflow of %d seconds discarded", overflow);
+        logwarn("profile time overflow of %d seconds discarded\n", overflow);
 
     reinit_if_forked(aTHX);
 
@@ -1780,7 +1780,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
             /* op is null when called via finish_profile called by END */
             if (!is_preamble && op) {
-                logwarn("Unable to determine line number in %s", OutCopFILE(cop));
+                logwarn("Unable to determine line number in %s\n", OutCopFILE(cop));
                 if (trace_level > 5)
                     do_op_dump(1, PerlIO_stderr(), (OP*)cop);
             }
@@ -1791,7 +1791,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
     file = OutCopFILE(cop);
     if (!last_executed_fid) {                     /* first time */
         if (trace_level >= 1) {
-            logwarn("NYTProf pid %ld: first statement line %d of %s",
+            logwarn("NYTProf pid %ld: first statement line %d of %s\n",
                 (long)getpid(), (int)CopLINE(cop), OutCopFILE(cop));
         }
     }
@@ -1801,7 +1801,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
     }
 
     if (trace_level >= 6)
-        logwarn("     @%d:%-4d %s", last_executed_fid, last_executed_line,
+        logwarn("     @%d:%-4d %s\n", last_executed_fid, last_executed_line,
             (profile_blocks) ? "looking for block and sub lines" : "");
 
     if (profile_blocks) {
@@ -2010,7 +2010,7 @@ close_output_file(pTHX) {
     output_nv(gettimeofday_nv());
 
     if (-1 == NYTP_close(out, 0))
-        logwarn("Error closing profile data file: %s", strerror(errno));
+        logwarn("Error closing profile data file: %s\n", strerror(errno));
     out = NULL;
 }
 
@@ -2064,8 +2064,8 @@ new_sub_call_info_av(pTHX)
     return av;
 }
 
-typedef struct sub_call_start_st
-{
+typedef struct subr_entry_st subr_entry_t;
+struct subr_entry_st {
     time_of_day_t initial_call_time;
     char fid_line[50];
     SV *subname_sv;
@@ -2075,20 +2075,22 @@ typedef struct sub_call_start_st
     NV initial_overhead_ticks;
     NV initial_subr_secs;
     UV seqn;
-} sub_call_start_t;
+    subr_entry_t *caller;
+};
+static subr_entry_t *subr_entry_latest;
 
 static void
-incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
+incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 {
     int saved_errno = errno;
-    AV *av = sub_call_start->sub_av;
-    SV *subname_sv = sub_call_start->subname_sv;
+    AV *av = subr_entry->sub_av;
+    SV *subname_sv = subr_entry->subname_sv;
     SV *incl_time_sv = *av_fetch(av, NYTP_SCi_INCL_RTIME, 1);
     SV *excl_time_sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
     /* statement overheads we've accumulated since we entered the sub */
-    NV overhead_ticks = cumulative_overhead_ticks - sub_call_start->initial_overhead_ticks;
+    NV overhead_ticks = cumulative_overhead_ticks - subr_entry->initial_overhead_ticks;
     /* seconds spent in subroutines called by this subroutine */
-    NV called_sub_secs = (cumulative_subr_secs - sub_call_start->initial_subr_secs);
+    NV called_sub_secs = (cumulative_subr_secs - subr_entry->initial_subr_secs);
     NV incl_subr_sec;
     NV excl_subr_sec;
 
@@ -2102,7 +2104,7 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
 
         /* calculate ticks since we entered the sub */
         get_time_of_day(sub_end_time);
-        get_ticks_between(sub_call_start->initial_call_time, sub_end_time, ticks, overflow);
+        get_ticks_between(subr_entry->initial_call_time, sub_end_time, ticks, overflow);
         
         incl_subr_sec = overflow + (ticks / (NV)ticks_per_sec);
         /* subtract statement measurement overheads */
@@ -2114,13 +2116,13 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
     if (trace_level >= 3)
         logwarn(" <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%s #%lu\n",
             SvPV_nolen(subname_sv), excl_subr_sec, incl_subr_sec, called_sub_secs,
-            cumulative_subr_secs, sub_call_start->initial_subr_secs,
-            cumulative_overhead_ticks, sub_call_start->initial_overhead_ticks, overhead_ticks,
-            (int)sub_call_start->call_depth,
-            sub_call_start->fid_line, sub_call_start->seqn);
+            cumulative_subr_secs, subr_entry->initial_subr_secs,
+            cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
+            (int)subr_entry->call_depth,
+            subr_entry->fid_line, subr_entry->seqn);
 
     /* only count inclusive time for the outer-most calls */
-    if (sub_call_start->call_depth <= 1) {
+    if (subr_entry->call_depth <= 1) {
         sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
     }
     else {
@@ -2130,12 +2132,13 @@ incr_sub_inclusive_time(pTHX_ sub_call_start_t *sub_call_start)
         SV *max_depth_sv = *av_fetch(av, NYTP_SCi_REC_DEPTH, 1);
         sv_setnv(reci_time_sv, (SvOK(reci_time_sv)) ? SvNV(reci_time_sv)+incl_subr_sec : incl_subr_sec);
         /* we track recursion depth here, which is call_depth-1 */
-        if (!SvOK(max_depth_sv) || sub_call_start->call_depth-1 > SvIV(max_depth_sv))
-            sv_setiv(max_depth_sv, sub_call_start->call_depth-1);
+        if (!SvOK(max_depth_sv) || subr_entry->call_depth-1 > SvIV(max_depth_sv))
+            sv_setiv(max_depth_sv, subr_entry->call_depth-1);
     }
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
 
-    sv_free(sub_call_start->subname_sv);
+    sv_free(subr_entry->subname_sv);
+    subr_entry_latest = subr_entry->caller;
 
     cumulative_subr_secs += excl_subr_sec;
     SETERRNO(saved_errno, 0);
@@ -2146,8 +2149,8 @@ static void                                       /* wrapper called via scope ex
 incr_sub_inclusive_time_ix(pTHX_ void *save_ix_void)
 {
     I32 save_ix = (I32)PTR2IV(save_ix_void);
-    sub_call_start_t *sub_call_start = SSPTR(save_ix, sub_call_start_t *);
-    incr_sub_inclusive_time(aTHX_ sub_call_start);
+    subr_entry_t *subr_entry = SSPTR(save_ix, subr_entry_t *);
+    incr_sub_inclusive_time(aTHX_ subr_entry);
 }
 
 
@@ -2238,7 +2241,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
     OPCODE op_type = (is_sysop) ? PL_op->op_type : OP_ENTERSUB;
     dSP;
     SV *sub_sv;
-    sub_call_start_t sub_call_start;
+    subr_entry_t subr_entry;
     int profile_sub_call = (profile_subs && is_profiling);
 
     if (profile_sub_call) {
@@ -2246,10 +2249,11 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         sub_sv = *SP;
         if (!profile_stmts)
             reinit_if_forked(aTHX);
-        get_time_of_day(sub_call_start.initial_call_time);
-        sub_call_start.initial_overhead_ticks = cumulative_overhead_ticks;
-        sub_call_start.initial_subr_secs = cumulative_subr_secs;
-        sub_call_start.seqn = ++cumulative_subr_seqn;
+        get_time_of_day(subr_entry.initial_call_time);
+        subr_entry.initial_overhead_ticks = cumulative_overhead_ticks;
+        subr_entry.initial_subr_secs = cumulative_subr_secs;
+        subr_entry.seqn = ++cumulative_subr_seqn;
+        subr_entry.caller = subr_entry_latest;
         SETERRNO(saved_errno, 0);
     }
 
@@ -2325,7 +2329,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                     sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
                 }
                 else if (trace_level) {
-                    logwarn("I'm confused about CV %p", cv);
+                    logwarn("I'm confused about CV %p\n", cv);
                     /* looks like Class::MOP doesn't give the CV GV stash a name */
                     if (trace_level >= 2)
                         sv_dump((SV*)cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP wierdo sub */
@@ -2337,7 +2341,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                 if (!cv) {
                     /* should never get here as pp_entersub would have croaked */
                     const char *what = (is_xs) ? is_xs : "sub";
-                    logwarn("unknown entersub %s '%s'", what, SvPV_nolen(sub_sv));
+                    logwarn("unknown entersub %s '%s'\n", what, SvPV_nolen(sub_sv));
                     if (trace_level)
                         sv_dump(sub_sv);
                     sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
@@ -2353,7 +2357,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                         (stash_name)?stash_name:"__UNKNOWN__", (unsigned long)cv);
 #endif
                     if (trace_level) {
-                        logwarn("unknown entersub %s assumed to be anon cv '%s'", (is_xs) ? is_xs : "sub", SvPV_nolen(sub_sv));
+                        logwarn("unknown entersub %s assumed to be anon cv '%s'\n", (is_xs) ? is_xs : "sub", SvPV_nolen(sub_sv));
                         sv_dump(sub_sv);
                     }
                 }
@@ -2382,6 +2386,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
          * could interpose a hash to hold per-subname values:
          * old => { "fid:line" =>           [ count, incl_time, "sub1" ]          }
          * new => { "fid:line" => { "sub1"=>[ count, incl_time ], "sub2"=>[...] } }
+         * or  => { "fid:line" => {  OP   =>[ count, incl_time, "sub1" ], "sub2"=>[...] } }
          */
 
         if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this subname from anywhere */
@@ -2411,45 +2416,49 @@ pp_subcall_profiler(pTHX_ int is_sysop)
 
         /* drill-down to array of sub call information for this fid_line_key */
         sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
-        if (!SvROK(sv_tmp)) {                     /* autoviv array ref */
+        if (!SvROK(sv_tmp)) { /* first call from this fid:line - autoviv array ref */
             AV *av = new_sub_call_info_av(aTHX);
 
             sv_setsv(sv_tmp, newRV_noinc((SV *)av));
-            sub_call_start.sub_av = av;
+            subr_entry.sub_av = av;
 
             if (stash_name) /* note that a sub in this package was called */
                 (void)hv_fetch(pkg_fids_hv, stash_name, (I32)strlen(stash_name), 1);
         }
         else {
-            sub_call_start.sub_av = (AV *)SvRV(sv_tmp);
-            sv_inc(AvARRAY(sub_call_start.sub_av)[0]); /* ++call count */
+            subr_entry.sub_av = (AV *)SvRV(sv_tmp);
+            sv_inc(AvARRAY(subr_entry.sub_av)[0]); /* ++call count */
         }
 
         /* record call_depth, adjust for xs since, in that case, we
          * have already left the sub, unlike the non-xs case.        */
-        sub_call_start.call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
+        subr_entry.call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
 
         if (trace_level >= 2)
-            fprintf(stderr, " ->%s %s from %d:%d (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
-                (is_xs) ? is_xs : " sub", subname_pv, fid, line,
-                sub_call_start.call_depth,
-                sub_call_start.initial_overhead_ticks,
-                sub_call_start.initial_subr_secs,
-                sub_call_start.seqn
+            fprintf(stderr, " ->%s %s from %s %d:%d (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
+                (is_xs) ? is_xs : " sub", subname_pv,
+                (subr_entry.caller) ? SvPV_nolen(subr_entry.caller->subname_sv) : "",
+                fid, line,
+                subr_entry.call_depth,
+                subr_entry.initial_overhead_ticks,
+                subr_entry.initial_subr_secs,
+                subr_entry.seqn
             );
 
         if (profile_subs) {
-            sub_call_start.subname_sv = subname_sv;
-            strcpy(sub_call_start.fid_line, fid_line_key);
+            subr_entry.subname_sv = subname_sv;
+            strcpy(subr_entry.fid_line, fid_line_key);
             if (is_xs) {
+                subr_entry_latest = &subr_entry;
                 /* acculumate now time we've just spent in the xs sub */
-                incr_sub_inclusive_time(aTHX_ &sub_call_start);
+                incr_sub_inclusive_time(aTHX_ &subr_entry);
             }
             else {
                 /* copy struct to save stack (very efficient) */
                 /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
-                I32 save_ix = SSNEWa(sizeof(sub_call_start), MEM_ALIGNBYTES);
-                Copy(&sub_call_start, SSPTR(save_ix, sub_call_start_t *), 1, sub_call_start_t);
+                I32 save_ix = SSNEWa(sizeof(subr_entry), MEM_ALIGNBYTES);
+                subr_entry_latest = SSPTR(save_ix, subr_entry_t *);
+                Copy(&subr_entry, subr_entry_latest, 1, subr_entry_t);
                 /* defer acculumating time spent until we leave the sub */
                 save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)save_ix));
             }
@@ -2500,7 +2509,7 @@ enable_profile(pTHX_ char *file)
     int prev_is_profiling = is_profiling;
 
     if (trace_level)
-        logwarn("NYTProf enable_profile (previously %s) to %s",
+        logwarn("NYTProf enable_profile (previously %s) to %s\n",
             prev_is_profiling ? "enabled" : "disabled",
             (file && *file) ? file : PROF_output_file);
 
@@ -2540,7 +2549,7 @@ disable_profile(pTHX)
         is_profiling = 0;
     }
     if (trace_level)
-        logwarn("NYTProf disable_profile (previously %s)",
+        logwarn("NYTProf disable_profile (previously %s)\n",
             prev_is_profiling ? "enabled" : "disabled");
     return prev_is_profiling;
 }
@@ -2596,7 +2605,7 @@ init_profiler(pTHX)
     /* downgrade to CLOCK_REALTIME if desired clock not available */
     if (clock_gettime(profile_clock, &start_time) != 0) {
         if (trace_level)
-            logwarn("clock_gettime clock %d not available (%s) using CLOCK_REALTIME instead",
+            logwarn("clock_gettime clock %d not available (%s) using CLOCK_REALTIME instead\n",
                 profile_clock, strerror(errno));
         profile_clock = CLOCK_REALTIME;
         /* check CLOCK_REALTIME as well, just in case */
@@ -2625,7 +2634,7 @@ init_profiler(pTHX)
             profile_zero ? ", zero=1" : "");
 
     if (get_hv("DB::sub", 0) == NULL) {
-        logwarn("NYTProf internal error - perl not in debug mode");
+        logwarn("NYTProf internal error - perl not in debug mode\n");
         return 0;
     }
 
@@ -2961,7 +2970,7 @@ write_sub_callers(pTHX)
 
             /* sanity check - early warning */
             if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {
-                logwarn("%s call has negative time!", sub_name);
+                logwarn("%s call has negative time!\n", sub_name);
                 trace = 1;
             }
 
@@ -2996,13 +3005,13 @@ write_src_of_files(pTHX)
         if ( !(e->fid_flags & NYTP_FIDf_HAS_SRC) ) {
             ++t_no_src;
             if (src_av) /* sanity check */
-                logwarn("fid %d has src but NYTP_FIDf_HAS_SRC not set! (%.*s)",
+                logwarn("fid %d has src but NYTP_FIDf_HAS_SRC not set! (%.*s)\n",
                     e->id, e->key_len, e->key);
             continue;
         }
         if (!src_av) { /* sanity check */
             ++t_no_src;
-            logwarn("fid %d has no src but NYTP_FIDf_HAS_SRC is set! (%.*s)",
+            logwarn("fid %d has no src but NYTP_FIDf_HAS_SRC is set! (%.*s)\n",
                 e->id, e->key_len, e->key);
             continue;
         }
@@ -3015,7 +3024,7 @@ write_src_of_files(pTHX)
 
         lines = av_len(src_av);
         if (trace_level >= 4)
-            logwarn("fid %d has %ld src lines", e->id, (long)lines);
+            logwarn("fid %d has %ld src lines\n", e->id, (long)lines);
         /* for perl 5.10.0 or 5.8.8 (or earlier) use_db_sub is needed to get src */
         /* give a hint for the common case */
         if (0 == lines && !use_db_sub
@@ -3035,7 +3044,7 @@ write_src_of_files(pTHX)
             output_int(line);
             output_str(src, (I32)len);    /* includes newline */
             if (trace_level >= 5)
-                logwarn("fid %d src line %d: %s", e->id, line, src);
+                logwarn("fid %d src line %d: %s\n", e->id, line, src);
             ++t_lines;
         }
     }
@@ -3129,7 +3138,7 @@ normalize_eval_seqn(pTHX_ SV *sv) {
         ) {
             ++found;
             if (trace_level >= 5)
-                logwarn("found eval at '%s' in %s", src, start);
+                logwarn("found eval at '%s' in %s\n", src, start);
             *dst++ = ' ';
             *dst++ = '0';
              src++; /* skip space */
@@ -3146,7 +3155,7 @@ normalize_eval_seqn(pTHX_ SV *sv) {
         *dst++ = '\0';
         SvCUR_set(sv, strlen(start));
         if (trace_level >= 5)
-            logwarn("edited it to: %s", start);
+            logwarn("edited it to: %s\n", start);
     }
 
     return sv;
@@ -3394,7 +3403,7 @@ load_profile_data_from_stream(SV *cb)
                 fid_info_rvav = *av_fetch(fid_fileinfo_av, file_num, 1);
                 if (!SvROK(fid_info_rvav)) {    /* should never happen */
                     if (!SvOK(fid_info_rvav)) { /* only warn once */
-                        logwarn("Fid %u used but not defined", file_num);
+                        logwarn("Fid %u used but not defined\n", file_num);
                         sv_setsv(fid_info_rvav, &PL_sv_no);
                     }
                 }
@@ -3625,7 +3634,7 @@ load_profile_data_from_stream(SV *cb)
                      * for other cases.
                      */
                     if (!instr(subname_pv, "__ANON__[(eval"))
-                        logwarn("Sub %s already defined!", subname_pv);
+                        logwarn("Sub %s already defined!\n", subname_pv);
 
                     /* We could always discard the fid+first_line+last_line here,
                      * because we already have them stored, but for consistency
@@ -3718,7 +3727,7 @@ load_profile_data_from_stream(SV *cb)
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newAV()));
                     else if (!instr(SvPV_nolen(subname_sv), "__ANON__[(eval") || trace_level)
-                        logwarn("Merging extra sub caller info for %s %d:%d",
+                        logwarn("Merging extra sub caller info for %s %d:%d\n",
                             SvPV_nolen(subname_sv), fid, line);
                     av = (AV *)SvRV(sv);
                     sv = *av_fetch(av, NYTP_SCi_CALL_COUNT, 1);
@@ -3828,7 +3837,7 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 if (!hv_delete(live_pids_hv, text, len, 0))
-                    logwarn("Inconsistent pids in profile data (pid %d not introduced)",
+                    logwarn("Inconsistent pids in profile data (pid %d not introduced)\n",
                         pid);
                 if (trace_level)
                     logwarn("End of profile data for pid %s (%"IVdf" remaining) at %"NVff"\n", text,
@@ -3903,7 +3912,7 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 if (trace_level >= 1)
-                    logwarn("# %s", text);           /* includes \n */
+                    logwarn("# %s", text); /* includes \n */
                 break;
             }
 
@@ -3948,7 +3957,7 @@ load_profile_data_from_stream(SV *cb)
     }
 
     if (HvKEYS(live_pids_hv)) {
-        logwarn("profile data possibly truncated, no terminator for %"IVdf" pids",
+        logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
             HvKEYS(live_pids_hv));
     }
     sv_free((SV*)live_pids_hv);
@@ -4091,7 +4100,7 @@ CODE:
     if (use_db_sub)
         DB_stmt(aTHX_ NULL, PL_op);
     else if (1||trace_level)
-        logwarn("DB called needlessly");
+        logwarn("DB called needlessly\n");
 
 void
 set_option(const char *opt, const char *value)
@@ -4139,7 +4148,7 @@ _INIT()
     else if (profile_start == NYTP_START_END) {
         SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
         if (trace_level >= 1)
-            logwarn("enable_profile defered until END");
+            logwarn("enable_profile defered until END\n");
         av_unshift(PL_endav, 1);  /* we want to be first */
         av_store(PL_endav, 0, SvREFCNT_inc(enable_profile_sv));
     }
