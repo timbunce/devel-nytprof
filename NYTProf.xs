@@ -2067,7 +2067,8 @@ new_sub_call_info_av(pTHX)
 typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
     time_of_day_t initial_call_time;
-    char fid_line[50];
+    int calling_fid;
+    int calling_line;
     SV *subname_sv;
     AV *sub_av;
     CV *sub_cv;
@@ -2114,12 +2115,12 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
  
     if (trace_level >= 3)
-        logwarn(" <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%s #%lu\n",
+        logwarn(" <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%d:%d #%lu\n",
             SvPV_nolen(subname_sv), excl_subr_sec, incl_subr_sec, called_sub_secs,
             cumulative_subr_secs, subr_entry->initial_subr_secs,
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
             (int)subr_entry->call_depth,
-            subr_entry->fid_line, subr_entry->seqn);
+            subr_entry->calling_fid, subr_entry->calling_line, subr_entry->seqn);
 
     /* only count inclusive time for the outer-most calls */
     if (subr_entry->call_depth <= 1) {
@@ -2137,7 +2138,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
 
-    sv_free(subr_entry->subname_sv);
+    if (subr_entry->subname_sv)
+        sv_free(subr_entry->subname_sv);
     subr_entry_latest = subr_entry->caller;
 
     cumulative_subr_secs += excl_subr_sec;
@@ -2390,6 +2392,8 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             ? last_executed_fid
             : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
         fid_line_key_len = sprintf(fid_line_key, "%u:%d", fid, line);
+        subr_entry->calling_fid  = fid;
+        subr_entry->calling_line = line;
 
         /* { called_subname => { "fid:line" => [ count, incl_time ] } } */
         sv_tmp = *hv_fetch(sub_callers_hv, subname_pv,
@@ -2464,7 +2468,6 @@ pp_subcall_profiler(pTHX_ int is_sysop)
 
         if (profile_subs) {
             subr_entry->subname_sv = subname_sv;
-            strcpy(subr_entry->fid_line, fid_line_key);
             if (is_xs) {
                 /* acculumate now time we've just spent in the xs sub */
                 incr_sub_inclusive_time(aTHX_ subr_entry);
