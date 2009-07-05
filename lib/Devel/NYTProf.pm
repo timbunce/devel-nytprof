@@ -793,6 +793,6 @@ keep NYTProf working with the latest development perl versions. Nicholas Clark
 added zip compression. Jan Dubois contributed Windows support.
 
 Adam's work is sponsored by The New York Times Co. L<http://open.nytimes.com>.
-Tim's work was partly sponsored by Shopzilla. L<http://www.shopzilla.com>.
+Tim's work was partly sponsored by Shopzilla L<http://www.shopzilla.com> during 2008.
 
 =cut

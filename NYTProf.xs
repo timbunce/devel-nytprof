@@ -1206,7 +1206,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         if (trace_level >= 4) {
             if (found)
                  logwarn("fid %d: %.*s\n",  found->id, found->key_len, found->key);
-            else logwarn("fid -: %.*s HAS NO FID\n",    entry.key_len,  entry.key);
+            else logwarn("fid -: %.*s not profiled\n",  entry.key_len,  entry.key);
         }
         return (found) ? found->id : 0;
     }
@@ -2067,7 +2067,7 @@ new_sub_call_info_av(pTHX)
 typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
     time_of_day_t initial_call_time;
-    int calling_fid;
+    unsigned int calling_fid;
     int calling_line;
     SV *subname_sv;
     AV *sub_av;
@@ -2076,9 +2076,14 @@ struct subr_entry_st {
     NV initial_overhead_ticks;
     NV initial_subr_secs;
     UV seqn;
-    subr_entry_t *caller;
+    int caller_ix;
+    /* ensure all items are initialized in pp_subcall_profiler */
 };
-static subr_entry_t *subr_entry_latest;
+static int subr_entry_latest_ix;
+
+/* return the subr_entry_t of the caller of the specified subr_entry_t */
+#define subr_entry_caller(subr_entry) ((subr_entry && subr_entry->caller_ix) \
+    ? SSPTR(subr_entry->caller_ix, subr_entry_t *) : NULL)
 
 static void
 incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
@@ -2140,7 +2145,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     if (subr_entry->subname_sv)
         sv_free(subr_entry->subname_sv);
-    subr_entry_latest = subr_entry->caller;
+    subr_entry_latest_ix = subr_entry->caller_ix;
 
     cumulative_subr_secs += excl_subr_sec;
     SETERRNO(saved_errno, 0);
@@ -2263,9 +2268,15 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         subr_entry->initial_subr_secs      = cumulative_subr_secs;
         subr_entry->seqn                   = ++cumulative_subr_seqn;
 
-        /* link in as head of the chain */
-        subr_entry->caller = subr_entry_latest;
-        subr_entry_latest = subr_entry;
+        char *file = OutCopFILE(prev_cop);
+        subr_entry->calling_fid = (file == last_executed_fileptr)
+            ? last_executed_fid
+            : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
+        subr_entry->calling_line = CopLINE(prev_cop);
+
+        /* link in as head of the chain, but use offset not pointer */
+        subr_entry->caller_ix = subr_entry_latest_ix;
+        subr_entry_latest_ix = save_ix;
 
         /* sub name related items */
         subr_entry->subname_sv = &PL_sv_undef;
@@ -2298,13 +2309,10 @@ pp_subcall_profiler(pTHX_ int is_sysop)
 
         /* get line, file, and fid for statement *before* the call */
 
-        char *file = OutCopFILE(prev_cop);
-        unsigned int fid;
         /* XXX could use same closest_cop as DB_stmt() but it doesn't seem
          * to be needed here. Line is 0 only when call is from embedded
          * C code like mod_perl (at least in my testing so far)
          */
-        int line = CopLINE(prev_cop);
         char fid_line_key[50];
         int fid_line_key_len;
         SV *subname_sv = newSV(0);
@@ -2388,13 +2396,6 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         if (is_xs && *subname_pv == 'D' && strEQ(subname_pv, "DB::_INIT"))
             goto skip_sub_profile;
 
-        fid = (file == last_executed_fileptr)
-            ? last_executed_fid
-            : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
-        fid_line_key_len = sprintf(fid_line_key, "%u:%d", fid, line);
-        subr_entry->calling_fid  = fid;
-        subr_entry->calling_line = line;
-
         /* { called_subname => { "fid:line" => [ count, incl_time ] } } */
         sv_tmp = *hv_fetch(sub_callers_hv, subname_pv,
             (I32)SvCUR(subname_sv), 1);
@@ -2435,6 +2436,9 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             }
         }
 
+        fid_line_key_len = sprintf(fid_line_key, "%u:%d",
+            subr_entry->calling_fid, subr_entry->calling_line);
+
         /* drill-down to array of sub call information for this fid_line_key */
         sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
         if (!SvROK(sv_tmp)) { /* first call from this fid:line - autoviv array ref */
@@ -2455,16 +2459,18 @@ pp_subcall_profiler(pTHX_ int is_sysop)
          * have already left the sub, unlike the non-xs case.        */
         subr_entry->call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
 
-        if (trace_level >= 2)
+        if (trace_level >= 2) {
+            subr_entry_t *se_caller = subr_entry_caller(subr_entry);
             fprintf(stderr, " ->%s %s from %s %d:%d (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
                 (is_xs) ? is_xs : " sub", subname_pv,
-                (subr_entry->caller) ? SvPV_nolen(subr_entry->caller->subname_sv) : "",
-                fid, line,
+                (se_caller) ? SvPV_nolen(se_caller->subname_sv) : "",
+                subr_entry->calling_fid, subr_entry->calling_line,
                 subr_entry->call_depth,
                 subr_entry->initial_overhead_ticks,
                 subr_entry->initial_subr_secs,
                 subr_entry->seqn
             );
+        }
 
         if (profile_subs) {
             subr_entry->subname_sv = subname_sv;
