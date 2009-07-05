@@ -184,6 +184,10 @@ package MY;
 # add some extra utility targets to the make file
 sub post_constants {
     q{
+
+prove:: pure_all
+	time nice prove -j 9 --shuffle
+
 svnmanifest::
 	svn list -R .@HEAD | sort | grep -v '/$$' > MANIFEST
 	svn diff MANIFEST

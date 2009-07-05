@@ -1,2 +1,2 @@
-$code = eval 'sub { sleep 2; }';
+$code = eval 'sub { sleep 1; }';
 $code->();

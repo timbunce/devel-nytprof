@@ -17,8 +17,6 @@ use Devel::NYTProf::Reader;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths html_safe_filename);
 
 
-my $profile_datafile = 'nytprof_t.out';     # non-default to test override works
-
 my $tests_per_extn = {p => 1, rdt => 1, x => 3};
 
 
@@ -51,9 +49,6 @@ for my $opt (qw(trace)) {
     DB::set_option($opt, $NYTPROF_TEST{$opt}) if defined $NYTPROF_TEST{$opt};
 }
 
-
-# but we'll force a specific test data file
-$NYTPROF_TEST{file} = $profile_datafile;
 
 chdir('t') if -d 't';
 
@@ -128,6 +123,10 @@ sub run_test_group {
 
     my %env_influence;
 
+    # non-default to test override works and allow parallel testing
+    my $profile_datafile = "nytprof_$group.out";
+    $NYTPROF_TEST{file} = $profile_datafile;
+
     for my $env (@env_combinations) {
         my $prev_failures = count_of_failed_tests();
 
@@ -142,7 +141,7 @@ sub run_test_group {
 
         if ($extra_test_code) {
             note("running $extra_test_count extra tests...");
-            my $profile = eval { Devel::NYTProf::Data->new({filename => $profile_datafile}) };
+            my $profile = eval { Devel::NYTProf::Data->new({ filename => $profile_datafile }) };
             if ($@) {
                 diag($@);
                 fail("extra tests group '$group'") foreach (1 .. $extra_test_count);
@@ -192,6 +191,7 @@ sub run_test {
     };
     my ($basename, $fork_seqn, $type) = ($1, $2 || 0, $3);
 
+    my $profile_datafile = $NYTPROF_TEST{file};
     my $test_datafile = (profile_datafiles($profile_datafile))[$fork_seqn];
 
     if ($type eq 'p') {
