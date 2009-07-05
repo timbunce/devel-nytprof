@@ -2240,8 +2240,9 @@ pp_subcall_profiler(pTHX_ int is_sysop)
     /* pp_entersub can be called with PL_op->op_type==0 */
     OPCODE op_type = (is_sysop) ? PL_op->op_type : OP_ENTERSUB;
     dSP;
+    I32 save_ix;
     SV *sub_sv;
-    subr_entry_t subr_entry;
+    subr_entry_t *subr_entry;
     int profile_sub_call = (profile_subs && is_profiling);
 
     if (profile_sub_call) {
@@ -2249,11 +2250,27 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         sub_sv = *SP;
         if (!profile_stmts)
             reinit_if_forked(aTHX);
-        get_time_of_day(subr_entry.initial_call_time);
-        subr_entry.initial_overhead_ticks = cumulative_overhead_ticks;
-        subr_entry.initial_subr_secs = cumulative_subr_secs;
-        subr_entry.seqn = ++cumulative_subr_seqn;
-        subr_entry.caller = subr_entry_latest;
+
+        /* allocate struct to save stack (very efficient) */
+        /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
+        save_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
+        subr_entry = SSPTR(save_ix, subr_entry_t *);
+
+        get_time_of_day(subr_entry->initial_call_time);
+        subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
+        subr_entry->initial_subr_secs      = cumulative_subr_secs;
+        subr_entry->seqn                   = ++cumulative_subr_seqn;
+
+        /* link in as head of the chain */
+        subr_entry->caller = subr_entry_latest;
+        subr_entry_latest = subr_entry;
+
+        /* sub name related items */
+        subr_entry->subname_sv = &PL_sv_undef;
+        subr_entry->sub_av = NULL;
+        subr_entry->sub_cv = NULL;
+        subr_entry->call_depth = 0;
+
         SETERRNO(saved_errno, 0);
     }
 
@@ -2306,12 +2323,12 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             subname_pv = SvPV_nolen(subname_sv);
         }
         else {
-            if (op != next_op) {                      /* have entered a sub */
+            if (op != next_op) {   /* have entered a sub */
                 /* use cv of sub we've just entered to get name */
                 cv = cxstack[cxstack_ix].blk_sub.cv;
                 is_xs = NULL;
             }
-            else {                                    /* have returned from XS so use sub_sv for name */
+            else {                 /* have returned from XS so use sub_sv for name */
                 /* determine the original fully qualified name for sub */
                 /* CV or NULL */
                 cv = (CV *)resolve_sub(aTHX_ sub_sv, subname_sv);
@@ -2420,45 +2437,39 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             AV *av = new_sub_call_info_av(aTHX);
 
             sv_setsv(sv_tmp, newRV_noinc((SV *)av));
-            subr_entry.sub_av = av;
+            subr_entry->sub_av = av;
 
             if (stash_name) /* note that a sub in this package was called */
                 (void)hv_fetch(pkg_fids_hv, stash_name, (I32)strlen(stash_name), 1);
         }
         else {
-            subr_entry.sub_av = (AV *)SvRV(sv_tmp);
-            sv_inc(AvARRAY(subr_entry.sub_av)[0]); /* ++call count */
+            subr_entry->sub_av = (AV *)SvRV(sv_tmp);
+            sv_inc(AvARRAY(subr_entry->sub_av)[0]); /* ++call count */
         }
 
         /* record call_depth, adjust for xs since, in that case, we
          * have already left the sub, unlike the non-xs case.        */
-        subr_entry.call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
+        subr_entry->call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
 
         if (trace_level >= 2)
             fprintf(stderr, " ->%s %s from %s %d:%d (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
                 (is_xs) ? is_xs : " sub", subname_pv,
-                (subr_entry.caller) ? SvPV_nolen(subr_entry.caller->subname_sv) : "",
+                (subr_entry->caller) ? SvPV_nolen(subr_entry->caller->subname_sv) : "",
                 fid, line,
-                subr_entry.call_depth,
-                subr_entry.initial_overhead_ticks,
-                subr_entry.initial_subr_secs,
-                subr_entry.seqn
+                subr_entry->call_depth,
+                subr_entry->initial_overhead_ticks,
+                subr_entry->initial_subr_secs,
+                subr_entry->seqn
             );
 
         if (profile_subs) {
-            subr_entry.subname_sv = subname_sv;
-            strcpy(subr_entry.fid_line, fid_line_key);
+            subr_entry->subname_sv = subname_sv;
+            strcpy(subr_entry->fid_line, fid_line_key);
             if (is_xs) {
-                subr_entry_latest = &subr_entry;
                 /* acculumate now time we've just spent in the xs sub */
-                incr_sub_inclusive_time(aTHX_ &subr_entry);
+                incr_sub_inclusive_time(aTHX_ subr_entry);
             }
             else {
-                /* copy struct to save stack (very efficient) */
-                /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
-                I32 save_ix = SSNEWa(sizeof(subr_entry), MEM_ALIGNBYTES);
-                subr_entry_latest = SSPTR(save_ix, subr_entry_t *);
-                Copy(&subr_entry, subr_entry_latest, 1, subr_entry_t);
                 /* defer acculumating time spent until we leave the sub */
                 save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)save_ix));
             }
