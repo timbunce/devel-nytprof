@@ -380,6 +380,27 @@ If you're using perl 5.10.0 or 5.8.8 (or earlier) then you need to also enable
 the C<use_db_sub=1> option otherwise perl doesn't make the source code
 available to NYTProf. Perl 5.8.9 and 5.10.1+ don't require that.
 
+=head2 sysops=N
+
+Profile builtin opcodes that make systems calls ('sysops'). These include
+C<print>, C<read>, C<sysread>, C<socket> and many more.
+
+If C<N> is 0 then sysop profiling is disabled.
+
+If C<N> is 1 then all the builtins are treated as being defined in the C<CORE>
+package. So times for C<print> calls from anywhere in your code are merged and
+accounted for as calls to an xsub called C<CORE::print>.
+
+If C<N> is 2 then builtins are treated as being defined in the package that
+calls them. So calls to C<print> from package C<Foo> are treated as calls to an
+xsub called C<Foo::CORE:print>. Note the single colon after CORE.
+
+Default is 0 as this is a new feature and still somewhat experimental.
+The default may change to 2 in a future release.
+
+The opcodes are profiled using their internal names, so C<printf> is C<prtf>
+and the C<-x> file test is C<fteexec>. This is likely to change in future.
+
 =head2 usecputime=1
 
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'

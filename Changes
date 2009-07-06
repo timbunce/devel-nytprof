@@ -19,15 +19,15 @@ XXX sysops needs docs and more ops
   Added interactive treemap view of package and subroutine times.
     Left-click to zoom in (drill-down) one level, right-click to zoom out.
 
-  Added sysops=1 option which enables profiling of perl opcodes
-    that make potentially slow system calls. They appear as xsubs
-    in the current package with names prefixed by "CORE:".
+  Added sysops=N option which enables profiling of perl opcodes
+    that make potentially slow system calls. They're treated as xsubs.
 
   Added log=F option to write trace log to a file.
   Added columns to the main source code reports to show
     a count of sub calls and time spent in those calls.
 
   Assorted cosmetic improvements.
+  Added docs describing how the subroutine profiler works.
 
 =head2 Changes in Devel::NYTProf 2.10 (svn r774) 18th June 2009
 

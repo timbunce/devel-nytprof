@@ -2328,8 +2328,15 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             */
             cv = NULL;
             is_xs = "sysop";
-            stash_name = CopSTASHPV(PL_curcop);
-            sv_setpvf(subname_sv, "%s::CORE:%s", stash_name, OP_NAME_safe(PL_op));
+            char *sysop_name = OP_NAME_safe(PL_op);
+            if (profile_sysops == 1) { /* 1 == put sysops into 1 package */
+                stash_name = "CORE";
+                sv_setpvf(subname_sv, "%s::%s", stash_name, sysop_name);
+            }
+            else {                     /* 2 == put sysops into multiple packages */
+                stash_name = CopSTASHPV(PL_curcop);
+                sv_setpvf(subname_sv, "%s::CORE:%s", stash_name, sysop_name);
+            }
             subname_pv = SvPV_nolen(subname_sv);
         }
         else {
@@ -2837,6 +2844,14 @@ int count, unsigned int fid)
 }
 
 
+/* Given a sub_name lookup the package name in pkg_fids_hv hash.
+ * pp_subcall_profiler() creates undef entries for a package the
+ * first time a sub in the package is called.
+ * Return Nullsv if there's no package name or no correponding entry
+ * else returns the SV.
+ * write_sub_line_ranges() updates the SV with the filename associated
+ * with the package, or at least its best guess.
+ */
 static SV *
 sub_pkg_filename_sv(pTHX_ char *sub_name)
 {
@@ -2879,7 +2894,7 @@ write_sub_line_ranges(pTHX)
         /* get sv for package-of-subname to filename mapping */
         SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name);
 
-        /* ignore is package is not of interest, or filename is empty (xs) */
+        /* ignore if package is not of interest, or filename is empty (xs) */
         if (!pkg_filename_sv || !filename_len)
             continue;
 
@@ -2925,7 +2940,8 @@ write_sub_line_ranges(pTHX)
             if (pkg_filename_sv && SvOK(pkg_filename_sv)) {
                 filename = SvPV(pkg_filename_sv, filename_len);
             if (trace_level >= 2)
-                logwarn("Sub %s is xsub, we'll associate it with filename %.*s\n", sub_name, (int)filename_len, filename);
+                logwarn("Sub %s is xsub, we'll associate it with filename %.*s\n",
+                    sub_name, (int)filename_len, filename);
             }
         }
 
