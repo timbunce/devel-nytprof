@@ -2384,13 +2384,8 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                 else {
                     /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
                     stash_name = HvNAME(CvSTASH(cv));
-#ifdef WIN32
-                    sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%Ix]",
-                        (stash_name)?stash_name:"__UNKNOWN__", (size_t)cv);
-#else
-                    sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%lx]",
-                        (stash_name)?stash_name:"__UNKNOWN__", (unsigned long)cv);
-#endif
+                    sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%p]",
+                        (stash_name)?stash_name:"__UNKNOWN__", cv);
                     if (trace_level) {
                         logwarn("unknown entersub %s assumed to be anon cv '%s'\n", (is_xs) ? is_xs : "sub", SvPV_nolen(sub_sv));
                         sv_dump(sub_sv);
