@@ -2253,6 +2253,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
     int profile_sub_call = (profile_subs && is_profiling);
 
     if (profile_sub_call) {
+        char *file;
         int saved_errno = errno;
         sub_sv = *SP;
         if (!profile_stmts)
@@ -2268,7 +2269,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         subr_entry->initial_subr_secs      = cumulative_subr_secs;
         subr_entry->seqn                   = ++cumulative_subr_seqn;
 
-        char *file = OutCopFILE(prev_cop);
+        file = OutCopFILE(prev_cop);
         subr_entry->calling_fid = (file == last_executed_fileptr)
             ? last_executed_fid
             : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
@@ -2326,9 +2327,9 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             /* pretend builtins are xsubs in the same package
             * but with "CORE:" (one colon) prepended to the name.
             */
+            const char *sysop_name = OP_NAME_safe(PL_op);
             cv = NULL;
             is_xs = "sysop";
-            char *sysop_name = OP_NAME_safe(PL_op);
             if (profile_sysops == 1) { /* 1 == put sysops into 1 package */
                 stash_name = "CORE";
                 sv_setpvf(subname_sv, "%s::%s", stash_name, sysop_name);
