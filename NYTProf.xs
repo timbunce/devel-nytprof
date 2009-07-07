@@ -869,7 +869,7 @@ output_header(pTHX)
 
     assert(out != NULL);
     /* File header with "magic" string, with file major and minor version */
-    NYTP_printf(out, "NYTProf %d %d\n", 2, 1);
+    NYTP_printf(out, "NYTProf %d %d\n", 3, 0);
     /* Human readable comments and attributes follow
      * comments start with '#', end with '\n', and are discarded
      * attributes start with ':', a word, '=', then the value, then '\n'
@@ -919,6 +919,8 @@ output_str(char *str, I32 len) {    /* negative len signifies utf8 */
         tag = NYTP_TAG_STRING_UTF8;
         len = -len;
     }
+    if (trace_level >= 10)
+        logwarn("output_str('%.*s', %d)\n", len, str, len);
     output_tag_int(tag, len);
     NYTP_write(out, str, len);
 }
@@ -2072,7 +2074,7 @@ struct subr_entry_st {
     SV *subname_sv;
     AV *sub_av;
     CV *sub_cv;
-    int call_depth;
+    int cv_depth;
     NV initial_overhead_ticks;
     NV initial_subr_secs;
     UV seqn;
@@ -2124,11 +2126,11 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             SvPV_nolen(subname_sv), excl_subr_sec, incl_subr_sec, called_sub_secs,
             cumulative_subr_secs, subr_entry->initial_subr_secs,
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
-            (int)subr_entry->call_depth,
+            (int)subr_entry->cv_depth,
             subr_entry->calling_fid, subr_entry->calling_line, subr_entry->seqn);
 
     /* only count inclusive time for the outer-most calls */
-    if (subr_entry->call_depth <= 1) {
+    if (subr_entry->cv_depth <= 1) {
         sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
     }
     else {
@@ -2137,9 +2139,9 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         SV *reci_time_sv = *av_fetch(av, NYTP_SCi_RECI_RTIME, 1);
         SV *max_depth_sv = *av_fetch(av, NYTP_SCi_REC_DEPTH, 1);
         sv_setnv(reci_time_sv, (SvOK(reci_time_sv)) ? SvNV(reci_time_sv)+incl_subr_sec : incl_subr_sec);
-        /* we track recursion depth here, which is call_depth-1 */
-        if (!SvOK(max_depth_sv) || subr_entry->call_depth-1 > SvIV(max_depth_sv))
-            sv_setiv(max_depth_sv, subr_entry->call_depth-1);
+        /* we track recursion depth here, which is cv_depth-1 */
+        if (!SvOK(max_depth_sv) || subr_entry->cv_depth-1 > SvIV(max_depth_sv))
+            sv_setiv(max_depth_sv, subr_entry->cv_depth-1);
     }
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
 
@@ -2283,7 +2285,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         subr_entry->subname_sv = &PL_sv_undef;
         subr_entry->sub_av = NULL;
         subr_entry->sub_cv = NULL;
-        subr_entry->call_depth = 0;
+        subr_entry->cv_depth = 0;
 
         SETERRNO(saved_errno, 0);
     }
@@ -2302,26 +2304,24 @@ pp_subcall_profiler(pTHX_ int is_sysop)
      * xsub calls back into perl code which then croaks. In that case the
      * entersub to perl, and any calls made by the perl code, will get recorded
      * but the xsub call itself won't)
+     * A good fix would be to use setjmp/longjmp to catch and rethrow the
+     * exception via the XCPT_* macros defined in XSUB.h. See
+     * http://search.cpan.org/~nwclark/perl/pod/perlguts.pod#Exception_Handling
      */
     op = run_original_op(op_type);
 
     if (profile_sub_call) {
         int saved_errno = errno;
 
-        /* get line, file, and fid for statement *before* the call */
-
-        /* XXX could use same closest_cop as DB_stmt() but it doesn't seem
-         * to be needed here. Line is 0 only when call is from embedded
-         * C code like mod_perl (at least in my testing so far)
-         */
-        char fid_line_key[50];
+        subr_entry_t *se_caller = subr_entry_caller(subr_entry);
+        char fid_line_key[350]; /* XXX fast but limiting */
         int fid_line_key_len;
-        SV *subname_sv = newSV(0);
-        char *subname_pv;
-        SV *sv_tmp;
+        SV *called_subname_sv = newSV(0);
+        char *called_subname_pv;
         char *stash_name = NULL;
         CV *cv;
         char *is_xs;
+        SV *sv_tmp;
 
         if (is_sysop) {
             /* pretend builtins are xsubs in the same package
@@ -2329,16 +2329,15 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             */
             const char *sysop_name = OP_NAME_safe(PL_op);
             cv = NULL;
-            is_xs = "sysop";
+            is_xs = "sop";
             if (profile_sysops == 1) { /* 1 == put sysops into 1 package */
                 stash_name = "CORE";
-                sv_setpvf(subname_sv, "%s::%s", stash_name, sysop_name);
+                sv_setpvf(called_subname_sv, "%s::%s", stash_name, sysop_name);
             }
             else {                     /* 2 == put sysops into multiple packages */
                 stash_name = CopSTASHPV(PL_curcop);
-                sv_setpvf(subname_sv, "%s::CORE:%s", stash_name, sysop_name);
+                sv_setpvf(called_subname_sv, "%s::CORE:%s", stash_name, sysop_name);
             }
-            subname_pv = SvPV_nolen(subname_sv);
         }
         else {
             if (op != next_op) {   /* have entered a sub */
@@ -2349,7 +2348,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             else {                 /* have returned from XS so use sub_sv for name */
                 /* determine the original fully qualified name for sub */
                 /* CV or NULL */
-                cv = (CV *)resolve_sub(aTHX_ sub_sv, subname_sv);
+                cv = (CV *)resolve_sub(aTHX_ sub_sv, called_subname_sv);
                 is_xs = "xsub";
             }
 
@@ -2361,7 +2360,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                     * package, so we dig to find the original package
                     */
                     stash_name = HvNAME(GvSTASH(gv));
-                    sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
+                    sv_setpvf(called_subname_sv, "%s::%s", stash_name, GvNAME(gv));
                 }
                 else if (trace_level) {
                     logwarn("I'm confused about CV %p\n", cv);
@@ -2371,7 +2370,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                 }
             }
 
-            if (!SvOK(subname_sv)) {
+            if (!SvOK(called_subname_sv)) {
 
                 if (!cv) {
                     /* should never get here as pp_entersub would have croaked */
@@ -2379,12 +2378,12 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                     logwarn("unknown entersub %s '%s'\n", what, SvPV_nolen(sub_sv));
                     if (trace_level)
                         sv_dump(sub_sv);
-                    sv_setpvf(subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
+                    sv_setpvf(called_subname_sv, "(unknown %s %s)", what, SvPV_nolen(sub_sv));
                 }
                 else {
                     /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
                     stash_name = HvNAME(CvSTASH(cv));
-                    sv_setpvf(subname_sv, "%s::__UNKNOWN__[0x%p]",
+                    sv_setpvf(called_subname_sv, "%s::__UNKNOWN__[0x%p]",
                         (stash_name)?stash_name:"__UNKNOWN__", cv);
                     if (trace_level) {
                         logwarn("unknown entersub %s assumed to be anon cv '%s'\n", (is_xs) ? is_xs : "sub", SvPV_nolen(sub_sv));
@@ -2393,26 +2392,15 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                 }
             }
         }
-        subname_pv = SvPV_nolen(subname_sv);
+        called_subname_pv = SvPV_nolen(called_subname_sv);
 
         /* ignore our own DB::_INIT sub - only shows up with 5.8.9+ & 5.10.1+ */
-        if (is_xs && *subname_pv == 'D' && strEQ(subname_pv, "DB::_INIT"))
+        if (is_xs && *called_subname_pv == 'D' && strEQ(called_subname_pv, "DB::_INIT"))
             goto skip_sub_profile;
 
-        /* { called_subname => { "fid:line" => [ count, incl_time ] } } */
-        sv_tmp = *hv_fetch(sub_callers_hv, subname_pv,
-            (I32)SvCUR(subname_sv), 1);
-
-        /* XXX fid:line can be ambiguous, e.g sub foo { return sub { ... } }
-         * We could add subname_sv to the [ count, incl_time ] array
-         * and check it on each call. To improve performance we could also
-         * add the op and so avoid the string compare if the op's are the same.
-         * If there's a call with a different subname_sv value, then we
-         * could interpose a hash to hold per-subname values:
-         * old => { "fid:line" =>           [ count, incl_time, "sub1" ]          }
-         * new => { "fid:line" => { "sub1"=>[ count, incl_time ], "sub2"=>[...] } }
-         * or  => { "fid:line" => {  OP   =>[ count, incl_time, "sub1" ], "sub2"=>[...] } }
-         */
+        /* { called_subname => { "calling_subname[fid:line]" => [ count, incl_time, ... ] } } */
+        sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv,
+            (I32)SvCUR(called_subname_sv), 1);
 
         if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this subname from anywhere */
             HV *hv = newHV();
@@ -2422,53 +2410,61 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                 /* create dummy item with fid=0 & line=0 to act as flag to indicate xs */
                 AV *av = new_sub_call_info_av(aTHX);
                 av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(0));
-                sv_setsv(*hv_fetch(hv, "0:0", 3, 1), newRV_noinc((SV *)av));
+                sv_setsv(*hv_fetch(hv, "[0:0]", 5, 1), newRV_noinc((SV *)av));
 
-                if ((cv && SvTYPE(cv) == SVt_PVCV) || (is_xs && 's' == *is_xs)) {
+                if ((cv && SvTYPE(cv) == SVt_PVCV) || ('s' == *is_xs)) {
                     /* We just use an empty string as the filename for xsubs
                      * because CvFILE() isn't reliable on perl 5.8.[78]
                      * and the name of the .c file isn't very useful anyway.
                      * The reader can try to associate the xsubs with the
                      * corresonding .pm file using the package part of the subname.
                      */
-                    SV *sv = *hv_fetch(GvHV(PL_DBsub), subname_pv, (I32)SvCUR(subname_sv), 1);
+                    SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, (I32)SvCUR(called_subname_sv), 1);
                     sv_setpv(sv, ":0-0"); /* empty file name */
                     if (trace_level >= 2)
-                        logwarn("Adding fake DBsub entry for '%s' xsub\n", subname_pv);
+                        logwarn("Adding fake DBsub entry for '%s' xsub\n", called_subname_pv);
                 }
             }
         }
 
-        fid_line_key_len = sprintf(fid_line_key, "%u:%d",
+        fid_line_key_len = sprintf(fid_line_key, "%s[%u:%d]",
+            (se_caller) ? SvPV_nolen(se_caller->subname_sv) : "",
             subr_entry->calling_fid, subr_entry->calling_line);
+        if (fid_line_key_len >= sizeof(fid_line_key))
+            croak("panic: NYTProf buffer overflow on %s\n", fid_line_key);
 
         /* drill-down to array of sub call information for this fid_line_key */
         sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), fid_line_key, fid_line_key_len, 1);
-        if (!SvROK(sv_tmp)) { /* first call from this fid:line - autoviv array ref */
+        if (!SvROK(sv_tmp)) { /* first call from this subname[fid:line] - autoviv array ref */
             AV *av = new_sub_call_info_av(aTHX);
 
             sv_setsv(sv_tmp, newRV_noinc((SV *)av));
             subr_entry->sub_av = av;
 
-            if (stash_name) /* note that a sub in this package was called */
-                (void)hv_fetch(pkg_fids_hv, stash_name, (I32)strlen(stash_name), 1);
+            if (stash_name) { /* note that a sub in this package was called */
+                SV *pf_sv = *hv_fetch(pkg_fids_hv, stash_name, (I32)strlen(stash_name), 1);
+                if (!SvOK(pf_sv)) { /* log when first created */
+                    if (trace_level >= 5)
+                        logwarn("Noting that subs in package '%s' were called\n",
+                            stash_name);
+                    sv_setsv(pf_sv, &PL_sv_no);
+                }
+            }
         }
         else {
             subr_entry->sub_av = (AV *)SvRV(sv_tmp);
             sv_inc(AvARRAY(subr_entry->sub_av)[0]); /* ++call count */
         }
 
-        /* record call_depth, adjust for xs since, in that case, we
+        /* record cv_depth, adjust for xs since, in that case, we
          * have already left the sub, unlike the non-xs case.        */
-        subr_entry->call_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
+        subr_entry->cv_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
 
         if (trace_level >= 2) {
-            subr_entry_t *se_caller = subr_entry_caller(subr_entry);
-            fprintf(stderr, " ->%s %s from %s %d:%d (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
-                (is_xs) ? is_xs : " sub", subname_pv,
-                (se_caller) ? SvPV_nolen(se_caller->subname_sv) : "",
-                subr_entry->calling_fid, subr_entry->calling_line,
-                subr_entry->call_depth,
+            logwarn(" ->%4s %s from %s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
+                (is_xs) ? is_xs : "sub", called_subname_pv,
+                fid_line_key,
+                subr_entry->cv_depth,
                 subr_entry->initial_overhead_ticks,
                 subr_entry->initial_subr_secs,
                 subr_entry->seqn
@@ -2476,7 +2472,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         }
 
         if (profile_subs) {
-            subr_entry->subname_sv = subname_sv;
+            subr_entry->subname_sv = called_subname_sv;
             if (is_xs) {
                 /* acculumate now time we've just spent in the xs sub */
                 incr_sub_inclusive_time(aTHX_ subr_entry);
@@ -2487,7 +2483,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             }
         }
         else {
-            sv_free(subname_sv);
+            sv_free(called_subname_sv);
         }
         skip_sub_profile:
         SETERRNO(saved_errno, 0);
@@ -2890,13 +2886,20 @@ write_sub_line_ranges(pTHX)
         /* get sv for package-of-subname to filename mapping */
         SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name);
 
-        /* ignore if package is not of interest, or filename is empty (xs) */
-        if (!pkg_filename_sv || !filename_len)
+        if (!pkg_filename_sv) /* we don't know package */
             continue;
 
-        /* ignore if we've already got a filename for this package XXX should allow multiple */
-        if (SvOK(pkg_filename_sv))
+        /* already got a filename for this package XXX should allow multiple */
+        if (SvTRUE(pkg_filename_sv))
             continue;
+
+        /* ignore if filename is empty (eg xs) */
+        if (!filename_len) {
+            if (trace_level >= 3)
+                logwarn("Sub %.*s has no filename associated (%s)\n",
+                    sub_name_len, sub_name, filename);
+            continue;
+        }
 
         /* associate the filename with the package */
         sv_setpvn(pkg_filename_sv, filename, filename_len);
@@ -2933,7 +2936,7 @@ write_sub_line_ranges(pTHX)
         if (!filename_len) {    /* no filename, so presumably a fake entry for xsub */
             /* do we know a filename that contains subs in the same package */
             SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name);
-            if (pkg_filename_sv && SvOK(pkg_filename_sv)) {
+            if (pkg_filename_sv && SvTRUE(pkg_filename_sv)) {
                 filename = SvPV(pkg_filename_sv, filename_len);
             if (trace_level >= 2)
                 logwarn("Sub %s is xsub, we'll associate it with filename %.*s\n",
@@ -2944,7 +2947,8 @@ write_sub_line_ranges(pTHX)
         fid = get_file_id(aTHX_ filename, filename_len, 0);
         if (!fid) {
             if (trace_level >= 4)
-                logwarn("Sub %s not profiled\n", sub_name);
+                logwarn("Sub %s has no fid assigned (for file '%.*s')\n",
+                    sub_name, filename_len, filename);
             continue; /* no point in writing subs in files we've not profiled */
         }
 
@@ -2963,8 +2967,8 @@ write_sub_line_ranges(pTHX)
 static void
 write_sub_callers(pTHX)
 {
-    char *sub_name;
-    I32 sub_name_len;
+    char *called_subname;
+    I32 called_subname_len;
     SV *fid_line_rvhv;
 
     if (!sub_callers_hv)
@@ -2973,21 +2977,35 @@ write_sub_callers(pTHX)
         logwarn("writing sub callers\n");
 
     hv_iterinit(sub_callers_hv);
-    while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &sub_name, &sub_name_len))) {
+    while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &called_subname, &called_subname_len))) {
         HV *fid_lines_hv = (HV*)SvRV(fid_line_rvhv);
-        char *fid_line_string;
-        I32 fid_line_len;
+        char *calling_subname;
+        I32 calling_subname_len;
         SV *sv;
 
-        /* iterate over callers to this sub ({ "fid:line" => [ ... ] })  */
+        /* I32 level, PerlIO *file, SV *sv, I32 nest, I32 maxnest, bool dumpops, STRLEN pvlim */
+        if (0) do_sv_dump(0, Perl_debug_log, fid_line_rvhv, 0, 5, 0, 100);
+
+        /* iterate over callers to this sub ({ "subname[fid:line]" => [ ... ] })  */
         hv_iterinit(fid_lines_hv);
-        while (NULL != (sv = hv_iternextsv(fid_lines_hv, &fid_line_string, &fid_line_len))) {
+        while (NULL != (sv = hv_iternextsv(fid_lines_hv, &calling_subname, &calling_subname_len))) {
             NV sc[NYTP_SCi_elements];
             AV *av = (AV *)SvRV(sv);
             int trace = (trace_level >= 3);
 
             unsigned int fid = 0, line = 0;
-            (void)sscanf(fid_line_string, "%u:%u", &fid, &line);
+            char *fid_line_delim = "[";
+            char *fid_line_start = rninstr(calling_subname, calling_subname+calling_subname_len, fid_line_delim, fid_line_delim+1);
+            if (!fid_line_start) {
+                logwarn("bad fid_lines_hv key '%s'\n", calling_subname);
+                continue;
+            }
+            if (2 != sscanf(fid_line_start+1, "%u:%u", &fid, &line)) {
+                logwarn("bad fid_lines_hv format '%s'\n", calling_subname);
+                continue;
+            }
+            /* trim length to effectively hide the [fid:line] suffix */
+            calling_subname_len = fid_line_start-calling_subname;
 
             output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
             output_int(line);
@@ -2998,17 +3016,20 @@ write_sub_callers(pTHX)
             sc[NYTP_SCi_INCL_STIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_STIME, 0.0);
             sc[NYTP_SCi_RECI_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
             sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0) * 1.0;
-            output_str(sub_name, sub_name_len);
+            output_str(called_subname, called_subname_len);
+            output_str(calling_subname, calling_subname_len);
 
             /* sanity check - early warning */
             if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {
-                logwarn("%s call has negative time!\n", sub_name);
+                logwarn("%s call has negative time for call from %u:%d!\n",
+                    called_subname, fid, line);
                 trace = 1;
             }
 
             if (trace)
-                logwarn("%s called by %u:%u: count %"NVff" (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%"NVff" ri%"NVff"s)\n",
-                    sub_name, fid, line, sc[NYTP_SCi_CALL_COUNT],
+                logwarn("%s called by %.*s at %u:%u: count %"NVff" (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%"NVff" ri%"NVff"s)\n",
+                    called_subname,
+                    calling_subname_len, calling_subname, fid, line, sc[NYTP_SCi_CALL_COUNT],
                     sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
                     sc[NYTP_SCi_INCL_UTIME], sc[NYTP_SCi_INCL_STIME],
                     sc[NYTP_SCi_REC_DEPTH], sc[NYTP_SCi_RECI_RTIME]);
@@ -3299,7 +3320,8 @@ load_profile_data_from_stream(SV *cb)
     AV* fid_block_time_av = NULL;
     AV* fid_sub_time_av = NULL;
     HV* sub_subinfo_hv = newHV();
-    SV *tmp_str_sv = newSVpvn("",0);
+    SV *tmp_str1_sv = newSVpvn("",0);
+    SV *tmp_str2_sv = newSVpvn("",0);
     HV *file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
 
     /* these times don't reflect profile_enable & profile_disable calls */
@@ -3325,11 +3347,11 @@ load_profile_data_from_stream(SV *cb)
     if (2 != fscanf(in->file, "NYTProf %d %d\n", &file_major, &file_minor)) {
         croak("Profile format error while parsing header");
     }
-    if (file_major != 2)
+    if (file_major != 3)
         croak("Profile format version %d.%d not supported by %s %s",
             file_major, file_minor, __FILE__, XS_VERSION);
 
-    if (cb) {
+    if (cb && SvROK(cb)) {
         input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
         sv_setuv(input_chunk_seqn_sv, input_chunk_seqn);
 
@@ -3344,16 +3366,16 @@ load_profile_data_from_stream(SV *cb)
         for (i = 0; i < C_ARRAY_LENGTH(cb_args); i++)
             cb_args[i] = sv_newmortal();
 
-
         PUSHMARK(SP);
-
         i = 0;
         sv_setpvs(cb_args[i], "VERSION");  XPUSHs(cb_args[i++]);
         sv_setiv(cb_args[i], file_major);  XPUSHs(cb_args[i++]);
         sv_setiv(cb_args[i], file_minor);  XPUSHs(cb_args[i++]);
-
         PUTBACK;
         call_sv(cb, G_DISCARD);
+    }
+    else {
+        cb = Nullsv;
     }
 
     while (1) {
@@ -3370,7 +3392,7 @@ load_profile_data_from_stream(SV *cb)
 
         input_chunk_seqn++;
         if (cb) {
-            sv_setuv(input_chunk_seqn_sv, input_chunk_seqn);
+            sv_setuv_mg(input_chunk_seqn_sv, input_chunk_seqn);
         }
 
         if (trace_level >= 6)
@@ -3635,7 +3657,7 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
                 int skip_subinfo_store = 0;
-                SV *subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str_sv));
+                SV *subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str1_sv));
                 STRLEN subname_len;
                 char *subname_pv;
 
@@ -3699,6 +3721,7 @@ load_profile_data_from_stream(SV *cb)
                 char text[MAXPATHLEN*2];
                 SV *sv;
                 SV *subname_sv;
+                SV *calling_subname_sv = Nullsv;
                 AV *subinfo_av;
                 int len;
                 unsigned int fid   = read_int();
@@ -3708,9 +3731,10 @@ load_profile_data_from_stream(SV *cb)
                 NV excl_time       = read_nv();
                 NV ucpu_time       = read_nv();
                 NV scpu_time       = read_nv();
-                NV reci_time       = (file_minor >= 1) ? read_nv()  : 0;
-                UV rec_depth       = (file_minor >= 1) ? read_int() : 0;
-                subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str_sv));
+                NV reci_time       = read_nv();
+                UV rec_depth       = read_int();
+                subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str1_sv));
+                calling_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str2_sv));
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3735,8 +3759,9 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 if (trace_level >= 3)
-                    logwarn("Sub %s called by fid %u line %u: count %d, incl %f, excl %f, ucpu %f scpu %f\n",
-                        SvPV_nolen(subname_sv), fid, line, count, incl_time, excl_time, ucpu_time, scpu_time);
+                    logwarn("Sub %s called by %s %u:%u: count %d, incl %f, excl %f, ucpu %f scpu %f\n",
+                        SvPV_nolen(subname_sv), SvPV_nolen(calling_subname_sv), fid, line,
+                        count, incl_time, excl_time, ucpu_time, scpu_time);
 
                 subinfo_av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
 
@@ -3818,7 +3843,7 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int pid  = read_int();
                 unsigned int ppid = read_int();
                 int len = sprintf(text, "%d", pid);
-                profiler_start_time = (file_minor >= 1) ? read_nv() : 0;
+                profiler_start_time = read_nv();
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3827,9 +3852,7 @@ load_profile_data_from_stream(SV *cb)
                     sv_setpvs(cb_args[i], "PID_START");   XPUSHs(cb_args[i++]);
                     sv_setuv(cb_args[i], pid);            XPUSHs(cb_args[i++]);
                     sv_setuv(cb_args[i], ppid);           XPUSHs(cb_args[i++]);
-                    if (file_minor >= 1) {
-                        sv_setnv(cb_args[i], profiler_start_time); XPUSHs(cb_args[i++]);
-                    }
+                    sv_setnv(cb_args[i], profiler_start_time); XPUSHs(cb_args[i++]);
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
@@ -3851,7 +3874,7 @@ load_profile_data_from_stream(SV *cb)
                 char text[MAXPATHLEN*2];
                 unsigned int pid = read_int();
                 int len = sprintf(text, "%d", pid);
-                profiler_end_time = (file_minor >= 1) ? read_nv() : 0;
+                profiler_end_time = read_nv();
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3859,9 +3882,7 @@ load_profile_data_from_stream(SV *cb)
                     i = 0;
                     sv_setpvs(cb_args[i], "PID_END");  XPUSHs(cb_args[i++]);
                     sv_setuv(cb_args[i], pid);         XPUSHs(cb_args[i++]);
-                    if (file_minor >= 1) {
-                        sv_setnv(cb_args[i], profiler_end_time);  XPUSHs(cb_args[i++]);
-                    }
+                    sv_setnv(cb_args[i], profiler_end_time);  XPUSHs(cb_args[i++]);
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
@@ -3973,9 +3994,16 @@ load_profile_data_from_stream(SV *cb)
         }
     }
 
+    if (HvKEYS(live_pids_hv)) {
+        logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
+            HvKEYS(live_pids_hv));
+    }
+    sv_free((SV*)live_pids_hv);
+    sv_free(tmp_str1_sv);
+    sv_free(tmp_str2_sv);
+
     if (cb) {
         SvREFCNT_dec(profile_modes);
-        SvREFCNT_dec(live_pids_hv);
         SvREFCNT_dec(attr_hv);
         SvREFCNT_dec(fid_fileinfo_av);
         SvREFCNT_dec(fid_srclines_av);
@@ -3983,17 +4011,9 @@ load_profile_data_from_stream(SV *cb)
         SvREFCNT_dec(fid_block_time_av);
         SvREFCNT_dec(fid_sub_time_av);
         SvREFCNT_dec(sub_subinfo_hv);
-        SvREFCNT_dec(tmp_str_sv);
 
         return newHV(); /* dummy */
     }
-
-    if (HvKEYS(live_pids_hv)) {
-        logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
-            HvKEYS(live_pids_hv));
-    }
-    sv_free((SV*)live_pids_hv);
-    sv_free(tmp_str_sv);
 
     if (statement_discount) /* discard unused statement_discount */
         total_stmts_discounted -= statement_discount;

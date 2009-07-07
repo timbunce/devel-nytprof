@@ -1,34 +1,53 @@
-use Test::More tests => 8;
+use Test::More tests => 18;
 
 use strict;
+
+use lib qw(t/lib);
+use Config;
+use NYTProfTest;
+
 use Devel::NYTProf::ReadStream qw(for_chunks);
 
 (my $base = __FILE__) =~ s/\.t$//;
 
-my @arr;
-eval {
-    for_chunks {
-	push(@arr, [$., @_]);
-    } filename => "$base-v20.out";
-};
-SKIP: {
-    if ($@) {
-	skip "No zlib support", 8 if $@ && $@ =~ /compression is not supported/;
-	skip "Unusual NV size", 8 if $@ && $@ =~ /Profile data created by incompatible perl config/;
-	die $@;
-    }
+# generate an nytprof out file
+my $out = 'nytprof_readstream.out';
+$ENV{NYTPROF} = "file=$out";
+unlink $out;
 
-    is_deeply([0..51], [map shift(@$_), @arr], "chunk seq");
+run_command(q{perl -d:NYTProf -e "sub A { };" -e "1;" -e "A()"});
 
-    # some samples
-    is_deeply($arr[0], ["VERSION", 2, 0], "version");
-    is_deeply($arr[3], ["ATTRIBUTE", "xs_version", "2.05"], "attr");
-    is_deeply($arr[10], ["START_DEFLATE"], "deflate");
-    is_deeply($arr[11], ["PID_START", 1710, 13983], "pid start");
-    is_deeply($arr[12], ["NEW_FID", 1, 0, 0, 2, 0, 0, "/Users/gisle/p/Devel-NYTProf/t/test01.p"], "fid");
-    is_deeply($arr[14], ["TIME_BLOCK", 0, 0, 76, 1, 7, 7, 7], "time");
-    is_deeply($arr[15], ["DISCOUNT"], "discount");
+my %prof;
+my @seqn;
 
-    #use Data::Dump; ddx \@arr;
+for_chunks {
+    push @seqn, "$.";
+    my $tag = shift;
+    push @{ $prof{$tag} }, [ @_ ];
+    if (1) { chomp @_; note("$. $tag @_"); }
+} filename => $out;
+
+ok scalar @seqn, 'should have read chunks';
+is_deeply(\@seqn, [0..@seqn-1], "chunk seq");
+
+#use Data::Dumper; warn Dumper \%prof;
+
+is_deeply $prof{VERSION}, [ [ 3, 0 ] ];
+
+# check for expected tags
+# (but not START_DEFLATE as that'll be missing if there's no zlib)
+for my $tag (qw(
+        COMMENT ATTRIBUTE DISCOUNT SRC_LINE TIME_BLOCK
+        SUB_LINE_RANGE SUB_CALLERS
+        PID_START PID_END NEW_FID
+)) {
+    is ref $prof{$tag}[0], 'ARRAY', $tag;
 }
 
+# check some attributes
+my %attr = map { $_->[0] => $_->[1] } @{ $prof{ATTRIBUTE} };
+cmp_ok $attr{ticks_per_sec}, '>=', 1_000_000, 'ticks_per_sec';
+is $attr{application}, '-e', 'application';
+is $attr{nv_size}, $Config{nvsize}, 'nv_size';
+cmp_ok $attr{xs_version}, '>=', 2.1, 'xs_version';
+cmp_ok $attr{basetime}, '>=', $^T, 'basetime';

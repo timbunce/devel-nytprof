@@ -8,6 +8,8 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 XXX sysops needs docs and more ops
 
+  Note: The file format has changed. Old files can't be read.
+
   Fixed (rare) overflow bug for 32bit perls.
   Fixed discarding of (rare) negative intervals.
   Fixed risk of infinite recursion if trace enabled and
@@ -15,6 +17,10 @@ XXX sysops needs docs and more ops
   Fixed recursion depth measurement.
 
   Changed colors on report pages to be less saturated.
+
+  Added recording the name of the calling subroutine to enable proper
+    linking of call trees. Previously only the calling file and line
+    were recorded.
 
   Added interactive treemap view of package and subroutine times.
     Left-click to zoom in (drill-down) one level, right-click to zoom out.

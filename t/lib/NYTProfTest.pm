@@ -14,10 +14,12 @@ use File::Temp qw(tempfile);
 use base qw(Exporter);
 our @EXPORT = qw(
     run_test_group
+    run_command
     do_foreach_env_combination
     profile_this_code
 );
 
+use Devel::NYTProf::Data;
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths html_safe_filename);
 
@@ -525,7 +527,10 @@ sub profile_this_code {
         croak "Neither src_file or src_code was provided";
     }
     
-    my $profile = Devel::NYTProf::Data->new( { filename => $out_file } );
+    my $profile = Devel::NYTProf::Data->new( {
+        filename => $out_file,
+        callback => $opts{for_chunks},
+    } );
 
     unlink $out_file;
 

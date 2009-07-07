@@ -186,7 +186,7 @@ sub post_constants {
     q{
 
 prove:: pure_all
-	time nice prove -j 9 --shuffle
+	time nice prove -b -j 9 --shuffle
 
 svnmanifest::
 	svn list -R .@HEAD | sort | grep -v '/$$' > MANIFEST

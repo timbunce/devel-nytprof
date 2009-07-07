@@ -10,14 +10,14 @@ our @EXPORT_OK = qw(
      for_chunks
 );
 
-use Devel::NYTProf::Core;
+use Devel::NYTProf::Data;
 
 sub for_chunks (&%) {
     my($cb, %opts) = @_;
-    Devel::NYTProf::Data::load_profile_data_from_file(
-	$opts{filename} || 'nytprof.out',
-	$cb,
-    );
+    Devel::NYTProf::Data->new( {
+        %opts,
+	callback => $cb,
+    });
 }
 
 1;
@@ -67,19 +67,12 @@ to track the chunk sequence numbers and can be inspected in the
 callback.
 
 The behaviour of the function can be modified by passing key/value
-pairs after the callback.  Currently recognized are:
-
-=over
-
-=item filename => $path
-
-The path to the data file to read.  Defaults to F<nytprof.out>.
-
-=back
+pairs after the callback. The contents of %opts are passed to
+L<Devel::NYTProf::Data/new>.
 
 The function is prototyped as C<(&%)> which means that it can be invoked with a
-bare block representing the callback function.  In that case there
-should be no comma before any options.  Example:
+bare block representing the callback function.  In that case there should be no
+comma before any options.  Example:
 
   for_chunk { say $_[0] } filename => "myprof.out";
 
