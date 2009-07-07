@@ -149,6 +149,10 @@ Add help option which would print a summary of the options and exit.
 Could also print list of available clocks for the clock=N option
 (using a set of #ifdef's)
 
+The subroutine profiler could calculate the running variance of the samples
+using this logic http://www.johndcook.com/standard_deviation.html
+so the reports can display the standard deviation.
+
 Replace DB::enable_profiling() and DB::disable_profiling() with $DB::profile = 1|0;
 That a more consistent API with $DB::single etc., but more importantly it lets
 users leave the code in place when NYTProf is not loaded. It'll just do nothing,
