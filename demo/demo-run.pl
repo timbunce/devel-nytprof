@@ -26,10 +26,11 @@ for my $run (keys %runs) {
     $ENV{NYTPROF}      = $NYTPROF . $runs{$run}{NYTPROF} || '';
     $ENV{NYTPROF_HTML} = $runs{$run}{NYTPROF_HTML} || '';
 
-    my $cmd = "perl -d:NYTProf demo/demo-code.pl 100 1";
+    my $cmd = "perl -d:NYTProf demo/demo-code.pl @ARGV";
     open my $fh, "| $cmd"
         or die "Error starting $cmd\n";
 
+    # feed data into the stdin read loop in demo/demo-code.pl
     $fh->autoflush;
     print $fh "$_\n" for (1..10);
     sleep 2;
@@ -42,7 +43,7 @@ for my $run (keys %runs) {
     system("perl -Mblib bin/nytprofhtml --open --out=$outdir") == 0
         or exit 0;
 
-    system "ls -lrt $outdir/.";
+    #system "ls -lrt $outdir/.";
 
     sleep 1;
 }

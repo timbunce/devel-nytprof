@@ -3,7 +3,7 @@ use Benchmark;
 use File::Find;
 
 my $count = shift || 100;
-my $do_io = shift || 0;
+my $do_io = shift || (not -t STDIN);
 
 sub add {
     $a = $a + 1;
