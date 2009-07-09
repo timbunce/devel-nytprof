@@ -140,7 +140,8 @@
 #define NYTP_SCi_INCL_STIME  4   /* incl sys  cpu time in sub */
 #define NYTP_SCi_RECI_RTIME  5   /* recursive incl real time in sub */
 #define NYTP_SCi_REC_DEPTH   6   /* max recursion call depth */
-#define NYTP_SCi_elements    7   /* highest index, plus 1 */
+#define NYTP_SCi_CALLING_SUB 7   /* name of calling sub */
+#define NYTP_SCi_elements    8   /* highest index, plus 1 */
 
 /* Hash table definitions */
 #define MAX_HASH_SIZE 512
@@ -3008,6 +3009,7 @@ write_sub_callers(pTHX)
             calling_subname_len = fid_line_start-calling_subname;
 
             output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
+            output_str(calling_subname, calling_subname_len);
             output_int(line);
             sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
@@ -3017,7 +3019,6 @@ write_sub_callers(pTHX)
             sc[NYTP_SCi_RECI_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
             sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0) * 1.0;
             output_str(called_subname, called_subname_len);
-            output_str(calling_subname, calling_subname_len);
 
             /* sanity check - early warning */
             if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {
@@ -3720,11 +3721,10 @@ load_profile_data_from_stream(SV *cb)
             {
                 char text[MAXPATHLEN*2];
                 SV *sv;
-                SV *subname_sv;
-                SV *calling_subname_sv = Nullsv;
                 AV *subinfo_av;
                 int len;
                 unsigned int fid   = read_int();
+                SV *calling_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str2_sv));
                 unsigned int line  = read_int();
                 unsigned int count = read_int();
                 NV incl_time       = read_nv();
@@ -3733,8 +3733,7 @@ load_profile_data_from_stream(SV *cb)
                 NV scpu_time       = read_nv();
                 NV reci_time       = read_nv();
                 UV rec_depth       = read_int();
-                subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str1_sv));
-                calling_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str2_sv));
+                SV *called_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str1_sv));
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3750,7 +3749,7 @@ load_profile_data_from_stream(SV *cb)
                     sv_setnv(cb_args[i], scpu_time);      XPUSHs(cb_args[i++]);
                     sv_setnv(cb_args[i], reci_time);      XPUSHs(cb_args[i++]);
                     sv_setiv(cb_args[i], rec_depth);      XPUSHs(cb_args[i++]);
-                    sv_setsv(cb_args[i], subname_sv);     XPUSHs(cb_args[i++]);
+                    sv_setsv(cb_args[i], called_subname_sv);     XPUSHs(cb_args[i++]);
                     assert(i <= C_ARRAY_LENGTH(cb_args));
 
                     PUTBACK;
@@ -3760,12 +3759,12 @@ load_profile_data_from_stream(SV *cb)
 
                 if (trace_level >= 3)
                     logwarn("Sub %s called by %s %u:%u: count %d, incl %f, excl %f, ucpu %f scpu %f\n",
-                        SvPV_nolen(subname_sv), SvPV_nolen(calling_subname_sv), fid, line,
+                        SvPV_nolen(called_subname_sv), SvPV_nolen(calling_subname_sv), fid, line,
                         count, incl_time, excl_time, ucpu_time, scpu_time);
 
-                subinfo_av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
+                subinfo_av = lookup_subinfo_av(aTHX_ called_subname_sv, sub_subinfo_hv);
 
-                /* { caller_fid => { caller_line => [ count, incl_time, excl_time ] } } */
+                /* { caller_fid => { caller_line => [ count, incl_time, ... ] } } */
                 sv = *av_fetch(subinfo_av, NYTP_SIi_CALLED_BY, 1);
                 if (!SvROK(sv))                   /* autoviv */
                     sv_setsv(sv, newRV_noinc((SV*)newHV()));
@@ -3783,9 +3782,9 @@ load_profile_data_from_stream(SV *cb)
                     sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newAV()));
-                    else if (!instr(SvPV_nolen(subname_sv), "__ANON__[(eval") || trace_level)
+                    else if (!instr(SvPV_nolen(called_subname_sv), "__ANON__[(eval") || trace_level)
                         logwarn("Merging extra sub caller info for %s %d:%d\n",
-                            SvPV_nolen(subname_sv), fid, line);
+                            SvPV_nolen(called_subname_sv), fid, line);
                     av = (AV *)SvRV(sv);
                     sv = *av_fetch(av, NYTP_SCi_CALL_COUNT, 1);
                     sv_setuv(sv, (SvOK(sv)) ? SvUV(sv) + count : count);
@@ -3803,6 +3802,12 @@ load_profile_data_from_stream(SV *cb)
                     if (!SvOK(sv) || SvUV(sv) < rec_depth) /* max() */
                         sv_setuv(sv, rec_depth);
 
+                    /* XXX temp hack way to store calling subname */
+                    sv = *av_fetch(av, NYTP_SCi_CALLING_SUB, 1);
+                    if (!SvROK(sv))               /* autoviv */
+                        sv_setsv(sv, newRV_noinc((SV*)newHV()));
+                    hv_fetch_ent((HV *)SvRV(sv), calling_subname_sv, 1, 0);
+
                     /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
                     /* => { line => { subname => [ ... ] } } */
                     fi = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
@@ -3810,7 +3815,7 @@ load_profile_data_from_stream(SV *cb)
                     fi = *hv_fetch((HV*)SvRV(fi), text, len, 1);
                     if (!SvROK(fi))               /* autoviv */
                         sv_setsv(fi, newRV_noinc((SV*)newHV()));
-                    fi = HeVAL(hv_fetch_ent((HV *)SvRV(fi), subname_sv, 1, 0));
+                    fi = HeVAL(hv_fetch_ent((HV *)SvRV(fi), called_subname_sv, 1, 0));
                     sv_setsv(fi, newRV((SV *)av));
                 }
                 else {                            /* is meta-data about sub */
@@ -4113,6 +4118,7 @@ BOOT:
     newCONSTSUB(stash, "NYTP_SCi_INCL_STIME",   newSViv(NYTP_SCi_INCL_STIME));
     newCONSTSUB(stash, "NYTP_SCi_RECI_RTIME",   newSViv(NYTP_SCi_RECI_RTIME));
     newCONSTSUB(stash, "NYTP_SCi_REC_DEPTH",    newSViv(NYTP_SCi_REC_DEPTH));
+    newCONSTSUB(stash, "NYTP_SCi_CALLING_SUB",  newSViv(NYTP_SCi_CALLING_SUB));
     /* others */
     newCONSTSUB(stash, "NYTP_DEFAULT_COMPRESSION", newSViv(default_compression_level));
 }

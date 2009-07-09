@@ -12,6 +12,7 @@ use Devel::NYTProf::Constants qw(
 
     NYTP_SCi_INCL_RTIME NYTP_SCi_EXCL_RTIME
     NYTP_SCi_INCL_UTIME NYTP_SCi_INCL_STIME NYTP_SCi_RECI_RTIME
+    NYTP_SCi_CALLING_SUB
 );
 
 use List::Util qw(sum min max);
@@ -120,7 +121,7 @@ sub merge_in {
     # adding reci_rtime is correct only if one sub doesn't call the other
     $self->[NYTP_SIi_RECI_RTIME] += $new->[NYTP_SIi_RECI_RTIME]; # XXX
 
-    # { fid => { line => [ count, incl_time ] } }
+    # { fid => { line => [ count, incl_time, ... ] } }
     my $dst_called_by = $self->[NYTP_SIi_CALLED_BY] ||= {};
     my $src_called_by = $new ->[NYTP_SIi_CALLED_BY] ||  {};
 
@@ -153,6 +154,11 @@ sub merge_in {
             # ug, we can't really combine recursive incl_time, but this is better than undef
             $dst_line_info->[NYTP_SCi_RECI_RTIME] = max($dst_line_info->[NYTP_SCi_RECI_RTIME],
                                                         $src_line_info->[NYTP_SCi_RECI_RTIME]);
+
+            my $src_cs = $src_line_info->[NYTP_SCi_CALLING_SUB]||={};
+            my $dst_cs = $dst_line_info->[NYTP_SCi_CALLING_SUB]||={};
+            $dst_cs->{$_} = $src_cs->{$_} for keys %$src_cs;
+
             #push @{$src_line_info}, "merged"; # flag hack, for debug
         }
     }
@@ -169,6 +175,7 @@ sub caller_fids {
 
 sub caller_count { return scalar shift->caller_places; } # XXX deprecate later
 
+# array of [ $fid, $line, $sub_call_info ], ...
 sub caller_places {
     my ($self, $merge_evals) = @_;
     my $callers = $self->callers || {};
@@ -221,12 +228,14 @@ sub dump {
     my @caller_places = $self->caller_places;
     for my $cp (@caller_places) {
         my ($fid, $line, $sc) = @$cp;
+        my @sc = @$sc;
+        $sc[NYTP_SCi_CALLING_SUB] = join "|", keys %{ $sc[NYTP_SCi_CALLING_SUB] };
         printf $fh "%s%s%s%d%s%d%s[ %s ]\n",
             $prefix,
             'called_by', $separator,
             $fid,  $separator,
             $line, $separator,
-            join(" ", map { defined($_) ? $_ : 'undef' } @$sc);
+            join(" ", map { defined($_) ? $_ : 'undef' } @sc);
     }
 }
 

@@ -14,6 +14,7 @@ use Devel::NYTProf::Constants qw(
 
     NYTP_SCi_CALL_COUNT NYTP_SCi_INCL_RTIME NYTP_SCi_EXCL_RTIME
     NYTP_SCi_INCL_UTIME NYTP_SCi_INCL_STIME NYTP_SCi_RECI_RTIME
+    NYTP_SCi_CALLING_SUB
 );
 
 
@@ -224,12 +225,13 @@ sub dump {
             my $subs_called = $sub_call_lines->{$line};
 
             for my $subname (sort keys %$subs_called) {
-                my $sc = $subs_called->{$subname};
+                my @sc = @{$subs_called->{$subname}};
+                $sc[NYTP_SCi_CALLING_SUB] = join "|", keys %{ $sc[NYTP_SCi_CALLING_SUB] };
 
                 printf $fh "%s%s%s%s%s%s%s[ %s ]\n", 
                     $prefix, 'call', $separator,
                     $line,  $separator, $subname, $separator,
-                    join(" ", map { defined($_) ? $_ : 'undef' } @$sc)
+                    join(" ", map { defined($_) ? $_ : 'undef' } @sc)
             }
         }
 

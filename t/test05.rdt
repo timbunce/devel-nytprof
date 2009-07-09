@@ -23,11 +23,11 @@ fid_fileinfo	1	sub	main::bar	12-17
 fid_fileinfo	1	sub	main::foo1	4-7
 fid_fileinfo	1	sub	main::foo2	8-11
 fid_fileinfo	1	sub	main::yeppers	18-20
-fid_fileinfo	1	call	6	main::bar	[ 1 0 0 0 0 0 0 ]
-fid_fileinfo	1	call	10	main::bar	[ 1 0 0 0 0 0 0 ]
-fid_fileinfo	1	call	14	main::yeppers	[ 2 0 0 0 0 0 0 ]
-fid_fileinfo	1	call	22	main::foo1	[ 1 0 0 0 0 0 0 ]
-fid_fileinfo	1	call	23	main::foo2	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	6	main::bar	[ 1 0 0 0 0 0 0 main::foo1 ]
+fid_fileinfo	1	call	10	main::bar	[ 1 0 0 0 0 0 0 main::foo2 ]
+fid_fileinfo	1	call	14	main::yeppers	[ 2 0 0 0 0 0 0 main::bar ]
+fid_fileinfo	1	call	22	main::foo1	[ 1 0 0 0 0 0 0 [1:22] ]
+fid_fileinfo	1	call	23	main::foo2	[ 1 0 0 0 0 0 0 [1:23] ]
 fid_line_time	1	5	[ 0 1 ]
 fid_line_time	1	6	[ 0 1 ]
 fid_line_time	1	9	[ 0 1 ]
@@ -47,11 +47,11 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::bar	[ 1 12 17 2 0 0 0 0 ]
-sub_subinfo	main::bar	called_by	1	6	[ 1 0 0 0 0 0 0 ]
-sub_subinfo	main::bar	called_by	1	10	[ 1 0 0 0 0 0 0 ]
+sub_subinfo	main::bar	called_by	1	6	[ 1 0 0 0 0 0 0 main::foo1 ]
+sub_subinfo	main::bar	called_by	1	10	[ 1 0 0 0 0 0 0 main::foo2 ]
 sub_subinfo	main::foo1	[ 1 4 7 1 0 0 0 0 ]
-sub_subinfo	main::foo1	called_by	1	22	[ 1 0 0 0 0 0 0 ]
+sub_subinfo	main::foo1	called_by	1	22	[ 1 0 0 0 0 0 0 [1:22] ]
 sub_subinfo	main::foo2	[ 1 8 11 1 0 0 0 0 ]
-sub_subinfo	main::foo2	called_by	1	23	[ 1 0 0 0 0 0 0 ]
+sub_subinfo	main::foo2	called_by	1	23	[ 1 0 0 0 0 0 0 [1:23] ]
 sub_subinfo	main::yeppers	[ 1 18 20 2 0 0 0 0 ]
-sub_subinfo	main::yeppers	called_by	1	14	[ 2 0 0 0 0 0 0 ]
+sub_subinfo	main::yeppers	called_by	1	14	[ 2 0 0 0 0 0 0 main::bar ]
