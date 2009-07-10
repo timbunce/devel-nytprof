@@ -914,9 +914,7 @@ output_header(pTHX)
 static void
 output_str(char *str, I32 len) {    /* negative len signifies utf8 */
     unsigned char tag = NYTP_TAG_STRING;
-    if (!len)
-        len = (I32)strlen(str);
-    else if (len < 0) {
+    if (len < 0) {
         tag = NYTP_TAG_STRING_UTF8;
         len = -len;
     }
@@ -1206,7 +1204,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 
     /* inserted new entry */
     if (1 != hash_op(entry, &found, (bool)(created_via ? 1 : 0))) {
-        if (trace_level >= 4) {
+        if (trace_level >= 5) {
             if (found)
                  logwarn("fid %d: %.*s\n",  found->id, found->key_len, found->key);
             else logwarn("fid -: %.*s not profiled\n",  entry.key_len,  entry.key);
@@ -1465,7 +1463,7 @@ static const char* block_type[] =
 
 /* based on S_dopoptosub_at() from perl pp_ctl.c */
 static int
-dopopcx_at(pTHX_ PERL_CONTEXT *cxstk, I32 startingblock, UV stop_at)
+dopopcx_at(pTHX_ PERL_CONTEXT *cxstk, I32 startingblock, UV cx_type_mask)
 {
     I32 i;
     register PERL_CONTEXT *cx;
@@ -1473,7 +1471,7 @@ dopopcx_at(pTHX_ PERL_CONTEXT *cxstk, I32 startingblock, UV stop_at)
         UV type_bit;
         cx = &cxstk[i];
         type_bit = 1 << CxTYPE(cx);
-        if (type_bit & stop_at)
+        if (type_bit & cx_type_mask)
             return i;
     }
     return i;                                     /* == -1 */
@@ -1562,9 +1560,18 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
 }
 
 
+/* Walk up the context stack calling callback
+ * return first context that callback returns true for
+ * else return null.
+ * UV cx_type_mask is a bit flag that specifies what kinds of contexts the
+ * callback should be called for: (cx_type_mask & (1 << CxTYPE(cx)))
+ * Use ~0 to stop at all contexts.
+ * The callback is called with the context pointer and a pointer to
+ * a copy of the UV cx_type_mask argument (so it can change it on the fly).
+ */
 static PERL_CONTEXT *
-visit_contexts(pTHX_ UV stop_at, int (*callback)(pTHX_ PERL_CONTEXT *cx,
-UV *stop_at_ptr))
+visit_contexts(pTHX_ UV cx_type_mask, int (*callback)(pTHX_ PERL_CONTEXT *cx,
+UV *cx_type_mask_ptr))
 {
     /* modelled on pp_caller() in pp_ctl.c */
     register I32 cxix = cxstack_ix;
@@ -1585,7 +1592,7 @@ UV *stop_at_ptr))
                     (int)top_si->si_type, top_si, top_si->si_prev, ccstack, top_si->si_cxstack);
             top_si  = top_si->si_prev;
             ccstack = top_si->si_cxstack;
-            cxix = dopopcx_at(aTHX_ ccstack, top_si->si_cxix, stop_at);
+            cxix = dopopcx_at(aTHX_ ccstack, top_si->si_cxix, cx_type_mask);
         }
         if (cxix < 0 || (cxix == 0 && !top_si->si_prev)) {
             /* cxix==0 && !top_si->si_prev => top-level BLOCK */
@@ -1597,10 +1604,10 @@ UV *stop_at_ptr))
         if (trace_level >= 5)
             logwarn("visit_context: %s cxix %d (si_prev %p)\n",
                 block_type[CxTYPE(cx)], (int)cxix, top_si->si_prev);
-        if (callback(aTHX_ cx, &stop_at))
+        if (callback(aTHX_ cx, &cx_type_mask))
             return cx;
         /* no joy, look further */
-        cxix = dopopcx_at(aTHX_ ccstack, cxix - 1, stop_at);
+        cxix = dopopcx_at(aTHX_ ccstack, cxix - 1, cx_type_mask);
     }
     return NULL;                                  /* not reached */
 }
@@ -1623,10 +1630,10 @@ _cop_in_same_file(COP *a, COP *b)
 
 
 static int
-_check_context(pTHX_ PERL_CONTEXT *cx, UV *stop_at_ptr)
+_check_context(pTHX_ PERL_CONTEXT *cx, UV *cx_type_mask_ptr)
 {
     COP *near_cop;
-    PERL_UNUSED_ARG(stop_at_ptr);
+    PERL_UNUSED_ARG(cx_type_mask_ptr);
 
     if (CxTYPE(cx) == CXt_SUB) {
         if (PL_debstash && CvSTASH(cx->blk_sub.cv) == PL_debstash)
@@ -2070,38 +2077,35 @@ new_sub_call_info_av(pTHX)
 typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
     time_of_day_t initial_call_time;
-    unsigned int calling_fid;
-    int calling_line;
-    SV *subname_sv;
+    NV            initial_overhead_ticks;
+    NV            initial_subr_secs;
+    unsigned int  caller_fid;
+    int           caller_line;
+    CV           *caller_cv;
+    int           called_cv_depth;
+    SV *called_subname_sv;
     AV *sub_av;
     CV *sub_cv;
-    int cv_depth;
-    NV initial_overhead_ticks;
-    NV initial_subr_secs;
-    UV seqn;
-    int caller_ix;
+    UV subr_call_seqn;
     /* ensure all items are initialized in pp_subcall_profiler */
 };
-static int subr_entry_latest_ix;
 
-/* return the subr_entry_t of the caller of the specified subr_entry_t */
-#define subr_entry_caller(subr_entry) ((subr_entry && subr_entry->caller_ix) \
-    ? SSPTR(subr_entry->caller_ix, subr_entry_t *) : NULL)
 
 static void
 incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 {
     int saved_errno = errno;
-    AV *av = subr_entry->sub_av;
-    SV *subname_sv = subr_entry->subname_sv;
-    SV *incl_time_sv = *av_fetch(av, NYTP_SCi_INCL_RTIME, 1);
-    SV *excl_time_sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
+    AV *av         = subr_entry->sub_av;
+    NV  overhead_ticks, called_sub_secs;
+    SV *incl_time_sv, *excl_time_sv;
+    NV  incl_subr_sec, excl_subr_sec;
+
+    incl_time_sv = *av_fetch(av, NYTP_SCi_INCL_RTIME, 1);
+    excl_time_sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
     /* statement overheads we've accumulated since we entered the sub */
-    NV overhead_ticks = cumulative_overhead_ticks - subr_entry->initial_overhead_ticks;
+    overhead_ticks = cumulative_overhead_ticks - subr_entry->initial_overhead_ticks;
     /* seconds spent in subroutines called by this subroutine */
-    NV called_sub_secs = (cumulative_subr_secs - subr_entry->initial_subr_secs);
-    NV incl_subr_sec;
-    NV excl_subr_sec;
+    called_sub_secs = (cumulative_subr_secs - subr_entry->initial_subr_secs);
 
     if (profile_zero) {
         incl_subr_sec = 0.0;
@@ -2124,14 +2128,15 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
  
     if (trace_level >= 3)
         logwarn(" <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%d:%d #%lu\n",
-            SvPV_nolen(subname_sv), excl_subr_sec, incl_subr_sec, called_sub_secs,
+            SvPV_nolen(subr_entry->called_subname_sv),
+            excl_subr_sec, incl_subr_sec, called_sub_secs,
             cumulative_subr_secs, subr_entry->initial_subr_secs,
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
-            (int)subr_entry->cv_depth,
-            subr_entry->calling_fid, subr_entry->calling_line, subr_entry->seqn);
+            (int)subr_entry->called_cv_depth,
+            subr_entry->caller_fid, subr_entry->caller_line, subr_entry->subr_call_seqn);
 
     /* only count inclusive time for the outer-most calls */
-    if (subr_entry->cv_depth <= 1) {
+    if (subr_entry->called_cv_depth <= 1) {
         sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
     }
     else {
@@ -2140,15 +2145,14 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         SV *reci_time_sv = *av_fetch(av, NYTP_SCi_RECI_RTIME, 1);
         SV *max_depth_sv = *av_fetch(av, NYTP_SCi_REC_DEPTH, 1);
         sv_setnv(reci_time_sv, (SvOK(reci_time_sv)) ? SvNV(reci_time_sv)+incl_subr_sec : incl_subr_sec);
-        /* we track recursion depth here, which is cv_depth-1 */
-        if (!SvOK(max_depth_sv) || subr_entry->cv_depth-1 > SvIV(max_depth_sv))
-            sv_setiv(max_depth_sv, subr_entry->cv_depth-1);
+        /* we track recursion depth here, which is called_cv_depth-1 */
+        if (!SvOK(max_depth_sv) || subr_entry->called_cv_depth-1 > SvIV(max_depth_sv))
+            sv_setiv(max_depth_sv, subr_entry->called_cv_depth-1);
     }
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
 
-    if (subr_entry->subname_sv)
-        sv_free(subr_entry->subname_sv);
-    subr_entry_latest_ix = subr_entry->caller_ix;
+    if (subr_entry->called_subname_sv)
+        sv_free(subr_entry->called_subname_sv);
 
     cumulative_subr_secs += excl_subr_sec;
     SETERRNO(saved_errno, 0);
@@ -2229,6 +2233,35 @@ resolve_sub(pTHX_ SV *sv, SV *subname_out_sv)
 }
 
 
+
+static CV*
+current_cv(pTHX_ I32 ix, PERL_SI *si)
+{
+    /* returning the current cv */
+    /* logic based on perl's S_deb_curcv in dump.c */
+    PERL_CONTEXT *cx;
+    if (!si)
+        si = PL_curstackinfo;
+    cx = &si->si_cxstack[ix];
+
+    /* the common case of finding the caller on the same stack */
+    if (CxTYPE(cx) == CXt_SUB || CxTYPE(cx) == CXt_FORMAT)
+        return cx->blk_sub.cv;
+    else if (CxTYPE(cx) == CXt_EVAL && !CxTRYBLOCK(cx))
+        return current_cv(aTHX_ ix - 1, si); /* recurse up stack */
+    else if (ix == 0 && si->si_type == PERLSI_MAIN)
+        return PL_main_cv;
+    else if (ix > 0)
+        return current_cv(aTHX_ ix - 1, si); /* recurse up stack */
+
+    /* caller isn't on the same stack so we'll walk the stacks as well */
+    if (si->si_type != PERLSI_MAIN) {
+        return current_cv(aTHX_ si->si_prev->si_cxix, si->si_prev);
+    }
+    return Nullcv;
+}
+
+
 static OP *
 pp_entersub_profiler(pTHX)
 {
@@ -2262,6 +2295,14 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         if (!profile_stmts)
             reinit_if_forked(aTHX);
 
+        if (trace_level >= 99) {
+            logwarn("entering sub\n");
+            /* crude, but the only way to deal with the miriad logic at the
+             * start of pp_entersub (which ought to be available as separate sub)
+             */
+            sv_dump(*PL_stack_sp);
+        }
+
         /* allocate struct to save stack (very efficient) */
         /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
         save_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
@@ -2270,23 +2311,21 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         get_time_of_day(subr_entry->initial_call_time);
         subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
         subr_entry->initial_subr_secs      = cumulative_subr_secs;
-        subr_entry->seqn                   = ++cumulative_subr_seqn;
+        subr_entry->subr_call_seqn         = ++cumulative_subr_seqn;
 
         file = OutCopFILE(prev_cop);
-        subr_entry->calling_fid = (file == last_executed_fileptr)
+        subr_entry->caller_fid = (file == last_executed_fileptr)
             ? last_executed_fid
             : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
-        subr_entry->calling_line = CopLINE(prev_cop);
+        subr_entry->caller_line = CopLINE(prev_cop);
 
-        /* link in as head of the chain, but use offset not pointer */
-        subr_entry->caller_ix = subr_entry_latest_ix;
-        subr_entry_latest_ix = save_ix;
+        subr_entry->caller_cv = current_cv(aTHX_ cxstack_ix, NULL);
 
         /* sub name related items */
-        subr_entry->subname_sv = &PL_sv_undef;
+        subr_entry->called_subname_sv = &PL_sv_undef;
         subr_entry->sub_av = NULL;
         subr_entry->sub_cv = NULL;
-        subr_entry->cv_depth = 0;
+        subr_entry->called_cv_depth = 0;
 
         SETERRNO(saved_errno, 0);
     }
@@ -2314,7 +2353,6 @@ pp_subcall_profiler(pTHX_ int is_sysop)
     if (profile_sub_call) {
         int saved_errno = errno;
 
-        subr_entry_t *se_caller = subr_entry_caller(subr_entry);
         char fid_line_key[350]; /* XXX fast but limiting */
         int fid_line_key_len;
         SV *called_subname_sv = newSV(0);
@@ -2323,6 +2361,24 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         CV *cv;
         char *is_xs;
         SV *sv_tmp;
+        char *caller_pv;
+        SV *caller_sv = NULL;
+
+        if (subr_entry->caller_cv == PL_main_cv)
+            caller_pv = "MAIN";
+        else {
+            caller_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
+            GV *gv = CvGV(subr_entry->caller_cv);
+            if (gv) {
+                gv_efullname3(caller_sv, CvGV(subr_entry->caller_cv), Nullch);
+            }
+            else {
+                sv_dump(subr_entry->caller_cv);
+                sv_setpv(caller_sv, "XXXNULLGV");
+            }
+            caller_pv = SvPV_nolen(caller_sv);
+            sv_2mortal(caller_sv);
+        }
 
         if (is_sysop) {
             /* pretend builtins are xsubs in the same package
@@ -2399,7 +2455,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         if (is_xs && *called_subname_pv == 'D' && strEQ(called_subname_pv, "DB::_INIT"))
             goto skip_sub_profile;
 
-        /* { called_subname => { "calling_subname[fid:line]" => [ count, incl_time, ... ] } } */
+        /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
         sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv,
             (I32)SvCUR(called_subname_sv), 1);
 
@@ -2429,8 +2485,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         }
 
         fid_line_key_len = sprintf(fid_line_key, "%s[%u:%d]",
-            (se_caller) ? SvPV_nolen(se_caller->subname_sv) : "",
-            subr_entry->calling_fid, subr_entry->calling_line);
+            caller_pv, subr_entry->caller_fid, subr_entry->caller_line);
         if (fid_line_key_len >= sizeof(fid_line_key))
             croak("panic: NYTProf buffer overflow on %s\n", fid_line_key);
 
@@ -2456,24 +2511,23 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             subr_entry->sub_av = (AV *)SvRV(sv_tmp);
             sv_inc(AvARRAY(subr_entry->sub_av)[0]); /* ++call count */
         }
-
-        /* record cv_depth, adjust for xs since, in that case, we
+        /* record called_cv_depth, adjust for xs since, in that case, we
          * have already left the sub, unlike the non-xs case.        */
-        subr_entry->cv_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
+        subr_entry->called_cv_depth = (cv) ? CvDEPTH(cv)+(is_xs?1:0) : 1;
 
         if (trace_level >= 2) {
             logwarn(" ->%4s %s from %s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
                 (is_xs) ? is_xs : "sub", called_subname_pv,
                 fid_line_key,
-                subr_entry->cv_depth,
+                subr_entry->called_cv_depth,
                 subr_entry->initial_overhead_ticks,
                 subr_entry->initial_subr_secs,
-                subr_entry->seqn
+                subr_entry->subr_call_seqn
             );
         }
 
         if (profile_subs) {
-            subr_entry->subname_sv = called_subname_sv;
+            subr_entry->called_subname_sv = called_subname_sv;
             if (is_xs) {
                 /* acculumate now time we've just spent in the xs sub */
                 incr_sub_inclusive_time(aTHX_ subr_entry);
@@ -2980,8 +3034,8 @@ write_sub_callers(pTHX)
     hv_iterinit(sub_callers_hv);
     while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &called_subname, &called_subname_len))) {
         HV *fid_lines_hv = (HV*)SvRV(fid_line_rvhv);
-        char *calling_subname;
-        I32 calling_subname_len;
+        char *caller_subname;
+        I32 caller_subname_len;
         SV *sv;
 
         /* I32 level, PerlIO *file, SV *sv, I32 nest, I32 maxnest, bool dumpops, STRLEN pvlim */
@@ -2989,27 +3043,27 @@ write_sub_callers(pTHX)
 
         /* iterate over callers to this sub ({ "subname[fid:line]" => [ ... ] })  */
         hv_iterinit(fid_lines_hv);
-        while (NULL != (sv = hv_iternextsv(fid_lines_hv, &calling_subname, &calling_subname_len))) {
+        while (NULL != (sv = hv_iternextsv(fid_lines_hv, &caller_subname, &caller_subname_len))) {
             NV sc[NYTP_SCi_elements];
             AV *av = (AV *)SvRV(sv);
             int trace = (trace_level >= 3);
 
             unsigned int fid = 0, line = 0;
             char *fid_line_delim = "[";
-            char *fid_line_start = rninstr(calling_subname, calling_subname+calling_subname_len, fid_line_delim, fid_line_delim+1);
+            char *fid_line_start = rninstr(caller_subname, caller_subname+caller_subname_len, fid_line_delim, fid_line_delim+1);
             if (!fid_line_start) {
-                logwarn("bad fid_lines_hv key '%s'\n", calling_subname);
+                logwarn("bad fid_lines_hv key '%s'\n", caller_subname);
                 continue;
             }
             if (2 != sscanf(fid_line_start+1, "%u:%u", &fid, &line)) {
-                logwarn("bad fid_lines_hv format '%s'\n", calling_subname);
+                logwarn("bad fid_lines_hv format '%s'\n", caller_subname);
                 continue;
             }
             /* trim length to effectively hide the [fid:line] suffix */
-            calling_subname_len = fid_line_start-calling_subname;
+            caller_subname_len = fid_line_start-caller_subname;
 
             output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
-            output_str(calling_subname, calling_subname_len);
+            output_str(caller_subname, caller_subname_len);
             output_int(line);
             sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
@@ -3030,7 +3084,7 @@ write_sub_callers(pTHX)
             if (trace)
                 logwarn("%s called by %.*s at %u:%u: count %"NVff" (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%"NVff" ri%"NVff"s)\n",
                     called_subname,
-                    calling_subname_len, calling_subname, fid, line, sc[NYTP_SCi_CALL_COUNT],
+                    caller_subname_len, caller_subname, fid, line, sc[NYTP_SCi_CALL_COUNT],
                     sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
                     sc[NYTP_SCi_INCL_UTIME], sc[NYTP_SCi_INCL_STIME],
                     sc[NYTP_SCi_REC_DEPTH], sc[NYTP_SCi_RECI_RTIME]);
@@ -3724,7 +3778,7 @@ load_profile_data_from_stream(SV *cb)
                 AV *subinfo_av;
                 int len;
                 unsigned int fid   = read_int();
-                SV *calling_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str2_sv));
+                SV *caller_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str2_sv));
                 unsigned int line  = read_int();
                 unsigned int count = read_int();
                 NV incl_time       = read_nv();
@@ -3759,7 +3813,7 @@ load_profile_data_from_stream(SV *cb)
 
                 if (trace_level >= 3)
                     logwarn("Sub %s called by %s %u:%u: count %d, incl %f, excl %f, ucpu %f scpu %f\n",
-                        SvPV_nolen(called_subname_sv), SvPV_nolen(calling_subname_sv), fid, line,
+                        SvPV_nolen(called_subname_sv), SvPV_nolen(caller_subname_sv), fid, line,
                         count, incl_time, excl_time, ucpu_time, scpu_time);
 
                 subinfo_av = lookup_subinfo_av(aTHX_ called_subname_sv, sub_subinfo_hv);
@@ -3806,7 +3860,7 @@ load_profile_data_from_stream(SV *cb)
                     sv = *av_fetch(av, NYTP_SCi_CALLING_SUB, 1);
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newHV()));
-                    hv_fetch_ent((HV *)SvRV(sv), calling_subname_sv, 1, 0);
+                    hv_fetch_ent((HV *)SvRV(sv), caller_subname_sv, 1, 0);
 
                     /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
                     /* => { line => { subname => [ ... ] } } */
