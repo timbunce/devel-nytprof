@@ -27,9 +27,9 @@ fid_fileinfo	1	[ test09.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	sub	main::bar	7-9
 fid_fileinfo	1	sub	main::foo	1-5
-fid_fileinfo	1	call	11	main::foo	[ 1 0 0 0 0 0 0 MAIN ]
-fid_fileinfo	1	call	12	main::foo	[ 1 0 0 0 0 0 0 MAIN ]
-fid_fileinfo	1	call	13	main::bar	[ 1 0 0 0 0 0 0 MAIN ]
+fid_fileinfo	1	call	11	main::foo	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	1	call	12	main::foo	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	1	call	13	main::bar	[ 1 0 0 0 0 0 0 main::BEGIN ]
 fid_fileinfo	1	eval	2	[ 2 0 ]
 fid_fileinfo	1	eval	8	[ 3 0 ]
 fid_fileinfo	2	[ (eval 0)[test09.p:2] 1 2 2 2 0 0 ]
@@ -66,9 +66,9 @@ profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
 sub_subinfo	main::bar	[ 1 7 9 3 0 0 0 0 ]
-sub_subinfo	main::bar	called_by	1	13	[ 1 0 0 0 0 0 0 MAIN ]
+sub_subinfo	main::bar	called_by	1	13	[ 1 0 0 0 0 0 0 main::BEGIN ]
 sub_subinfo	main::bar	called_by	2	3	[ 1 0 0 0 0 0 0 main::foo ]
 sub_subinfo	main::bar	called_by	4	3	[ 1 0 0 0 0 0 0 main::foo ]
 sub_subinfo	main::foo	[ 1 1 5 2 0 0 0 0 ]
-sub_subinfo	main::foo	called_by	1	11	[ 1 0 0 0 0 0 0 MAIN ]
-sub_subinfo	main::foo	called_by	1	12	[ 1 0 0 0 0 0 0 MAIN ]
+sub_subinfo	main::foo	called_by	1	11	[ 1 0 0 0 0 0 0 main::BEGIN ]
+sub_subinfo	main::foo	called_by	1	12	[ 1 0 0 0 0 0 0 main::BEGIN ]

@@ -2370,12 +2370,12 @@ pp_subcall_profiler(pTHX_ int is_sysop)
         char *caller_pv;
         SV *caller_sv = NULL;
 
-        if (subr_entry->caller_cv == PL_main_cv)
-            caller_pv = "MAIN";
+        if (subr_entry->caller_cv == PL_main_cv) {
+            caller_pv = "main::BEGIN";
+        }
         else if (subr_entry->caller_cv == (CV*)&PL_sv_yes) {
             caller_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
-            stash_name = CopSTASHPV(PL_curcop);
-            sv_setpvf(caller_sv, "%s::%s", stash_name, "BEGIN");
+            sv_setpvf(caller_sv, "%s::%s", CopSTASHPV(PL_curcop), "BEGIN");
         }
         else {
             caller_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
@@ -2384,8 +2384,10 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                 gv_efullname3(caller_sv, CvGV(subr_entry->caller_cv), Nullch);
             }
             else {
-                sv_dump(subr_entry->caller_cv);
-                sv_setpv(caller_sv, "XXXNULLGV");
+                logwarn("Can't determine name of calling sub (no GV) at %s line %d\n",
+                    OutCopFILE(prev_cop), CopLINE(prev_cop));
+                sv_dump((SV*)subr_entry->caller_cv);
+                sv_setpv(caller_sv, "__UNKNOWN__(NULLGV)");
             }
         }
         if (caller_sv) {
