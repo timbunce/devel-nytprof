@@ -20,6 +20,7 @@ fid_block_time	1	7	1	2
 fid_block_time	1	7	2	1	[ 0 1 ]
 fid_block_time	1	9	[ 0 1 ]
 fid_fileinfo	1	[ test51-enable.p   1 2 0 0 ]
+fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	call	9	main::sub1	[ 1 0 0 0 0 0 0 MAIN ]
 fid_fileinfo	1	call	11	DB::disable_profile	[ 1 0 0 0 0 0 0 MAIN ]
 fid_fileinfo	1	eval	7	[ 2 0 ]
@@ -46,6 +47,7 @@ profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	DB::disable_profile	[ undef 0 0 1 0 0 0 0 ]
 sub_subinfo	DB::disable_profile	called_by	1	11	[ 1 0 0 0 0 0 0 MAIN ]
+sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
 sub_subinfo	main::sub1	[ 2 1 1 1 0 0 0 0 ]
 sub_subinfo	main::sub1	called_by	1	9	[ 1 0 0 0 0 0 0 MAIN ]
 sub_subinfo	main::sub9	[ 3 1 1 0 0 0 0 0 ]

@@ -2182,7 +2182,6 @@ resolve_sub(pTHX_ SV *sv, SV *subname_out_sv)
         default:
             if (!SvROK(sv)) {
                 char *sym;
-                STRLEN n_a;
 
                 if (sv == &PL_sv_yes) {           /* unfound import, ignore */
                     if (subname_out_sv)
@@ -2196,7 +2195,7 @@ resolve_sub(pTHX_ SV *sv, SV *subname_out_sv)
                     sym = SvPOKp(sv) ? SvPVX(sv) : Nullch;
                 }
                 else
-                    sym = SvPV(sv, n_a);
+                    sym = SvPV_nolen(sv);
                 if (!sym)
                     return NULL;
                 if (PL_op->op_private & HINT_STRICT_REFS)
@@ -2239,6 +2238,7 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
 {
     /* returning the current cv */
     /* logic based on perl's S_deb_curcv in dump.c */
+    /* see also http://search.cpan.org/dist/Devel-StackBlech/ */
     PERL_CONTEXT *cx;
     if (!si)
         si = PL_curstackinfo;
@@ -2247,6 +2247,9 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
     /* the common case of finding the caller on the same stack */
     if (CxTYPE(cx) == CXt_SUB || CxTYPE(cx) == CXt_FORMAT)
         return cx->blk_sub.cv;
+    else if (CxTYPE(cx) == CXt_EVAL && cx->blk_eval.old_namesv) {
+        return (CV*)&PL_sv_yes;     /* indicates a require */
+    }
     else if (CxTYPE(cx) == CXt_EVAL && !CxTRYBLOCK(cx))
         return current_cv(aTHX_ ix - 1, si); /* recurse up stack */
     else if (ix == 0 && si->si_type == PERLSI_MAIN)
@@ -2286,7 +2289,10 @@ pp_subcall_profiler(pTHX_ int is_sysop)
     I32 save_ix;
     SV *sub_sv;
     subr_entry_t *subr_entry;
-    int profile_sub_call = (profile_subs && is_profiling);
+    int profile_sub_call = (profile_subs && is_profiling
+        /* don't profile calls to non-existant import() methods */
+        && !(op_type==OP_ENTERSUB && *SP == &PL_sv_yes)
+    );
 
     if (profile_sub_call) {
         char *file;
@@ -2300,7 +2306,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
             /* crude, but the only way to deal with the miriad logic at the
              * start of pp_entersub (which ought to be available as separate sub)
              */
-            sv_dump(*PL_stack_sp);
+            sv_dump(sub_sv);
         }
 
         /* allocate struct to save stack (very efficient) */
@@ -2366,6 +2372,11 @@ pp_subcall_profiler(pTHX_ int is_sysop)
 
         if (subr_entry->caller_cv == PL_main_cv)
             caller_pv = "MAIN";
+        else if (subr_entry->caller_cv == (CV*)&PL_sv_yes) {
+            caller_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
+            stash_name = CopSTASHPV(PL_curcop);
+            sv_setpvf(caller_sv, "%s::%s", stash_name, "BEGIN");
+        }
         else {
             caller_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
             GV *gv = CvGV(subr_entry->caller_cv);
@@ -2376,6 +2387,8 @@ pp_subcall_profiler(pTHX_ int is_sysop)
                 sv_dump(subr_entry->caller_cv);
                 sv_setpv(caller_sv, "XXXNULLGV");
             }
+        }
+        if (caller_sv) {
             caller_pv = SvPV_nolen(caller_sv);
             sv_2mortal(caller_sv);
         }
@@ -2985,7 +2998,7 @@ write_sub_line_ranges(pTHX)
         }
         last_line = atoi(++last);
 
-        if (!first_line && !last_line && strstr(sub_name, "::BEGIN"))
+        if (0 &&!first_line && !last_line && strstr(sub_name, "::BEGIN"))
             continue;                             /* no point writing these XXX? */
 
         if (!filename_len) {    /* no filename, so presumably a fake entry for xsub */
@@ -3081,13 +3094,19 @@ write_sub_callers(pTHX)
                 trace = 1;
             }
 
-            if (trace)
-                logwarn("%s called by %.*s at %u:%u: count %"NVff" (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%"NVff" ri%"NVff"s)\n",
-                    called_subname,
-                    caller_subname_len, caller_subname, fid, line, sc[NYTP_SCi_CALL_COUNT],
-                    sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
-                    sc[NYTP_SCi_INCL_UTIME], sc[NYTP_SCi_INCL_STIME],
-                    sc[NYTP_SCi_REC_DEPTH], sc[NYTP_SCi_RECI_RTIME]);
+            if (trace) {
+                if (!fid && !line) {
+                    logwarn("%s is xsub\n", called_subname);
+                }
+                else {
+                    logwarn("%s called by %.*s at %u:%u: count %ld (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%"NVff" ri%"NVff"s)\n",
+                        called_subname,
+                        caller_subname_len, caller_subname, fid, line, (long)sc[NYTP_SCi_CALL_COUNT],
+                        sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
+                        sc[NYTP_SCi_INCL_UTIME], sc[NYTP_SCi_INCL_STIME],
+                        sc[NYTP_SCi_REC_DEPTH], sc[NYTP_SCi_RECI_RTIME]);
+                }
+            }
         }
     }
 }

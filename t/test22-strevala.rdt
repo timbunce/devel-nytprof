@@ -26,6 +26,7 @@ fid_block_time	1	12	1	1
 fid_block_time	1	12	2	1	[ 0 2 ]
 fid_block_time	1	12	2	2	[ 0 4 ]
 fid_fileinfo	1	[ test22-strevala.p   1 2 0 0 ]
+fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	call	6	main::__ANON__[(eval 0)[test22-strevala.p:6]:1]	[ 1 0 0 0 0 0 0 MAIN ]
 fid_fileinfo	1	call	9	main::__ANON__[(eval 0)[test22-strevala.p:9]:1]	[ 2 0 0 0 0 0 0 MAIN ]
 fid_fileinfo	1	eval	6	[ 1 0 ]
@@ -73,6 +74,7 @@ fid_sub_time	1	12	2	2	[ 0 4 ]
 profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
+sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
 sub_subinfo	main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1]	[ 6 1 1 2 0 0 0 0 ]
 sub_subinfo	main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1]	called_by	5	2	[ 2 0 0 0 0 0 0 MAIN ]
 sub_subinfo	main::__ANON__[(eval 0)[test22-strevala.p:6]:1]	[ 2 1 1 1 0 0 0 0 ]
