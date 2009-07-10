@@ -16,7 +16,7 @@ fid_block_time	1	4	[ 0 1 ]
 fid_block_time	2	6	[ 0 1 ]
 fid_fileinfo	1	[ test40pmc.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	3-3
-fid_fileinfo	1	call	4	test40pmc::foo	[ 1 0 0 0 0 0 0 [1:4] ]
+fid_fileinfo	1	call	4	test40pmc::foo	[ 1 0 0 0 0 0 0 MAIN ]
 fid_fileinfo	2	[ test40pmc.pm   2 3 0 0 ]
 fid_fileinfo	2	sub	test40pmc::foo	5-7
 fid_line_time	1	4	[ 0 1 ]
@@ -28,4 +28,4 @@ profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 3 3 0 0 0 0 0 ]
 sub_subinfo	test40pmc::foo	[ 2 5 7 1 0 0 0 0 ]
-sub_subinfo	test40pmc::foo	called_by	1	4	[ 1 0 0 0 0 0 0 [1:4] ]
+sub_subinfo	test40pmc::foo	called_by	1	4	[ 1 0 0 0 0 0 0 MAIN ]
