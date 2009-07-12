@@ -38,7 +38,7 @@ is_deeply $prof{VERSION}, [ [ 3, 0 ] ];
 # (but not START_DEFLATE as that'll be missing if there's no zlib)
 for my $tag (qw(
         COMMENT ATTRIBUTE DISCOUNT SRC_LINE TIME_BLOCK
-        SUB_LINE_RANGE SUB_CALLERS
+        SUB_INFO SUB_CALLERS
         PID_START PID_END NEW_FID
 )) {
     is ref $prof{$tag}[0], 'ARRAY', $tag;

@@ -95,7 +95,7 @@
 #define NYTP_TAG_DISCOUNT        '-'
 #define NYTP_TAG_NEW_FID         '@'
 #define NYTP_TAG_SRC_LINE        'S'    /* fid, line, str */
-#define NYTP_TAG_SUB_LINE_RANGE  's'
+#define NYTP_TAG_SUB_INFO        's'
 #define NYTP_TAG_SUB_CALLERS     'c'
 #define NYTP_TAG_PID_START       'P'
 #define NYTP_TAG_PID_END         'p'
@@ -3060,10 +3060,11 @@ write_sub_line_ranges(pTHX)
             logwarn("Sub %s fid %u lines %lu..%lu\n",
                 sub_name, fid, (unsigned long)first_line, (unsigned long)last_line);
 
-        output_tag_int(NYTP_TAG_SUB_LINE_RANGE, fid);
+        output_tag_int(NYTP_TAG_SUB_INFO, fid);
+        output_str(sub_name, sub_name_len);
         output_int(first_line);
         output_int(last_line);
-        output_str(sub_name, sub_name_len);
+        output_int(0);  /* how many extra items follow */
     }
 }
 
@@ -3759,27 +3760,31 @@ load_profile_data_from_stream(SV *cb)
                 break;
             }
 
-            case NYTP_TAG_SUB_LINE_RANGE:
+            case NYTP_TAG_SUB_INFO:
             {
                 AV *av;
                 SV *sv;
                 unsigned int fid        = read_int();
+                SV *subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str1_sv));
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
                 int skip_subinfo_store = 0;
-                SV *subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str1_sv));
                 STRLEN subname_len;
                 char *subname_pv;
+                int extra_items = read_int();
+
+                while (extra_items-- > 0)
+                    (void)read_int();
 
                 if (cb) {
                     PUSHMARK(SP);
 
                     i = 0;
-                    sv_setpvs(cb_args[i], "SUB_LINE_RANGE"); XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], fid);               XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], first_line);        XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], last_line);         XPUSHs(cb_args[i++]);
-                    sv_setsv(cb_args[i], subname_sv);        XPUSHs(cb_args[i++]);
+                    sv_setpvs(cb_args[i], "SUB_INFO"); XPUSHs(cb_args[i++]);
+                    sv_setuv(cb_args[i], fid);         XPUSHs(cb_args[i++]);
+                    sv_setuv(cb_args[i], first_line);  XPUSHs(cb_args[i++]);
+                    sv_setuv(cb_args[i], last_line);   XPUSHs(cb_args[i++]);
+                    sv_setsv(cb_args[i], subname_sv);  XPUSHs(cb_args[i++]);
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
