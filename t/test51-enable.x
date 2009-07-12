@@ -11,7 +11,7 @@
 0,0,0,
 0,1,0,sub1(); # profiled
 0,0,0,
-0,0,0,DB::disable_profile();
+0,0,0,DB::disable_profile(); # also tests that sub1() call timing has completed
 0,0,0,
 0,0,0,sub2(); # not profiled
 0,0,0,

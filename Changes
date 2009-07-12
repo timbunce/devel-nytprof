@@ -7,6 +7,7 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 =head2 Changes in Devel::NYTProf 2.11
 
 XXX sysops needs docs and more ops
+XXX subroutine profiler docs need update
 
   Note: The file format has changed. Old files can't be read.
 
@@ -14,26 +15,36 @@ XXX sysops needs docs and more ops
   Fixed discarding of (rare) negative intervals.
   Fixed risk of infinite recursion if trace enabled and
     $SIG{__WARN__} was set to a code reference.
-  Fixed recursion depth measurement.
+  Fixed subroutine recursion depth measurement.
 
-  Changed colors on report pages to be less saturated.
+  Added log=F option to write trace log to a file.
+
+  Added sysops=N option which enables profiling of perl opcodes
+    that make potentially slow system calls ("system call opcodes")
+    like sleep, stat, read, write etc.  They're treated like xsubs.
+    sysops=1 puts timings into one package ("CORE::", eg CORE::sleep)
+    sysops=1 puts timings into into the package that made the
+    call, e.g., "Foo::CORE:sleep" (note the single colon).
+
+Changes to subroutine profiler:
 
   Added recording the name of the calling subroutine to enable proper
     linking of call trees. Previously only the calling file and line
-    were recorded.
+    were recorded. (This is more significant than it sounds :)
+
+  Added docs describing how the subroutine profiler works.
+
+Changes to nytprofhtml:
 
   Added interactive treemap view of package and subroutine times.
     Left-click to zoom in (drill-down) one level, right-click to zoom out.
 
-  Added sysops=N option which enables profiling of perl opcodes
-    that make potentially slow system calls. They're treated as xsubs.
-
-  Added log=F option to write trace log to a file.
   Added columns to the main source code reports to show
     a count of sub calls and time spent in those calls.
 
   Assorted cosmetic improvements.
-  Added docs describing how the subroutine profiler works.
+  Changed colors on report pages to be less saturated.
+
 
 =head2 Changes in Devel::NYTProf 2.10 (svn r774) 18th June 2009
 

@@ -8,7 +8,7 @@ eval "sub sub$_ { 1 }" for (1..10);
 
 sub1(); # profiled
 
-DB::disable_profile();
+DB::disable_profile(); # also tests that sub1() call timing has completed
 
 sub2(); # not profiled
 

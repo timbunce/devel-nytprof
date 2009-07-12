@@ -1,4 +1,4 @@
-use Test::More tests => 6;
+use Test::More tests => 8;
 
 my $nytprof_out;
 BEGIN {
@@ -41,6 +41,9 @@ SKIP: {
     }
     is 0+$!, 9999, '$! should not be altered by NYTProf i/o';
 }
+
+ok not eval { example_xsub(0, "die"); 1; };
+like $@, qr/^example_xsub\(die\)/;
 
 exit 0;
 
