@@ -128,10 +128,12 @@ WriteMakefile(
     EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv'],
     @man,
     INC   => $INCLUDE,
-    clean => { FILES => join " ",
-		"nytprof demo-out",
-		map { ("t/$_", "xt/$_") }
-			qw(nytprof nytprof*.out *_outdir test*.*_new auto)
+    clean => {
+	FILES => join(" ",
+	    "nytprof demo-out",
+	    map { ("t/$_", "xt/$_") } qw(
+		nytprof nytprof*.out nytprof*.out.* *_outdir test*.*_new auto
+	    ))
     },
     dist  => {
         DIST_DEFAULT => 'clean distcheck disttest tardist',
