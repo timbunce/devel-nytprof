@@ -35,7 +35,8 @@ for my $run (keys %runs) {
     print $fh "$_\n" for (1..10);
     sleep 2;
     print $fh "$_\n" for (1..10);
-    close $fh;
+    close $fh
+        or die "Error closing pipe to $cmd: $!\n";
 
     my $outdir = "demo-out/profiler-$run";
     system("rm -rf $outdir") == 0 or exit 0;
