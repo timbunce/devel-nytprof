@@ -28,6 +28,8 @@ XXX subroutine profiler docs need update
 
 Changes to subroutine profiler:
 
+  Rewritten. Captures more data more accurately and robustly.
+
   Added recording the name of the calling subroutine to enable proper
     linking of call trees. Previously only the calling file and line
     were recorded. (This is more significant than it sounds :)

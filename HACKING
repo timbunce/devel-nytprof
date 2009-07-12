@@ -365,4 +365,5 @@ Copy the nytprof.out file into the output report dir, so a report is more
 'self-contained' and can be archives and thrown around as a tarball/zip and
 still used for further analysis.
 
-Add a tracefile=filename option (just fopen() and set logfh)
+The pseudo-sub "main::BEGIN" doesn't appear to be 'called' in NYTProf data.
+Perhaps it should.
