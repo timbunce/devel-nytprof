@@ -31,7 +31,7 @@ my %opts = (
     profperlopts => '-d:NYTProf',
     html         => $ENV{NYTPROF_TEST_HTML},
 );
-GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i savesrc=i compress=i abort/)
+GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i savesrc=i compress=i one abort/)
     or exit 1;
 
 $opts{v}    ||= $opts{d};
@@ -73,7 +73,13 @@ my $perl     = $opts{p} || $^X;
 # turn ./perl into ../perl, because of chdir(t) above.
 $perl = ".$perl" if $perl =~ m|^\./|;
 
-my @test_opt_leave      = (defined $opts{leave})      ? ($opts{leave})      : (1, 0);
+if ($opts{one}) {           # for one quick test
+    $opts{leave}      = 1;
+    $opts{use_db_sub} = 0;
+    $opts{savesrc}    = 1;
+    $opts{compress}   = 1;
+}
+my @test_opt_leave      = (defined $opts{leave})      ? ($opts{leave})      : (0, 1);
 my @test_opt_use_db_sub = (defined $opts{use_db_sub}) ? ($opts{use_db_sub}) : (0, 1);
 my @test_opt_savesrc    = (defined $opts{savesrc})    ? ($opts{savesrc})    : (0, 1);
 my @test_opt_compress   = (defined $opts{compress})   ? ($opts{compress})   : (0, 1);
@@ -223,26 +229,26 @@ sub run_test {
 
     my $profile_datafile = $NYTPROF_TEST{file};
     my $test_datafile = (profile_datafiles($profile_datafile))[$fork_seqn];
+    my $outdir = $basename.'_outdir';
 
     if ($type eq 'p') {
         unlink_old_profile_datafiles($profile_datafile);
         profile($test, $profile_datafile);
-    }
-    elsif ($type eq 'rdt') {
-        verify_data($test, $test_datafile);
-    }
-    elsif ($type eq 'x') {
-        my $outdir = $basename.'_outdir';
-        mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
-        unlink <$outdir/*>;
-
-        verify_csv_report($test, $test_datafile, $outdir);
 
         if ($opts{html}) {
             my $cmd = "$perl $nytprofhtml --file=$profile_datafile --out=$outdir";
             $cmd .= " --open" if $opts{open};
             run_command($cmd);
         }
+    }
+    elsif ($type eq 'rdt') {
+        verify_data($test, $test_datafile);
+    }
+    elsif ($type eq 'x') {
+        mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
+        unlink <$outdir/*>;
+
+        verify_csv_report($test, $test_datafile, $outdir);
     }
     elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
         # skip; handy for "test.pl t/test01.*"
