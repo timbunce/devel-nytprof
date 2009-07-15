@@ -41,7 +41,7 @@ my $subname_subinfo_map = $profile->subname_subinfo_map;
 
 for my $sub (values %$subname_subinfo_map) {
 
-    my $callers = $sub->callers;
+    my $callers = $sub->caller_fid_line_places;
     next unless ($callers && %$callers);
 
     my $fi = eval { $sub->fileinfo };

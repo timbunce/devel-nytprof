@@ -54,7 +54,7 @@ sub recur_max_depth { shift->[NYTP_SIi_REC_DEPTH] }
 sub recur_incl_time { shift->[NYTP_SIi_RECI_RTIME] }
 
 # { fid => { line => [ count, incl_time ] } }
-sub callers    { shift->[NYTP_SIi_CALLED_BY] }
+sub caller_fid_line_places    { shift->[NYTP_SIi_CALLED_BY] }
 
 sub is_xsub {
     my $self = shift;
@@ -168,7 +168,7 @@ sub merge_in {
 
 sub caller_fids {
     my ($self, $merge_evals) = @_;
-    my $callers = $self->callers($merge_evals) || {};
+    my $callers = $self->caller_fid_line_places($merge_evals) || {};
     my @fids = keys %$callers;
     return @fids;    # count in scalar context
 }
@@ -178,7 +178,7 @@ sub caller_count { return scalar shift->caller_places; } # XXX deprecate later
 # array of [ $fid, $line, $sub_call_info ], ...
 sub caller_places {
     my ($self, $merge_evals) = @_;
-    my $callers = $self->callers || {};
+    my $callers = $self->caller_fid_line_places || {};
 
     my @callers;
     for my $fid (sort { $a <=> $b } keys %$callers) {
@@ -202,7 +202,7 @@ sub normalize_for_test {
     my $subname = $self->subname(' and ');
 
     # { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } }
-    my $callers = $self->callers || {};
+    my $callers = $self->caller_fid_line_places || {};
 
     # zero per-call-location subroutine inclusive time
     for my $sc (map { values %$_ } values %$callers) {

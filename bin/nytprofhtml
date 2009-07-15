@@ -26,6 +26,7 @@ use Devel::NYTProf::Util qw(
     get_abs_paths_alternation_regex
     html_safe_filename
 );
+use Devel::NYTProf::Constants qw(NYTP_SCi_CALLING_SUB);
 
 our $VERSION = '2.10';
 
@@ -477,7 +478,7 @@ sub report_src_line {
 
     # for each of the subs defined on this line, who called them
     for my $sub_info (@$subs) {
-        my $callers = $sub_info->callers;
+        my $callers = $sub_info->caller_fid_line_places;
         next unless $callers && %$callers;
 
         my @callers;
@@ -580,7 +581,7 @@ output_subs_treemap_page($reporter, "subs-treemap-excl.html",
     "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
 output_subs_treemap_page($reporter, "subs-treemap-incl.html",
     "Subroutine Inclusive Time Treemap", sub { shift->incl_time });
-#output_subs_callgraph_page($reporter, "subs-callgraph.html");
+output_subs_callgraph_page($reporter, "subs-callgraph.html");
 output_index_page($reporter, "index.html");
 
 output_js_files($reporter);
@@ -672,7 +673,7 @@ sub output_index_page {
     }
 
     print OUT q{<br/>You can view subroutines as treemap of <a href="subs-treemap-excl.html">exclusive</a> or <a href="subs-treemap-incl.html">inclusive</a> time, grouped by package.<br/>};
-    #print OUT q{<br/><a href="subs-callgraph.html">View subroutine call graph</a><br/>};
+    print OUT q{<br/><a href="subs-callgraph.html">View subroutine call graph</a><br/>};
 
     print OUT file_table($profile, $stats, 1);
 
@@ -971,6 +972,7 @@ sub js_for_new_callgraph {
 
     our $json_any ||= JSON::Any->new;
     my $new_args_json  = $json_any->objToJson($new_args);
+#$tree_data = do('/tmp/x') or die;
     my $tree_data_json = $json_any->objToJson($tree_data);
 
     #http://thejit.org/Jit/Examples/RGraph/example2.code.html
@@ -983,7 +985,7 @@ sub js_for_new_callgraph {
                 //Where to inject the canvas. Any div container will do.
                 'injectInto':'infovis1',
                 //width and height for canvas. Default's to 200.
-                'width': 900, 'height':500,
+                'width': 800, 'height':600,
                 //Optional: Create a background canvas  
                 //for painting concentric circles.  
                 'backgroundCanvas': {  
@@ -993,7 +995,7 @@ sub js_for_new_callgraph {
                     'impl': {  
                         'init': function(){},  
                         'plot': function(canvas, ctx){  
-                            var times = 6, d = 100;  
+                            var times = 6, d = 100;  // see levelDistance below
                             var pi2 = Math.PI * 2;  
                             for (var i = 1; i <= times; i++) {  
                                 ctx.beginPath();  
@@ -1008,9 +1010,9 @@ sub js_for_new_callgraph {
 
             var $name = new RGraph(canvas, {
                 //interpolation type, can be linear or polar
-                interpolation: 'linear',
+                //interpolation: 'polar',
                 //parent-children distance
-                levelDistance: 100,
+                levelDistance: 100, // see backgroundCanvas d above
                 //Set node/edge styles
                 Node: { color: '#ccddee' },
                 Edge: { color: '#772277' },
@@ -1021,6 +1023,10 @@ sub js_for_new_callgraph {
                     domElement.onclick = function() { $name.onClick(node.id); };
                     //Add the node's name into the label  
                     domElement.innerHTML = node.name;  
+                    var style = domElement.style;  
+                    style.cursor = 'pointer';  
+                    style.fontSize = "0.8em";  
+                    style.color = "#fff";  
                 },
 
                 //Change the node's style based on its position.  
@@ -1029,17 +1035,25 @@ sub js_for_new_callgraph {
                 onPlaceLabel: function(domElement, node){  
                     var style = domElement.style;  
                     style.display = '';  
+                    domElement.innerHTML = node.name;  
             
                     if (node._depth <= 1) {  
                         style.fontSize = "0.8em";  
+                        style.color = "#fff";  
+                    
+                    } else if(node._depth <= 2){  
+                        style.fontSize = "0.5em";  
                         style.color = "#ccc";  
                     
-                    } else if(node._depth == 2){  
-                        style.fontSize = "0.7em";  
-                        style.color = "#494949";  
+                    } else if(node._depth <= 4){  
+                        style.fontSize = "0.4em";  
+                        style.color = "#999";  
+                        domElement.innerHTML = '&nbsp;';
+                        //style.display = 'none';  
                     
                     } else {  
                         style.display = 'none';  
+                        //domElement.innerHTML = '&nbsp;';
                     }  
             
                     var left = parseInt(style.left);  
@@ -1066,7 +1080,18 @@ sub output_callgraph_code {
     my $root_id = 'infovis'.$spec{id};
 
     my $callgraph_data = $spec{get_data}->();
-    $callgraph_data->{name} = $spec{title} if $spec{title};
+
+
+    my $rg_args = {
+        Node => {  
+            'overridable' => 1,  
+            'color' => '#cc0000',
+        },  
+        Edge => {  
+            'overridable' => 1,  
+            'color' => '#cccc00'  ,
+        },
+    };
 
     my $cg_js = js_for_new_callgraph($cg_id, { rootId => $root_id }, $callgraph_data);
     print OUT qq{<script type="text/javascript">$cg_js\n</script>\n};
@@ -1077,6 +1102,66 @@ sub output_callgraph_code {
 
 
 sub sub_callgraph_data {
+    my ($profile) = @_;
+    my $subinfos = $profile->subname_subinfo_map;
+
+    my %sub2called; # { subname => { sub_called => [...], ... } }
+
+    for my $subname (keys %$subinfos) {
+        my $si = $subinfos->{$subname};
+
+        # which subs called this sub...
+        my %called_by;
+        if (my $callers = $si->caller_fid_line_places) {
+            # { fid => { line => [...] } } => ([...], ...)
+            my @called_by_sc = 
+                map { keys %{$_->[NYTP_SCi_CALLING_SUB]} }
+                map { values %$_ }
+                values %$callers;
+
+            for my $cb_subname (@called_by_sc) {
+                $sub2called{$subname}{$cb_subname} = [];
+            }
+        }
+    }
+
+    # { called_subname => { calling_subname => [...], ... } }
+    my %sub2callers;
+    while ( my ($subname, $subs_called) = each %sub2called ) {
+        while ( my ($called_subname, $call_info) = each %$subs_called ) {
+            $sub2callers{ $called_subname }{$subname} = $call_info;
+        }
+    }
+
+    my $mk_adj = sub {
+        my ($subname, $note) = @_;
+        return {
+            nodeTo => "rg_$subname",
+            data => {
+                note => $note
+            },
+        }
+    };
+
+    my %nodes;
+    for my $subname (keys %$subinfos) {
+        my $si = $subinfos->{$subname};
+
+        my $into = $sub2called{$subname} || {};
+        my $from = $sub2callers{$subname} || {};
+        my %all = (%$into, %$from); # eliminate dups
+
+        my @adjacencies = map { $mk_adj->($_) } keys %all;
+
+        $nodes{$subname} = {
+            id => "rg_$subname",
+            name => $subname,
+            data => {
+            },
+            adjacencies => \@adjacencies,
+        } if %$into or %$from;
+    }
+    return [ values %nodes ];
 }
 
 
@@ -1095,7 +1180,7 @@ sub output_subs_callgraph_page {
         id => 1,
         title => "Subroutine Call Graph",
         get_data => sub {
-            sub_callgraph_data();
+            sub_callgraph_data($profile);
         }
     };
 
