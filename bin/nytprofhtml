@@ -451,7 +451,7 @@ sub mk_report_xsub_line {
     (my $anchor = $subname) =~ s/\W/_/g;
     return join "",
         sprintf(qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, ''),
-        "<td></td><td></td><td></td>",
+        "<td></td><td></td><td></td><td></td><td></td>",
         report_src_line(undef, undef, $line, $profile, $subs_defined, $makes_calls_to, $filestr),
         "</tr>\n";
 }

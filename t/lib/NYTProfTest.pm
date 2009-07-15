@@ -86,7 +86,7 @@ for my $leave (@test_opt_leave) {
             for my $compress (@test_opt_compress) {
                 push @env_combinations, {
                     start      => 'init',
-                    sysops     => 2,
+                    slowops    => 2,
                     leave      => $leave,
                     use_db_sub => $use_db_sub,
                     savesrc    => $savesrc,

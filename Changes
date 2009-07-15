@@ -6,7 +6,7 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 2.11
 
-XXX sysops needs docs and more ops
+XXX slowops needs docs and more ops
 XXX subroutine profiler docs need update
 
   Note: The file format has changed. Old files can't be read.
@@ -21,11 +21,10 @@ XXX subroutine profiler docs need update
 
   Added log=F option to write trace log to a file.
 
-  Added sysops=N option which enables profiling of perl opcodes
-    that make potentially slow system calls ("system call opcodes")
-    like sleep, stat, read, write etc.  They're treated like xsubs.
-    sysops=1 puts timings into one package ("CORE::", eg CORE::sleep)
-    sysops=1 puts timings into into the package that made the
+  Added slowops=N option which enables profiling of potentially slow
+    perl opcodes (e.g., system calls and regexs). They're treated like xsubs.
+    slowops=1 puts timings into one package ("CORE::", eg CORE::sleep)
+    slowops=2 puts timings into into the package that made the
     call, e.g., "Foo::CORE:sleep" (note the single colon).
 
 Changes to subroutine profiler:

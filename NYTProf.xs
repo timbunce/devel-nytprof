@@ -243,8 +243,8 @@ static struct NYTP_int_options_t options[] = {
     { "clock", -1 },
 #define profile_stmts options[9].option_value
     { "stmts", 1 },                              /* statement exclusive times */
-#define profile_sysops options[10].option_value
-    { "sysops", 0 }                              /* opcodes that make slow system calls */
+#define profile_slowops options[10].option_value
+    { "slowops", 0 }                                /* slow opcodes, typically system calls */
 };
 
 /* time tracking */
@@ -2183,7 +2183,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(0));
             sv_setsv(*hv_fetch(hv, "[0:0]", 5, 1), newRV_noinc((SV *)av));
 
-            if (   ('s' == *subr_entry->called_is_xs) /* "sop" (sysop) */
+            if (   ('s' == *subr_entry->called_is_xs) /* "sop" (slowop) */
                 || (subr_entry->called_cv && SvTYPE(subr_entry->called_cv) == SVt_PVCV)
             ) {
                 /* We just use an empty string as the filename for xsubs
@@ -2365,19 +2365,19 @@ pp_entersub_profiler(pTHX)
 }
 
 static OP *
-pp_sysop_profiler(pTHX)
+pp_slowop_profiler(pTHX)
 {
     return pp_subcall_profiler(aTHX_ 1);
 }
 
 static OP *
-pp_subcall_profiler(pTHX_ int is_sysop)
+pp_subcall_profiler(pTHX_ int is_sop)
 {
     OP *op;
     COP *prev_cop = PL_curcop;                    /* not PL_curcop_nytprof here */
     OP *next_op = PL_op->op_next;                 /* op to execute after sub returns */
     /* pp_entersub can be called with PL_op->op_type==0 */
-    OPCODE op_type = (is_sysop) ? PL_op->op_type : OP_ENTERSUB;
+    OPCODE op_type = (is_sop) ? PL_op->op_type : OP_ENTERSUB;
     dSP;
     I32 save_ix;
     SV *sub_sv;
@@ -2451,7 +2451,7 @@ pp_subcall_profiler(pTHX_ int is_sysop)
      * first op *within* the sub (typically a nextstate/dbstate).
      * For XS subs, pp_entersub executes the entire sub
      * and returns the op *after* the sub (PL_op->op_next).
-     * Other ops we profile (eg sysops) act like xsubs.
+     * Other ops we profile (eg slowops) act like xsubs.
      * This call may exit via an exception, in which case the
      * block below doesn't get executed.
      */
@@ -2472,22 +2472,22 @@ pp_subcall_profiler(pTHX_ int is_sysop)
 
 
         called_subnam_sv = newSV(0);
-        if (is_sysop) {
+        if (is_sop) {
             /* pretend builtins are xsubs in the same package
             * but with "CORE:" (one colon) prepended to the name.
             */
-            const char *sysop_name = OP_NAME_safe(PL_op);
+            const char *slowop_name = OP_NAME_safe(PL_op);
             called_cv = NULL;
             is_xs = "sop";
-            if (profile_sysops == 1) { /* 1 == put sysops into 1 package */
+            if (profile_slowops == 1) { /* 1 == put slowops into 1 package */
                 stash_name = "CORE";
-                sv_setpv(called_subnam_sv, sysop_name);
+                sv_setpv(called_subnam_sv, slowop_name);
             }
-            else {                     /* 2 == put sysops into multiple packages */
+            else {                     /* 2 == put slowops into multiple packages */
                 stash_name = CopSTASHPV(PL_curcop);
-                sv_setpvf(called_subnam_sv, "CORE:%s", sysop_name);
+                sv_setpvf(called_subnam_sv, "CORE:%s", slowop_name);
             }
-            subr_entry->called_cv_depth = 1; /* an approximation for sysops */
+            subr_entry->called_cv_depth = 1; /* an approximation for slowops */
         }
         else {
             if (op != next_op) {   /* have entered a sub */
@@ -2804,7 +2804,7 @@ init_profiler(pTHX)
         }
     }
 
-    if (profile_sysops) {
+    if (profile_slowops) {
         /* possible list of sys ops to profile:
             sysopen open close readline rcatline getc read
             print prtf sysread syswrite send recv
@@ -2831,19 +2831,21 @@ init_profiler(pTHX)
         /* XXX this will turn into a loop over an array that maps
          * opcodes to the subname we'll use: OP_PRTF => "printf"
          */
-        PL_ppaddr[OP_SLEEP] = pp_sysop_profiler;
-        PL_ppaddr[OP_OPEN] = pp_sysop_profiler;
-        PL_ppaddr[OP_CLOSE] = pp_sysop_profiler;
-        PL_ppaddr[OP_READ] = pp_sysop_profiler;
-        PL_ppaddr[OP_READLINE] = pp_sysop_profiler;
-        PL_ppaddr[OP_STAT] = pp_sysop_profiler;
-        PL_ppaddr[OP_OPEN_DIR] = pp_sysop_profiler;
-        PL_ppaddr[OP_CLOSEDIR] = pp_sysop_profiler;
-        PL_ppaddr[OP_READDIR] = pp_sysop_profiler;
-        PL_ppaddr[OP_RAND] = pp_sysop_profiler;
-        PL_ppaddr[OP_SRAND] = pp_sysop_profiler;
-        PL_ppaddr[OP_WAIT] = pp_sysop_profiler;
-        PL_ppaddr[OP_SELECT] = pp_sysop_profiler;
+        PL_ppaddr[OP_SLEEP] = pp_slowop_profiler;
+        PL_ppaddr[OP_OPEN] = pp_slowop_profiler;
+        PL_ppaddr[OP_CLOSE] = pp_slowop_profiler;
+        PL_ppaddr[OP_READ] = pp_slowop_profiler;
+        PL_ppaddr[OP_READLINE] = pp_slowop_profiler;
+        PL_ppaddr[OP_STAT] = pp_slowop_profiler;
+        PL_ppaddr[OP_OPEN_DIR] = pp_slowop_profiler;
+        PL_ppaddr[OP_CLOSEDIR] = pp_slowop_profiler;
+        PL_ppaddr[OP_READDIR] = pp_slowop_profiler;
+        PL_ppaddr[OP_RAND] = pp_slowop_profiler;
+        PL_ppaddr[OP_SRAND] = pp_slowop_profiler;
+        PL_ppaddr[OP_WAIT] = pp_slowop_profiler;
+        PL_ppaddr[OP_SELECT] = pp_slowop_profiler;
+        PL_ppaddr[OP_MATCH] = pp_slowop_profiler;
+        PL_ppaddr[OP_SUBST] = pp_slowop_profiler;
     }
 
     /* redirect opcodes for caller tracking */
