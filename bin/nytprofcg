@@ -54,9 +54,11 @@ for my $sub (values %$subname_subinfo_map) {
     my @callers;
     while ( my ( $fid, $fid_line_info ) = each %$callers ) {
         for my $line ( keys %$fid_line_info ) {
-            my ( $count, $incl_time, $excl_time ) = @{ $fid_line_info->{$line} };
+            my ( $count, $incl_time, $excl_time, undef, undef, undef,
+                undef, $calling_subs) = @{ $fid_line_info->{$line} };
 
-            my @subnames = $profile->subname_at_file_line( $fid, $line );
+            my @subnames = sort keys %$calling_subs;
+
             ref $_ and $_ = sprintf "%s (merge of %d subs)", $_->[0], scalar @$_
                 for @subnames;
             my $subname = (@subnames) ? join( " or ", @subnames ) : "__main";

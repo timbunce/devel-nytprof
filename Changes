@@ -17,6 +17,8 @@ XXX subroutine profiler docs need update
     $SIG{__WARN__} was set to a code reference.
   Fixed subroutine recursion depth measurement.
 
+  Changed ReadStream SUB_LINE_RANGE tag to SUB_INFO.
+
   Added log=F option to write trace log to a file.
 
   Added sysops=N option which enables profiling of perl opcodes

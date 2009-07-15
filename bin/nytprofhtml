@@ -497,10 +497,11 @@ sub report_src_line {
         # order by most frequent caller first
         @callers = sort { $b->[2] <=> $a->[2] || $b->[3] <=> $a->[3] } @callers;
         for my $caller (@callers) {
-            my ($fid, $line, $count, $incl_time, $excl_time) = @$caller;
+            my ($fid, $line, $count, $incl_time, $excl_time, undef, undef,
+                undef, undef, $calling_subs) = @$caller;
             my $fi = $profile->fileinfo_of($fid);
 
-            my @subnames = $profile->subname_at_file_line($fid, $line);
+            my @subnames = sort keys %$calling_subs;
             ref $_ and $_ = sprintf "%s (merge of %d subs)", $_->[0], scalar @$_
                 for @subnames;
             my $subname = (@subnames) ? " by " . join(" or ", @subnames) : "";

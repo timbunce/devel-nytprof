@@ -177,11 +177,11 @@ the program leaves a statement.
 Indicates that the next TIME_BLOCK or TIME_LINE should not increment the
 "number of times the statement was executed". See the 'leave' option.
 
-=item SUB_LINE_RANGE => $fid, $beg, $end, $name
+=item SUB_INFO => $fid, $first_line, $last_line, $name
 
 At the end of the run the profiler will output chunks that report on
 the perl subroutines defined in all the files visited while profiling.
-This is a straight dump C<%DB::sub>; see L<perldebguts>.
+See also C<%DB::sub> in L<perldebguts>.
 
 =item SUB_CALLERS => $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $name
 

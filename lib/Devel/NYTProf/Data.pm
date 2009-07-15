@@ -596,6 +596,8 @@ sub subs_defined_in_file {
   @subname = $profile->subname_at_file_line($file, $line_number);
   $subname = $profile->subname_at_file_line($file, $line_number);
 
+This method is currently unused and may be deprecated.
+
 =cut
 
 
