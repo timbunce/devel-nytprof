@@ -76,10 +76,13 @@ first opcode of the subroutine hasn't been executed yet.
 Crucially though, a new scope has been entered by the entersub opcode.
 
 The subroutine profiler then pushes a destructor onto the context stack.
-The destructor is effectively I<inside> the sub, like a C<local>, and so will be
-triggered when the subroutine exits by I<any> means.  When the destructor is
-invoked it calls a function which completes the measurement of the time spent
-in the sub.
+The destructor is effectively just I<inside> the sub, like a C<local>, and so will be
+triggered when the subroutine exits by I<any> means. Also, because it was the
+first thing push onto the context stack, it will be triggered I<after> any
+activity caused by the subroutines scope exiting.
+
+When the destructor is invoked it calls a function which completes the
+measurement of the time spent in the sub (see below).
 
 In this way the profiling of perl subroutines is very accurate and robust.
 

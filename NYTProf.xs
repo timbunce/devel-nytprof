@@ -2074,6 +2074,7 @@ new_sub_call_info_av(pTHX)
     return av;
 }
 
+/* subroutine profiler subroutine entry structure */
 typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
     int completed;
@@ -2086,23 +2087,26 @@ struct subr_entry_st {
     unsigned int  caller_fid;
     int           caller_line;
     CV           *caller_cv;
-    SV           *caller_subname_sv;
+    char         *caller_subpkg_pv;
+    SV           *caller_subnam_sv;
 
     CV           *called_cv;
     int           called_cv_depth;
     char         *called_is_xs;         /* NULL, "xsub", or "syop" */
-    SV           *called_subnam_sv;
     char         *called_subpkg_pv;
+    SV           *called_subnam_sv;
     /* ensure all items are initialized in first phase of pp_subcall_profiler */
 };
 
+/* save stack index to the current subroutine entry structure */
+static I32 subr_entry_ix = 0;
 
 static void
 subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
 {
-    if (subr_entry->caller_subname_sv) {
-        sv_free(subr_entry->caller_subname_sv);
-        subr_entry->caller_subname_sv = Nullsv;
+    if (subr_entry->caller_subnam_sv) {
+        sv_free(subr_entry->caller_subnam_sv);
+        subr_entry->caller_subnam_sv = Nullsv;
     }
     if (subr_entry->called_subnam_sv) {
         sv_free(subr_entry->called_subnam_sv);
@@ -2162,8 +2166,10 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         excl_subr_sec = incl_subr_sec - called_sub_secs;
     }
 
-    subr_call_key_len = sprintf(subr_call_key, "%s[%u:%d]",
-        SvPV_nolen(subr_entry->caller_subname_sv), subr_entry->caller_fid, subr_entry->caller_line);
+    subr_call_key_len = sprintf(subr_call_key, "%s::%s[%u:%d]",
+        subr_entry->caller_subpkg_pv,
+        SvPV_nolen(subr_entry->caller_subnam_sv),
+        subr_entry->caller_fid, subr_entry->caller_line);
     if (subr_call_key_len >= sizeof(subr_call_key))
         croak("panic: NYTProf buffer overflow on %s\n", subr_call_key);
 
@@ -2258,10 +2264,11 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 }
 
 
-static void                                       /* wrapper called via scope exit due to save_destructor below */
-incr_sub_inclusive_time_ix(pTHX_ void *save_ix_void)
+static void         /* wrapper called via scope exit due to save_destructor below */
+incr_sub_inclusive_time_ix(pTHX_ void *subr_entry_ix_void)
 {
-    I32 save_ix = (I32)PTR2IV(save_ix_void);
+    /* convert the I32-stored-as-void-ptr to an I32, then to a pointer */
+    I32 save_ix = (I32)PTR2IV(subr_entry_ix_void);
     subr_entry_t *subr_entry = SSPTR(save_ix, subr_entry_t *);
     incr_sub_inclusive_time(aTHX_ subr_entry);
 }
@@ -2380,7 +2387,6 @@ pp_subcall_profiler(pTHX_ int is_sop)
     /* pp_entersub can be called with PL_op->op_type==0 */
     OPCODE op_type = (is_sop) ? PL_op->op_type : OP_ENTERSUB;
     dSP;
-    I32 save_ix = 0;
     SV *sub_sv = NULL;
     subr_entry_t *subr_entry = NULL;
     int profile_sub_call = (profile_subs && is_profiling
@@ -2403,10 +2409,15 @@ pp_subcall_profiler(pTHX_ int is_sop)
             sv_dump(sub_sv);
         }
 
+        /* save the current subr_entry_ix, which will be restored just after the
+         * new subr_entry, which we create below, gets processed and destroyed
+         */
+        SAVEI32(subr_entry_ix);
+
         /* allocate struct to save stack (very efficient) */
         /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
-        save_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
-        subr_entry = SSPTR(save_ix, subr_entry_t *);
+        subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
+        subr_entry = SSPTR(subr_entry_ix, subr_entry_t *);
         subr_entry->completed = 0;
 
         get_time_of_day(subr_entry->initial_call_time);
@@ -2422,20 +2433,30 @@ pp_subcall_profiler(pTHX_ int is_sop)
 
         /* gather details about the caller */
         subr_entry->caller_cv = current_cv(aTHX_ cxstack_ix, NULL);
-        subr_entry->caller_subname_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
+        subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
         if (subr_entry->caller_cv == PL_main_cv) {
-            sv_setpvf(subr_entry->caller_subname_sv, "main::BEGIN");
+            subr_entry->caller_subpkg_pv = "main";
+            sv_setpv(subr_entry->caller_subnam_sv, "BEGIN");
         }
         else {
+            HV *stash_hv = NULL;
             GV *gv = CvGV(subr_entry->caller_cv);
-            if (gv) {
-                gv_efullname3(subr_entry->caller_subname_sv, CvGV(subr_entry->caller_cv), Nullch);
+            GV *egv = GvEGV(gv);
+            if (!egv)
+                gv = egv;
+
+            if (gv && (stash_hv = GvSTASH(gv))) {
+                subr_entry->caller_subpkg_pv = HvNAME(stash_hv);
+                sv_setpvn(subr_entry->caller_subnam_sv,GvNAME(gv),GvNAMELEN(gv));
             }
             else {
-                logwarn("Can't determine name of calling sub (no GV) at %s line %d\n",
+                logwarn("Can't determine name of calling sub (GV %p, Stash %p, CV flags %d) at %s line %d\n",
+                    gv, stash_hv, (int)CvFLAGS(subr_entry->caller_cv),
                     OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
                 sv_dump((SV*)subr_entry->caller_cv);
-                sv_setpv(subr_entry->caller_subname_sv, "__UNKNOWN__(NULLGV)");
+
+                subr_entry->caller_subpkg_pv = "__UNKNOWN__";
+                sv_setpv(subr_entry->caller_subnam_sv, "__UNKNOWN__");
             }
         }
 
@@ -2469,7 +2490,7 @@ pp_subcall_profiler(pTHX_ int is_sop)
         /* push a destructor hook onto the context stack to ensure we account
          * for time in the sub when we leave it, even if via an exception.
          */
-        save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)save_ix));
+        save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)subr_entry_ix));
 
 
         called_subnam_sv = newSV(0);
@@ -2573,9 +2594,10 @@ pp_subcall_profiler(pTHX_ int is_sop)
             subr_entry->completed = 1;
 
         if (trace_level >= 2) {
-            logwarn(" ->%4s %s::%s from %s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
+            logwarn(" ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
                 (is_xs) ? is_xs : "sub", stash_name, SvPV_nolen(called_subnam_sv),
-                SvPV_nolen(subr_entry->caller_subname_sv),
+                subr_entry->caller_subpkg_pv,
+                SvPV_nolen(subr_entry->caller_subnam_sv),
                 subr_entry->called_cv_depth,
                 subr_entry->initial_overhead_ticks,
                 subr_entry->initial_subr_secs,
