@@ -21,12 +21,16 @@ fid_block_time	1	32	[ 0 1 ]
 fid_block_time	1	33	[ 0 1 ]
 fid_fileinfo	1	[ test16.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	6-6
+fid_fileinfo	1	sub	main::CORE:match	0-0
 fid_fileinfo	1	sub	main::bar	20-27
 fid_fileinfo	1	sub	main::foo	8-18
-fid_fileinfo	1	call	30	main::foo	[ 1 0 0 0 0 0 0 ]
-fid_fileinfo	1	call	31	main::foo	[ 1 0 0 0 0 0 0 ]
-fid_fileinfo	1	call	32	main::bar	[ 1 0 0 0 0 0 0 ]
-fid_fileinfo	1	call	33	main::bar	[ 1 0 0 0 0 0 0 ]
+fid_fileinfo	1	call	11	main::CORE:match	[ 2 0 0 0 0 0 0 main::foo ]
+fid_fileinfo	1	call	14	main::CORE:match	[ 1 0 0 0 0 0 0 main::foo ]
+fid_fileinfo	1	call	22	main::CORE:match	[ 3 0 0 0 0 0 0 main::bar ]
+fid_fileinfo	1	call	30	main::foo	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	1	call	31	main::foo	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	1	call	32	main::bar	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	1	call	33	main::bar	[ 1 0 0 0 0 0 0 main::BEGIN ]
 fid_line_time	1	9	[ 0 2 ]
 fid_line_time	1	10	[ 0 2 ]
 fid_line_time	1	11	[ 0 2 ]
@@ -47,9 +51,13 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 6 6 0 0 0 0 0 ]
+sub_subinfo	main::CORE:match	[ 1 0 0 6 0 0 0 0 ]
+sub_subinfo	main::CORE:match	called_by	1	11	[ 2 0 0 0 0 0 0 main::foo ]
+sub_subinfo	main::CORE:match	called_by	1	14	[ 1 0 0 0 0 0 0 main::foo ]
+sub_subinfo	main::CORE:match	called_by	1	22	[ 3 0 0 0 0 0 0 main::bar ]
 sub_subinfo	main::bar	[ 1 20 27 2 0 0 0 0 ]
-sub_subinfo	main::bar	called_by	1	32	[ 1 0 0 0 0 0 0 ]
-sub_subinfo	main::bar	called_by	1	33	[ 1 0 0 0 0 0 0 ]
+sub_subinfo	main::bar	called_by	1	32	[ 1 0 0 0 0 0 0 main::BEGIN ]
+sub_subinfo	main::bar	called_by	1	33	[ 1 0 0 0 0 0 0 main::BEGIN ]
 sub_subinfo	main::foo	[ 1 8 18 2 0 0 0 0 ]
-sub_subinfo	main::foo	called_by	1	30	[ 1 0 0 0 0 0 0 ]
-sub_subinfo	main::foo	called_by	1	31	[ 1 0 0 0 0 0 0 ]
+sub_subinfo	main::foo	called_by	1	30	[ 1 0 0 0 0 0 0 main::BEGIN ]
+sub_subinfo	main::foo	called_by	1	31	[ 1 0 0 0 0 0 0 main::BEGIN ]
