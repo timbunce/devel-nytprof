@@ -343,9 +343,10 @@ static HV *pkg_fids_hv;     /* currently just package names */
 
 static FILE *logfh;
 
+/* predeclare to set attribute */
+static void logwarn(const char *pat, ...) __attribute__format__(__printf__,1,2);
 static void
 logwarn(const char *pat, ...)
-    __attribute__format__(__printf__,1,2)
 {
     /* we avoid using any perl mechanisms here */
     va_list args;
@@ -918,7 +919,7 @@ output_str(char *str, I32 len) {    /* negative len signifies utf8 */
         len = -len;
     }
     if (trace_level >= 10)
-        logwarn("output_str('%.*s', %d)\n", len, str, len);
+        logwarn("output_str('%.*s', %d)\n", (int)len, str, (int)len);
     output_tag_int(tag, len);
     NYTP_write(out, str, len);
 }
@@ -1750,7 +1751,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         get_ticks_between(start_time, end_time, elapsed, overflow);
     }
     if (overflow)                                 /* XXX later output overflow to file */
-        logwarn("profile time overflow of %d seconds discarded\n", overflow);
+        logwarn("profile time overflow of %ld seconds discarded\n", overflow);
 
     reinit_if_forked(aTHX);
 
@@ -1765,7 +1766,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
             output_int(last_sub_line);
         }
         if (trace_level >= 4)
-            logwarn("Wrote %d:%-4d %2u ticks (%u, %u)\n", last_executed_fid,
+            logwarn("Wrote %d:%-4d %2ld ticks (%u, %u)\n", last_executed_fid,
                 last_executed_line, elapsed, last_block_line, last_sub_line);
     }
 
@@ -2379,9 +2380,9 @@ pp_subcall_profiler(pTHX_ int is_sop)
     /* pp_entersub can be called with PL_op->op_type==0 */
     OPCODE op_type = (is_sop) ? PL_op->op_type : OP_ENTERSUB;
     dSP;
-    I32 save_ix;
-    SV *sub_sv;
-    subr_entry_t *subr_entry;
+    I32 save_ix = 0;
+    SV *sub_sv = NULL;
+    subr_entry_t *subr_entry = NULL;
     int profile_sub_call = (profile_subs && is_profiling
         /* don't profile calls to non-existant import() methods */
         && !(op_type==OP_ENTERSUB && *SP == &PL_sv_yes)
@@ -2432,7 +2433,7 @@ pp_subcall_profiler(pTHX_ int is_sop)
             }
             else {
                 logwarn("Can't determine name of calling sub (no GV) at %s line %d\n",
-                    OutCopFILE(prev_cop), CopLINE(prev_cop));
+                    OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
                 sv_dump((SV*)subr_entry->caller_cv);
                 sv_setpv(subr_entry->caller_subname_sv, "__UNKNOWN__(NULLGV)");
             }
@@ -2507,7 +2508,7 @@ pp_subcall_profiler(pTHX_ int is_sop)
                     if (trace_level >= 1)
                         logwarn("Assuming called sub is named %s::%s at %s line %d\n",
                             stash_name, SvPV_nolen(called_subnam_sv),
-                            OutCopFILE(prev_cop), CopLINE(prev_cop));
+                            OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
                 }
                 is_xs = "xsub";
             }
@@ -3003,7 +3004,7 @@ write_sub_line_ranges(pTHX)
         if (!filename_len) {
             if (trace_level >= 3)
                 logwarn("Sub %.*s has no filename associated (%s)\n",
-                    sub_name_len, sub_name, filename);
+                    (int)sub_name_len, sub_name, filename);
             continue;
         }
 
@@ -3054,7 +3055,7 @@ write_sub_line_ranges(pTHX)
         if (!fid) {
             if (trace_level >= 4)
                 logwarn("Sub %s has no fid assigned (for file '%.*s')\n",
-                    sub_name, filename_len, filename);
+                    sub_name, (int)filename_len, filename);
             continue; /* no point in writing subs in files we've not profiled */
         }
 
@@ -3139,8 +3140,8 @@ write_sub_callers(pTHX)
                 }
                 else {
                     logwarn("%s called by %.*s at %u:%u: count %ld (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%d ri%"NVff"s)\n",
-                        called_subname,
-                        caller_subname_len, caller_subname, fid, line, (long)sc[NYTP_SCi_CALL_COUNT],
+                        called_subname, (int)caller_subname_len,
+                        caller_subname, fid, line, (long)sc[NYTP_SCi_CALL_COUNT],
                         sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
                         sc[NYTP_SCi_INCL_UTIME], sc[NYTP_SCi_INCL_STIME],
                         (int)sc[NYTP_SCi_REC_DEPTH], sc[NYTP_SCi_RECI_RTIME]);
