@@ -2370,6 +2370,147 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
 }
 
 
+static I32
+subr_entry_setup(pTHX, COP *prev_cop, subr_entry_t *clone_subr_entry)
+{
+    subr_entry_t *subr_entry;
+    I32 prev_subr_entry_ix = subr_entry_ix;
+    subr_entry_t *caller_subr_entry = subr_entry_ix_ptr(prev_subr_entry_ix);
+    char *found_caller_by;
+    char *file;
+    dSP;
+    SV *sub_sv = *SP;
+
+    if (trace_level >= 99) {
+        logwarn("entering sub\n");
+        /* crude, but the only way to deal with the miriad logic at the
+            * start of pp_entersub (which ought to be available as separate sub)
+            */
+        sv_dump(sub_sv);
+    }
+
+    /* allocate struct to save stack (very efficient) */
+    /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
+    subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
+    subr_entry = subr_entry_ix_ptr(subr_entry_ix);
+    Zero(subr_entry, 1, sizeof(subr_entry_t));
+    subr_entry->prev_subr_entry_ix = prev_subr_entry_ix;
+
+    get_time_of_day(subr_entry->initial_call_time);
+    subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
+    subr_entry->initial_subr_secs      = cumulative_subr_secs;
+    subr_entry->subr_call_seqn         = ++cumulative_subr_seqn;
+    subr_entry->called_subnam_sv       = &PL_sv_undef; /* see incr_sub_inclusive_time */
+    subr_entry->called_is_xs           = "?"; /* we don't know yet */
+
+    file = OutCopFILE(prev_cop);
+    subr_entry->caller_fid = (file == last_executed_fileptr)
+        ? last_executed_fid
+        : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
+    subr_entry->caller_line = CopLINE(prev_cop);
+
+    /* Gather details about the calling subroutine */
+    if (clone_subr_entry) {
+        subr_entry->caller_subpkg_pv = clone_subr_entry->called_subpkg_pv;
+        subr_entry->caller_subnam_sv = SvREFCNT_inc(clone_subr_entry->called_subnam_sv);
+        found_caller_by = "(cloned)";
+    }
+    else
+    /* Should we calculate the caller or can we reuse the caller_subr_entry?
+     * Sometimes we'll have a caller_subr_entry but it won't have the name yet.
+     * For example if the caller is an xsub or slowop that's callbacked into perl.
+     */
+    if (profile_findcaller             /* user wants us to calculate each time */
+    || !caller_subr_entry                     /* we don't have a caller struct */
+    || !caller_subr_entry->called_subpkg_pv   /* we don't have caller details  */
+    || !SvOK(caller_subr_entry->called_subnam_sv)
+    ) {
+        /* get the current CV and determine the current sub name from that */
+        CV *caller_cv = current_cv(aTHX_ cxstack_ix, NULL);
+        subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
+
+        if (caller_cv == PL_main_cv) {
+            subr_entry->caller_subpkg_pv = "main";
+            sv_setpv(subr_entry->caller_subnam_sv, "BEGIN");
+        }
+        else {
+            HV *stash_hv = NULL;
+            GV *gv = CvGV(caller_cv);
+            GV *egv = GvEGV(gv);
+            if (!egv)
+                gv = egv;
+
+            if (gv && (stash_hv = GvSTASH(gv))) {
+                subr_entry->caller_subpkg_pv = HvNAME(stash_hv);
+                sv_setpvn(subr_entry->caller_subnam_sv,GvNAME(gv),GvNAMELEN(gv));
+            }
+            else {
+                logwarn("Can't determine name of calling sub (GV %p, Stash %p, CV flags %d) at %s line %d\n",
+                    gv, stash_hv, (int)CvFLAGS(caller_cv),
+                    OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
+                sv_dump((SV*)caller_cv);
+
+                subr_entry->caller_subpkg_pv = "__UNKNOWN__";
+                sv_setpv(subr_entry->caller_subnam_sv, "__UNKNOWN__");
+            }
+        }
+        found_caller_by = (profile_findcaller) ? "" : "(calculated)";
+    }
+    else {
+        subr_entry->caller_subpkg_pv = caller_subr_entry->called_subpkg_pv;
+        subr_entry->caller_subnam_sv = SvREFCNT_inc(caller_subr_entry->called_subnam_sv);
+        found_caller_by = "(inherited)";
+    }
+
+    if (trace_level >= 4)
+        logwarn("Making sub call at %u:%d from %s::%s %s\n",
+            subr_entry->caller_fid, subr_entry->caller_line,
+            subr_entry->caller_subpkg_pv,
+            SvPV_nolen(subr_entry->caller_subnam_sv),
+            found_caller_by
+        );
+
+    return subr_entry_ix;
+}
+
+
+static OP *
+pp_goto_profiler(pTHX)
+{
+    /* we don't actually profile the goto, just do some housekeeping... */
+    dSP;
+    OP *op;
+    SV *sv = *SP; /* top of stack */
+    int is_goto_sub = (SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVCV);
+    subr_entry_t orig_subr_entry;
+
+    /* goto &sub acts like a return followed by a call,
+     * While this op is executing the subr_entry pushed onto the savestack
+     * by pp_subcall_profiler will be 'completed' so the profiling of that call
+     * will be handled naturally for us. So far so good.
+     */
+    if (is_goto_sub) {
+        /*
+        memcpy(&orig_subr_entry, XXX);
+        refcnt inc and mortalize
+        */
+    }
+
+    op = run_original_op(PL_op->op_type);   /* may croak */
+
+    /* If this was a goto &sub then op is the CvSTART of the called sub.
+     * What we need to do here is handle the entry to a new sub as if
+     * it was valled via pp_subcall_profiler()
+     */
+    if (0 && is_goto_sub) {
+        /* XXX call subr_entry_setup() plus some post-entry code */
+        subr_entry_setup(aTHX_ PL_curcop, &orig_subr_entry);
+    }
+
+    return op;
+}
+
+
 static OP *
 pp_entersub_profiler(pTHX)
 {
@@ -2391,110 +2532,23 @@ pp_subcall_profiler(pTHX_ int is_sop)
     /* pp_entersub can be called with PL_op->op_type==0 */
     OPCODE op_type = (is_sop) ? PL_op->op_type : OP_ENTERSUB;
     dSP;
-    SV *sub_sv = NULL;
-    subr_entry_t *subr_entry = NULL;
+    SV *sub_sv = *SP;
     int profile_sub_call = (profile_subs && is_profiling
         /* don't profile calls to non-existant import() methods */
         && !(op_type==OP_ENTERSUB && *SP == &PL_sv_yes)
     );
 
     if (profile_sub_call) {
-        I32 prev_subr_entry_ix = subr_entry_ix;
-        subr_entry_t *caller_subr_entry = subr_entry_ix_ptr(prev_subr_entry_ix);
-        char *found_caller_by;
-        char *file;
         int saved_errno = errno;
-        sub_sv = *SP;
+
         if (!profile_stmts)
             reinit_if_forked(aTHX);
 
-        if (trace_level >= 99) {
-            logwarn("entering sub\n");
-            /* crude, but the only way to deal with the miriad logic at the
-             * start of pp_entersub (which ought to be available as separate sub)
-             */
-            sv_dump(sub_sv);
-        }
-
-        /* allocate struct to save stack (very efficient) */
-        /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
-        subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
-        subr_entry = subr_entry_ix_ptr(subr_entry_ix);
-        Zero(subr_entry, 1, sizeof(subr_entry_t));
-        subr_entry->prev_subr_entry_ix = prev_subr_entry_ix;
-
-        get_time_of_day(subr_entry->initial_call_time);
-        subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
-        subr_entry->initial_subr_secs      = cumulative_subr_secs;
-        subr_entry->subr_call_seqn         = ++cumulative_subr_seqn;
-
-        file = OutCopFILE(prev_cop);
-        subr_entry->caller_fid = (file == last_executed_fileptr)
-            ? last_executed_fid
-            : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
-        subr_entry->caller_line = CopLINE(prev_cop);
-
-        /* Gather details about the caller */
-        /* Should we calculate the caller or can we reuse the caller_subr_entry?
-         * Sometimes we'll have a caller_subr_entry but it won't have the name yet.
-         * For example if the caller is an xsub or slowop that's callbacked into perl.
-         */
-        if (profile_findcaller             /* user wants us to calculate each time */
-        || !caller_subr_entry                     /* we don't have a caller struct */
-        || !caller_subr_entry->called_subpkg_pv   /* we don't have caller details  */
-        || !SvOK(caller_subr_entry->called_subnam_sv)
-        ) {
-            /* get the current CV and determine the current sub name from that */
-            CV *caller_cv = current_cv(aTHX_ cxstack_ix, NULL);
-            subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
-
-            if (caller_cv == PL_main_cv) {
-                subr_entry->caller_subpkg_pv = "main";
-                sv_setpv(subr_entry->caller_subnam_sv, "BEGIN");
-            }
-            else {
-                HV *stash_hv = NULL;
-                GV *gv = CvGV(caller_cv);
-                GV *egv = GvEGV(gv);
-                if (!egv)
-                    gv = egv;
-
-                if (gv && (stash_hv = GvSTASH(gv))) {
-                    subr_entry->caller_subpkg_pv = HvNAME(stash_hv);
-                    sv_setpvn(subr_entry->caller_subnam_sv,GvNAME(gv),GvNAMELEN(gv));
-                }
-                else {
-                    logwarn("Can't determine name of calling sub (GV %p, Stash %p, CV flags %d) at %s line %d\n",
-                        gv, stash_hv, (int)CvFLAGS(caller_cv),
-                        OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
-                    sv_dump((SV*)caller_cv);
-
-                    subr_entry->caller_subpkg_pv = "__UNKNOWN__";
-                    sv_setpv(subr_entry->caller_subnam_sv, "__UNKNOWN__");
-                }
-            }
-            found_caller_by = (profile_findcaller) ? "" : "(calculated)";
-        }
-        else {
-            subr_entry->caller_subpkg_pv = caller_subr_entry->called_subpkg_pv;
-            subr_entry->caller_subnam_sv = SvREFCNT_inc(caller_subr_entry->called_subnam_sv);
-            found_caller_by = "(inherited)";
-        }
-    
-        if (trace_level >= 4)
-            logwarn("Making sub at %u:%d from %s::%s %s\n",
-                subr_entry->caller_fid, subr_entry->caller_line,
-                subr_entry->caller_subpkg_pv,
-                SvPV_nolen(subr_entry->caller_subnam_sv),
-                found_caller_by
-            );
-
-        /* initialize items we'll set later */
-        subr_entry->called_subnam_sv = &PL_sv_undef; /* see incr_sub_inclusive_time */
-        subr_entry->called_is_xs = "?"; /* we don't know yet */
+        subr_entry_ix = subr_entry_setup(aTHX, prev_cop, NULL);
 
         SETERRNO(saved_errno, 0);
     }
+
 
     /*
      * For normal subs, pp_entersub enters the sub and returns the
@@ -2514,6 +2568,7 @@ pp_subcall_profiler(pTHX_ int is_sop)
         char *stash_name = NULL;
         CV *called_cv;
         char *is_xs;
+        subr_entry_t *subr_entry = subr_entry_ix_ptr(subr_entry_ix);
 
         /* push a destructor hook onto the context stack to ensure we account
          * for time in the sub when we leave it, even if via an exception.
@@ -2904,6 +2959,7 @@ init_profiler(pTHX)
     if (!pkg_fids_hv)
         pkg_fids_hv = newHV();
     PL_ppaddr[OP_ENTERSUB] = pp_entersub_profiler;
+    PL_ppaddr[OP_GOTO] = pp_goto_profiler;
 
     if (!PL_checkav) PL_checkav = newAV();
     if (!PL_initav)  PL_initav  = newAV();

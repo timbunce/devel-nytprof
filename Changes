@@ -9,6 +9,7 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 XXX slowops needs docs and more ops
 XXX subroutine profiler docs need update
 XXX doc findcaller option
+XXX note here and doc goto behaviour
 
   Note: The file format has changed. Old files can't be read.
 
