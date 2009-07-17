@@ -117,7 +117,8 @@ sub do_foreach_env_combination {
         my $context = "NYTPROF=$ENV{NYTPROF}\n";
         ($opts{v}) ? warn $context : print $context;
 
-        $code->(\%env);
+        ok eval { $code->(\%env) };
+        diag "Test group aborted: $@" if $@;
 
         # did any tests fail?
         my $failed = (count_of_failed_tests() - $prev_failures) ? 1 : 0;
@@ -181,7 +182,7 @@ sub run_test_group {
         print "nytprofcvs: $nytprofcsv\n";
     }
 
-    my $tests_per_env = number_of_tests(@tests) + $extra_test_count;
+    my $tests_per_env = number_of_tests(@tests) + $extra_test_count + 1;
 
     plan tests => 1 + $tests_per_env * @env_combinations;
 
@@ -211,6 +212,7 @@ sub run_test_group {
             $extra_test_code->($profile, $env);
         }
 
+        return 1;
     } );
 
     report_env_influence($group);
@@ -233,7 +235,8 @@ sub run_test {
 
     if ($type eq 'p') {
         unlink_old_profile_datafiles($profile_datafile);
-        profile($test, $profile_datafile);
+        profile($test, $profile_datafile)
+            or die "Profiling $test failed\n";
 
         if ($opts{html}) {
             my $cmd = "$perl $nytprofhtml --file=$profile_datafile --out=$outdir";
@@ -290,7 +293,7 @@ sub profile {
     my ($test, $profile_datafile) = @_;
 
     my $cmd = "$perl $opts{profperlopts} $test";
-    ok run_command($cmd), "$test runs ok under the profiler";
+    return ok run_command($cmd), "$test runs ok under the profiler";
 }
 
 

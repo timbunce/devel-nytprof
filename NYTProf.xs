@@ -244,7 +244,9 @@ static struct NYTP_int_options_t options[] = {
 #define profile_stmts options[9].option_value
     { "stmts", 1 },                              /* statement exclusive times */
 #define profile_slowops options[10].option_value
-    { "slowops", 0 }                                /* slow opcodes, typically system calls */
+    { "slowops", 0 },                            /* slow opcodes, typically system calls */
+#define profile_findcaller options[11].option_value
+    { "findcaller", 0 }                          /* find sub caller instead of trusting outer */
 };
 
 /* time tracking */
@@ -2079,6 +2081,7 @@ typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
     int completed;
     UV  subr_call_seqn;
+    I32 prev_subr_entry_ix; /* ix to callers subr_entry */
 
     time_of_day_t initial_call_time;
     NV            initial_overhead_ticks;
@@ -2086,7 +2089,6 @@ struct subr_entry_st {
 
     unsigned int  caller_fid;
     int           caller_line;
-    CV           *caller_cv;
     char         *caller_subpkg_pv;
     SV           *caller_subnam_sv;
 
@@ -2101,6 +2103,9 @@ struct subr_entry_st {
 /* save stack index to the current subroutine entry structure */
 static I32 subr_entry_ix = 0;
 
+#define subr_entry_ix_ptr(ix) ((ix) ? SSPTR(ix, subr_entry_t *) : NULL)
+
+
 static void
 subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
 {
@@ -2112,6 +2117,7 @@ subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
         sv_free(subr_entry->called_subnam_sv);
         subr_entry->called_subnam_sv = Nullsv;
     }
+    subr_entry_ix = subr_entry->prev_subr_entry_ix;
 }
 
 
@@ -2263,14 +2269,12 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     SETERRNO(saved_errno, 0);
 }
 
-
-static void         /* wrapper called via scope exit due to save_destructor below */
+static void         /* wrapper called at scope exit due to save_destructor below */
 incr_sub_inclusive_time_ix(pTHX_ void *subr_entry_ix_void)
 {
-    /* convert the I32-stored-as-void-ptr to an I32, then to a pointer */
+    /* recover the I32 ix that was stored as a void pointer */
     I32 save_ix = (I32)PTR2IV(subr_entry_ix_void);
-    subr_entry_t *subr_entry = SSPTR(save_ix, subr_entry_t *);
-    incr_sub_inclusive_time(aTHX_ subr_entry);
+    incr_sub_inclusive_time(aTHX_ subr_entry_ix_ptr(save_ix));
 }
 
 
@@ -2395,6 +2399,9 @@ pp_subcall_profiler(pTHX_ int is_sop)
     );
 
     if (profile_sub_call) {
+        I32 prev_subr_entry_ix = subr_entry_ix;
+        subr_entry_t *caller_subr_entry = subr_entry_ix_ptr(prev_subr_entry_ix);
+        char *found_caller_by;
         char *file;
         int saved_errno = errno;
         sub_sv = *SP;
@@ -2409,16 +2416,12 @@ pp_subcall_profiler(pTHX_ int is_sop)
             sv_dump(sub_sv);
         }
 
-        /* save the current subr_entry_ix, which will be restored just after the
-         * new subr_entry, which we create below, gets processed and destroyed
-         */
-        SAVEI32(subr_entry_ix);
-
         /* allocate struct to save stack (very efficient) */
         /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
         subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
-        subr_entry = SSPTR(subr_entry_ix, subr_entry_t *);
-        subr_entry->completed = 0;
+        subr_entry = subr_entry_ix_ptr(subr_entry_ix);
+        Zero(subr_entry, 1, sizeof(subr_entry_t));
+        subr_entry->prev_subr_entry_ix = prev_subr_entry_ix;
 
         get_time_of_day(subr_entry->initial_call_time);
         subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
@@ -2431,39 +2434,64 @@ pp_subcall_profiler(pTHX_ int is_sop)
             : get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_SUB);
         subr_entry->caller_line = CopLINE(prev_cop);
 
-        /* gather details about the caller */
-        subr_entry->caller_cv = current_cv(aTHX_ cxstack_ix, NULL);
-        subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
-        if (subr_entry->caller_cv == PL_main_cv) {
-            subr_entry->caller_subpkg_pv = "main";
-            sv_setpv(subr_entry->caller_subnam_sv, "BEGIN");
-        }
-        else {
-            HV *stash_hv = NULL;
-            GV *gv = CvGV(subr_entry->caller_cv);
-            GV *egv = GvEGV(gv);
-            if (!egv)
-                gv = egv;
+        /* Gather details about the caller */
+        /* Should we calculate the caller or can we reuse the caller_subr_entry?
+         * Sometimes we'll have a caller_subr_entry but it won't have the name yet.
+         * For example if the caller is an xsub or slowop that's callbacked into perl.
+         */
+        if (profile_findcaller             /* user wants us to calculate each time */
+        || !caller_subr_entry                     /* we don't have a caller struct */
+        || !caller_subr_entry->called_subpkg_pv   /* we don't have caller details  */
+        || !SvOK(caller_subr_entry->called_subnam_sv)
+        ) {
+            /* get the current CV and determine the current sub name from that */
+            CV *caller_cv = current_cv(aTHX_ cxstack_ix, NULL);
+            subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
 
-            if (gv && (stash_hv = GvSTASH(gv))) {
-                subr_entry->caller_subpkg_pv = HvNAME(stash_hv);
-                sv_setpvn(subr_entry->caller_subnam_sv,GvNAME(gv),GvNAMELEN(gv));
+            if (caller_cv == PL_main_cv) {
+                subr_entry->caller_subpkg_pv = "main";
+                sv_setpv(subr_entry->caller_subnam_sv, "BEGIN");
             }
             else {
-                logwarn("Can't determine name of calling sub (GV %p, Stash %p, CV flags %d) at %s line %d\n",
-                    gv, stash_hv, (int)CvFLAGS(subr_entry->caller_cv),
-                    OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
-                sv_dump((SV*)subr_entry->caller_cv);
+                HV *stash_hv = NULL;
+                GV *gv = CvGV(caller_cv);
+                GV *egv = GvEGV(gv);
+                if (!egv)
+                    gv = egv;
 
-                subr_entry->caller_subpkg_pv = "__UNKNOWN__";
-                sv_setpv(subr_entry->caller_subnam_sv, "__UNKNOWN__");
+                if (gv && (stash_hv = GvSTASH(gv))) {
+                    subr_entry->caller_subpkg_pv = HvNAME(stash_hv);
+                    sv_setpvn(subr_entry->caller_subnam_sv,GvNAME(gv),GvNAMELEN(gv));
+                }
+                else {
+                    logwarn("Can't determine name of calling sub (GV %p, Stash %p, CV flags %d) at %s line %d\n",
+                        gv, stash_hv, (int)CvFLAGS(caller_cv),
+                        OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
+                    sv_dump((SV*)caller_cv);
+
+                    subr_entry->caller_subpkg_pv = "__UNKNOWN__";
+                    sv_setpv(subr_entry->caller_subnam_sv, "__UNKNOWN__");
+                }
             }
+            found_caller_by = (profile_findcaller) ? "" : "(calculated)";
         }
+        else {
+            subr_entry->caller_subpkg_pv = caller_subr_entry->called_subpkg_pv;
+            subr_entry->caller_subnam_sv = SvREFCNT_inc(caller_subr_entry->called_subnam_sv);
+            found_caller_by = "(inherited)";
+        }
+    
+        if (trace_level >= 4)
+            logwarn("Making sub at %u:%d from %s::%s %s\n",
+                subr_entry->caller_fid, subr_entry->caller_line,
+                subr_entry->caller_subpkg_pv,
+                SvPV_nolen(subr_entry->caller_subnam_sv),
+                found_caller_by
+            );
 
         /* initialize items we'll set later */
         subr_entry->called_subnam_sv = &PL_sv_undef; /* see incr_sub_inclusive_time */
         subr_entry->called_is_xs = "?"; /* we don't know yet */
-        subr_entry->called_cv_depth = 0;
 
         SETERRNO(saved_errno, 0);
     }
@@ -2491,7 +2519,6 @@ pp_subcall_profiler(pTHX_ int is_sop)
          * for time in the sub when we leave it, even if via an exception.
          */
         save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)subr_entry_ix));
-
 
         called_subnam_sv = newSV(0);
         if (is_sop) {
@@ -3138,8 +3165,8 @@ write_sub_callers(pTHX)
             caller_subname_len = fid_line_start-caller_subname;
 
             output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
-            output_str(caller_subname, caller_subname_len);
             output_int(line);
+            output_str(caller_subname, caller_subname_len);
             sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
             sc[NYTP_SCi_EXCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
@@ -3863,8 +3890,8 @@ load_profile_data_from_stream(SV *cb)
                 AV *subinfo_av;
                 int len;
                 unsigned int fid   = read_int();
-                SV *caller_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str2_sv));
                 unsigned int line  = read_int();
+                SV *caller_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str2_sv));
                 unsigned int count = read_int();
                 NV incl_time       = read_nv();
                 NV excl_time       = read_nv();
@@ -3921,8 +3948,11 @@ load_profile_data_from_stream(SV *cb)
                     sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newAV()));
-                    else if (!instr(SvPV_nolen(called_subname_sv), "__ANON__[(eval") || trace_level)
-                        logwarn("Merging extra sub caller info for %s %d:%d\n",
+                    else if (trace_level)
+                        /* calls to sub1 from the same fid:line could have different caller subs
+                         * due to evals or if profile_findcaller is off.
+                         */
+                        logwarn("Merging extra sub caller info for %s called at %d:%d\n",
                             SvPV_nolen(called_subname_sv), fid, line);
                     av = (AV *)SvRV(sv);
                     sv = *av_fetch(av, NYTP_SCi_CALL_COUNT, 1);
