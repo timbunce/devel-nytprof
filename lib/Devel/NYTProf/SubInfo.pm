@@ -54,7 +54,24 @@ sub recur_max_depth { shift->[NYTP_SIi_REC_DEPTH] }
 sub recur_incl_time { shift->[NYTP_SIi_RECI_RTIME] }
 
 # { fid => { line => [ count, incl_time ] } }
-sub caller_fid_line_places    { shift->[NYTP_SIi_CALLED_BY] }
+sub caller_fid_line_places {
+    my ($self, $merge_evals) = @_;
+    carp "caller_fid_line_places doesn't merge evals yet" if $merge_evals;
+    return $self->[NYTP_SIi_CALLED_BY];
+}
+
+sub called_by_subnames {
+    my ($self) = @_;
+    my $callers = $self->caller_fid_line_places || {};
+
+    my %subnames;
+    for my $sc (map { values %$_ } values %$callers) {
+        my $caller_subnames = $sc->[NYTP_SCi_CALLING_SUB];
+        @subnames{ keys %$caller_subnames } = (); # viv keys
+    }
+
+    return \%subnames;
+}
 
 sub is_xsub {
     my $self = shift;

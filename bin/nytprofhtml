@@ -581,7 +581,8 @@ output_subs_treemap_page($reporter, "subs-treemap-excl.html",
     "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
 output_subs_treemap_page($reporter, "subs-treemap-incl.html",
     "Subroutine Inclusive Time Treemap", sub { shift->incl_time });
-output_subs_callgraph_page($reporter, "subs-callgraph.html");
+output_subs_callgraph_jit_page($reporter, "subs-callgraph.html");
+output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot");
 output_index_page($reporter, "index.html");
 
 output_js_files($reporter);
@@ -673,7 +674,8 @@ sub output_index_page {
     }
 
     print OUT q{<br/>You can view subroutines as treemap of <a href="subs-treemap-excl.html">exclusive</a> or <a href="subs-treemap-incl.html">inclusive</a> time, grouped by package.<br/>};
-    print OUT q{<br/><a href="subs-callgraph.html">View subroutine call graph</a><br/>};
+    print OUT q{<br/>Subroutine call graph as a <a href="subs-callgraph.html">radial graph</a>,
+        or Graphviz <a href="subs-callgraph.dot">dot file</a> <br/>};
 
     print OUT file_table($profile, $stats, 1);
 
@@ -1101,7 +1103,7 @@ sub output_callgraph_code {
 }
 
 
-sub sub_callgraph_data {
+sub sub_callgraph_jit_data {
     my ($profile) = @_;
     my $subinfos = $profile->subname_subinfo_map;
 
@@ -1111,18 +1113,16 @@ sub sub_callgraph_data {
         my $si = $subinfos->{$subname};
 
         # which subs called this sub...
-        my %called_by;
-        if (my $callers = $si->caller_fid_line_places) {
-            # { fid => { line => [...] } } => ([...], ...)
-            my @called_by_sc = 
-                map { keys %{$_->[NYTP_SCi_CALLING_SUB]} }
-                map { values %$_ }
-                values %$callers;
+        my $called_by_subnames = $si->called_by_subnames;
 
-            for my $cb_subname (@called_by_sc) {
-                $sub2called{$subname}{$cb_subname} = [];
-            }
+        if (!%$called_by_subnames) {
+            warn sprintf "%s has no caller subnames but a call count of %d\n",
+                    $subname, $si->calls
+                if $si->calls;
+            next;
         }
+
+        $sub2called{$subname} = $called_by_subnames;
     }
 
     # { called_subname => { calling_subname => [...], ... } }
@@ -1165,7 +1165,7 @@ sub sub_callgraph_data {
 }
 
 
-sub output_subs_callgraph_page {
+sub output_subs_callgraph_jit_page {
     my ($r, $filename) = @_;
     my $profile = $reporter->{profile};
 
@@ -1180,7 +1180,7 @@ sub output_subs_callgraph_page {
         id => 1,
         title => "Subroutine Call Graph",
         get_data => sub {
-            sub_callgraph_data($profile);
+            sub_callgraph_jit_data($profile);
         }
     };
 
@@ -1198,6 +1198,58 @@ sub output_subs_callgraph_page {
 
     my $footer = get_footer($profile);
     print OUT "$footer</body></html>";
+    close OUT;
+}
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+
+sub output_subs_callgraph_dot_file {
+    my ($r, $filename) = @_;
+    my $profile = $reporter->{profile};
+    my $subinfos = $profile->subname_subinfo_map;
+
+    open(OUT, '>', "$opt{out}/$filename")
+        or croak "Unable to open file $opt{out}/$filename: $!";
+
+    print OUT "digraph {\n"; # }
+
+    # output nodes and gather link info
+    my %sub2called;
+    for my $subname (keys %$subinfos) {
+        my $si = $subinfos->{$subname};
+
+        my $called_by_subnames = $si->called_by_subnames;
+        if (!%$called_by_subnames) { 
+            warn sprintf "%s has no caller subnames but a call count of %d\n",
+                    $subname, $si->calls
+                if $si->calls;
+            next;
+        }
+
+        # node_stmt: node_id [ attr_list ]
+        print OUT qq{"$subname";\n};
+
+        $sub2called{$subname} = $called_by_subnames;
+    }
+
+#stmt : node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
+#attr_stmt : (graph | node | edge) attr_list
+#attr_list : '[' [ a_list ] ']' [ attr_list ]
+#a_list : ID [ '=' ID ] [ ',' ] [ a_list ]
+#subgraph : [ subgraph [ ID ] ] '{' stmt_list '}'
+
+    while ( my ($subname, $called_by_subnames) = each %sub2called ) {
+
+        for my $called_by (keys %$called_by_subnames) {
+            # edge_stmt : (node_id | subgraph) edgeRHS [ attr_list ]
+            # edgeRHS   : edgeop (node_id | subgraph) [ edgeRHS ]
+            printf OUT qq{"%s" -> "%s";\n},
+                $called_by, $subname;
+        }
+
+    }
+    print OUT "}\n";
+
     close OUT;
 }
 
