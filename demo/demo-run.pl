@@ -10,7 +10,7 @@ my %runs = (
         NYTPROF => 'start=begin:optimize=0',
     },
     start_check => {
-        skip => 1,
+        skip => 0,
         NYTPROF => 'start=init:optimize=0',
     },
     start_end => {

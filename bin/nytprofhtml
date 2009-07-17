@@ -674,8 +674,8 @@ sub output_index_page {
     }
 
     print OUT q{<br/>You can view subroutines as treemap of <a href="subs-treemap-excl.html">exclusive</a> or <a href="subs-treemap-incl.html">inclusive</a> time, grouped by package.<br/>};
-    print OUT q{<br/>Subroutine call graph as a <a href="subs-callgraph.html">radial graph</a>,
-        or Graphviz <a href="subs-callgraph.dot">dot file</a> <br/>};
+    print OUT q{<br/>View the subroutine call graph as a <a href="subs-callgraph.html">radial graph</a>,
+        or Graphviz <a href="subs-callgraph.dot">dot file</a>.<br/>};
 
     print OUT file_table($profile, $stats, 1);
 
@@ -1211,7 +1211,16 @@ sub output_subs_callgraph_dot_file {
     open(OUT, '>', "$opt{out}/$filename")
         or croak "Unable to open file $opt{out}/$filename: $!";
 
+    my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
+    my $dotnode = sub {
+        my $name = shift;
+        $name =~ s/$inc_path_regex//;
+        $name =~ s/"/\\"/g;
+        return '"'.$name.'"';
+    };
+
     print OUT "digraph {\n"; # }
+    print OUT "graph [overlap=false]\n"; # target="???", URL="???"
 
     # output nodes and gather link info
     my %sub2called;
@@ -1227,7 +1236,7 @@ sub output_subs_callgraph_dot_file {
         }
 
         # node_stmt: node_id [ attr_list ]
-        print OUT qq{"$subname";\n};
+        printf OUT qq{%s;\n}, $dotnode->($subname);
 
         $sub2called{$subname} = $called_by_subnames;
     }
@@ -1243,8 +1252,8 @@ sub output_subs_callgraph_dot_file {
         for my $called_by (keys %$called_by_subnames) {
             # edge_stmt : (node_id | subgraph) edgeRHS [ attr_list ]
             # edgeRHS   : edgeop (node_id | subgraph) [ edgeRHS ]
-            printf OUT qq{"%s" -> "%s";\n},
-                $called_by, $subname;
+            printf OUT qq{%s -> %s;\n},
+                $dotnode->($called_by), $dotnode->($subname);
         }
 
     }
