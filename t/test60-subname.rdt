@@ -32,6 +32,7 @@ fid_fileinfo	1	call	12	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 main::
 fid_fileinfo	1	call	16	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 main::BEGIN ]
 fid_fileinfo	1	call	19	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 main::BEGIN ]
 fid_fileinfo	1	call	22	main::CORE:wait	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	1	call	27	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 main::BEGIN ]
 fid_fileinfo	1	call	28	main::launch	[ 1 0 0 0 0 0 0 main::BEGIN ]
 fid_fileinfo	2	[ Devel/NYTProf/Test.pm   2 4 0 0 ]
 fid_fileinfo	2	sub	Devel::NYTProf::Test::example_sub	13-13
@@ -60,12 +61,13 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	Devel::NYTProf::Test::example_sub	[ 2 13 13 0 0 0 0 0 ]
-sub_subinfo	Devel::NYTProf::Test::example_xsub	[ 2 0 0 5 0 0 0 0 ]
+sub_subinfo	Devel::NYTProf::Test::example_xsub	[ 2 0 0 6 0 0 0 0 ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	5	[ 1 0 0 0 0 0 0 main::BEGIN ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	9	[ 1 0 0 0 0 0 0 main::BEGIN ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	12	[ 1 0 0 0 0 0 0 main::BEGIN ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	16	[ 1 0 0 0 0 0 0 main::BEGIN ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	19	[ 1 0 0 0 0 0 0 main::BEGIN ]
+sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	27	[ 1 0 0 0 0 0 0 main::BEGIN ]
 sub_subinfo	main::BEGIN	[ 1 2 2 0 0 0 0 0 ]
 sub_subinfo	main::CORE:wait	[ 1 0 0 1 0 0 0 0 ]
 sub_subinfo	main::CORE:wait	called_by	1	22	[ 1 0 0 0 0 0 0 main::BEGIN ]

@@ -73,6 +73,7 @@ my $perl     = $opts{p} || $^X;
 # turn ./perl into ../perl, because of chdir(t) above.
 $perl = ".$perl" if $perl =~ m|^\./|;
 
+$opts{one} ||= $ENV{NYTPROF_TEST_ONE};
 if ($opts{one}) {           # for one quick test
     $opts{leave}      = 1;
     $opts{use_db_sub} = 0;
