@@ -2434,7 +2434,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
         if (caller_cv == PL_main_cv) {
             /* PL_main_cv is run-time main (compile, eg 'use' is main::BEGIN) */
             subr_entry->caller_subpkg_pv = "main";
-            sv_setpv(subr_entry->caller_subnam_sv, "BEGIN");
+            sv_setpv(subr_entry->caller_subnam_sv, "RUNTIME"); /* *cough* */
         }
         else {
             HV *stash_hv = NULL;

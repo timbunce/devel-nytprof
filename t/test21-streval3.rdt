@@ -24,13 +24,13 @@ fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	sub	main::foo	4-4
 fid_fileinfo	1	eval	17	[ 1 2 ]
 fid_fileinfo	2	[ (eval 0)[test21-streval3.p:17] 1 17 2 2 0 0 ]
-fid_fileinfo	2	call	3	main::foo	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	2	call	3	main::foo	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	2	eval	4	[ 1 1 ]
 fid_fileinfo	3	[ (eval 0)[(eval 0)[test21-streval3.p:17]:4] 2 4 3 2 0 0 ]
-fid_fileinfo	3	call	3	main::foo	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	3	call	3	main::foo	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	3	eval	4	[ 1 0 ]
 fid_fileinfo	4	[ (eval 0)[(eval 0)[(eval 0)[test21-streval3.p:17]:4]:4] 3 4 4 2 0 0 ]
-fid_fileinfo	4	call	3	main::foo	[ 1 0 0 0 0 0 0 main::BEGIN ]
+fid_fileinfo	4	call	3	main::foo	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_line_time	1	4	[ 0 3 ]
 fid_line_time	1	5	[ 0 1 ]
 fid_line_time	1	17	0	0
@@ -50,6 +50,6 @@ profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
 sub_subinfo	main::foo	[ 1 4 4 3 0 0 0 0 ]
-sub_subinfo	main::foo	called_by	2	3	[ 1 0 0 0 0 0 0 main::BEGIN ]
-sub_subinfo	main::foo	called_by	3	3	[ 1 0 0 0 0 0 0 main::BEGIN ]
-sub_subinfo	main::foo	called_by	4	3	[ 1 0 0 0 0 0 0 main::BEGIN ]
+sub_subinfo	main::foo	called_by	2	3	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+sub_subinfo	main::foo	called_by	3	3	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+sub_subinfo	main::foo	called_by	4	3	[ 1 0 0 0 0 0 0 main::RUNTIME ]
