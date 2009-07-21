@@ -43,6 +43,9 @@
 #ifndef PERLDBf_SAVESRC_NOSUBS
 #define PERLDBf_SAVESRC_NOSUBS 0
 #endif
+#ifndef CvISXSUB
+#define CvISXSUB CvXSUB
+#endif
 
 #if (PERL_VERSION < 8) || ((PERL_VERSION == 8) && (PERL_SUBVERSION < 8))
 /* If we're using DB::DB() instead of opcode redirection with an old perl
@@ -2194,7 +2197,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
     sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, strlen(called_subname_pv), 1);
 
-    if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this subname from anywhere */
+    if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this called subname from anywhere */
         HV *hv = newHV();
         sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
 
@@ -2214,7 +2217,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
                     * corresonding .pm file using the package part of the subname.
                     */
                 SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, strlen(called_subname_pv), 1);
-                sv_setpv(sv, ":0-0"); /* empty file name */
+                if (!SvOK(sv))
+                    sv_setpv(sv, ":0-0"); /* empty file name */
                 if (trace_level >= 2)
                     logwarn("Adding fake DBsub entry for '%s' xsub\n", called_subname_pv);
             }
@@ -2403,7 +2407,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
     subr_entry->initial_subr_secs      = cumulative_subr_secs;
     subr_entry->subr_call_seqn         = ++cumulative_subr_seqn;
     subr_entry->called_subnam_sv       = &PL_sv_undef; /* see incr_sub_inclusive_time */
-    subr_entry->called_is_xs           = "?"; /* we don't know yet */
+    subr_entry->called_is_xs           = NULL; /* we don't know yet */
 
     file = OutCopFILE(prev_cop);
     subr_entry->caller_fid = (file == last_executed_fileptr)
@@ -2627,7 +2631,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     else {
         if (op_type == OP_GOTO) {
             /* use the called_cv that was the arg to the goto op */
-            is_xs = (CvXSUB(called_cv)) ? "xsub" : NULL;
+            is_xs = (CvISXSUB(called_cv)) ? "xsub" : NULL;
         }
         else
         if (op != next_op) {   /* have entered a sub */
@@ -2967,21 +2971,7 @@ init_profiler(pTHX)
         /* XXX this will turn into a loop over an array that maps
          * opcodes to the subname we'll use: OP_PRTF => "printf"
          */
-        PL_ppaddr[OP_SLEEP] = pp_slowop_profiler;
-        PL_ppaddr[OP_OPEN] = pp_slowop_profiler;
-        PL_ppaddr[OP_CLOSE] = pp_slowop_profiler;
-        PL_ppaddr[OP_READ] = pp_slowop_profiler;
-        PL_ppaddr[OP_READLINE] = pp_slowop_profiler;
-        PL_ppaddr[OP_STAT] = pp_slowop_profiler;
-        PL_ppaddr[OP_OPEN_DIR] = pp_slowop_profiler;
-        PL_ppaddr[OP_CLOSEDIR] = pp_slowop_profiler;
-        PL_ppaddr[OP_READDIR] = pp_slowop_profiler;
-        PL_ppaddr[OP_RAND] = pp_slowop_profiler;
-        PL_ppaddr[OP_SRAND] = pp_slowop_profiler;
-        PL_ppaddr[OP_WAIT] = pp_slowop_profiler;
-        PL_ppaddr[OP_SELECT] = pp_slowop_profiler;
-        PL_ppaddr[OP_MATCH] = pp_slowop_profiler;
-        PL_ppaddr[OP_SUBST] = pp_slowop_profiler;
+#include "slowops.h"
     }
 
     /* redirect opcodes for caller tracking */

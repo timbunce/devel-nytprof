@@ -34,6 +34,7 @@ lib/Devel/NYTProf/js/jquery-tablesorter-min.js
 lib/Devel/NYTProf/js/style-tablesorter.css
 perftest.pl
 ppport.h
+slowops.h
 t/00-load.t
 t/22-readstream.t
 t/30-util.t
