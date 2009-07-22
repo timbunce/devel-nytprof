@@ -280,116 +280,6 @@ sub subroutine_treemap {
 }
 
 
-sub package_tables {
-    my ($profile) = @_;
-    my $pkg_html = "";
-
-    # XXX may not be appropriate if profiling wasn't continuous
-    my $profiler_duration = $profile->{attribute}{profiler_duration};
-
-    # [
-    #   undef,  # depth 0
-    #   {       # depth 1
-    #       "main::" => [ [ subinfo1, subinfo2 ] ],    # 2 subs in 1 pkg
-    #       "Foo::"  => [ [ subinfo3 ], [ subinfo4 ] ] # 2 subs in 2 pkg
-    #   }
-    #   {       # depth 2
-    #       "Foo::Bar::" => [ [ subinfo3 ] ]           # 1 sub in 1 pkg
-    #       "Foo::Baz::" => [ [ subinfo4 ] ]           # 1 sub in 1 pkg
-    #   }
-    # ]
-    my $pkg_depth = $profile->packages_at_depth_subinfo({
-        include_unused_subs => 0,
-        rollup_packages => 1,
-        merge_subinfos => 1,
-    });
-
-    # default:
-    # { pkgname => [ subinfo1, subinfo2, ... ], ... }
-    # merged:
-    # { pkgname => [ single_merged_subinfo ], ...  }
-    my $package_subinfo_map = $profile->package_subinfo_map(1);
-
-    # generate a separate table for each depth
-    for my $depth (0..@$pkg_depth-1) {
-
-        my $pkgs_subinfos = { %{ $pkg_depth->[$depth] || {} } };
-        next if not %$pkgs_subinfos;
-
-        # add info for raw (un-rolledup) packages from lower depths
-        for my $d (0..$depth-1) {
-            my $p = $pkg_depth->[$d] or next;
-            for my $higher_pkg (keys %$p) {
-                my $higher_pkg_info = $package_subinfo_map->{$higher_pkg}
-                    or next;
-                $pkgs_subinfos->{$higher_pkg} = $higher_pkg_info;
-            }
-        }
-
-        my %pkg_summary;
-        while ( my ($pkg_name, $subinfos) = each %$pkgs_subinfos) {
-            my $pi = $pkg_summary{$pkg_name} ||= { pkg_name => $pkg_name };
-
-            # merge all sub infos into one pseudo-sub for package
-            my $sub;
-            for my $si (@$subinfos) {
-                ++$pi->{num_packages};
-                my $n = $si->subname;
-                ($sub) ? $sub->merge_in($si) : ($sub = $si->clone);
-            }
-            $pi->{merged_sub} = $sub;
-            $pi->{excl_time}  = $sub->excl_time;
-        }
-
-        my $dev_excl_time = calc_mad_from_hashes([values %pkg_summary], 'excl_time', 1);
-
-        my $table_id = "pkg_table_$depth";
-        $pkg_html .= qq{
-            <table id="$table_id" border="1" cellpadding="0" class="tablesorter">
-            <caption>Packages - subroutine times rolled up to level $depth package name</caption>
-            <thead>
-            <tr>
-            <th>Exclusive<br />Time</th>
-            <th>Package Name Prefix</th>
-            </tr>
-            </thead>
-        };
-        $pkg_html .= "<tbody>\n";
-        for my $pi (sort { $b->{excl_time} <=> $a->{excl_time} } values %pkg_summary) {
-
-            $pkg_html .= "<tr>";
-            $pkg_html .= determine_severity($pi->{excl_time}    || 0, $dev_excl_time, 1,
-                sprintf("%.1f%%", $pi->{excl_time}/$profiler_duration*100)
-            );
-            $pkg_html .= qq{<td class="sub_name">};
-            my $name = $pi->{pkg_name};
-            $name .= " (includes $pi->{num_packages} packages)" if $pi->{num_packages} > 1;
-            $pkg_html .= _escape_html($name);
-            $pkg_html .= qq{</td>};
-            $pkg_html .= "</tr>\n";
-        }
-        $pkg_html .= q{
-            </tbody>
-            </table>
-        };
-
-        push @on_ready_js, qq{
-            \$("#$table_id").tablesorter({
-                headers: {
-                    0: { sorter: 'fmt_time' }
-                }
-            });
-        };
-
-        # no point in generating deeper levels if there isn't any more detail
-        # (e.g. A::B contains no subs just a single package A::B::C)
-        last if not grep { $_->{num_packages} > 1 } values %pkg_summary;
-    }
-
-    return $pkg_html;
-}
-
-
 $reporter->set_param(
     'datastart',
     sub {
@@ -474,6 +364,8 @@ sub report_src_line {
 
     $linesrc = _escape_html($linesrc);
 
+    our $inc_path_regex ||= get_abs_paths_alternation_regex([$profile->inc]);
+
     my @prologue;
 
     # for each of the subs defined on this line, who called them
@@ -523,7 +415,9 @@ sub report_src_line {
             }
 
             my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
-            $line_desc =~ s/ of \Q$filename\E$// if $filename eq $thisfile;
+            $line_desc =~ s/ of \Q$filename\E$//g if $filename eq $thisfile;
+            # remove @INC prefix from paths
+            $line_desc =~ s/$inc_path_regex//g;
 
             push @prologue,
                 sprintf q{# %*s times%s%s at <a href="%s#%d">%s</a>%s},
@@ -548,11 +442,13 @@ sub report_src_line {
         my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
 
         $epilogue = join "\n", map {
-            my ($count, $incl_time, $reci_time, $rec_depth) = (@{$calls->{$_}})[0,1,5,6];
+            my $subname = $_;
+            my ($count, $incl_time, $reci_time, $rec_depth) = (@{$calls->{$subname}})[0,1,5,6];
             my $html = sprintf qq{%s# spent %s making %*d call%s to }, $ws,
                 fmt_time($incl_time+$reci_time, 5), length($max_calls_to),
                 $count, $count == 1 ? "" : "s";
-            $html .= sprintf qq{<a %s>%s</a>}, $reporter->href_for_sub($_), $_;
+            (my $subname_trimmed = $subname) =~ s/$inc_path_regex//g;
+            $html .= sprintf qq{<a %s>%s</a>}, $reporter->href_for_sub($subname), $subname_trimmed;
             $html .= sprintf qq{, avg %s/call}, fmt_time($incl_time / $count)
                 if $count > 1;
             $html .= sprintf qq{, max recursion depth %d}, $rec_depth
@@ -678,8 +574,6 @@ sub output_index_page {
         or Graphviz <a href="subs-callgraph.dot">dot file</a>.<br/>};
 
     print OUT file_table($profile, $stats, 1);
-
-    print OUT package_tables($profile);
 
     my $footer = get_footer($profile);
     print OUT "</div>$footer</body></html>";
@@ -818,12 +712,13 @@ sub package_subinfo_map_to_tm_data {
             pl("%d place", scalar $si->caller_places),
             pl("%d file", scalar $si->caller_fids);
 
+        my $total_time = $si->profile->{attribute}{profiler_duration};
         my $excl_time = $si->excl_time;
-        push @html, sprintf "Exclusive time: %s",
-            fmt_time($excl_time);
+        push @html, sprintf "Exclusive time: %s, %.2f%%",
+            fmt_time($excl_time), $excl_time/$total_time*100;
         my $incl_time = $si->incl_time;
-        push @html, sprintf "Inclusive time: %s",
-            fmt_time($incl_time);
+        push @html, sprintf "Inclusive time: %s, %.2f%%",
+            fmt_time($incl_time), $incl_time/$total_time*100;
 
         if (my $mrd = $si->recur_max_depth) {
             push @html, sprintf "Recursion: max depth %d, recursive inclusive time %s",
@@ -1358,7 +1253,7 @@ sub file_table {
     }
 
     my $dev_time = calc_mad_from_hashes([values %$stats], 'time',      0);
-    my $dev_avgt = calc_mad_from_hashes([values %$stats], 'time/call', 0);
+    #my $dev_avgt = calc_mad_from_hashes([values %$stats], 'time/call', 0);
 
     # generate time-sorted sections for files
     print OUT qq{
@@ -1368,7 +1263,7 @@ sub file_table {
     print OUT qq{
         <thead><tr class="index">
         <th>Stmts</th><th>Exclusive<br />Time</th>
-        <th>Avg.</th><th>Reports</th><th>Source File</th>
+        <th>Reports</th><th>Source File</th>
         </tr></thead>
         <tbody>
     };
@@ -1410,7 +1305,7 @@ sub file_table {
         );
         $t_stmt_time += $filestats->{'time'};
 
-        print OUT determine_severity($filestats->{'time/call'}, $dev_avgt, 1);
+        #print OUT determine_severity($filestats->{'time/call'}, $dev_avgt, 1);
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
             my $level_html_safe = $filestats->{$_}->{html_safe};
@@ -1430,7 +1325,7 @@ sub file_table {
     if ($add_totals) {
         print OUT "<tfoot>\n";
         my $stats_fmt =
-            qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
+            qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
         my $t_notes = "";
         my $stmt_time_diff = $allTimes - $t_stmt_time;
         if ($t_stmt_exec != $allCalls or $stmt_time_diff > 0.000_010) {
@@ -1440,18 +1335,16 @@ sub file_table {
             $t_notes = sprintf "(%d string evals account for a further %d statements%s)",
                 $eval_fileinfos, $allCalls - $t_stmt_exec, $stmt_time_diff;
         }
-        print OUT sprintf $stats_fmt, fmt_float($t_stmt_exec), fmt_time($t_stmt_time), '',
+        print OUT sprintf $stats_fmt, fmt_float($t_stmt_exec), fmt_time($t_stmt_time),
             "Total $t_notes";
 
         print OUT sprintf $stats_fmt, int(fmt_float($t_stmt_exec / keys %$stats)),
-            fmt_time($t_stmt_time / keys %$stats), '', "Average"
+            fmt_time($t_stmt_time / keys %$stats), "Average"
             if %$stats;    # avoid divide by zero
 
-        print OUT sprintf $stats_fmt, '', fmt_time($dev_time->[1]), fmt_time($dev_avgt->[1]),
-            "Median";
-        print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[0]), fmt_float($dev_avgt->[0]),
-            "Deviation"
-            if $dev_time->[0] or $dev_avgt->[0];
+        print OUT sprintf $stats_fmt, '', fmt_time($dev_time->[1]), "Median";
+        print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[0]), "Deviation"
+            if $dev_time->[0];
         print OUT "</tfoot>\n";
     }
     print OUT '</table>';
