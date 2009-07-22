@@ -30,7 +30,8 @@ if ($ENV{PERL_CORE}) {
 } else {
   @man = ( MAN1PODS  => {
         'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
-        'bin/nytprofcsv'  => '$(INST_MAN1DIR)/nytprofcsv.1'
+        'bin/nytprofcsv'  => '$(INST_MAN1DIR)/nytprofcsv.1',
+        'bin/nytprofcg'   => '$(INST_MAN1DIR)/nytprofcg.1',
   } );
 }
 
@@ -125,7 +126,7 @@ WriteMakefile(
 	'JSON::Any'    => 0,
     },
     LIBS      => [join ' ', @libs],
-    EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv'],
+    EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv', 'bin/nytprofcg'],
     @man,
     INC   => $INCLUDE,
     clean => {

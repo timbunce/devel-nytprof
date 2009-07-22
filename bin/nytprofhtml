@@ -297,7 +297,6 @@ $reporter->set_param(
       <th><span title="Number of statements executed">State<br />-ments</span></th>
       <th><span title="Time spend executing statements on the line,
         excluding time spent executing statements in any called subroutines">Time<br />on line</span></th>
-      <th><span title="Average exclusive time per statement execution">Avg.<br />Time</span></th>
       <th><span title="Number of subroutines calls">Calls</span></th>
       <th><span title="Time spent in subroutines called">Time<br />in subs</span></th>
       <th class="left_indent_header">Code</th>
@@ -323,14 +322,14 @@ sub mk_report_source_line {
     my $l = sprintf(qq{<td class="h"><a name="%s"></a>%s</td>}, $linenum, $linenum);
     my $s = report_src_line(undef, $linenum, $line, $profile, $subs_defined, $makes_calls_to, $filestr);
 
-    return "<tr>$l<td></td><td></td><td></td><td></td><td></td>$s</tr>\n"
+    return "<tr>$l<td></td><td></td><td></td><td></td>$s</tr>\n"
         if not %$stats_for_line;
 
     return join "",
         "<tr>$l",
         determine_severity($stats_for_line->{'calls'},     $stats_for_file->{'calls'}),
-        determine_severity($stats_for_line->{'time'},      $stats_for_file->{'time'}, 1),
-        determine_severity($stats_for_line->{'time/call'}, $stats_for_file->{'time/call'}, 1),
+        determine_severity($stats_for_line->{'time'},      $stats_for_file->{'time'}, 1,
+            \sprintf("Avg %s",fmt_time($stats_for_line->{'time/call'}))),
         determine_severity($stats_for_line->{'subcall_count'}, $stats_for_file->{subcall_count}, 0),
         determine_severity($stats_for_line->{'subcall_time'},  $stats_for_file->{subcall_time}, 1),
         $s, "</tr>\n";
@@ -341,7 +340,7 @@ sub mk_report_xsub_line {
     (my $anchor = $subname) =~ s/\W/_/g;
     return join "",
         sprintf(qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, ''),
-        "<td></td><td></td><td></td><td></td><td></td>",
+        "<td></td><td></td><td></td><td></td>",
         report_src_line(undef, undef, $line, $profile, $subs_defined, $makes_calls_to, $filestr),
         "</tr>\n";
 }
@@ -1401,7 +1400,7 @@ sub determine_severity {
     }
 
     if ($title) {
-        $title = _escape_html($title);
+        $title = (ref $title) ? $$title : _escape_html($title);
         $fmt_val = qq{<span title="$title">$fmt_val</span>};
     }
 
