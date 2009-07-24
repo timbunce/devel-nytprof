@@ -14,7 +14,7 @@ use strict;
 
 use Carp;
 use Getopt::Long;
-use List::Util qw(sum max);
+use List::Util qw(sum max shuffle);
 use File::Copy;
 use JSON::Any;
 
@@ -34,7 +34,7 @@ if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
 }
 
-my @treemap_colors = (0..10);
+my @treemap_colors = (0,2,4,6,8,10,1,3,5,7,9);
 
 # These control the limits for what the script will consider ok to severe times
 # specified in standard deviations from the mean time
@@ -274,27 +274,19 @@ sub subroutine_table {
 }
 
 
-sub subroutine_treemap {
-    my ($profile, $filestr) = @_;
-    return "";
-}
-
-
 $reporter->set_param(
     'datastart',
     sub {
         my ($profile, $filestr) = @_;
 
         my $sub_table = subroutine_table($profile, $filestr, undef, undef);
-        my $treemap = subroutine_treemap($profile, $filestr);
 
         return qq{
         $sub_table
-        $treemap
       <table border="1" cellpadding="0">
       <thead>
       <tr><th>Line</th>
-      <th><span title="Number of statements executed">State<br />-ments</span></th>
+      <th><span title="Number of statements executed">State<br />ments</span></th>
       <th><span title="Time spend executing statements on the line,
         excluding time spent executing statements in any called subroutines">Time<br />on line</span></th>
       <th><span title="Number of subroutines calls">Calls</span></th>
@@ -474,9 +466,6 @@ output_subs_index_page($reporter, "index-subs-excl.html", 'excl_time');
 output_subs_index_page($reporter, "index-subs-incl.html", 'incl_time');
 output_subs_treemap_page($reporter, "subs-treemap-excl.html",
     "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
-output_subs_treemap_page($reporter, "subs-treemap-incl.html",
-    "Subroutine Inclusive Time Treemap", sub { shift->incl_time });
-output_subs_callgraph_jit_page($reporter, "subs-callgraph.html");
 output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot");
 output_index_page($reporter, "index.html");
 
@@ -568,9 +557,8 @@ sub output_index_page {
         }, "index-subs-excl.html", $all_subs;
     }
 
-    print OUT q{<br/>You can view subroutines as treemap of <a href="subs-treemap-excl.html">exclusive</a> or <a href="subs-treemap-incl.html">inclusive</a> time, grouped by package.<br/>};
-    print OUT q{<br/>View the subroutine call graph as a <a href="subs-callgraph.html">radial graph</a>,
-        or Graphviz <a href="subs-callgraph.dot">dot file</a>.<br/>};
+    print OUT q{<br/>You can view subroutines in a treemap of <a href="subs-treemap-excl.html">exclusive time</a>, grouped by package.<br/>};
+    print OUT q{<br/>The subroutine call graph available as a Graphviz <a href="subs-callgraph.dot">dot file</a>.<br/>};
 
     print OUT file_table($profile, $stats, 1);
 
@@ -856,246 +844,6 @@ sub output_subs_treemap_page {
 
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# callgraph subs
-
-sub js_for_new_callgraph {
-    my ($name, $new_args, $tree_data) = @_;
-
-    my $default_new_args = {
-    };
-    exists $new_args->{$_} or $new_args->{$_} = $default_new_args->{$_}
-        for keys %$default_new_args;
-
-    our $json_any ||= JSON::Any->new;
-    my $new_args_json  = $json_any->objToJson($new_args);
-#$tree_data = do('/tmp/x') or die;
-    my $tree_data_json = $json_any->objToJson($tree_data);
-
-    #http://thejit.org/Jit/Examples/RGraph/example2.code.html
-
-    my $js = qq{
-        function init_$name() {
-
-            //Create a new canvas instance.
-            var canvas = new Canvas('mycanvas', {
-                //Where to inject the canvas. Any div container will do.
-                'injectInto':'infovis1',
-                //width and height for canvas. Default's to 200.
-                'width': 800, 'height':600,
-                //Optional: Create a background canvas  
-                //for painting concentric circles.  
-                'backgroundCanvas': {  
-                    'styles': {  
-                        'strokeStyle': '#444',
-                    },
-                    'impl': {  
-                        'init': function(){},  
-                        'plot': function(canvas, ctx){  
-                            var times = 6, d = 100;  // see levelDistance below
-                            var pi2 = Math.PI * 2;  
-                            for (var i = 1; i <= times; i++) {  
-                                ctx.beginPath();  
-                                ctx.arc(0, 0, i * d, 0, pi2, true);  
-                                ctx.stroke();  
-                                ctx.closePath();  
-                            }  
-                        }  
-                    }  
-                },
-            });
-
-            var $name = new RGraph(canvas, {
-                //interpolation type, can be linear or polar
-                //interpolation: 'polar',
-                //parent-children distance
-                levelDistance: 100, // see backgroundCanvas d above
-                //Set node/edge styles
-                Node: { color: '#ccddee' },
-                Edge: { color: '#772277' },
-
-                //This method is called only once, on label creation.  
-                onCreateLabel: function(domElement, node) {
-                    //Add a controller to make the tree move on click.
-                    domElement.onclick = function() { $name.onClick(node.id); };
-                    //Add the node's name into the label  
-                    domElement.innerHTML = node.name;  
-                    var style = domElement.style;  
-                    style.cursor = 'pointer';  
-                    style.fontSize = "0.8em";  
-                    style.color = "#fff";  
-                },
-
-                //Change the node's style based on its position.  
-                //This method is called each time a label is rendered/positioned  
-                //during an animation.  
-                onPlaceLabel: function(domElement, node){  
-                    var style = domElement.style;  
-                    style.display = '';  
-                    domElement.innerHTML = node.name;  
-            
-                    if (node._depth <= 1) {  
-                        style.fontSize = "0.8em";  
-                        style.color = "#fff";  
-                    
-                    } else if(node._depth <= 2){  
-                        style.fontSize = "0.5em";  
-                        style.color = "#ccc";  
-                    
-                    } else if(node._depth <= 4){  
-                        style.fontSize = "0.4em";  
-                        style.color = "#999";  
-                        domElement.innerHTML = '&nbsp;';
-                        //style.display = 'none';  
-                    
-                    } else {  
-                        style.display = 'none';  
-                        //domElement.innerHTML = '&nbsp;';
-                    }  
-            
-                    var left = parseInt(style.left);  
-                    var w = domElement.offsetWidth;  
-                    style.left = (parseInt(style.left) - w / 2) + 'px';  
-                }  
-
-            });
-
-            var json = $tree_data_json;
-            //load tree from tree data.
-            $name.loadJSON(json);
-            //compute positions and plot
-            $name.refresh();
-        }
-    };
-    return $js;
-}
-
-
-sub output_callgraph_code {
-    my (%spec) = @_;
-    my $cg_id = 'cg'.$spec{id};
-    my $root_id = 'infovis'.$spec{id};
-
-    my $callgraph_data = $spec{get_data}->();
-
-
-    my $rg_args = {
-        Node => {  
-            'overridable' => 1,  
-            'color' => '#cc0000',
-        },  
-        Edge => {  
-            'overridable' => 1,  
-            'color' => '#cccc00'  ,
-        },
-    };
-
-    my $cg_js = js_for_new_callgraph($cg_id, { rootId => $root_id }, $callgraph_data);
-    print OUT qq{<script type="text/javascript">$cg_js\n</script>\n};
-
-    push @on_ready_js, qq{init_$cg_id(); };
-    return $root_id;
-}
-
-
-sub sub_callgraph_jit_data {
-    my ($profile) = @_;
-    my $subinfos = $profile->subname_subinfo_map;
-
-    my %sub2called; # { subname => { sub_called => [...], ... } }
-
-    for my $subname (keys %$subinfos) {
-        my $si = $subinfos->{$subname};
-
-        # which subs called this sub...
-        my $called_by_subnames = $si->called_by_subnames;
-
-        if (!%$called_by_subnames) {
-            warn sprintf "%s has no caller subnames but a call count of %d\n",
-                    $subname, $si->calls
-                if $si->calls;
-            next;
-        }
-
-        $sub2called{$subname} = $called_by_subnames;
-    }
-
-    # { called_subname => { calling_subname => [...], ... } }
-    my %sub2callers;
-    while ( my ($subname, $subs_called) = each %sub2called ) {
-        while ( my ($called_subname, $call_info) = each %$subs_called ) {
-            $sub2callers{ $called_subname }{$subname} = $call_info;
-        }
-    }
-
-    my $mk_adj = sub {
-        my ($subname, $note) = @_;
-        return {
-            nodeTo => "rg_$subname",
-            data => {
-                note => $note
-            },
-        }
-    };
-
-    my %nodes;
-    for my $subname (keys %$subinfos) {
-        my $si = $subinfos->{$subname};
-
-        my $into = $sub2called{$subname} || {};
-        my $from = $sub2callers{$subname} || {};
-        my %all = (%$into, %$from); # eliminate dups
-
-        my @adjacencies = map { $mk_adj->($_) } keys %all;
-
-        $nodes{$subname} = {
-            id => "rg_$subname",
-            name => $subname,
-            data => {
-            },
-            adjacencies => \@adjacencies,
-        } if %$into or %$from;
-    }
-    return [ values %nodes ];
-}
-
-
-sub output_subs_callgraph_jit_page {
-    my ($r, $filename) = @_;
-    my $profile = $reporter->{profile};
-
-    open(OUT, '>', "$opt{out}/$filename")
-        or croak "Unable to open file $opt{out}/$filename: $!";
-
-    print OUT get_html_header("Subroutine Call Graph - NYTProf", { add_jit => "RGraph" });
-    print OUT get_page_header( profile => $profile, title => "Subroutine Call Graph" );
-
-    my @specs;
-    push @specs, {
-        id => 1,
-        title => "Subroutine Call Graph",
-        get_data => sub {
-            sub_callgraph_jit_data($profile);
-        }
-    };
-
-    my @root_ids;
-    for my $spec (@specs) {
-        push @root_ids, output_callgraph_code(
-            profile => $profile,
-            %$spec
-        );
-    }
-
-    print OUT qq{<div id="infovis">\n};
-    print OUT qq{<br /><div id="$_"></div>\n} for @root_ids;
-    print OUT qq{</div>\n};
-
-    my $footer = get_footer($profile);
-    print OUT "$footer</body></html>";
-    close OUT;
-}
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 sub output_subs_callgraph_dot_file {
     my ($r, $filename) = @_;
@@ -1117,7 +865,7 @@ sub output_subs_callgraph_dot_file {
     print OUT "graph [overlap=false]\n"; # target="???", URL="???"
 
     # output nodes and gather link info
-    my %sub2called;
+    my %sub2called_by;
     for my $subname (keys %$subinfos) {
         my $si = $subinfos->{$subname};
 
@@ -1132,7 +880,7 @@ sub output_subs_callgraph_dot_file {
         # node_stmt: node_id [ attr_list ]
         printf OUT qq{%s;\n}, $dotnode->($subname);
 
-        $sub2called{$subname} = $called_by_subnames;
+        $sub2called_by{$subname} = $called_by_subnames;
     }
 
 #stmt : node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
@@ -1141,7 +889,7 @@ sub output_subs_callgraph_dot_file {
 #a_list : ID [ '=' ID ] [ ',' ] [ a_list ]
 #subgraph : [ subgraph [ ID ] ] '{' stmt_list '}'
 
-    while ( my ($subname, $called_by_subnames) = each %sub2called ) {
+    while ( my ($subname, $called_by_subnames) = each %sub2called_by ) {
 
         for my $called_by (keys %$called_by_subnames) {
             # edge_stmt : (node_id | subgraph) edgeRHS [ attr_list ]
