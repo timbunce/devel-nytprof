@@ -14,7 +14,7 @@ use strict;
 
 use Carp;
 use Getopt::Long;
-use List::Util qw(sum max shuffle);
+use List::Util qw(sum max);
 use File::Copy;
 use JSON::Any;
 
@@ -558,7 +558,7 @@ sub output_index_page {
     }
 
     print OUT q{<br/>You can view subroutines in a treemap of <a href="subs-treemap-excl.html">exclusive time</a>, grouped by package.<br/>};
-    print OUT q{<br/>The subroutine call graph available as a Graphviz <a href="subs-callgraph.dot">dot file</a>.<br/>};
+    print OUT q{<br/>The subroutine call graph is available as a <a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> <a href="subs-callgraph.dot">dot file</a>.<br/>};
 
     print OUT file_table($profile, $stats, 1);
 
@@ -866,6 +866,7 @@ sub output_subs_callgraph_dot_file {
 
     # output nodes and gather link info
     my %sub2called_by;
+    my %pkg_subs;
     for my $subname (keys %$subinfos) {
         my $si = $subinfos->{$subname};
 
@@ -877,11 +878,25 @@ sub output_subs_callgraph_dot_file {
             next;
         }
 
-        # node_stmt: node_id [ attr_list ]
-        printf OUT qq{%s;\n}, $dotnode->($subname);
-
         $sub2called_by{$subname} = $called_by_subnames;
+        $pkg_subs{$si->package}{$subname} = $called_by_subnames;
     }
+
+    while ( my ($pkg, $pkg_subs) = each %pkg_subs) {
+        (my $pkgmangled = $pkg) =~ s/\W+/_/g;
+
+        # node_stmt: node_id [ attr_list ]
+        printf OUT "subgraph cluster_%s {\n", $pkgmangled; # }
+        printf OUT "\tlabel=%s\n", $dotnode->($pkg);
+
+        for my $subname (keys %$pkg_subs) {
+            # node_stmt: node_id [ attr_list ]
+            printf OUT qq{\tnode %s;\n}, $dotnode->($subname);
+        }
+        # { - just to balance the brace below
+        printf OUT "}\n";
+    }
+
 
 #stmt : node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
 #attr_stmt : (graph | node | edge) attr_list
