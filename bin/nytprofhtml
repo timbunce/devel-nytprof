@@ -466,7 +466,7 @@ output_subs_index_page($reporter, "index-subs-excl.html", 'excl_time');
 output_subs_index_page($reporter, "index-subs-incl.html", 'incl_time');
 output_subs_treemap_page($reporter, "subs-treemap-excl.html",
     "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
-output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot");
+output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot", undef, 1);
 output_index_page($reporter, "index.html");
 
 output_js_files($reporter);
@@ -846,12 +846,13 @@ sub output_subs_treemap_page {
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 sub output_subs_callgraph_dot_file {
-    my ($r, $filename) = @_;
+    my ($r, $filename, $sub_filter, $only_show_packages) = @_;
     my $profile = $reporter->{profile};
     my $subinfos = $profile->subname_subinfo_map;
 
-    open(OUT, '>', "$opt{out}/$filename")
-        or croak "Unable to open file $opt{out}/$filename: $!";
+    my $dot_file = "$opt{out}/$filename";
+    open(OUT, '>', $dot_file)
+        or croak "Unable to open file $dot_file: $!";
 
     my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
     my $dotnode = sub {
@@ -864,11 +865,13 @@ sub output_subs_callgraph_dot_file {
     print OUT "digraph {\n"; # }
     print OUT "graph [overlap=false]\n"; # target="???", URL="???"
 
-    # output nodes and gather link info
+    # gather link info
     my %sub2called_by;
     my %pkg_subs;
     for my $subname (keys %$subinfos) {
         my $si = $subinfos->{$subname};
+
+        next if $sub_filter and $sub_filter->($si, undef);
 
         my $called_by_subnames = $si->called_by_subnames;
         if (!%$called_by_subnames) { 
@@ -878,23 +881,18 @@ sub output_subs_callgraph_dot_file {
             next;
         }
 
+        if ($sub_filter) {
+            my @delete = grep { !$sub_filter->($si, $_) } keys %$called_by_subnames;
+            if (@delete) {
+                # shallow copy so we can edit it safely
+                $called_by_subnames = { %$called_by_subnames };
+                delete @{$called_by_subnames}{@delete};
+            }
+            next if !keys %$called_by_subnames;
+        }
+
         $sub2called_by{$subname} = $called_by_subnames;
         $pkg_subs{$si->package}{$subname} = $called_by_subnames;
-    }
-
-    while ( my ($pkg, $pkg_subs) = each %pkg_subs) {
-        (my $pkgmangled = $pkg) =~ s/\W+/_/g;
-
-        # node_stmt: node_id [ attr_list ]
-        printf OUT "subgraph cluster_%s {\n", $pkgmangled; # }
-        printf OUT "\tlabel=%s\n", $dotnode->($pkg);
-
-        for my $subname (keys %$pkg_subs) {
-            # node_stmt: node_id [ attr_list ]
-            printf OUT qq{\tnode %s;\n}, $dotnode->($subname);
-        }
-        # { - just to balance the brace below
-        printf OUT "}\n";
     }
 
 
@@ -904,19 +902,61 @@ sub output_subs_callgraph_dot_file {
 #a_list : ID [ '=' ID ] [ ',' ] [ a_list ]
 #subgraph : [ subgraph [ ID ] ] '{' stmt_list '}'
 
-    while ( my ($subname, $called_by_subnames) = each %sub2called_by ) {
+    if ($only_show_packages) {
+        my %once;
+        print OUT "node [shape=rectangle];\n";
+        while ( my ($pkg, $subs) = each %pkg_subs ) {
+            my @called_by = map { keys %$_ } values %$subs;
 
-        for my $called_by (keys %$called_by_subnames) {
-            # edge_stmt : (node_id | subgraph) edgeRHS [ attr_list ]
-            # edgeRHS   : edgeop (node_id | subgraph) [ edgeRHS ]
-            printf OUT qq{%s -> %s;\n},
-                $dotnode->($called_by), $dotnode->($subname);
+            for my $called_by (@called_by) {
+                (my $called_by_pkg = $called_by) =~ s/^(.*)::.*?$/$1/;
+                my $link = sprintf qq{%s -> %s;\n},
+                    $dotnode->("$called_by_pkg"), $dotnode->("$pkg");
+                $once{$link} = 1;
+            }
+
         }
+        print OUT $_ for keys %once;
 
     }
+    else {
+
+        # output nodes and gather link info
+        while ( my ($pkg, $pkg_subs) = each %pkg_subs) {
+            (my $pkgmangled = $pkg) =~ s/\W+/_/g;
+
+            # node_stmt: node_id [ attr_list ]
+            printf OUT "subgraph cluster_%s {\n", $pkgmangled; # }
+            printf OUT "\tlabel=%s;\n", $dotnode->($pkg);
+
+            for my $subname (keys %$pkg_subs) {
+                # node_stmt: node_id [ attr_list ]
+                #printf OUT qq{\tnode [ %s ]}, ...
+                printf OUT qq{\t%s;\n}, $dotnode->($subname);
+            }
+
+            # { - just to balance the brace below
+            printf OUT "}\n";
+        }
+
+        while ( my ($subname, $called_by_subnames) = each %sub2called_by ) {
+
+            for my $called_by (keys %$called_by_subnames) {
+                # edge_stmt : (node_id | subgraph) edgeRHS [ attr_list ]
+                # edgeRHS   : edgeop (node_id | subgraph) [ edgeRHS ]
+                printf OUT qq{%s -> %s;\n},
+                    $dotnode->($called_by), $dotnode->($subname);
+            }
+
+        }
+    }
+
     print OUT "}\n";
 
     close OUT;
+    #system("open '$dot_file'"); die 1;
+
+    return;
 }
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
