@@ -11,6 +11,7 @@ run_test_group({
         is_deeply(sub_calls($profile), {
             'main::sub1' => 1,
             'DB::disable_profile' => 1,
+            'main::CORE:unlink' => 1,
         });
 
         my $file_b = "nytprof-test51-b.out";
@@ -21,6 +22,7 @@ run_test_group({
             'main::sub1' => 1,
             'main::sub3' => 1,
             'DB::disable_profile' => 1,
+            'main::CORE:unlink' => 1,
         }, "$file_b sub calls");
 
         my $pc = Devel::NYTProf::Data->new( { filename => $file_c, quiet => 0 } );

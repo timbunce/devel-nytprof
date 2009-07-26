@@ -24,9 +24,13 @@ fid_block_time	1	20	[ 0 2 ]
 fid_block_time	1	21	[ 0 1 ]
 fid_fileinfo	1	[ test13.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	0-0
+fid_fileinfo	1	sub	main::CORE:print	0-0
 fid_fileinfo	1	sub	main::bar	7-9
 fid_fileinfo	1	sub	main::baz	11-17
 fid_fileinfo	1	sub	main::foo	3-5
+fid_fileinfo	1	call	4	main::CORE:print	[ 3 0 0 0 0 0 0 main::foo ]
+fid_fileinfo	1	call	8	main::CORE:print	[ 1 0 0 0 0 0 0 main::bar ]
+fid_fileinfo	1	call	12	main::CORE:print	[ 1 0 0 0 0 0 0 main::baz ]
 fid_fileinfo	1	call	13	main::foo	[ 1 0 0 0 0 0 0 main::baz ]
 fid_fileinfo	1	call	14	main::foo	[ 1 0 0 0 0 0 0 main::baz ]
 fid_fileinfo	1	call	20	main::bar	[ 1 0 0 0 0 0 0 main::RUNTIME ]
@@ -57,6 +61,10 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
+sub_subinfo	main::CORE:print	[ 1 0 0 5 0 0 0 0 ]
+sub_subinfo	main::CORE:print	called_by	1	4	[ 3 0 0 0 0 0 0 main::foo ]
+sub_subinfo	main::CORE:print	called_by	1	8	[ 1 0 0 0 0 0 0 main::bar ]
+sub_subinfo	main::CORE:print	called_by	1	12	[ 1 0 0 0 0 0 0 main::baz ]
 sub_subinfo	main::bar	[ 1 7 9 1 0 0 0 0 ]
 sub_subinfo	main::bar	called_by	1	20	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::baz	[ 1 11 17 1 0 0 0 0 ]
