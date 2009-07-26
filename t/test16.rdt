@@ -22,11 +22,13 @@ fid_block_time	1	33	[ 0 1 ]
 fid_fileinfo	1	[ test16.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	6-6
 fid_fileinfo	1	sub	main::CORE:match	0-0
+fid_fileinfo	1	sub	main::CORE:print	0-0
 fid_fileinfo	1	sub	main::bar	20-27
 fid_fileinfo	1	sub	main::foo	8-18
 fid_fileinfo	1	call	11	main::CORE:match	[ 2 0 0 0 0 0 0 main::foo ]
 fid_fileinfo	1	call	14	main::CORE:match	[ 1 0 0 0 0 0 0 main::foo ]
 fid_fileinfo	1	call	22	main::CORE:match	[ 3 0 0 0 0 0 0 main::bar ]
+fid_fileinfo	1	call	22	main::CORE:print	[ 2 0 0 0 0 0 0 main::bar ]
 fid_fileinfo	1	call	30	main::foo	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	31	main::foo	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	32	main::bar	[ 1 0 0 0 0 0 0 main::RUNTIME ]
@@ -55,6 +57,8 @@ sub_subinfo	main::CORE:match	[ 1 0 0 6 0 0 0 0 ]
 sub_subinfo	main::CORE:match	called_by	1	11	[ 2 0 0 0 0 0 0 main::foo ]
 sub_subinfo	main::CORE:match	called_by	1	14	[ 1 0 0 0 0 0 0 main::foo ]
 sub_subinfo	main::CORE:match	called_by	1	22	[ 3 0 0 0 0 0 0 main::bar ]
+sub_subinfo	main::CORE:print	[ 1 0 0 2 0 0 0 0 ]
+sub_subinfo	main::CORE:print	called_by	1	22	[ 2 0 0 0 0 0 0 main::bar ]
 sub_subinfo	main::bar	[ 1 20 27 2 0 0 0 0 ]
 sub_subinfo	main::bar	called_by	1	32	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::bar	called_by	1	33	[ 1 0 0 0 0 0 0 main::RUNTIME ]
