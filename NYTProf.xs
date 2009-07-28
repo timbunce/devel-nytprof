@@ -2143,6 +2143,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     SV *incl_time_sv, *excl_time_sv;
     NV  incl_subr_sec, excl_subr_sec;
     SV *sv_tmp;
+    AV *subr_call_av;
 
     if (subr_entry->called_subnam_sv == &PL_sv_undef) {
         logwarn("xsub/builtin exited via an exception (which isn't handled yet)\n");
@@ -2227,7 +2228,6 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     /* drill-down to array of sub call information for this subr_call_key */
     sv_tmp = *hv_fetch((HV*)SvRV(sv_tmp), subr_call_key, subr_call_key_len, 1);
-    AV *subr_call_av;
     if (!SvROK(sv_tmp)) { /* first call from this subname[fid:line] - autoviv array ref */
         subr_call_av = new_sub_call_info_av(aTHX);
 
