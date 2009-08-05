@@ -202,7 +202,7 @@ sub run_test_group {
         }
 
         if ($extra_test_code) {
-            note("running $extra_test_count extra tests...");
+            print("running $extra_test_count extra tests...\n");
             my $profile = eval { Devel::NYTProf::Data->new({ filename => $profile_datafile }) };
             if ($@) {
                 diag($@);

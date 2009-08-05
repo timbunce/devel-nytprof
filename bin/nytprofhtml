@@ -226,7 +226,6 @@ sub subroutine_table {
         );
 
         my @hints;
-        push @hints, 'xsub' if $sub->is_xsub;
 
         # package and subname
         my $subname = $sub->subname;
@@ -248,10 +247,15 @@ sub subroutine_table {
         # hidden span is for tablesorter to sort on
         $sub_links .= sprintf(qq{<span style="display: none;">%s::%s</span>}, $pkg, $subr);
 
+        if ($sub->is_xsub) {
+            my $is_opcode = ($pkg eq 'CORE' or $subr =~ /^CORE:/);
+            unshift @hints, ($is_opcode) ? 'opcode' : 'xsub';
+        }
+
         my $href = $reporter->href_for_sub($subname);
         $sub_links .= sprintf qq{%*s<a %s>%s</a>%s</span></td>},
             $max_pkg_name_len+2, $pkg, $href, $subr,
-            (@hints) ? "(".join(", ",@hints).")" : "";
+            (@hints) ? "&nbsp;(".join(", ",@hints).")" : "";
 
         $sub_links .= "</tr>\n";
     }
@@ -464,9 +468,6 @@ $reporter->report();
 
 output_subs_index_page($reporter, "index-subs-excl.html", 'excl_time');
 output_subs_index_page($reporter, "index-subs-incl.html", 'incl_time');
-output_subs_treemap_page($reporter, "subs-treemap-excl.html",
-    "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
-output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot", undef, 1);
 output_index_page($reporter, "index.html");
 
 output_js_files($reporter);
@@ -484,19 +485,19 @@ sub output_subs_index_page {
     my ($r, $filename, $sortby) = @_;
     my $profile = $reporter->{profile};
 
-    open(OUT, '>', "$opt{out}/$filename")
+    open my $fh, '>', "$opt{out}/$filename"
         or croak "Unable to open file $opt{out}/$filename: $!";
 
-    print OUT get_html_header("Subroutine Index - NYTProf");
-    print OUT get_page_header(profile => $profile, title => "Performance Profile Subroutine Index");
-    print OUT qq{<div class="body_content"><br />};
+    print $fh get_html_header("Subroutine Index - NYTProf");
+    print $fh get_page_header(profile => $profile, title => "Performance Profile Subroutine Index");
+    print $fh qq{<div class="body_content"><br />};
 
     # Show top subs across all files
-    print OUT subroutine_table($profile, 0, 0, $sortby);
+    print $fh subroutine_table($profile, 0, 0, $sortby);
 
     my $footer = get_footer($profile);
-    print OUT "</div>$footer</body></html>";
-    close OUT;
+    print $fh "</div>$footer</body></html>";
+    close $fh;
 }
 
 
@@ -508,12 +509,12 @@ sub output_index_page {
     my $stats   = $r->get_file_stats();
 
     ###
-    open(OUT, '>', "$opt{out}/$filename")
+    open my $fh, '>', "$opt{out}/$filename"
         or croak "Unable to open file $opt{out}/$filename: $!";
 
-    print OUT get_html_header();
-    print OUT get_page_header(profile => $profile, title => "Performance Profile Index");
-    print OUT qq{
+    print $fh get_html_header();
+    print $fh get_page_header(profile => $profile, title => "Performance Profile Index");
+    print $fh qq{
         <div class="body_content"><br />
     };
 
@@ -532,39 +533,43 @@ sub output_index_page {
         @all_fileinfos - $eval_fileinfos;
     $summary .= sprintf " and %d string evals",
         $eval_fileinfos if $eval_fileinfos;
-    printf OUT qq{<div class="index_summary">%s.</div>}, _escape_html($summary);
+    printf $fh qq{<div class="index_summary">%s.</div>}, _escape_html($summary);
 
     # generate name-sorted select options for files, if there are many
     if (keys %$stats > 30) {
-        print OUT qq{<div class="jump_to_file"><form name="jump">};
-        print OUT qq{<select name="file" onChange="location.href=document.jump.file.value;">\n};
-        printf OUT qq{<option disabled="disabled">%s</option>\n}, "Jump to file...";
+        print $fh qq{<div class="jump_to_file"><form name="jump">};
+        print $fh qq{<select name="file" onChange="location.href=document.jump.file.value;">\n};
+        printf $fh qq{<option disabled="disabled">%s</option>\n}, "Jump to file...";
         foreach (sort keys %$stats) {
             my $fid = $profile->resolve_fid($_) or warn "Can't find fid for $_";
-            printf OUT qq{<option value="#f%s">%s</option>\n}, $fid, $_;
+            printf $fh qq{<option value="#f%s">%s</option>\n}, $fid, $_;
         }
-        print OUT "</select></form></div>\n";
+        print $fh "</select></form></div>\n";
     }
 
     # Show top subs across all files
     my $max_subs = 15; # keep it less than a page so users can see the file table
     my $all_subs = keys %{$profile->{sub_subinfo}};
-    print OUT subroutine_table($profile, 0, $max_subs, undef);
+    print $fh subroutine_table($profile, 0, $max_subs, undef);
     if ($all_subs > $max_subs) {
-        print OUT sprintf qq{<div class="table_footer">
+        print $fh sprintf qq{<div class="table_footer">
             See <a href="%s">all %d subroutines</a>
             </div>
         }, "index-subs-excl.html", $all_subs;
     }
 
-    print OUT q{<br/>You can view subroutines in a treemap of <a href="subs-treemap-excl.html">exclusive time</a>, grouped by package.<br/>};
-    print OUT q{<br/>The subroutine call graph is available as a <a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> <a href="subs-callgraph.dot">dot file</a>.<br/>};
+    output_subs_treemap_page($reporter, "subs-treemap-excl.html",
+        "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
+    print $fh q{<br/>You can view subroutines in a treemap of <a href="subs-treemap-excl.html">exclusive time</a>, grouped by package.<br/>};
 
-    print OUT file_table($profile, $stats, 1);
+    output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot", undef, 1);
+    print $fh q{<br/>A representation of the calls between subroutines in diferent packages is available as a <a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> <a href="subs-callgraph.dot">dot file</a>.<br/>};
+
+    output_file_table($fh, $profile, $stats, 1);
 
     my $footer = get_footer($profile);
-    print OUT "</div>$footer</body></html>";
-    close OUT;
+    print $fh "</div>$footer</body></html>";
+    close $fh;
 }
 
 
@@ -779,6 +784,7 @@ sub package_subinfo_map_to_tm_data {
 
 sub output_treemap_code {
     my (%spec) = @_;
+    my $fh = $spec{fh};
     my $tm_id = 'tm'.$spec{id};
     my $root_id = 'infovis'.$spec{id};
 
@@ -786,7 +792,7 @@ sub output_treemap_code {
     $treemap_data->{name} = $spec{title} if $spec{title};
 
     my $tm_js = js_for_new_treemap($tm_id, { rootId => $root_id }, $treemap_data);
-    print OUT qq{<script type="text/javascript">$tm_js\n</script>\n};
+    print $fh qq{<script type="text/javascript">$tm_js\n</script>\n};
 
     push @on_ready_js, qq{init_$tm_id(); };
     return $root_id;
@@ -797,12 +803,12 @@ sub output_subs_treemap_page {
     my ($r, $filename, $title, $area_sub) = @_;
     my $profile = $reporter->{profile};
 
-    open(OUT, '>', "$opt{out}/$filename")
+    open(my $fh, '>', "$opt{out}/$filename")
         or croak "Unable to open file $opt{out}/$filename: $!";
 
     $title ||= "Subroutine Time Treemap";
-    print OUT get_html_header("$title - NYTProf", { add_jit => "Treemap" });
-    print OUT get_page_header( profile => $profile, title => $title);
+    print $fh get_html_header("$title - NYTProf", { add_jit => "Treemap" });
+    print $fh get_page_header( profile => $profile, title => $title);
 
     my @specs;
     push @specs, {
@@ -827,19 +833,20 @@ sub output_subs_treemap_page {
     my @root_ids;
     for my $spec (@specs) {
         push @root_ids, output_treemap_code(
+            fh => $fh,
             profile => $profile,
             %$spec
         );
     }
 
-    print OUT qq{<div class="vis_header"><br/>Boxes represent time spent in a subroutine. Coloring represents packages. Click to drill-down into package hierarchy.</div>\n};
-    print OUT qq{<div id="infovis">\n};
-    print OUT qq{<br /><div id="$_"></div>\n} for @root_ids;
-    print OUT qq{</div>\n};
+    print $fh qq{<div class="vis_header"><br/>Boxes represent time spent in a subroutine. Coloring represents packages. Click to drill-down into package hierarchy.</div>\n};
+    print $fh qq{<div id="infovis">\n};
+    print $fh qq{<br /><div id="$_"></div>\n} for @root_ids;
+    print $fh qq{</div>\n};
 
     my $footer = get_footer($profile);
-    print OUT "$footer</body></html>";
-    close OUT;
+    print $fh "$footer</body></html>";
+    close $fh;
 }
 
 
@@ -851,7 +858,7 @@ sub output_subs_callgraph_dot_file {
     my $subinfos = $profile->subname_subinfo_map;
 
     my $dot_file = "$opt{out}/$filename";
-    open(OUT, '>', $dot_file)
+    open my $fh, '>', $dot_file
         or croak "Unable to open file $dot_file: $!";
 
     my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
@@ -862,8 +869,8 @@ sub output_subs_callgraph_dot_file {
         return '"'.$name.'"';
     };
 
-    print OUT "digraph {\n"; # }
-    print OUT "graph [overlap=false]\n"; # target="???", URL="???"
+    print $fh "digraph {\n"; # }
+    print $fh "graph [overlap=false]\n"; # target="???", URL="???"
 
     # gather link info
     my %sub2called_by;
@@ -904,7 +911,10 @@ sub output_subs_callgraph_dot_file {
 
     if ($only_show_packages) {
         my %once;
-        print OUT "node [shape=rectangle];\n";
+        # XXX many shapes cause v.large graphs with nodes v.far apart
+        # when using neato (energy minimized) possibly a neato bug
+        # some shapes, like doublecircle seem to avoid the problem.
+        print $fh "node [shape=doublecircle];\n";
         while ( my ($pkg, $subs) = each %pkg_subs ) {
             my @called_by = map { keys %$_ } values %$subs;
 
@@ -916,7 +926,7 @@ sub output_subs_callgraph_dot_file {
             }
 
         }
-        print OUT $_ for keys %once;
+        print $fh $_ for keys %once;
 
     }
     else {
@@ -926,17 +936,17 @@ sub output_subs_callgraph_dot_file {
             (my $pkgmangled = $pkg) =~ s/\W+/_/g;
 
             # node_stmt: node_id [ attr_list ]
-            printf OUT "subgraph cluster_%s {\n", $pkgmangled; # }
-            printf OUT "\tlabel=%s;\n", $dotnode->($pkg);
+            printf $fh "subgraph cluster_%s {\n", $pkgmangled; # }
+            printf $fh "\tlabel=%s;\n", $dotnode->($pkg);
 
             for my $subname (keys %$pkg_subs) {
                 # node_stmt: node_id [ attr_list ]
-                #printf OUT qq{\tnode [ %s ]}, ...
-                printf OUT qq{\t%s;\n}, $dotnode->($subname);
+                #printf $fh qq{\tnode [ %s ]}, ...
+                printf $fh qq{\t%s;\n}, $dotnode->($subname);
             }
 
             # { - just to balance the brace below
-            printf OUT "}\n";
+            printf $fh "}\n";
         }
 
         while ( my ($subname, $called_by_subnames) = each %sub2called_by ) {
@@ -944,16 +954,16 @@ sub output_subs_callgraph_dot_file {
             for my $called_by (keys %$called_by_subnames) {
                 # edge_stmt : (node_id | subgraph) edgeRHS [ attr_list ]
                 # edgeRHS   : edgeop (node_id | subgraph) [ edgeRHS ]
-                printf OUT qq{%s -> %s;\n},
+                printf $fh qq{%s -> %s;\n},
                     $dotnode->($called_by), $dotnode->($subname);
             }
 
         }
     }
 
-    print OUT "}\n";
+    print $fh "}\n";
 
-    close OUT;
+    close $fh;
     #system("open '$dot_file'"); die 1;
 
     return;
@@ -1046,8 +1056,8 @@ sub have_prog {
 }
 
 
-sub file_table {
-    my ($profile, $stats, $add_totals) = @_;
+sub output_file_table {
+    my ($fh, $profile, $stats, $add_totals) = @_;
 
     for (values %$stats) {
         next if not $_;
@@ -1055,14 +1065,13 @@ sub file_table {
     }
 
     my $dev_time = calc_mad_from_hashes([values %$stats], 'time',      0);
-    #my $dev_avgt = calc_mad_from_hashes([values %$stats], 'time/call', 0);
 
     # generate time-sorted sections for files
-    print OUT qq{
+    print $fh qq{
         <table id="filestable" border="1" cellspacing="0" class="tablesorter">
         <caption>Source Code Files &mdash; ordered by exclusive time then name</caption>
     };
-    print OUT qq{
+    print $fh qq{
         <thead><tr class="index">
         <th>Stmts</th><th>Exclusive<br />Time</th>
         <th>Reports</th><th>Source File</th>
@@ -1095,19 +1104,17 @@ sub file_table {
             #$eval_stmts += sum(map { $_->number_of_statements_executed } @$has_evals);
         }
 
-        print OUT qq{<tr class="index">};
+        print $fh qq{<tr class="index">};
 
-        print OUT determine_severity($filestats->{'calls'},     undef, 0,
+        print $fh determine_severity($filestats->{'calls'},     undef, 0,
             ($allCalls) ? sprintf("%.1f%%", $filestats->{'calls'}/$allCalls*100) : ''
         );
         $t_stmt_exec += $filestats->{'calls'};
 
-        print OUT determine_severity($filestats->{'time'},      $dev_time, 1,
+        print $fh determine_severity($filestats->{'time'},      $dev_time, 1,
             ($allTimes) ? sprintf("%.1f%%", $filestats->{'time'}/$allTimes*100) : ''
         );
         $t_stmt_time += $filestats->{'time'};
-
-        #print OUT determine_severity($filestats->{'time/call'}, $dev_avgt, 1);
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
             my $level_html_safe = $filestats->{$_}->{html_safe};
@@ -1115,17 +1122,17 @@ sub file_table {
                 ? sprintf(qq{<a href="%s.html">%s</a>}, $level_html_safe, $_)
                 : ()
         } qw(line block sub);
-        print OUT "<td>$rep_links</td>";
+        print $fh "<td>$rep_links</td>";
 
-        print OUT sprintf q{<td><a name="f%s" title="%s">%s</a> %s</td>},
+        print $fh sprintf q{<td><a name="f%s" title="%s">%s</a> %s</td>},
             $fi->fid, $fi->abs_filename, $fi->filename_without_inc,
             (@extra) ? sprintf("(%s)", join ", ", @extra) : "";
-        print OUT "</tr>\n";
+        print $fh "</tr>\n";
     }
-    print OUT "</tbody>\n";
+    print $fh "</tbody>\n";
 
     if ($add_totals) {
-        print OUT "<tfoot>\n";
+        print $fh "<tfoot>\n";
         my $stats_fmt =
             qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
         my $t_notes = "";
@@ -1137,19 +1144,19 @@ sub file_table {
             $t_notes = sprintf "(%d string evals account for a further %d statements%s)",
                 $eval_fileinfos, $allCalls - $t_stmt_exec, $stmt_time_diff;
         }
-        print OUT sprintf $stats_fmt, fmt_float($t_stmt_exec), fmt_time($t_stmt_time),
+        print $fh sprintf $stats_fmt, fmt_float($t_stmt_exec), fmt_time($t_stmt_time),
             "Total $t_notes";
 
-        print OUT sprintf $stats_fmt, int(fmt_float($t_stmt_exec / keys %$stats)),
+        print $fh sprintf $stats_fmt, int(fmt_float($t_stmt_exec / keys %$stats)),
             fmt_time($t_stmt_time / keys %$stats), "Average"
             if %$stats;    # avoid divide by zero
 
-        print OUT sprintf $stats_fmt, '', fmt_time($dev_time->[1]), "Median";
-        print OUT sprintf $stats_fmt, '', fmt_float($dev_time->[0]), "Deviation"
+        print $fh sprintf $stats_fmt, '', fmt_time($dev_time->[1]), "Median";
+        print $fh sprintf $stats_fmt, '', fmt_float($dev_time->[0]), "Deviation"
             if $dev_time->[0];
-        print OUT "</tfoot>\n";
+        print $fh "</tfoot>\n";
     }
-    print OUT '</table>';
+    print $fh '</table>';
     push @on_ready_js, q{
         $("#filestable").tablesorter({
             headers: {

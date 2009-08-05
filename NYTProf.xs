@@ -247,7 +247,7 @@ static struct NYTP_int_options_t options[] = {
 #define profile_stmts options[9].option_value
     { "stmts", 1 },                              /* statement exclusive times */
 #define profile_slowops options[10].option_value
-    { "slowops", 0 },                            /* slow opcodes, typically system calls */
+    { "slowops", 2 },                            /* slow opcodes, typically system calls */
 #define profile_findcaller options[11].option_value
     { "findcaller", 0 }                          /* find sub caller instead of trusting outer */
 };
@@ -2576,28 +2576,32 @@ pp_subcall_profiler(pTHX_ int is_slowop)
          * Before it gets destroyed we'll take a copy of the subr_entry.
          * Then tell subr_entry_setup() to use our copy as a template so it'll
          * seem like the sub we goto'd was called by the same sub that called
-         * the one that executed the goto. Got that?
+         * the one that executed the goto. Except that we do use the fid:line
+         * of the goto statement. Got all that?
          */
         /* save a copy of the subr_entry of the sub we're goto'ing out of */
         /* so we can reuse the caller _* info after it's destroyed */
         subr_entry_t goto_subr_entry;
         subr_entry_t *src = subr_entry_ix_ptr(subr_entry_ix);
         Copy(src, &goto_subr_entry, 1, subr_entry_t);
+
+        /* XXX if the goto op or goto'd xsub croaks then this'll leak */
+        /* we can't mortalize here because we're about to leave scope */
         SvREFCNT_inc(goto_subr_entry.caller_subnam_sv);
         SvREFCNT_inc(goto_subr_entry.called_subnam_sv);
 
         /* grab the CvSTART of the called sub since it's available */
         called_cv = (CV*)SvRV(sub_sv);
 
-        /* if goto &sub  then op is the first op of the called sub
-         * if goto &xsub then op is the first op after the call to the
+        /* if goto &sub  then op will be the first op of the called sub
+         * if goto &xsub then op will be the first op after the call to the
          * op we're goto'ing out of.
          */
         SETERRNO(saved_errno, 0);
         op = run_original_op(op_type);  /* perform the goto &sub */
         saved_errno = errno;
 
-        /* now we're in _new_ sub mortalize the REFCNT_inc's done above */
+        /* now we're in goto'd sub, mortalize the REFCNT_inc's done above */
         sv_2mortal(goto_subr_entry.caller_subnam_sv);
         sv_2mortal(goto_subr_entry.called_subnam_sv);
         this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, &goto_subr_entry);
