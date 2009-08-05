@@ -1,0 +1,33 @@
+For some versions of perl 5.8.x NYTProf has a problem.
+
+When profiling some code, like "perldoc", the Exporter croaks with
+an error:
+
+$ perl -d:NYTProf -S perldoc perldoc
+Goto undefined subroutine &Exporter::Heavy::heavy_(eval) at /usr/local/perl58-i/lib/5.8.6/Exporter.pm line 85.
+Compilation failed in require at /usr/local/perl58-i/lib/5.8.6/Pod/Perldoc.pm line 1475.
+
+It seems that caller() returns "(eval)" when it normally wouldn't.
+
+I have seen this before in relation to the Readonly and NEXT modules.
+
+http://search.cpan.org/~timb/Devel-NYTProf-2.10/lib/Devel/NYTProf.pm#For_perl_%3C_5.8.8_it_may_change_what_caller()_returns
+Says:
+
+    For perl < 5.8.8 it may change what caller() returns
+
+    For example, the Readonly module croaks with "Invalid tie" when profiled
+    with perl versions before 5.8.8. That's because Readonly explicitly checking
+    for certain values from caller(). The NEXT module is also affected.
+
+but I hadn't seen it affect Exporter.
+
+NYTProf triggers the problem, and running perl -d:stub, where Devel::stub just
+contains "sub DB::DB { }" also triggers the problem.
+
+What's really puzzling me is that the normal perl debugger doesn't!
+So it seems like there's some way to work around it, but I don't know what it is.
+
+This directory contains a test case to reproduce the problem.
+
+Any investigation would be most welcome!
