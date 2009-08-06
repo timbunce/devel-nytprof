@@ -39,6 +39,7 @@ if ($use_db_sub) {               # install DB::DB sub
         ? sub { goto &DB_profiler }    # workaround bug in old perl versions (slow)
         : \&DB_profiler;
 }
+sub sub { die "DB::sub" }              # needed for perl <5.8.7 (<perl@24265)
 
 init_profiler();                       # provides true return value for module
 

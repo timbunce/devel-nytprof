@@ -3221,8 +3221,11 @@ write_sub_callers(pTHX)
         I32 caller_subname_len;
         SV *sv;
 
-        /* I32 level, PerlIO *file, SV *sv, I32 nest, I32 maxnest, bool dumpops, STRLEN pvlim */
-        if (0) do_sv_dump(0, Perl_debug_log, fid_line_rvhv, 0, 5, 0, 100);
+        if (0) {
+            logwarn("Callers of %s:\n", called_subname);
+            /* level, *file, *sv, I32 nest, I32 maxnest, bool dumpops, STRLEN pvlim */
+            do_sv_dump(0, Perl_debug_log, fid_line_rvhv, 0, 5, 0, 100);
+        }
 
         /* iterate over callers to this sub ({ "subname[fid:line]" => [ ... ] })  */
         hv_iterinit(fid_lines_hv);
