@@ -10,7 +10,6 @@ XXX slowops needs docs and more ops
 XXX subroutine profiler docs need update
 XXX doc findcaller option
 XXX note here and doc goto behaviour
-XXX set prereq version of Test::More
 
   Note: The file format has changed. Old files can't be read.
 
@@ -44,6 +43,12 @@ Changes to nytprofhtml:
 
   Added interactive treemap view of package and subroutine times.
     Left-click to zoom in (drill-down) one level, right-click to zoom out.
+
+  Added generation of GraphViz dot language files to visualize
+    the call graph. A top-level link on the index page provides an
+    inter-package graph, and per-source-file links provide a graph
+    of sub calls in to, out of, and between the subs in the file.
+    See http://en.wikipedia.org/wiki/Graphviz
 
   Added columns to the main source code reports to show
     a count of sub calls and time spent in those calls.

@@ -3149,6 +3149,15 @@ write_sub_line_ranges(pTHX)
                  sub_name, (int)filename_len, filename, fid );
     }
 
+    if (1) { /* Create a fake entry for main::RUNTIME subroutine */
+        char *runtime = "main::RUNTIME";
+        SV *sv;
+        /* get name of file that contained first profiled sub in 'main::' */
+        SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ runtime);
+        sv = *hv_fetch(hv, runtime, strlen(runtime), 1);
+        sv_setpvf(sv, "%s:%d-%d", SvPV_nolen(pkg_filename_sv), 1, 1);
+    }
+
     /* Iterate over PL_DBsub writing out fid and source line range of subs.
      * If filename is missing (i.e., because it's an xsub so has no source file)
      * then use the filename of another sub in the same package.

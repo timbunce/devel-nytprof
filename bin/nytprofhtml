@@ -96,7 +96,7 @@ if (defined($opt{lib})) {
 print "Generating report...\n";
 my $reporter = new Devel::NYTProf::Reader($opt{file});
 
-# place to store this crap
+# place to store this
 $reporter->output_dir($opt{out});
 
 # set formatting for html
@@ -285,8 +285,25 @@ $reporter->set_param(
 
         my $sub_table = subroutine_table($profile, $filestr, undef, undef);
 
+        my $dot_file = html_safe_filename($filestr) . ".dot";
+        our %dot_file_generated;
+        if ($dot_file_generated{$dot_file}++) { # just once for line/block/sub
+            my $subs_in_file = $profile->subs_defined_in_file($filestr, 0);
+            # include subs defined in this file
+            # and/or called from subs defined in this file
+            my $sub_filter = sub {
+                my ($si, $calledby) = @_;
+                return 1 if not defined $calledby;
+                my $include = ($subs_in_file->{$si->subname}
+                            || $subs_in_file->{$calledby});
+                return $include;
+            };
+            output_subs_callgraph_dot_file($reporter, $dot_file, $sub_filter, 0);
+        }
+
         return qq{
         $sub_table
+        Call graph for these subroutines as a <a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> <a href="$dot_file">dot language file</a>.
       <table border="1" cellpadding="0">
       <thead>
       <tr><th>Line</th>
@@ -874,17 +891,16 @@ sub output_subs_callgraph_dot_file {
 
     # gather link info
     my %sub2called_by;
-    my %pkg_subs;
     for my $subname (keys %$subinfos) {
         my $si = $subinfos->{$subname};
+        next unless $si->calls; # skip subs never called
 
-        next if $sub_filter and $sub_filter->($si, undef);
+        next if $sub_filter and not $sub_filter->($si, undef);
 
         my $called_by_subnames = $si->called_by_subnames;
         if (!%$called_by_subnames) { 
             warn sprintf "%s has no caller subnames but a call count of %d\n",
-                    $subname, $si->calls
-                if $si->calls;
+                    $subname, $si->calls;
             next;
         }
 
@@ -899,9 +915,14 @@ sub output_subs_callgraph_dot_file {
         }
 
         $sub2called_by{$subname} = $called_by_subnames;
-        $pkg_subs{$si->package}{$subname} = $called_by_subnames;
     }
 
+    # list of all subs to be included in graph (has duplicates)
+    my %pkg_subs;
+    for (keys %sub2called_by, map { keys %$_ } values %sub2called_by) {
+        m/^(.*)::(.*)?$/ or warn "Strange sub name '$_'";
+        $pkg_subs{$1}{$_} = $sub2called_by{$_} || {};
+    }
 
 #stmt : node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
 #attr_stmt : (graph | node | edge) attr_list
