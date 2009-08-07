@@ -16,7 +16,6 @@ use Carp;
 use Getopt::Long;
 use List::Util qw(sum max);
 use File::Copy;
-use JSON::Any;
 
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
@@ -27,6 +26,9 @@ use Devel::NYTProf::Util qw(
     html_safe_filename
 );
 use Devel::NYTProf::Constants qw(NYTP_SCi_CALLING_SUB);
+
+my $json_any = eval { require JSON::Any; JSON::Any->import; JSON::Any->new }
+    or warn "Can't load JSON::Any module - HTML visualizations skipped.\n";
 
 our $VERSION = '2.10';
 
@@ -291,11 +293,14 @@ $reporter->set_param(
             my $subs_in_file = $profile->subs_defined_in_file($filestr, 0);
             # include subs defined in this file
             # and/or called from subs defined in this file
+            #warn "$dot_file: @{[ keys %$subs_in_file ]}\n";
             my $sub_filter = sub {
                 my ($si, $calledby) = @_;
                 return 1 if not defined $calledby;
-                my $include = ($subs_in_file->{$si->subname}
+                my $subname = $si->subname;
+                my $include = ($subs_in_file->{$subname}
                             || $subs_in_file->{$calledby});
+                #warn "Call graph $subname<-$calledby: ".($include ? "SHOW" : "skip")."\n";
                 return $include;
             };
             output_subs_callgraph_dot_file($reporter, $dot_file, $sub_filter, 0);
@@ -596,6 +601,8 @@ sub output_index_page {
 sub js_for_new_treemap {
     my ($name, $new_args, $tree_data) = @_;
 
+    return '' unless $json_any;
+
     my $default_new_args = {
         titleHeight => 0, # no titles
         addLeftClickHandler => 1,   # zoom in
@@ -623,7 +630,6 @@ sub js_for_new_treemap {
     exists $new_args->{$_} or $new_args->{$_} = $default_new_args->{$_}
         for keys %$default_new_args;
 
-    our $json_any ||= JSON::Any->new;
     my $new_args_json  = $json_any->objToJson($new_args);
     my $tree_data_json = $json_any->objToJson($tree_data);
 

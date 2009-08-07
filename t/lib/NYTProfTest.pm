@@ -109,6 +109,7 @@ my %env_influence;
 
 sub do_foreach_env_combination {
     my ($code) = @_;
+    COMBINATION:
     for my $env (@env_combinations) {
 
         my $prev_failures = count_of_failed_tests();
@@ -119,7 +120,10 @@ sub do_foreach_env_combination {
         ($opts{v}) ? warn $context : print $context;
 
         ok eval { $code->(\%env) };
-        diag "Test group aborted: $@" if $@;
+        if ($@) {
+            diag "Test group aborted: $@";
+            last COMBINATION;
+        }
 
         # did any tests fail?
         my $failed = (count_of_failed_tests() - $prev_failures) ? 1 : 0;

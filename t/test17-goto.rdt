@@ -23,6 +23,7 @@ fid_block_time	1	31	[ 0 2 ]
 fid_block_time	1	35	[ 0 1 ]
 fid_fileinfo	1	[ test17-goto.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	0-0
+fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::bar	26-28
 fid_fileinfo	1	sub	main::destination	18-20
 fid_fileinfo	1	sub	main::foo	30-33
@@ -58,6 +59,7 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
+sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	main::bar	[ 1 26 28 1 0 0 0 0 ]
 sub_subinfo	main::bar	called_by	1	31	[ 1 0 0 0 0 0 0 main::foo ]
 sub_subinfo	main::destination	[ 1 18 20 1 0 0 0 0 ]

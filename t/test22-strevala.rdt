@@ -34,6 +34,7 @@ fid_fileinfo	1	eval	9	[ 2 0 ]
 fid_fileinfo	1	eval	12	[ 1 2 ]
 fid_fileinfo	2	[ (eval 0)[test22-strevala.p:6] 1 6 2 2 0 0 ]
 fid_fileinfo	2	sub	main::CORE:print	0-0
+fid_fileinfo	2	sub	main::RUNTIME	1-1
 fid_fileinfo	2	sub	main::__ANON__[(eval 0)[test22-strevala.p:6]:1]	1-1
 fid_fileinfo	2	call	1	main::CORE:print	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test22-strevala.p:6]:1] ]
 fid_fileinfo	3	[ (eval 0)[test22-strevala.p:9] 1 9 3 2 0 0 ]
@@ -87,6 +88,7 @@ sub_subinfo	main::CORE:print	called_by	3	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 
 sub_subinfo	main::CORE:print	called_by	4	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test22-strevala.p:9]:1] ]
 sub_subinfo	main::CORE:print	called_by	6	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1] ]
 sub_subinfo	main::CORE:print	called_by	7	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1] ]
+sub_subinfo	main::RUNTIME	[ 2 1 1 0 0 0 0 0 ]
 sub_subinfo	main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1]	[ 6 1 1 2 0 0 0 0 ]
 sub_subinfo	main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1]	called_by	5	2	[ 2 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::__ANON__[(eval 0)[test22-strevala.p:6]:1]	[ 2 1 1 1 0 0 0 0 ]

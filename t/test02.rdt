@@ -22,6 +22,7 @@ fid_block_time	1	21	[ 0 1 ]
 fid_fileinfo	1	[ test02.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	sub	main::CORE:print	0-0
+fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::bar	6-8
 fid_fileinfo	1	sub	main::baz	10-16
 fid_fileinfo	1	sub	main::foo	1-4
@@ -64,6 +65,7 @@ sub_subinfo	main::CORE:print	[ 1 0 0 10 0 0 0 0 ]
 sub_subinfo	main::CORE:print	called_by	1	2	[ 2 0 0 0 0 0 0 main::foo ]
 sub_subinfo	main::CORE:print	called_by	1	7	[ 7 0 0 0 0 0 0 main::bar ]
 sub_subinfo	main::CORE:print	called_by	1	11	[ 1 0 0 0 0 0 0 main::baz ]
+sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	main::bar	[ 1 6 8 7 0 0 0 0 ]
 sub_subinfo	main::bar	called_by	1	3	[ 2 0 0 0 0 0 0 main::foo ]
 sub_subinfo	main::bar	called_by	1	12	[ 1 0 0 0 0 0 0 main::baz ]

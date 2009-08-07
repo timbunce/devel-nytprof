@@ -304,6 +304,7 @@ static Pid_t last_pid;
 static NV cumulative_overhead_ticks = 0.0;
 static NV cumulative_subr_secs = 0.0;
 static UV cumulative_subr_seqn = 0;
+static int main_runtime_used = 0;
 
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
 
@@ -2255,7 +2256,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             cumulative_subr_secs, subr_entry->initial_subr_secs,
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
             (int)subr_entry->called_cv_depth,
-            subr_entry->caller_fid, subr_entry->caller_line, subr_entry->subr_call_seqn);
+            subr_entry->caller_fid, subr_entry->caller_line,
+            (long unsigned int)subr_entry->subr_call_seqn);
 
     /* only count inclusive time for the outer-most calls */
     if (subr_entry->called_cv_depth <= 1) {
@@ -2436,9 +2438,10 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
         subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
 
         if (caller_cv == PL_main_cv) {
-            /* PL_main_cv is run-time main (compile, eg 'use' is main::BEGIN) */
+            /* PL_main_cv is run-time main (compile, eg 'use', is main::BEGIN) */
             subr_entry->caller_subpkg_pv = "main";
             sv_setpv(subr_entry->caller_subnam_sv, "RUNTIME"); /* *cough* */
+            ++main_runtime_used;
         }
         else {
             HV *stash_hv = NULL;
@@ -2723,7 +2726,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
             subr_entry->called_cv_depth,
             subr_entry->initial_overhead_ticks,
             subr_entry->initial_subr_secs,
-            subr_entry->subr_call_seqn
+            (long unsigned int)subr_entry->subr_call_seqn
         );
     }
 
@@ -3149,13 +3152,19 @@ write_sub_line_ranges(pTHX)
                  sub_name, (int)filename_len, filename, fid );
     }
 
-    if (1) { /* Create a fake entry for main::RUNTIME subroutine */
+    if (main_runtime_used) { /* Create fake entry for main::RUNTIME sub */
         char *runtime = "main::RUNTIME";
-        SV *sv;
+        SV *sv = *hv_fetch(hv, runtime, strlen(runtime), 1);
+        char *filename;
         /* get name of file that contained first profiled sub in 'main::' */
         SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ runtime);
-        sv = *hv_fetch(hv, runtime, strlen(runtime), 1);
-        sv_setpvf(sv, "%s:%d-%d", SvPV_nolen(pkg_filename_sv), 1, 1);
+        if (!pkg_filename_sv) { /* no subs in main, so guess */
+            filename = hashtable.first_inserted->key;
+        }
+        else {
+            filename = SvPV_nolen(pkg_filename_sv);
+        }
+        sv_setpvf(sv, "%s:%d-%d", filename, 1, 1);
     }
 
     /* Iterate over PL_DBsub writing out fid and source line range of subs.
