@@ -553,9 +553,10 @@ grab_input(NYTP_file ifile) {
 
         if (!(status == Z_OK || status == Z_STREAM_END)) {
             if (ifile->stdio_at_eof)
-                croak("inflate failed, error %d (%s) at end of input file - is"
-                      " it truncated?", status, ifile->zs.msg);
-            croak("inflate failed, error %d (%s) at offset %ld in input file",
+                croak("Error reading file: inflate failed, error %d (%s) at end of input file, "
+                    " perhaps the process didn't exit cleanly or the file has been truncated",
+                    status, ifile->zs.msg);
+            croak("Error reading file: inflate failed, error %d (%s) at offset %ld in input file",
                   status, ifile->zs.msg, (long)ftell(ifile->file));
         }
 
@@ -2399,6 +2400,9 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
     prev_subr_entry_ix = subr_entry_ix;
     subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
     subr_entry = subr_entry_ix_ptr(subr_entry_ix);
+    if (subr_entry_ix <= prev_subr_entry_ix) {
+        logwarn("Something's very wrong!\n");
+    }
     Zero(subr_entry, 1, sizeof(subr_entry_t));
 
     subr_entry->prev_subr_entry_ix = prev_subr_entry_ix;
@@ -2431,6 +2435,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
     if (profile_findcaller             /* user wants us to calculate each time */
     || !caller_subr_entry                     /* we don't have a caller struct */
     || !caller_subr_entry->called_subpkg_pv   /* we don't have caller details  */
+    || !caller_subr_entry->called_subnam_sv
     || !SvOK(caller_subr_entry->called_subnam_sv)
     ) {
         /* get the current CV and determine the current sub name from that */
