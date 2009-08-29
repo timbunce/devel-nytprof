@@ -626,23 +626,24 @@ For example, the L<Readonly> module croaks with "Invalid tie" when profiled with
 perl versions before 5.8.8. That's because L<Readonly> explicitly checking for
 certain values from caller(). The L<NEXT> module is also affected.
 
-=head2 For perl < 5.10.1 it can't see some implicit subroutine calls
-
-made via operator overloading
+=head2 For perl < 5.10.1 it can't see some implicit calls and callbacks
 
 For perl versions prior to 5.8.9 and 5.10.1, some implicit subroutine calls
 can't be seen by the I<subroutine> profiler. Technically this affects calls
 made via the various perl C<call_*()> internal APIs.
 
-For example, the C<TIE><whatever> subroutine called by C<tie()>, and all calls
-made via operator overloading.  Though the statements executed by the code in
-the overload subs are profiled.
+For example, the C<TIE><whatever> subroutine called by C<tie()>, all calls
+made via operator overloading, and callbacks from XS code, are not seen.
 
-The effect is that time in the subroutines for those call is
+The effect is that time in the subroutines for those calls is
 accumulated by the subs that trigger them. So time spent in calls invoked by
 perl to handle overloading are accumulated by the subroutines that trigger
 overloading (so it is measured, but the cost is dispersed across possibly many
 calling locations).
+
+Although the calls aren't seen by the subroutine profiler, the individual
+I<statements> executed by the code in the called subs are profiled by the
+statement profiler.
 
 =head2 goto
 
