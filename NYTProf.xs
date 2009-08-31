@@ -2443,7 +2443,12 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
         subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
 
         if (caller_cv == PL_main_cv) {
-            /* PL_main_cv is run-time main (compile, eg 'use', is main::BEGIN) */
+            /* PL_main_cv is run-time main (compile-time, eg 'use', is a main::BEGIN) */
+            /* We don't record timing data for main::RUNTIME because timing data
+             * is stored per calling location, and there is no calling location.
+             * XXX Currently we don't output a subinfo for main::RUNTIME unless
+             * some sub is called from main::RUNTIME. That may change.
+             */
             subr_entry->caller_subpkg_pv = "main";
             sv_setpv(subr_entry->caller_subnam_sv, "RUNTIME"); /* *cough* */
             ++main_runtime_used;

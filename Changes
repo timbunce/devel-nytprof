@@ -10,6 +10,7 @@ XXX slowops needs docs and more ops
 XXX subroutine profiler docs need update
 XXX doc findcaller option
 XXX note here and doc goto behaviour
+XXX update and test JIT
 
   Note: The file format has changed. Old files can't be read.
 
