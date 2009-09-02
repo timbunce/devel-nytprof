@@ -59,7 +59,7 @@ Devel::NYTProf - Powerful feature-rich perl source code profiler
   # convert database into a set of html files, e.g., ./nytprof/index.html
   nytprofhtml
 
-  # or into comma seperated files, e.g., ./nytprof/*.csv
+  # or into comma separated files, e.g., ./nytprof/*.csv
   nytprofcsv
 
 =head1 DESCRIPTION
@@ -204,7 +204,7 @@ separately. Also the 'maximum recursion depth' per calling location is recorded.
 =head2 Application Profiling
 
 NYTProf records extra information in the data file to capture details that may
-be useful when analysing the performance. It also records the filename and line
+be useful when analyzing the performance. It also records the filename and line
 ranges of all the subroutines.
 
 NYTProf can profile applications that fork, and does so with no loss of
@@ -262,7 +262,7 @@ example:
 
   export NYTPROF=trace=2:start=init:file=/tmp/nytprof.out
 
-Any colon or equal characters in a value can be escaped by preceeding them with
+Any colon or equal characters in a value can be escaped by preceding them with
 a backslash.
 
 =head2 addpid=1
@@ -286,8 +286,8 @@ Specify the name of the file that L</trace=N> output should be written to.
 Specify at which phase of program execution the profiler should be enabled:
 
   start=begin - start immediately (the default)
-  start=init  - start at begining of INIT phase (after compilation)
-  start=end   - start at begining of END phase
+  start=init  - start at beginning of INIT phase (after compilation)
+  start=end   - start at beginning of END phase
   start=no    - don't automatically start
 
 The start=no option is handy if you want to explicitly control profiling
@@ -314,7 +314,7 @@ may be rewritten as
   1    return if (...)
 
 so the profile won't show a statement count for line 2 in your source code
-because the C<return> was merged into the C<if> statement on the preceeding line.
+because the C<return> was merged into the C<if> statement on the preceding line.
 
 Using the C<optimize=0> option disables the optimizer so you'll get lower
 overall performance but more accurately assigned statement counts.
@@ -330,7 +330,7 @@ Set to 0 to disable the collection of subroutine caller and timing details.
 
 Set to 0 to disable the determination of block and subroutine location per statement.
 This makes the profiler about 50% faster (as of July 2008) and produces smaller
-output files, but you loose some valuable information. The extra cost is likely
+output files, but you lose some valuable information. The extra cost is likely
 to be reduced in later versions anyway, as little optimization has been done on
 that part of the code.
 
@@ -347,7 +347,7 @@ profile data file.
 
 Set to 0 to disable the extra work done to allocate times accurately when
 returning into the middle of statement. For example leaving a subroutine
-and returning into the middle of statement, or re-evaluting a loop condition.
+and returning into the middle of statement, or re-evaluating a loop condition.
 
 This feature also ensures that in embedded environments, such as mod_perl,
 the last statement executed doesn't accumulate the time spent 'outside perl'.
@@ -408,7 +408,7 @@ and the C<-x> file test is C<fteexec>. This is likely to change in future.
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
 time (which is the default).
 
-Measuring CPU time has the advantage of making the measurements independant of
+Measuring CPU time has the advantage of making the measurements independent of
 time spent blocked waiting for the cpu or network i/o etc. But it also has the
 severe disadvantage of having typically I<far> less accurate timings.
 
@@ -533,13 +533,13 @@ The problem with real time is that it's far from simple. It tends to drift and
 then be reset to match 'reality', either sharply or by small adjustments (via the
 adjtime() system call).
 
-Surprizingly, it can also go backwards, for reasons explained in
+Surprisingly, it can also go backwards, for reasons explained in
 http://preview.tinyurl.com/5wawnn
 
 =head3 CLOCK_MONOTONIC
 
-CLOCK_MONOTONIC rrepresents the amount of time since an unspecified point in
-the past (typically system start-up time).  It increments uniformally
+CLOCK_MONOTONIC represents the amount of time since an unspecified point in
+the past (typically system start-up time).  It increments uniformly
 independent of adjustments to 'wallclock time'.
 
 =head3 CLOCK_VIRTUAL
@@ -647,7 +647,7 @@ statement profiler.
 
 =head2 goto
 
-The C<goto &foo;> isn't recognised as a subroutine call by the subroutine profiler.
+The C<goto &foo;> isn't recognized as a subroutine call by the subroutine profiler.
 
 =head2 Calls to XSubs which exit via an exception
 
@@ -662,9 +662,8 @@ warns about them. Patches welcome.
 
 =head2 SMP Systems
 
-Systems with multiple processors, which includes most modern machines, have
-
-From Linux docs (though applicable to most SMP systems):
+On systems with multiple processors, which includes most modern machines,
+(from Linux docs though applicable to most SMP systems):
 
   The CLOCK_PROCESS_CPUTIME_ID and CLOCK_THREAD_CPUTIME_ID clocks are realized on
   many platforms using timers from the CPUs (TSC on i386, AR.ITC on Itanium).
@@ -717,7 +716,7 @@ timings. They will still be noisy but less so than the statement times.
 
 You could also try using the C<clock=N> option to select a high-resolution
 I<cpu-time> clock instead of a real-time one. That should be much less
-noisy, though you will loose visibility of wait-times due to network
+noisy, though you will lose visibility of wait-times due to network
 and disk I/O, for example.
 
 If your system doesn't support the C<clock=N> option then you could try
