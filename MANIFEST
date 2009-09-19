@@ -21,6 +21,7 @@ lib/Devel/NYTProf/Constants.pm
 lib/Devel/NYTProf/Core.pm
 lib/Devel/NYTProf/Data.pm
 lib/Devel/NYTProf/FileInfo.pm
+lib/Devel/NYTProf/PgPLPerl.pm
 lib/Devel/NYTProf/ReadStream.pm
 lib/Devel/NYTProf/Reader.pm
 lib/Devel/NYTProf/SubInfo.pm
