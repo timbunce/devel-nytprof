@@ -1206,6 +1206,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     Hash_entry entry, *found, *parent_entry;
     AV *src_av = Nullav;
 
+    if (0) memset(&entry, 0, sizeof(entry)); /* handy if debugging */
     entry.key = file_name;
     entry.key_len = (unsigned int)file_name_len;
 
@@ -1224,8 +1225,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
      * then ensure we've already generated a fid for the underlying
      * filename, and associate that fid with this eval fid
      */
-    if ('(' == file_name[0]) {
-        if (']' == file_name[file_name_len-1]) {
+    if ('(' == file_name[0]) {                      /* first char is '(' */
+        if (']' == file_name[file_name_len-1]) {    /* last char is ']' */
             char *start = strchr(file_name, '[');
             const char *colon = ":";
             /* can't use strchr here (not nul terminated) so use rninstr */
@@ -1235,7 +1236,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
                 logwarn("NYTProf unsupported filename syntax '%s'\n", file_name);
                 return 0;
             }
-            ++start;                              /* move past [ */
+            ++start;                                /* move past [ */
             /* recurse */
             found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
             found->eval_line_num = atoi(end+1);
@@ -1940,6 +1941,10 @@ set_option(pTHX_ const char* option, const char* value)
             ? profile_opts |  NYTP_OPTf_SAVESRC
             : profile_opts & ~NYTP_OPTf_SAVESRC;
     }
+    else if (strEQ(option, "endatexit")) {
+        if (atoi(value))
+            PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
+    }
     else if (strEQ(option, "zero")) {
         profile_zero = atoi(value);
     }
@@ -2452,6 +2457,13 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
             subr_entry->caller_subpkg_pv = "main";
             sv_setpv(subr_entry->caller_subnam_sv, "RUNTIME"); /* *cough* */
             ++main_runtime_used;
+        }
+        else if (caller_cv == 0) {
+            /* should never happen - but does in PostgreSQL 8.4.1 plperl
+             * possibly because perl_run() has already returned
+             */
+            subr_entry->caller_subpkg_pv = "main";
+            sv_setpv(subr_entry->caller_subnam_sv, "NULL"); /* *cough* */
         }
         else {
             HV *stash_hv = NULL;
@@ -3444,7 +3456,7 @@ read_nv()
 }
 
 
-SV *
+static SV *
 normalize_eval_seqn(pTHX_ SV *sv) {
     /* in-place-edit any eval sequence numbers to 0 */
     int found = 0;

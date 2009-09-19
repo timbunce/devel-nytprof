@@ -30,6 +30,8 @@ XXX update and test JIT
     slowops=2 puts timings into into the package that made the
     call, e.g., "Foo::CORE:sleep" (note the single colon).
 
+  Added some support for profiling PostgreSQL PL/Perl code.
+
 Changes to subroutine profiler:
 
   Rewritten. Captures more data more accurately and robustly.
