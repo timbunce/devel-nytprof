@@ -2089,7 +2089,7 @@ new_sub_call_info_av(pTHX)
 /* subroutine profiler subroutine entry structure */
 typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
-    int completed;
+    int already_counted;
     UV  subr_call_seqn;
     I32 prev_subr_entry_ix; /* ix to callers subr_entry */
 
@@ -2119,13 +2119,15 @@ static I32 subr_entry_ix = 0;
 static void
 subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
 {
-    if (trace_level >= 6)
-        logwarn("discarding subr_entry for %s::%s (seix %d->%d)\n",
+    if (trace_level >= 6 || subr_entry->already_counted>1) {
+        logwarn("discarding subr_entry for %s::%s (seix %d->%d, already_counted %d)\n",
             subr_entry->called_subpkg_pv,
             (subr_entry->called_subnam_sv)
                 ? SvPV_nolen(subr_entry->called_subnam_sv)
                 : "?",
-            (int)subr_entry_ix, (int)subr_entry->prev_subr_entry_ix);
+            (int)subr_entry_ix, (int)subr_entry->prev_subr_entry_ix,
+            subr_entry->already_counted);
+    }
     if (subr_entry->caller_subnam_sv) {
         sv_free(subr_entry->caller_subnam_sv);
         subr_entry->caller_subnam_sv = Nullsv;
@@ -2134,8 +2136,11 @@ subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
         sv_free(subr_entry->called_subnam_sv);
         subr_entry->called_subnam_sv = Nullsv;
     }
-    subr_entry_ix = subr_entry->prev_subr_entry_ix;
-        
+    if (subr_entry->prev_subr_entry_ix <= subr_entry_ix)
+        subr_entry_ix = subr_entry->prev_subr_entry_ix;
+    else
+        logwarn("skipped attempt to raise subr_entry_ix from %d to %d\n",
+            subr_entry_ix, subr_entry->prev_subr_entry_ix);
 }
 
 
@@ -2154,18 +2159,18 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     if (subr_entry->called_subnam_sv == &PL_sv_undef) {
         logwarn("xsub/builtin exited via an exception (which isn't handled yet)\n");
-        subr_entry->completed = 1;
+        subr_entry->already_counted++;
     }
 
     /* For xsubs we get called both explicitly when the xsub returns, and by
      * the destructor. (That way if the xsub leaves via an exception then we'll
      * still get called, albeit a little later than we'd like.)
      */
-    if (subr_entry->completed) {
+    if (subr_entry->already_counted) {
         subr_entry_destroy(aTHX_ subr_entry);
         return;
     }
-    subr_entry->completed = 1;
+    subr_entry->already_counted++;
 
     /* statement overheads we've accumulated since we entered the sub */
     overhead_ticks = cumulative_overhead_ticks - subr_entry->initial_overhead_ticks;
@@ -2595,7 +2600,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
         /* goto &sub opcode acts like a return followed by a call all in one.
          * When this op start executing, the 'current' subr_entry that was
-         * pushed onto the savestack by pp_subcall_profiler will be 'completed'
+         * pushed onto the savestack by pp_subcall_profiler will be 'already_counted'
          * so the profiling of that call will be handled naturally for us.
          * So far so good.
          * Before it gets destroyed we'll take a copy of the subr_entry.
@@ -2734,12 +2739,12 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     /* ignore our own DB::_INIT sub - only shows up with 5.8.9+ & 5.10.1+ */
     if (is_xs && *stash_name == 'D' && strEQ(stash_name,"DB") && strEQ(SvPV_nolen(called_subnam_sv), "_INIT")) {
-        subr_entry->completed = 1;
+        subr_entry->already_counted++;
         goto skip_sub_profile;
     }
     /* catch profile_subs being turned off by disable_profile call */
     if (!profile_subs)
-        subr_entry->completed = 1;
+        subr_entry->already_counted++;
 
     if (trace_level >= 2) {
         logwarn(" ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
