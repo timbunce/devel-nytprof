@@ -355,6 +355,12 @@ the last statement executed doesn't accumulate the time spent 'outside perl'.
 NYTProf is the only line-level profiler to measure these times correctly.
 The profiler is fast enough that you shouldn't need to disable this feature.
 
+=head2 findcaller=1
+
+Force NYTProf to recalculate the name of the caller of the each sub instead of
+'inheriting' the name calculated when the caller was entered. (Rarely needed,
+but might be useful in some odd cases.)
+
 =head2 use_db_sub=1
 
 Set to 1 to enable use of the traditional DB::DB() subroutine to perform

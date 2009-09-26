@@ -2086,7 +2086,9 @@ new_sub_call_info_av(pTHX)
     return av;
 }
 
-/* subroutine profiler subroutine entry structure */
+/* subroutine profiler subroutine entry structure. Represents a call
+ * from one sub to another (the arc between the nodes, if you like)
+ */
 typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
     int already_counted;
@@ -2119,8 +2121,11 @@ static I32 subr_entry_ix = 0;
 static void
 subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
 {
-    if (trace_level >= 6 || subr_entry->already_counted>1) {
-        logwarn("discarding subr_entry for %s::%s (seix %d->%d, already_counted %d)\n",
+    if ((trace_level >= 6 || subr_entry->already_counted>1)
+        /* ignore the typical second (fallback) destroy */
+        && !(subr_entry->prev_subr_entry_ix == subr_entry_ix && subr_entry->already_counted==1)
+    ) {
+        logwarn("discarding subr_entry for %s::%s (seix %d->%d, ac%d)\n",
             subr_entry->called_subpkg_pv,
             (subr_entry->called_subnam_sv)
                 ? SvPV_nolen(subr_entry->called_subnam_sv)
@@ -2158,7 +2163,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     AV *subr_call_av;
 
     if (subr_entry->called_subnam_sv == &PL_sv_undef) {
-        logwarn("xsub/builtin exited via an exception (which isn't handled yet)\n");
+        if (trace_level)
+            logwarn("Don't know name of called sub, assuming xsub/builtin exited via an exception (which isn't handled yet)\n");
         subr_entry->already_counted++;
     }
 
@@ -2303,12 +2309,17 @@ incr_sub_inclusive_time_ix(pTHX_ void *subr_entry_ix_void)
 }
 
 
-static SV *
-resolve_sub(pTHX_ SV *sv, GV **subname_gv_ptr)
+static CV *
+resolve_sub_to_cv(pTHX_ SV *sv, GV **subname_gv_ptr)
 {
-    GV *gv;
+    GV *dummy_gv;
     HV *stash;
     CV *cv;
+
+    if (!subname_gv_ptr)
+        subname_gv_ptr = &dummy_gv;
+    else
+        *subname_gv_ptr = Nullgv;
 
     /* copied from top of perl's pp_entersub */
     /* modified to return either CV or else a GV */
@@ -2353,15 +2364,15 @@ resolve_sub(pTHX_ SV *sv, GV **subname_gv_ptr)
             break;
         case SVt_PVGV:
             if (!(cv = GvCVu((GV*)sv)))
-                cv = sv_2cv(sv, &stash, &gv, FALSE);
-            if (!cv) {                            /* would autoload in this situation */
-                if (subname_gv_ptr)
-                    *subname_gv_ptr = gv;
+                cv = sv_2cv(sv, &stash, subname_gv_ptr, FALSE);
+            if (!cv)                              /* would autoload in this situation */
                 return NULL;
-            }
             break;
     }
-    return (SV *)cv;
+    if (cv && !*subname_gv_ptr && CvGV(cv)) {
+        *subname_gv_ptr = CvGV(cv);
+    }
+    return cv;
 }
 
 
@@ -2376,6 +2387,10 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
     if (!si)
         si = PL_curstackinfo;
     cx = &si->si_cxstack[ix];
+
+    if (trace_level >= 9)
+        warn("finding current_cv(%d,%p) - cx_type %d %s, si_type %d\n",
+            ix, si, CxTYPE(cx), block_type[CxTYPE(cx)], si->si_type);
 
     /* the common case of finding the caller on the same stack */
     if (CxTYPE(cx) == CXt_SUB || CxTYPE(cx) == CXt_FORMAT)
@@ -2396,7 +2411,7 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
 
 
 static I32
-subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
+subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, SV *subr_sv)
 {
     int saved_errno = errno;
     subr_entry_t *subr_entry;
@@ -2404,6 +2419,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
     subr_entry_t *caller_subr_entry;
     char *found_caller_by;
     char *file;
+    GV *called_gv = Nullgv;
 
     /* allocate struct to save stack (very efficient) */
     /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
@@ -2411,7 +2427,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
     subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
     subr_entry = subr_entry_ix_ptr(subr_entry_ix);
     if (subr_entry_ix <= prev_subr_entry_ix) {
-        logwarn("Something's very wrong!\n");
+        logwarn("NYTProf: stack is confused!\n");
     }
     Zero(subr_entry, 1, sizeof(subr_entry_t));
 
@@ -2422,8 +2438,20 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
     subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
     subr_entry->initial_subr_secs      = cumulative_subr_secs;
     subr_entry->subr_call_seqn         = ++cumulative_subr_seqn;
-    subr_entry->called_subnam_sv       = &PL_sv_undef; /* see incr_sub_inclusive_time */
-    subr_entry->called_is_xs           = NULL; /* we don't know yet */
+
+    /* try to work out what sub's being called in advance
+     * mainly for xsubs because otherwise they're transparent
+     * because xsub calls don't get a new context
+     */
+    subr_entry->called_cv = resolve_sub_to_cv(aTHX_ subr_sv, &called_gv);
+    if (called_gv) {
+        subr_entry->called_subpkg_pv = HvNAME(GvSTASH(called_gv));
+        subr_entry->called_subnam_sv = newSVpv(GvNAME(called_gv), 0);
+    }
+    else {
+        subr_entry->called_subnam_sv = newSV(0); /* see incr_sub_inclusive_time */
+    }
+    subr_entry->called_is_xs = NULL; /* work it out later */
 
     file = OutCopFILE(prev_cop);
     subr_entry->caller_fid = (file == last_executed_fileptr)
@@ -2500,12 +2528,20 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry)
     }
 
     if (trace_level >= 4)
-        logwarn("Making sub call at %u:%d from %s::%s %s (seix %d->%d)\n",
+        logwarn("Making sub call (%s) at %u:%d from %s::%s %s (seix %d->%d)\n",
+            SvPV_nolen(subr_sv),
             subr_entry->caller_fid, subr_entry->caller_line,
             subr_entry->caller_subpkg_pv,
             SvPV_nolen(subr_entry->caller_subnam_sv),
             found_caller_by, (int)prev_subr_entry_ix, (int)subr_entry_ix
         );
+
+    /* This is our safety-net destructor. For perl subs an identical destructor
+     * will be pushed onto the stack inside the scope we're interested in.
+     * That destructor will be more accurate than this one. This one is here
+     * mainly to catch exceptions thrown from xs subs and slowops.
+     */
+    save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)subr_entry_ix));
 
     SETERRNO(saved_errno, 0);
 
@@ -2539,7 +2575,6 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     SV *sub_sv = *SP;
     I32 this_subr_entry_ix = 0; /* local copy (needed for goto) */
 
-    SV *called_subnam_sv;
     char *stash_name = NULL;
     char *is_xs;
     subr_entry_t *subr_entry;
@@ -2583,7 +2618,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
          */
 
         called_cv = NULL;
-        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, NULL);
+        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, NULL, sub_sv);
 
         /* This call may exit via an exception, in which case the
         * remaining code below doesn't get executed and the sub call
@@ -2634,7 +2669,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         /* now we're in goto'd sub, mortalize the REFCNT_inc's done above */
         sv_2mortal(goto_subr_entry.caller_subnam_sv);
         sv_2mortal(goto_subr_entry.called_subnam_sv);
-        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, &goto_subr_entry);
+        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, &goto_subr_entry, sub_sv);
     }
 
     /* push a destructor hook onto the context stack to ensure we account
@@ -2644,7 +2679,6 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
 
-    called_subnam_sv = newSV(0);
     if (is_slowop) {
         /* pretend builtins are xsubs in the same package
         * but with "CORE:" (one colon) prepended to the name.
@@ -2654,11 +2688,11 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         is_xs = "sop";
         if (profile_slowops == 1) { /* 1 == put slowops into 1 package */
             stash_name = "CORE";
-            sv_setpv(called_subnam_sv, slowop_name);
+            sv_setpv(subr_entry->called_subnam_sv, slowop_name);
         }
         else {                     /* 2 == put slowops into multiple packages */
             stash_name = CopSTASHPV(PL_curcop);
-            sv_setpvf(called_subnam_sv, "CORE:%s", slowop_name);
+            sv_setpvf(subr_entry->called_subnam_sv, "CORE:%s", slowop_name);
         }
         subr_entry->called_cv_depth = 1; /* an approximation for slowops */
     }
@@ -2677,14 +2711,14 @@ pp_subcall_profiler(pTHX_ int is_slowop)
             /* determine the original fully qualified name for sub */
             /* CV or NULL */
             GV *gv = NULL;
-            called_cv = (CV *)resolve_sub(aTHX_ sub_sv, &gv);
+            called_cv = resolve_sub_to_cv(aTHX_ sub_sv, &gv);
             
             if (!called_cv && gv) { /* XXX no test case  for this */
                 stash_name = HvNAME(GvSTASH(gv));
-                sv_setpv(called_subnam_sv, GvNAME(gv));
+                sv_setpv(subr_entry->called_subnam_sv, GvNAME(gv));
                 if (trace_level >= 0)
                     logwarn("Assuming called sub is named %s::%s at %s line %d (please report as a bug)\n",
-                        stash_name, SvPV_nolen(called_subnam_sv),
+                        stash_name, SvPV_nolen(subr_entry->called_subnam_sv),
                         OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
             }
             is_xs = "xsub";
@@ -2698,7 +2732,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
                 * package, so we dig to find the original package
                 */
                 stash_name = HvNAME(GvSTASH(gv));
-                sv_setpv(called_subnam_sv, GvNAME(gv));
+                sv_setpv(subr_entry->called_subnam_sv, GvNAME(gv));
             }
             else if (trace_level >= 0) {
                 logwarn("I'm confused about CV %p called as %s at %s line %d (please report as a bug)\n",
@@ -2710,17 +2744,17 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         }
 
         /* called_subnam_sv should have been set by now - else we're getting desperate */
-        if (!SvOK(called_subnam_sv)) {
+        if (!SvOK(subr_entry->called_subnam_sv)) {
             const char *what = (is_xs) ? is_xs : "sub";
 
             if (!called_cv) { /* should never get here as pp_entersub would have croaked */
                 logwarn("unknown entersub %s '%s' (please report this as a bug)\n", what, SvPV_nolen(sub_sv));
                 stash_name = CopSTASHPV(PL_curcop);
-                sv_setpvf(called_subnam_sv, "__UNKNOWN__[%s,%s])", what, SvPV_nolen(sub_sv));
+                sv_setpvf(subr_entry->called_subnam_sv, "__UNKNOWN__[%s,%s])", what, SvPV_nolen(sub_sv));
             }
             else { /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
                 stash_name = HvNAME(CvSTASH(called_cv));
-                sv_setpvf(called_subnam_sv, "__UNKNOWN__[%s,0x%p]", what, called_cv);
+                sv_setpvf(subr_entry->called_subnam_sv, "__UNKNOWN__[%s,0x%p]", what, called_cv);
                 if (trace_level)
                     logwarn("unknown entersub %s assumed to be anon called_cv '%s'\n",
                         what, SvPV_nolen(sub_sv));
@@ -2733,12 +2767,13 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         subr_entry->called_cv_depth = (called_cv) ? CvDEPTH(called_cv)+(is_xs?1:0) : 0;
     }
     subr_entry->called_subpkg_pv = stash_name;
-    subr_entry->called_subnam_sv = called_subnam_sv;
     subr_entry->called_cv = called_cv;
     subr_entry->called_is_xs = is_xs;
 
     /* ignore our own DB::_INIT sub - only shows up with 5.8.9+ & 5.10.1+ */
-    if (is_xs && *stash_name == 'D' && strEQ(stash_name,"DB") && strEQ(SvPV_nolen(called_subnam_sv), "_INIT")) {
+    if (is_xs && *stash_name == 'D' && strEQ(stash_name,"DB")
+    && strEQ(SvPV_nolen(subr_entry->called_subnam_sv), "_INIT")
+    ) {
         subr_entry->already_counted++;
         goto skip_sub_profile;
     }
@@ -2748,7 +2783,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     if (trace_level >= 2) {
         logwarn(" ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
-            (is_xs) ? is_xs : "sub", stash_name, SvPV_nolen(called_subnam_sv),
+            (is_xs) ? is_xs : "sub", stash_name, SvPV_nolen(subr_entry->called_subnam_sv),
             subr_entry->caller_subpkg_pv, SvPV_nolen(subr_entry->caller_subnam_sv),
             subr_entry->called_cv_depth,
             subr_entry->initial_overhead_ticks,
@@ -4427,13 +4462,19 @@ MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Test
 PROTOTYPES: DISABLE
 
 void
-example_xsub(char *unused="", char *action="")
+example_xsub(char *unused="", SV *action=Nullsv, SV *arg=Nullsv)
     CODE:
-    if (!action || !*action)
+    if (!action)
         XSRETURN(0);
-    if (strEQ(action,"die"))
+    if (SvROK(action) && SvTYPE(SvRV(action))==SVt_PVCV) {
+        /* perl <= 5.8.8 doesn't use OP_ENTERSUB so won't be seen by NYTProf */
+        call_sv(action, G_VOID|G_DISCARD);
+    }
+    else if (strEQ(SvPV_nolen(action),"eval"))
+        eval_pv(SvPV_nolen(arg), TRUE);
+    else if (strEQ(SvPV_nolen(action),"die"))
         croak("example_xsub(die)");
-    logwarn("example_xsub: unknown action '%s'\n", action);
+    logwarn("example_xsub: unknown action '%s'\n", SvPV_nolen(action));
 
 void
 example_xsub_eval(...)

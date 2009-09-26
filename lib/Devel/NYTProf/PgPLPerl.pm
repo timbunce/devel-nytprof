@@ -27,6 +27,9 @@ my $orig_share_from = \&Safe::share_from;
 	return $obj->$orig_share_from(@_);
 };
 
+#require DynaLoader;
+#warn DynaLoader::dl_find_symbol(0, "error_context_stack");
+
 require Devel::NYTProf; # init profiler
 
 1;
@@ -50,6 +53,7 @@ to add the following lines just below the last subroutine:
 This module allows PL/Perl functions inside PostgreSQL database to be profiled with
 C<Devel::NYTProf>. 
 
+
 =head1 LIMITATIONS
 
 The perl functions defined with the C<plperl> language (not C<plperlu>) don't
@@ -66,7 +70,7 @@ B<Tim Bunce>, L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-  Copyright (C) 2008 by Tim Bunce.
+  Copyright (C) 2009 by Tim Bunce.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

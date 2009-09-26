@@ -26,3 +26,9 @@ wait();
 # affects AUTOLOAD subs.
 sub launch { goto &$subname }
 launch("foo");
+
+# return from xsub call via an exception
+# should correctly record the name of the xsub
+sub will_die { die "foo\n" }
+eval { example_xsub(0, \&will_die); 1; };
+warn "\$@ not set ($@)" if $@ ne "foo\n";
