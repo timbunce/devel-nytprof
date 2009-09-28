@@ -22,6 +22,13 @@ if (my $NYTPROF = $ENV{NYTPROF}) {
     for my $optval ( $NYTPROF =~ /((?:[^\\:]+|\\.)+)/g) {
         my ($opt, $val) = $optval =~ /^((?:[^\\=]+|\\.)+)=((?:[^\\=]+|\\.)+)\z/;
         s/\\(.)/$1/g for $opt, $val;
+
+        if ($opt eq 'sigexit') {
+            my @sigs = ($val eq '1') ? qw(INT HUP PIPE BUS SEGV) : split(/,/, $val);
+            $SIG{uc $_} = sub { DB::finish_profile(); exit 1; } for @sigs;
+            next; # no need to tell the XS code about this
+        }
+
         DB::set_option($opt, $val);
     }
 }

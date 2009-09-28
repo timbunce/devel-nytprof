@@ -30,6 +30,9 @@ XXX update and test JIT
     slowops=2 puts timings into into the package that made the
     call, e.g., "Foo::CORE:sleep" (note the single colon).
 
+  Added sigexit option to enable a useable profile when the process exits due
+    to a signals. Thanks to Andrew Sterling Hanenkamp for the seed of this idea.
+
   Added inital support for profiling PostgreSQL PL/Perl code
     via Devel::NYTProf::PgPLPerl module.
 

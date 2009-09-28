@@ -450,6 +450,24 @@ If the clock you select isn't available then CLOCK_REALTIME is used.
 
 See L</CLOCKS> for more information.
 
+=head2 sigexit=1
+
+When perl exits normally it runs any code defined in C<END> blocks.
+NYTProf defines an END block that finishes profiling and writes out the final
+profile data.
+
+If the process ends due to a signal then END blocks are not executed.
+The C<sigexit> option tells NYTProf to catch some signals (e.g. INT, HUP, PIPE,
+SEGV, BUS) and ensure a usable by executing:
+
+    DB::finish_profile();
+    exit 1;
+
+You can also specify which signals to catch in this way by listing them,
+seperated by commas, as the value of the option (case is not significant):
+
+    sigexit=int,hup
+
 =head1 RUN-TIME CONTROL OF PROFILING
 
 You can profile only parts of an application by calling DB::disable_profile()
