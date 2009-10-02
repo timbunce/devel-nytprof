@@ -53,12 +53,26 @@ to add the following lines just below the last subroutine:
 This module allows PL/Perl functions inside PostgreSQL database to be profiled with
 C<Devel::NYTProf>. 
 
-
 =head1 LIMITATIONS
 
-The perl functions defined with the C<plperl> language (not C<plperlu>) don't
-show up clearly because they're compiled using a string eval within a L<Safe>
-compartment. I'm planning to either hack in use of L<Subname> or else disable Safe.
+=head2 PL/Perl Function Names Are Missing
+
+The names of functions defined using CREATE FUNCTION don't show up in
+NYTProf because they're compiled as anonymous subs using a string eval.
+There's no easy way to determine the PL/Perl function name because it's only
+known to the postgres internals.
+
+(There might be a way using C<DynaLoader::dl_find_symbol(0, "error_context_stack")>
+but I've not had time to dig sufficiently deeply into that yet.)
+
+=head2 Explicit call to finish_profile needed
+
+Currently postgres doesn't execute END blocks when it shuts down, so NYTProf
+doesn't get a chance to terminate the profile cleanly. To get a useable profile
+you need to explicitly call finish_profile() in your plperl code.
+
+I've submitted a bug report asking for END blocks to be run at shutdown:
+http://archives.postgresql.org/pgsql-bugs/2009-09/threads.php#00289
 
 =head1 SEE ALSO
 
