@@ -652,7 +652,7 @@ sub js_for_new_treemap {
                             return;
                     }
                     leaf.innerHTML = tree.name +   
-                        "<img src=\\"js/jit/gradient20.png\\" " +  
+                        "<img src=\\"js/jit/gradient-cushion1.png\\" " +  
                         " style=\\"position:absolute;top:0;left:0;width:" +   
                         width+"px;height:" + height+"px;\\" />";  
                     style.width = width + "px";  
