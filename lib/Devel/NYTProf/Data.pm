@@ -327,10 +327,6 @@ sub dump_profile_data {
 
     $self->_clear_caches;
 
-    my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
-    my @abs_inc = grep { $_ =~ $abs_path_regex } $self->inc;
-    my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
-
     my $callback = sub {
         my ($path, $value) = @_;
 
@@ -344,20 +340,20 @@ sub dump_profile_data {
 
             # for fid_fileinfo don't dump internal details of lib modules
             if ($path->[0] eq 'fid_fileinfo' && @$path==2) {
-                my $is_lib = ($value->filename =~ $is_lib_regex) ? 1 : 0;
-                return ({ skip_internal_details => $is_lib }, $value);
+                my $fi = $self->fileinfo_of($value->[0]);
+                return ({ skip_internal_details => $fi->is_perl_std_lib }, $value);
             }
 
             # skip sub_subinfo data for 'library modules'
             if ($path->[0] eq 'sub_subinfo' && @$path==2 && $value->[0]) {
                 my $fi = $self->fileinfo_of($value->[0]);
-                return undef if $fi->filename =~ $is_lib_regex;
+                return undef if $fi->is_perl_std_lib;
             }
 
             # skip fid_*_time data for 'library modules'
             if ($path->[0] =~ /^fid_\w+_time$/ && @$path==2) {
                 my $fi = $self->fileinfo_of($path->[1]);
-                return undef if $fi->filename =~ $is_lib_regex
+                return undef if $fi->is_perl_std_lib
                          or $fi->filename =~ m!^/\.\.\./!;
             }
         }
@@ -500,11 +496,6 @@ sub normalize_variables {
     )) {
         $attributes->{$attr} = 0;
     }
-
-    my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;
-    my @abs_inc = grep { $_ =~ $abs_path_regex } $self->inc;
-    my $is_lib_regex = get_abs_paths_alternation_regex(\@abs_inc);
-
 
     # normalize line data
     for my $level (qw(line block sub)) {
