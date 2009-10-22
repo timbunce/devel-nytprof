@@ -8,7 +8,6 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 XXX subroutine profiler docs need update
 XXX note here and doc goto behaviour
-XXX update and test JIT
 XXX OP_SUBSTCONT
 
   Note: The file format has changed. Old files can't be read.
@@ -32,7 +31,7 @@ XXX OP_SUBSTCONT
   Added sigexit option to enable a useable profile when the process exits due
     to a signals. Thanks to Andrew Sterling Hanenkamp for the seed of this idea.
 
-  Added inital support for profiling PostgreSQL PL/Perl code
+  Added initial support for profiling PostgreSQL PL/Perl code
     via Devel::NYTProf::PgPLPerl module.
 
 Changes to subroutine profiler:

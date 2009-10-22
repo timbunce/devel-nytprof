@@ -40,7 +40,7 @@ use Cwd qw(getcwd);
 use List::Util qw(sum);
 #use UNIVERSAL qw( isa can VERSION );
 
-our $VERSION = '2.10';
+our $VERSION = '2.11';
 
 our @EXPORT_OK = qw(
     fmt_float

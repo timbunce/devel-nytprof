@@ -149,6 +149,9 @@ t/test60-subname.t
 t/test61-submerge.p
 t/test61-submerge.rdt
 t/test61-submerge.t
+t/test62-subcaller1.p
+t/test62-subcaller1.rdt
+t/test62-subcaller1.t
 t/test70-subexcl.p
 t/test70-subexcl.t
 t/test80-recurs.p
