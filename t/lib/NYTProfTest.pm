@@ -28,7 +28,8 @@ my $tests_per_extn = {p => 1, rdt => 1, x => 3};
 
 
 my %opts = (
-    profperlopts => '-d:NYTProf',
+    one          => $ENV{NYTPROF_TEST_ONE},
+    profperlopts => $ENV{NYTPROF_TEST_PROFPERLOPTS} || '-d:NYTProf',
     html         => $ENV{NYTPROF_TEST_HTML},
 );
 GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i savesrc=i compress=i one abort/)
@@ -73,7 +74,6 @@ my $perl     = $opts{p} || $^X;
 # turn ./perl into ../perl, because of chdir(t) above.
 $perl = ".$perl" if $perl =~ m|^\./|;
 
-$opts{one} ||= $ENV{NYTPROF_TEST_ONE};
 if ($opts{one}) {           # for one quick test
     $opts{leave}      = 1;
     $opts{use_db_sub} = 0;

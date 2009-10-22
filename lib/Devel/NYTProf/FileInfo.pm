@@ -115,6 +115,16 @@ sub is_pmc {
 }
 
 
+sub is_perl_std_lib {
+    my $self = shift;
+    my $filename = $self->filename;
+    my $attributes = $self->profile->attributes;
+    return 1 if $filename =~ /\Q$attributes->{PRIVLIB_EXP}/;
+    return 1 if $filename =~ /\Q$attributes->{ARCHLIB_EXP}/;
+    return 0;
+}
+
+
 # should return the filename that the application used
 # when loading the file
 sub filename_without_inc {

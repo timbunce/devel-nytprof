@@ -59,12 +59,9 @@ profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 16 16 0 0 0 0 0 ]
 sub_subinfo	main::CORE:require	[ 1 0 0 2 0 0 0 0 ]
-sub_subinfo	main::CORE:require	called_by	3	92	[ 2 0 0 0 0 0 0 AutoLoader::AUTOLOAD ]
 sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	test14::BEGIN	[ 2 2 2 0 0 0 0 0 ]
 sub_subinfo	test14::bar	[ 2 16 18 1 0 0 0 0 ]
-sub_subinfo	test14::bar	called_by	3	116	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	test14::foo	[ 2 12 14 1 0 0 0 0 ]
-sub_subinfo	test14::foo	called_by	3	116	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	test14::pre	[ 2 8 8 1 0 0 0 0 ]
 sub_subinfo	test14::pre	called_by	1	17	[ 1 0 0 0 0 0 0 main::RUNTIME ]

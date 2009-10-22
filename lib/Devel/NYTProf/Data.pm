@@ -109,6 +109,10 @@ sub new {
 sub _caches       { return shift->{caches} ||= {} }
 sub _clear_caches { return delete shift->{caches} }
 
+sub attributes {
+    return shift->{attribute} || {};
+}
+
 sub subname_subinfo_map {
     return { %{ shift->{sub_subinfo} } }; # shallow copy
 }
@@ -330,12 +334,18 @@ sub dump_profile_data {
     my $callback = sub {
         my ($path, $value) = @_;
 
+        if ($path->[0] eq 'attribute' && @$path == 1) {
+            my %v = %$value;
+            delete @v{qw(PRIVLIB_EXP ARCHLIB_EXP)};
+            return ({}, \%v);
+        }
+
         if ($args->{skip_stdlib}) {
 
             # for fid_fileinfo don't dump internal details of lib modules
             if ($path->[0] eq 'fid_fileinfo' && @$path==2) {
                 my $is_lib = ($value->filename =~ $is_lib_regex) ? 1 : 0;
-                return { skip_internal_details => $is_lib };
+                return ({ skip_internal_details => $is_lib }, $value);
             }
 
             # skip sub_subinfo data for 'library modules'
@@ -351,7 +361,7 @@ sub dump_profile_data {
                          or $fi->filename =~ m!^/\.\.\./!;
             }
         }
-        return {};
+        return ({}, $value);
     };
 
     _dump_elements($startnode, $separator, $filehandle, [], $callback);
@@ -391,7 +401,7 @@ sub _dump_elements {
 
         my $dump_opts = {};
         if ($callback) {
-            $dump_opts = $callback->([ @$path, $key ], $value);
+            ($dump_opts, $value) = $callback->([ @$path, $key ], $value);
             next if not $dump_opts;
         }
 
@@ -480,6 +490,7 @@ filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
 
 sub normalize_variables {
     my $self       = shift;
+    my $attributes = $self->attributes;
 
     for my $attr (qw(
         basetime xs_version perl_version clock_id ticks_per_sec nv_size
@@ -487,7 +498,7 @@ sub normalize_variables {
         total_stmts_duration total_stmts_measured total_stmts_discounted
         total_sub_calls
     )) {
-        $self->{attribute}{$attr} = 0;
+        $attributes->{$attr} = 0;
     }
 
     my $abs_path_regex = $^O eq "MSWin32" ? qr,^\w:/, : qr,^/,;

@@ -210,16 +210,23 @@ sub caller_places {
 
 sub normalize_for_test {
     my $self = shift;
+    my $profile = $self->profile;
 
     # zero subroutine inclusive time
     $self->[NYTP_SIi_INCL_RTIME] = 0;
     $self->[NYTP_SIi_EXCL_RTIME] = 0;
     $self->[NYTP_SIi_RECI_RTIME] = 0;
 
-    my $subname = $self->subname(' and ');
-
     # { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } }
     my $callers = $self->caller_fid_line_places || {};
+
+    # delete calls from modules shipped with perl
+    for my $fid (keys %$callers) {
+        next if not $fid;
+        my $fileinfo = $profile->fileinfo_of($fid) or next;
+        next if not $fileinfo->is_perl_std_lib;
+        delete $callers->{$fid};
+    }
 
     # zero per-call-location subroutine inclusive time
     for my $sc (map { values %$_ } values %$callers) {
