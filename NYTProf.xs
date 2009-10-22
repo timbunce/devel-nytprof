@@ -2145,7 +2145,7 @@ subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
         subr_entry_ix = subr_entry->prev_subr_entry_ix;
     else
         logwarn("skipped attempt to raise subr_entry_ix from %d to %d\n",
-            subr_entry_ix, subr_entry->prev_subr_entry_ix);
+            (int)subr_entry_ix, (int)subr_entry->prev_subr_entry_ix);
 }
 
 
@@ -2267,14 +2267,14 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
 
     if (trace_level >= 3)
-        logwarn(" <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%d:%d #%lu\n",
+        logwarn(" <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%d:%d #%lu %p\n",
             called_subname_pv,
             excl_subr_sec, incl_subr_sec, called_sub_secs,
             cumulative_subr_secs, subr_entry->initial_subr_secs,
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
             (int)subr_entry->called_cv_depth,
             subr_entry->caller_fid, subr_entry->caller_line,
-            (long unsigned int)subr_entry->subr_call_seqn);
+            (long unsigned int)subr_entry->subr_call_seqn, subr_entry);
 
     /* only count inclusive time for the outer-most calls */
     if (subr_entry->called_cv_depth <= 1) {
@@ -2384,13 +2384,15 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
     /* logic based on perl's S_deb_curcv in dump.c */
     /* see also http://search.cpan.org/dist/Devel-StackBlech/ */
     PERL_CONTEXT *cx;
+    if (ix < 0)
+        return Nullcv;
     if (!si)
         si = PL_curstackinfo;
     cx = &si->si_cxstack[ix];
 
     if (trace_level >= 9)
-        warn("finding current_cv(%d,%p) - cx_type %d %s, si_type %d\n",
-            ix, si, CxTYPE(cx), block_type[CxTYPE(cx)], si->si_type);
+        logwarn("finding current_cv(%d,%p) - cx_type %d %s, si_type %d\n",
+            (int)ix, si, CxTYPE(cx), block_type[CxTYPE(cx)], (int)si->si_type);
 
     /* the common case of finding the caller on the same stack */
     if (CxTYPE(cx) == CXt_SUB || CxTYPE(cx) == CXt_FORMAT)
@@ -2411,7 +2413,7 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
 
 
 static I32
-subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, SV *subr_sv)
+subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_type, SV *subr_sv)
 {
     int saved_errno = errno;
     subr_entry_t *subr_entry;
@@ -2429,7 +2431,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, SV *subr_s
     if (subr_entry_ix <= prev_subr_entry_ix) {
         logwarn("NYTProf: stack is confused!\n");
     }
-    Zero(subr_entry, 1, sizeof(subr_entry_t));
+    Zero(subr_entry, 1, subr_entry_t);
 
     subr_entry->prev_subr_entry_ix = prev_subr_entry_ix;
     caller_subr_entry = subr_entry_ix_ptr(prev_subr_entry_ix);
@@ -2443,10 +2445,15 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, SV *subr_s
      * mainly for xsubs because otherwise they're transparent
      * because xsub calls don't get a new context
      */
-    subr_entry->called_cv = resolve_sub_to_cv(aTHX_ subr_sv, &called_gv);
-    if (called_gv) {
-        subr_entry->called_subpkg_pv = HvNAME(GvSTASH(called_gv));
-        subr_entry->called_subnam_sv = newSVpv(GvNAME(called_gv), 0);
+    if (op_type == OP_ENTERSUB) {
+        subr_entry->called_cv = resolve_sub_to_cv(aTHX_ subr_sv, &called_gv);
+        if (called_gv) {
+            subr_entry->called_subpkg_pv = HvNAME(GvSTASH(called_gv));
+            subr_entry->called_subnam_sv = newSVpv(GvNAME(called_gv), 0);
+        }
+        else {
+            subr_entry->called_subnam_sv = newSV(0); /* see incr_sub_inclusive_time */
+        }
     }
     else {
         subr_entry->called_subnam_sv = newSV(0); /* see incr_sub_inclusive_time */
@@ -2527,14 +2534,14 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, SV *subr_s
         found_caller_by = "(inherited)";
     }
 
-    if (trace_level >= 4)
-        logwarn("Making sub call (%s) at %u:%d from %s::%s %s (seix %d->%d)\n",
-            SvPV_nolen(subr_sv),
+    if (trace_level >= 4) {
+        logwarn("Making sub call at %u:%d from %s::%s %s (seix %d->%d)\n",
             subr_entry->caller_fid, subr_entry->caller_line,
             subr_entry->caller_subpkg_pv,
             SvPV_nolen(subr_entry->caller_subnam_sv),
             found_caller_by, (int)prev_subr_entry_ix, (int)subr_entry_ix
         );
+    }
 
     /* This is our safety-net destructor. For perl subs an identical destructor
      * will be pushed onto the stack inside the scope we're interested in.
@@ -2590,18 +2597,18 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     ) {
         return run_original_op(op_type);
     }
-    
 
     if (!profile_stmts)
         reinit_if_forked(aTHX);
 
     if (trace_level >= 99) {
-        logwarn("entering sub\n");
+        logwarn("profiling a call [op %ld]\n", (long)op_type);
         /* crude, but the only way to deal with the miriad logic at the
             * start of pp_entersub (which ought to be available as separate sub)
             */
         sv_dump(sub_sv);
     }
+    
 
     /* Life would be so much simpler if we could reliably tell, at this point,
      * what sub was going to get called. But we can't in many cases.
@@ -2618,7 +2625,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
          */
 
         called_cv = NULL;
-        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, NULL, sub_sv);
+        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, NULL, op_type, sub_sv);
 
         /* This call may exit via an exception, in which case the
         * remaining code below doesn't get executed and the sub call
@@ -2669,7 +2676,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         /* now we're in goto'd sub, mortalize the REFCNT_inc's done above */
         sv_2mortal(goto_subr_entry.caller_subnam_sv);
         sv_2mortal(goto_subr_entry.called_subnam_sv);
-        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, &goto_subr_entry, sub_sv);
+        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, &goto_subr_entry, op_type, sub_sv);
     }
 
     /* push a destructor hook onto the context stack to ensure we account

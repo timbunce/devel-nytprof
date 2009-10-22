@@ -1,10 +1,11 @@
-use Test::More tests => 18;
+use Test::More 0.84;
 
 use strict;
-
 use lib qw(t/lib);
 use Config;
 use NYTProfTest;
+
+plan tests => 18;
 
 use Devel::NYTProf::ReadStream qw(for_chunks);
 

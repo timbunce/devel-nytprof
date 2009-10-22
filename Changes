@@ -9,6 +9,7 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 XXX subroutine profiler docs need update
 XXX note here and doc goto behaviour
 XXX update and test JIT
+XXX OP_SUBSTCONT
 
   Note: The file format has changed. Old files can't be read.
 
