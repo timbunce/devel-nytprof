@@ -1,3 +1,4 @@
+.gdbinit
 .indent.pro
 .perltidyrc
 Changes
@@ -30,6 +31,15 @@ lib/Devel/NYTProf/Util.pm
 lib/Devel/NYTProf/js/asc.png
 lib/Devel/NYTProf/js/bg.png
 lib/Devel/NYTProf/js/desc.png
+lib/Devel/NYTProf/js/jit/Treemap.css
+lib/Devel/NYTProf/js/jit/gradient-cushion1.png
+lib/Devel/NYTProf/js/jit/gradient.png
+lib/Devel/NYTProf/js/jit/gradient20.png
+lib/Devel/NYTProf/js/jit/gradient30.png
+lib/Devel/NYTProf/js/jit/gradient40.png
+lib/Devel/NYTProf/js/jit/gradient50.png
+lib/Devel/NYTProf/js/jit/jit-yc.js
+lib/Devel/NYTProf/js/jit/jit.js
 lib/Devel/NYTProf/js/jquery-min.js
 lib/Devel/NYTProf/js/jquery-tablesorter-min.js
 lib/Devel/NYTProf/js/style-tablesorter.css
