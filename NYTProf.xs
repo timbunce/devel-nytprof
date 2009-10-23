@@ -305,6 +305,8 @@ static NV cumulative_overhead_ticks = 0.0;
 static NV cumulative_subr_secs = 0.0;
 static UV cumulative_subr_seqn = 0;
 static int main_runtime_used = 0;
+static SV *DB_INIT_cv;
+static SV *DB_fin_cv;
 
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
 
@@ -696,7 +698,7 @@ flush_output(NYTP_file ofile, int flush) {
                 return;
             }
         } else {
-            croak("deflate failed, error %d (%s) in %d", status, ofile->zs.msg,
+            croak("deflate failed, error %d (%s) in pid %d", status, ofile->zs.msg,
                   getpid());
         }
     }
@@ -2594,7 +2596,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         /* don't profile if currently disabled */
     ||  !is_profiling
         /* don't profile calls to non-existant import() methods */
-    || (op_type==OP_ENTERSUB && sub_sv == &PL_sv_yes)
+        /* or our DB::_INIT as that makes tests perl version sensitive */
+    || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv || sub_sv == DB_fin_cv))
         /* don't profile other kids of goto */
     || (op_type==OP_GOTO && !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV))
     ) {
@@ -2935,6 +2938,8 @@ init_profiler(pTHX)
     /* Save the process id early. We monitor it to detect forks */
     last_pid = getpid();
     ticks_per_sec = (usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
+    DB_INIT_cv = (SV*)GvCV(gv_fetchpv("DB::_INIT",          FALSE, SVt_PVCV));
+    DB_fin_cv  = (SV*)GvCV(gv_fetchpv("DB::finish_profile", FALSE, SVt_PVCV));
 
 #ifdef HAS_CLOCK_GETTIME
     if (profile_clock == -1) { /* auto select */
@@ -2972,8 +2977,8 @@ init_profiler(pTHX)
     }
 
     if (trace_level)
-        logwarn("NYTProf init pid %d, clock %d%s\n", last_pid, profile_clock,
-            profile_zero ? ", zero=1" : "");
+        logwarn("NYTProf init pid %d, clock %d, start %d\n",
+            last_pid, profile_clock, profile_start);
 
     if (get_hv("DB::sub", 0) == NULL) {
         logwarn("NYTProf internal error - perl not in debug mode\n");
@@ -3078,6 +3083,10 @@ init_profiler(pTHX)
     else {
         get_time_of_day(start_time);
     }
+
+    if (trace_level >= 3)
+        logwarn("NYTProf init done\n");
+
     return 1;
 }
 
