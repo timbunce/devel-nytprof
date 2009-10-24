@@ -28,8 +28,10 @@ XXX OP_SUBSTCONT
     slowops=2 puts timings into into the package that made the
     call, e.g., "Foo::CORE:sleep" (note the single colon).
 
-  Added sigexit option to enable a useable profile when the process exits due
-    to a signals. Thanks to Andrew Sterling Hanenkamp for the seed of this idea.
+  Added sigexit=1 option to enable a useable profile when the process
+    exits due to a signals (catches INT HUP PIPE BUS SEGV by default)
+    Can also do sigexit=TRAP,ABRT,SYS,... to hook specific signals.
+    Thanks to Andrew Sterling Hanenkamp for the seed of this idea.
 
   Added initial support for profiling PostgreSQL PL/Perl code
     via Devel::NYTProf::PgPLPerl module.
