@@ -33,6 +33,9 @@ XXX OP_SUBSTCONT
     Can also do sigexit=TRAP,ABRT,SYS,... to hook specific signals.
     Thanks to Andrew Sterling Hanenkamp for the seed of this idea.
 
+  Added forkdepth=N option to enable profiling to be turned off after N
+    generations of fork().
+
   Added initial support for profiling PostgreSQL PL/Perl code
     via Devel::NYTProf::PgPLPerl module.
 

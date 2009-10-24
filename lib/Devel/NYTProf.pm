@@ -468,6 +468,18 @@ seperated by commas, as the value of the option (case is not significant):
 
     sigexit=int,hup
 
+=head2 forkdepth=N
+
+When a perl process that is being profiled executes a fork() the child process
+is also profiled. The forkdepth option can be used to control this. If
+forkdepth is zero then profiling will be disabled in the child process.
+
+If forkdepth is greater than zero then profiling will be enabled in the child
+process and the forkdepth value in that process is decremented by one.
+
+If forkdepth is -1 (the default) then there's no limit on the number of
+generations of children that are profiled.
+
 =head1 RUN-TIME CONTROL OF PROFILING
 
 You can profile only parts of an application by calling DB::disable_profile()

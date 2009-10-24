@@ -51,6 +51,7 @@ t/22-readstream.t
 t/30-util.t
 t/31-env.t
 t/50-errno.t
+t/60-forkdepth.t
 t/80-version.t
 t/90-pod.t
 t/91-pod_coverage.t

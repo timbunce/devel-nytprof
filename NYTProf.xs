@@ -249,7 +249,9 @@ static struct NYTP_int_options_t options[] = {
 #define profile_slowops options[10].option_value
     { "slowops", 2 },                            /* slow opcodes, typically system calls */
 #define profile_findcaller options[11].option_value
-    { "findcaller", 0 }                          /* find sub caller instead of trusting outer */
+    { "findcaller", 0 },                         /* find sub caller instead of trusting outer */
+#define profile_forkdepth options[12].option_value
+    { "forkdepth", -1 }                          /* how many generations of kids to profile */
 };
 
 /* time tracking */
@@ -2015,7 +2017,7 @@ open_output_file(pTHX_ char *filename)
         disable_profile(aTHX);
         croak("Failed to open output '%s': %s%s", filename, strerror(fopen_errno), hint);
     }
-    if (trace_level)
+    if (trace_level >= 1)
         logwarn("Opened %s\n", filename);
 
     output_header(aTHX);
@@ -2050,7 +2052,7 @@ reinit_if_forked(pTHX)
 
     /* we're now the child process */
     if (trace_level >= 1)
-        logwarn("New pid %d (was %d)\n", getpid(), last_pid);
+        logwarn("New pid %d (was %d) forkdepth %d\n", getpid(), last_pid, profile_forkdepth);
 
     /* reset state */
     last_pid = getpid();
@@ -2060,14 +2062,23 @@ reinit_if_forked(pTHX)
         hv_clear(sub_callers_hv);
 
     if (out) {
-        /* any data that was unflushed in the parent when it forked
-        * is now duplicated unflushed in this child process.
-        * We need to be a little devious to prevent it getting flushed.
+        /* data that was unflushed in the parent when it forked
+        * is now duplicated unflushed in this child,
+        * so discard it when we close the inherited filehandle.
         */
-        NYTP_close(out, 1); /* 1: discard output, to stop it being flushed to disk */
+        NYTP_close(out, 1);
 
-        open_output_file(aTHX_ PROF_output_file);
+        if (profile_forkdepth == 0) {
+            /* user doesn't want this child profiled */
+            disable_profile(aTHX);
+        }
+        else {
+            open_output_file(aTHX_ PROF_output_file);
+        }
     }
+
+    if (profile_forkdepth > 0)
+        --profile_forkdepth;
 
     return 1;                                     /* have forked */
 }

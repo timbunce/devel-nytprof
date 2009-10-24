@@ -15,6 +15,7 @@ use base qw(Exporter);
 our @EXPORT = qw(
     run_test_group
     run_command
+    run_perl_command
     do_foreach_env_combination
     profile_this_code
 );
@@ -26,6 +27,8 @@ use Devel::NYTProf::Util qw(strip_prefix_from_paths html_safe_filename);
 
 my $tests_per_extn = {p => 1, rdt => 1, x => 3};
 
+my $this_perl = $^X;
+$this_perl .= $Config{_exe} if $^O ne 'VMS' and $this_perl !~ m/$Config{_exe}$/i;
 
 my %opts = (
     one          => $ENV{NYTPROF_TEST_ONE},
@@ -291,6 +294,12 @@ sub run_command {
     }
     if ($show_stdout) { warn $_ for @results }
     return $ok;
+}
+
+
+sub run_perl_command {
+    my ($cmd, $show_stdout) = @_;
+    run_command("$this_perl $cmd", $show_stdout);
 }
 
 

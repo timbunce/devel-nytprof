@@ -16,11 +16,7 @@ my $out = 'nytprof_readstream.out';
 $ENV{NYTPROF} = "file=$out";
 unlink $out;
 
-use Config;
-my $this_perl = $^X;
-$this_perl .= $Config{_exe} if $^O ne 'VMS' and $this_perl !~ m/$Config{_exe}$/i;
-
-run_command($this_perl . q{ -d:NYTProf -e "sub A { };" -e "1;" -e "A()"});
+run_perl_command(q{-d:NYTProf -e "sub A { };" -e "1;" -e "A()"});
 
 my %prof;
 my @seqn;
