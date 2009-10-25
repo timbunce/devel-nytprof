@@ -37,6 +37,7 @@ fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	sub	main::CORE:require	0-0
 fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::use_eval_arg	21-21
+fid_fileinfo	1	call	11	MyTie::TIESCALAR	[ 1 0 0 0 0 0 0 main::NULL ]
 fid_fileinfo	1	call	12	MyTie::STORE	[ 1 0 0 0 0 0 0 main::NULL ]
 fid_fileinfo	1	call	13	MyTie::FETCH	[ 1 0 0 0 0 0 0 main::NULL ]
 fid_fileinfo	1	call	16	main::CORE:require	[ 1 0 0 0 0 0 0 main::RUNTIME ]
@@ -96,7 +97,8 @@ sub_subinfo	MyTie::FETCH	[ 1 7 7 1 0 0 0 0 ]
 sub_subinfo	MyTie::FETCH	called_by	1	13	[ 1 0 0 0 0 0 0 main::NULL ]
 sub_subinfo	MyTie::STORE	[ 1 8 8 1 0 0 0 0 ]
 sub_subinfo	MyTie::STORE	called_by	1	12	[ 1 0 0 0 0 0 0 main::NULL ]
-sub_subinfo	MyTie::TIESCALAR	[ 1 6 6 0 0 0 0 0 ]
+sub_subinfo	MyTie::TIESCALAR	[ 1 6 6 1 0 0 0 0 ]
+sub_subinfo	MyTie::TIESCALAR	called_by	1	11	[ 1 0 0 0 0 0 0 main::NULL ]
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
 sub_subinfo	main::CORE:require	[ 1 0 0 2 0 0 0 0 ]
 sub_subinfo	main::CORE:require	called_by	1	16	[ 1 0 0 0 0 0 0 main::RUNTIME ]
