@@ -700,8 +700,8 @@ flush_output(NYTP_file ofile, int flush) {
                 return;
             }
         } else {
-            croak("deflate failed, error %d (%s) in pid %d", status, ofile->zs.msg,
-                  getpid());
+            croak("deflate(%ld,%d) failed, error %d (%s) in pid %d",
+                (long)ofile->zs.avail_in, flush, status, ofile->zs.msg, getpid());
         }
     }
 }
