@@ -30,8 +30,20 @@
 #if !defined(OutCopFILE)
 #    define OutCopFILE CopFILE
 #endif
-#ifndef gv_fetchfile_flags
-#define gv_fetchfile_flags(str, len, flags) gv_fetchfile(str)
+
+#ifndef gv_fetchfile_flags  /* added in perl 5.009005 */
+/* we know our uses don't contain embedded nulls, so we just need to copy to a
+ * buffer so we can add a trailing null byte */
+#define gv_fetchfile_flags(a,b,c)   Perl_gv_fetchfile_flags(aTHX_ a,b,c)
+static GV *
+Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, const U32 flags) {
+    char buf[2000];
+    if (namelen >= sizeof(buf)-1)
+        croak("panic: gv_fetchfile_flags overflow");
+    memcpy(buf, name, namelen);
+    buf[namelen] = '\0'; /* null-terminate */
+    return gv_fetchfile(buf);
+}
 #endif
 
 #ifndef OP_SETSTATE
