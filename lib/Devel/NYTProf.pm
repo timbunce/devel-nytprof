@@ -28,11 +28,7 @@ $^P = 0x010     # record line range of sub definition
 # XXX hack, need better option handling
 my $use_db_sub = ($ENV{NYTPROF} && $ENV{NYTPROF} =~ m/\buse_db_sub=1\b/);
 
-$^P |= 0x002    # line-by-line profiling via DB::DB (if $DB::single true)
-    |  0x020    # start (after BEGINs) with single-step on
-    if $use_db_sub;
-
-require Devel::NYTProf::Core;    # loads XS
+require Devel::NYTProf::Core;    # loads XS and sets options
 
 if ($use_db_sub) {               # install DB::DB sub
     *DB = ($] < 5.008008)

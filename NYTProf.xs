@@ -65,7 +65,7 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
  * so we'd have to crawl the stack to find the right cop. However, for some
  * reason that I don't pretend to understand the following expression works:
  */
-#define PL_curcop_nytprof (use_db_sub ? ((cxstack + cxstack_ix)->blk_oldcop) : PL_curcop)
+#define PL_curcop_nytprof (opt_use_db_sub ? ((cxstack + cxstack_ix)->blk_oldcop) : PL_curcop)
 #else
 #define PL_curcop_nytprof PL_curcop
 #endif
@@ -250,7 +250,7 @@ static struct NYTP_int_options_t options[] = {
     { "expand", 0 },
 #define trace_level options[5].option_value
     { "trace", 0 },
-#define use_db_sub options[6].option_value
+#define opt_use_db_sub options[6].option_value
     { "use_db_sub", 0 },
 #define compression_level options[7].option_value
     { "compress", default_compression_level },
@@ -2897,7 +2897,7 @@ enable_profile(pTHX_ char *file)
 
     last_executed_fileptr = NULL;   /* discard cached OutCopFILE   */
     is_profiling = 1;               /* enable NYTProf profilers    */
-    if (use_db_sub)                 /* set PL_DBsingle if required */
+    if (opt_use_db_sub)             /* set PL_DBsingle if required */
         sv_setiv(PL_DBsingle, 1);
 
     /* discard time spent since profiler was disabled */
@@ -2912,7 +2912,7 @@ disable_profile(pTHX)
 {
     int prev_is_profiling = is_profiling;
     if (is_profiling) {
-        if (use_db_sub)
+        if (opt_use_db_sub)
             sv_setiv(PL_DBsingle, 0);
         if (out)
             NYTP_flush(out);
@@ -2935,7 +2935,7 @@ finish_profile(pTHX)
             last_pid, getpid(), cumulative_overhead_ticks/ticks_per_sec, is_profiling);
 
     /* write data for final statement, unless DB_leave has already */
-    if (!profile_leave || use_db_sub)
+    if (!profile_leave || opt_use_db_sub)
         DB_stmt(aTHX_ NULL, NULL);
 
     disable_profile(aTHX);
@@ -2952,7 +2952,7 @@ finish_profile(pTHX)
 }
 
 
-/* Initial setup */
+/* Initial setup - should only be called once */
 static int
 init_profiler(pTHX)
 {
@@ -2965,6 +2965,11 @@ init_profiler(pTHX)
     ticks_per_sec = (usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
     DB_INIT_cv = (SV*)GvCV(gv_fetchpv("DB::_INIT",          FALSE, SVt_PVCV));
     DB_fin_cv  = (SV*)GvCV(gv_fetchpv("DB::finish_profile", FALSE, SVt_PVCV));
+
+    if (opt_use_db_sub) {
+        PL_perldb |= PERLDBf_LINE;    /* line-by-line profiling via DB::DB (if $DB::single true) */
+        PL_perldb |= PERLDBf_SINGLE; /* start (after BEGINs) with single-step on XXX still needed? */
+    }
 
 #ifdef HAS_CLOCK_GETTIME
     if (profile_clock == -1) { /* auto select */
@@ -3028,7 +3033,7 @@ init_profiler(pTHX)
     /* redirect opcodes for statement profiling */
     Newxc(PL_ppaddr_orig, OP_max, void *, orig_ppaddr_t);
     Copy(PL_ppaddr, PL_ppaddr_orig, OP_max, void *);
-    if (profile_stmts && !use_db_sub) {
+    if (profile_stmts && !opt_use_db_sub) {
         PL_ppaddr[OP_NEXTSTATE]  = pp_stmt_profiler;
         PL_ppaddr[OP_DBSTATE]    = pp_stmt_profiler;
 #ifdef OP_SETSTATE
@@ -3451,7 +3456,7 @@ write_src_of_files(pTHX)
             logwarn("fid %d has %ld src lines\n", e->id, (long)lines);
         /* for perl 5.10.0 or 5.8.8 (or earlier) use_db_sub is needed to get src */
         /* give a hint for the common case */
-        if (0 == lines && !use_db_sub
+        if (0 == lines && !opt_use_db_sub
             &&   ( (e->key_len == 1 && strnEQ(e->key, "-",  1))
                 || (e->key_len == 2 && strnEQ(e->key, "-e", 2)) )
         ) {
@@ -4542,7 +4547,7 @@ DB_profiler(...)
 CODE:
     /* this sub gets aliased as "DB::DB" by NYTProf.pm if use_db_sub is true */
     PERL_UNUSED_VAR(items);
-    if (use_db_sub)
+    if (opt_use_db_sub)
         DB_stmt(aTHX_ NULL, PL_op);
     else if (1||trace_level)
         logwarn("DB called needlessly\n");
