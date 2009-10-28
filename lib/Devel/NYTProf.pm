@@ -196,6 +196,15 @@ the inclusive time is only measured for the outer-most call.
 The inclusive times of recursive calls are still measured and are accumulated
 separately. Also the 'maximum recursion depth' per calling location is recorded.
 
+=head3 Goto &Subroutine
+
+Perl implements a C<goto &destination> as a C<return> followed by a call to
+C<&destination>, so that's how it will appear in the report.
+
+The C<goto> will be shown with a very short time because it's effectively just
+a C<return>. The C<&destination> sub will show a call I<not> from the location
+of the C<goto> but from the location of the call to the sub that performed the C<goto>.
+
 =head2 Application Profiling
 
 NYTProf records extra information in the data file to capture details that may
@@ -519,21 +528,68 @@ The L<Devel::NYTProf::Reader> module provides an interface for generating
 arbitrary reports.  This means that you can implement your own output format in
 perl. (Though the module is in a state of flux and may be deprecated soon.)
 
-Included in the bin directory of this distribution are two scripts
-which implement the L<Devel::NYTProf::Reader> interface: 
+There is currently no tool to merge multiple data files into one.
 
-=over 12
+Included in the bin directory of this distribution are some scripts which
+turn the raw profile data into more useful formats:
 
-=item nytprofcsv
+=head2 nytprofcsv
 
-creates comma delimited profile reports
+Creates comma delimited profile reports. Old and limited.
 
-=item nytprofhtml
+=head2 nytprofcg
 
-creates attractive, richly annotated, and fully cross-linked html
-reports (including statistics, source code and color highlighting)
+Translates a profile into a format that can be loaded into KCachegrind
+L<http://kcachegrind.sourceforge.net>
 
-=back
+=head2 nytprofhtml
+
+Creates attractive, richly annotated, and fully cross-linked html
+reports (including statistics, source code and color highlighting).
+
+=head1 LIMITATIONS
+
+=head2 threads
+
+C<Devel::NYTProf> is not currently thread safe. If you'd be interested in
+helping to make it thread safe then please get in touch with us.
+
+=head2 For perl < 5.8.8 it may change what caller() returns
+
+For example, the L<Readonly> module croaks with "Invalid tie" when profiled with
+perl versions before 5.8.8. That's because L<Readonly> explicitly checking for
+certain values from caller(). The L<NEXT> module is also affected.
+
+=head2 For perl < 5.10.1 it can't see some implicit calls and callbacks
+
+For perl versions prior to 5.8.9 and 5.10.1, some implicit subroutine calls
+can't be seen by the I<subroutine> profiler. Technically this affects calls
+made via the various perl C<call_*()> internal APIs.
+
+For example, the C<TIE><whatever> subroutine called by C<tie()>, all calls
+made via operator overloading, and callbacks from XS code, are not seen.
+
+The effect is that time in the subroutines for those calls is
+accumulated by the subs that trigger them. So time spent in calls invoked by
+perl to handle overloading are accumulated by the subroutines that trigger
+overloading (so it is measured, but the cost is dispersed across possibly many
+calling locations).
+
+Although the calls aren't seen by the subroutine profiler, the individual
+I<statements> executed by the code in the called subs are profiled by the
+statement profiler.
+
+=head2 #line directives
+
+The reporting code currently doesn't handle #line directives, but at least it
+warns about them. Patches welcome.
+
+=head2 Scope::Upper unwind()
+
+NYTProf is currently incompatible with the deep magic performed by
+Scope::Upper's unwind() function. As a partial workaround you can set the
+C<subs=0:leave=0> options, but you won't get any subroutine timings.
+See L<http://rt.cpan.org/Public/Bug/Display.html?id=50634>
 
 =head1 CLOCKS
 
@@ -645,58 +701,6 @@ http://groups.google.com/group/comp.os.linux.development.apps/tree/browse_frm/th
 http://webnews.giga.net.tw/article//mailing.freebsd.performance/710
 http://sean.chittenden.org/news/2008/06/01/
 
-=head1 LIMITATIONS
-
-=head2 threads
-
-C<Devel::NYTProf> is not currently thread safe. If you'd be interested in
-helping to make it thread safe then please get in touch with us.
-
-=head2 For perl < 5.8.8 it may change what caller() returns
-
-For example, the L<Readonly> module croaks with "Invalid tie" when profiled with
-perl versions before 5.8.8. That's because L<Readonly> explicitly checking for
-certain values from caller(). The L<NEXT> module is also affected.
-
-=head2 For perl < 5.10.1 it can't see some implicit calls and callbacks
-
-For perl versions prior to 5.8.9 and 5.10.1, some implicit subroutine calls
-can't be seen by the I<subroutine> profiler. Technically this affects calls
-made via the various perl C<call_*()> internal APIs.
-
-For example, the C<TIE><whatever> subroutine called by C<tie()>, all calls
-made via operator overloading, and callbacks from XS code, are not seen.
-
-The effect is that time in the subroutines for those calls is
-accumulated by the subs that trigger them. So time spent in calls invoked by
-perl to handle overloading are accumulated by the subroutines that trigger
-overloading (so it is measured, but the cost is dispersed across possibly many
-calling locations).
-
-Although the calls aren't seen by the subroutine profiler, the individual
-I<statements> executed by the code in the called subs are profiled by the
-statement profiler.
-
-=head2 goto
-
-The C<goto &foo;> isn't recognized as a subroutine call by the subroutine profiler.
-
-=head2 Calls to XSubs which exit via an exception
-
-Calls to XSubs which exit via an exception are not recorded by subroutine profiler.
-
-=head2 #line directives
-
-The reporting code currently doesn't handle #line directives, but at least it
-warns about them. Patches welcome.
-
-=head2 Scope::Upper unwind()
-
-NYTProf is currently incompatible with the deep magic performed by
-Scope::Upper's unwind() function. As a partial workaround you can set the
-C<subs=0:leave=0> options, but you won't get any subroutine timings.
-See L<http://rt.cpan.org/Public/Bug/Display.html?id=50634>
-
 =head1 CAVEATS
 
 =head2 SMP Systems
@@ -801,7 +805,7 @@ B<Steve Peters>, C<< <steve at fisharerojo.org> >>.
 =head1 COPYRIGHT AND LICENSE
 
   Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
-  Copyright (C) 2008 by Tim Bunce, Ireland.
+  Copyright (C) 2008, 2009 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

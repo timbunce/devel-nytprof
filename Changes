@@ -45,11 +45,11 @@ XXX should add test for embedded src code, incl string eval
 Changes to subroutine profiler:
 
   Rewritten. Captures more data more accurately and robustly.
-
+  Added profiling of calls to xsubs that exit via an exception.
+  Added profiling of goto &sub;
   Added recording the name of the calling subroutine to enable proper
     linking of call trees. Previously only the calling file and line
     were recorded. (This is more significant than it sounds :)
-
   Added docs describing how the subroutine profiler works.
 
 Changes to nytprofhtml:
