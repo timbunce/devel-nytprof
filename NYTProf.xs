@@ -2553,7 +2553,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
                 caller_subr_entry ? caller_subr_entry->called_subpkg_pv : "(null)",
                 (caller_subr_entry && caller_subr_entry->called_subnam_sv && SvOK(caller_subr_entry->called_subnam_sv))
                     ? SvPV_nolen(caller_subr_entry->called_subnam_sv) : "(null)",
-                cxstack_ix, caller_cv
+                (int)cxstack_ix, caller_cv
             );
         }
 

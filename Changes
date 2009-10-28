@@ -7,8 +7,10 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 =head2 Changes in Devel::NYTProf 2.11
 
 XXX subroutine profiler docs need update
-XXX OP_SUBSTCONT
+XXX OP_SUBSTCONT, OP_REQUIRE
 XXX should add test for embedded src code, incl string eval
+XXX handling of BEGIN's e.g., Perl::Critic::Document (1.105) line 325
+XXX fix treemap
 
   Note: The file format has changed. Old files can't be read.
 

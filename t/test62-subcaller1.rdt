@@ -34,21 +34,16 @@ fid_fileinfo	1	sub	MyTie::FETCH	7-7
 fid_fileinfo	1	sub	MyTie::STORE	8-8
 fid_fileinfo	1	sub	MyTie::TIESCALAR	6-6
 fid_fileinfo	1	sub	main::BEGIN	0-0
-fid_fileinfo	1	sub	main::CORE:require	0-0
 fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::use_eval_arg	21-21
-fid_fileinfo	1	call	11	MyTie::TIESCALAR	[ 1 0 0 0 0 0 0 main::NULL ]
-fid_fileinfo	1	call	12	MyTie::STORE	[ 1 0 0 0 0 0 0 main::NULL ]
-fid_fileinfo	1	call	13	MyTie::FETCH	[ 1 0 0 0 0 0 0 main::NULL ]
-fid_fileinfo	1	call	16	main::CORE:require	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+fid_fileinfo	1	call	11	MyTie::TIESCALAR	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+fid_fileinfo	1	call	12	MyTie::STORE	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+fid_fileinfo	1	call	13	MyTie::FETCH	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	17	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	22	Devel::NYTProf::Test::example_xsub	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	22	main::use_eval_arg	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	2	[ Devel/NYTProf/Test.pm   2 2 0 0 ]
-fid_fileinfo	2	sub	Devel::NYTProf::Test::CORE:require	0-0
 fid_fileinfo	2	sub	Devel::NYTProf::Test::example_sub	13-13
-fid_fileinfo	2	call	7	Devel::NYTProf::Test::CORE:require	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-fid_fileinfo	2	call	8	Devel::NYTProf::Test::CORE:require	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	3	[ Exporter.pm   3 2 0 0 ]
 fid_line_time	1	4	[ 0 1 ]
 fid_line_time	1	6	[ 0 1 ]
@@ -87,22 +82,17 @@ fid_sub_time	2	15	[ 0 1 ]
 profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
-sub_subinfo	Devel::NYTProf::Test::CORE:require	[ 2 0 0 2 0 0 0 0 ]
-sub_subinfo	Devel::NYTProf::Test::CORE:require	called_by	2	7	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-sub_subinfo	Devel::NYTProf::Test::CORE:require	called_by	2	8	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	Devel::NYTProf::Test::example_sub	[ 2 13 13 0 0 0 0 0 ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	[ undef undef undef 2 0 0 0 0 ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	17	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	Devel::NYTProf::Test::example_xsub	called_by	1	22	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	MyTie::FETCH	[ 1 7 7 1 0 0 0 0 ]
-sub_subinfo	MyTie::FETCH	called_by	1	13	[ 1 0 0 0 0 0 0 main::NULL ]
+sub_subinfo	MyTie::FETCH	called_by	1	13	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	MyTie::STORE	[ 1 8 8 1 0 0 0 0 ]
-sub_subinfo	MyTie::STORE	called_by	1	12	[ 1 0 0 0 0 0 0 main::NULL ]
+sub_subinfo	MyTie::STORE	called_by	1	12	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	MyTie::TIESCALAR	[ 1 6 6 1 0 0 0 0 ]
-sub_subinfo	MyTie::TIESCALAR	called_by	1	11	[ 1 0 0 0 0 0 0 main::NULL ]
+sub_subinfo	MyTie::TIESCALAR	called_by	1	11	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
-sub_subinfo	main::CORE:require	[ 1 0 0 1 0 0 0 0 ]
-sub_subinfo	main::CORE:require	called_by	1	16	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	main::use_eval_arg	[ 1 21 21 1 0 0 0 0 ]
 sub_subinfo	main::use_eval_arg	called_by	1	22	[ 1 0 0 0 0 0 0 main::RUNTIME ]
