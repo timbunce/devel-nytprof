@@ -26,8 +26,9 @@ XXX should add test for embedded src code, incl string eval
 
   Added slowops=N option which enables profiling of potentially slow
     perl opcodes (e.g., system calls and regexs). They're treated like xsubs.
+    slowops=0 disables profiling of 'slowops'
     slowops=1 puts timings into one package ("CORE::", eg CORE::sleep)
-    slowops=2 puts timings into into the package that made the
+    slowops=2 (the defaut) puts timings into into the package that made the
     call, e.g., "Foo::CORE:sleep" (note the single colon).
 
   Added sigexit=1 option to enable a useable profile when the process
