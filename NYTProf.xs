@@ -2124,7 +2124,8 @@ new_sub_call_info_av(pTHX)
  */
 typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
-    int already_counted;
+    unsigned int  already_counted;
+    unsigned int  subr_prof_depth;
     UV  subr_call_seqn;
     I32 prev_subr_entry_ix; /* ix to callers subr_entry */
 
@@ -2158,9 +2159,10 @@ subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
         /* ignore the typical second (fallback) destroy */
         && !(subr_entry->prev_subr_entry_ix == subr_entry_ix && subr_entry->already_counted==1)
     ) {
-        logwarn("discarding subr_entry for %s::%s (seix %d->%d, ac%d)\n",
+        logwarn("%2d <<     %s::%s done (seix %d->%d, ac%u)\n",
+            subr_entry->subr_prof_depth,
             subr_entry->called_subpkg_pv,
-            (subr_entry->called_subnam_sv)
+            (subr_entry->called_subnam_sv && SvOK(subr_entry->called_subnam_sv))
                 ? SvPV_nolen(subr_entry->called_subnam_sv)
                 : "?",
             (int)subr_entry_ix, (int)subr_entry->prev_subr_entry_ix,
@@ -2300,7 +2302,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
 
     if (trace_level >= 3)
-        logwarn(" <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%d:%d #%lu %p\n",
+        logwarn("%02d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%d:%d #%lu %p\n",
+            subr_entry->subr_prof_depth,
             called_subname_pv,
             excl_subr_sec, incl_subr_sec, called_sub_secs,
             cumulative_subr_secs, subr_entry->initial_subr_secs,
@@ -2417,10 +2420,19 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
     /* logic based on perl's S_deb_curcv in dump.c */
     /* see also http://search.cpan.org/dist/Devel-StackBlech/ */
     PERL_CONTEXT *cx;
-    if (ix < 0)
-        return Nullcv;
     if (!si)
         si = PL_curstackinfo;
+
+    if (ix < 0) {
+        /* caller isn't on the same stack so we'll walk the stacks as well */
+        if (si->si_type != PERLSI_MAIN)
+            return current_cv(aTHX_ si->si_prev->si_cxix, si->si_prev);
+        if (trace_level >= 9)
+            logwarn("finding current_cv(%d,%p) si_type %d - context stack empty\n",
+                (int)ix, si, (int)si->si_type);
+        return Nullcv;  /* PL_main_cv ? */
+    }
+
     cx = &si->si_cxstack[ix];
 
     if (trace_level >= 9)
@@ -2467,6 +2479,8 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
 
     subr_entry->prev_subr_entry_ix = prev_subr_entry_ix;
     caller_subr_entry = subr_entry_ix_ptr(prev_subr_entry_ix);
+    subr_entry->subr_prof_depth = (caller_subr_entry)
+        ? caller_subr_entry->subr_prof_depth+1 : 1;
 
     get_time_of_day(subr_entry->initial_call_time);
     subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
@@ -2528,9 +2542,20 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     || !caller_subr_entry->called_subnam_sv
     || !SvOK(caller_subr_entry->called_subnam_sv)
     ) {
+
         /* get the current CV and determine the current sub name from that */
         CV *caller_cv = current_cv(aTHX_ cxstack_ix, NULL);
         subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
+
+        if (0) {
+            logwarn(" .. caller_subr_entry %p(%s::%s) cxstack_ix=%d: caller_cv=%p\n",
+                caller_subr_entry,
+                caller_subr_entry ? caller_subr_entry->called_subpkg_pv : "(null)",
+                (caller_subr_entry && caller_subr_entry->called_subnam_sv && SvOK(caller_subr_entry->called_subnam_sv))
+                    ? SvPV_nolen(caller_subr_entry->called_subnam_sv) : "(null)",
+                cxstack_ix, caller_cv
+            );
+        }
 
         if (caller_cv == PL_main_cv) {
             /* PL_main_cv is run-time main (compile-time, eg 'use', is a main::BEGIN) */
@@ -2580,7 +2605,8 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     }
 
     if (trace_level >= 4) {
-        logwarn(" >> %s at %u:%d from %s::%s %s (seix %d->%d)\n",
+        logwarn("%2d >> %s at %u:%d from %s::%s %s (seix %d->%d)\n",
+            subr_entry->subr_prof_depth,
             PL_op_name[op_type],
             subr_entry->caller_fid, subr_entry->caller_line,
             subr_entry->caller_subpkg_pv,
@@ -2623,6 +2649,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     OP *next_op = PL_op->op_next;                 /* op to execute after sub returns */
     /* pp_entersub can be called with PL_op->op_type==0 */
     OPCODE op_type = (is_slowop || PL_op->op_type == OP_GOTO) ? PL_op->op_type : OP_ENTERSUB;
+
     CV *called_cv;
     dSP;
     SV *sub_sv = *SP;
@@ -2706,6 +2733,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         /* we can't mortalize here because we're about to leave scope */
         SvREFCNT_inc(goto_subr_entry.caller_subnam_sv);
         SvREFCNT_inc(goto_subr_entry.called_subnam_sv);
+        SvREFCNT_inc(sub_sv);
 
         /* grab the CvSTART of the called sub since it's available */
         called_cv = (CV*)SvRV(sub_sv);
@@ -2722,6 +2750,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         sv_2mortal(goto_subr_entry.caller_subnam_sv);
         sv_2mortal(goto_subr_entry.called_subnam_sv);
         this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, &goto_subr_entry, op_type, sub_sv);
+        SvREFCNT_dec(sub_sv);
     }
 
     /* push a destructor hook onto the context stack to ensure we account
@@ -2730,6 +2759,10 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)this_subr_entry_ix));
 
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
+
+    /* detect wiedness/corruption */
+    assert(subr_entry->already_counted < 100);
+    assert(subr_entry->caller_fid < next_fid);
 
     if (is_slowop) {
         /* already fully handled by subr_entry_setup */
@@ -2825,7 +2858,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         subr_entry->already_counted++;
 
     if (trace_level >= 2) {
-        logwarn(" ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
+        logwarn("%02d ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
+            subr_entry->subr_prof_depth,
             (subr_entry->called_is_xs) ? subr_entry->called_is_xs : "sub",
             subr_entry->called_subpkg_pv, SvPV_nolen(subr_entry->called_subnam_sv),
             subr_entry->caller_subpkg_pv, SvPV_nolen(subr_entry->caller_subnam_sv),
