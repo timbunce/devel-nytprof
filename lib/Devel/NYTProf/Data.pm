@@ -497,6 +497,10 @@ sub normalize_variables {
         $attributes->{$attr} = 0;
     }
 
+    for my $attr (qw(PL_perldb)) {
+        delete $attributes->{$attr};
+    }
+
     # normalize line data
     for my $level (qw(line block sub)) {
         my $fid_line_data = $self->get_fid_line_data($level) || [];

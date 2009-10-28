@@ -16,7 +16,7 @@ our $VERSION = '2.11';
 package    # hide the package from the PAUSE indexer
     DB;
 
-# Enable specific perl debugger flags.
+# Enable specific perl debugger flags (others may be set later).
 # Set the flags that influence compilation ASAP so we get full details
 # (sub line ranges etc) of modules loaded as a side effect of loading
 # Devel::NYTProf::Core (ie XSLoader, strict, Exporter etc.)
@@ -25,12 +25,11 @@ $^P = 0x010     # record line range of sub definition
     | 0x100     # informative "file" names for evals
     | 0x200;    # informative names for anonymous subroutines
 
-# XXX hack, need better option handling
-my $use_db_sub = ($ENV{NYTPROF} && $ENV{NYTPROF} =~ m/\buse_db_sub=1\b/);
-
 require Devel::NYTProf::Core;    # loads XS and sets options
 
-if ($use_db_sub) {               # install DB::DB sub
+# XXX hack, need better option handling e.g., add DB::get_option('use_db_sub')
+my $use_db_sub = ($ENV{NYTPROF} && $ENV{NYTPROF} =~ m/\buse_db_sub=1\b/);
+if ($use_db_sub) {                     # install DB::DB sub
     *DB = ($] < 5.008008)
         ? sub { goto &DB_profiler }    # workaround bug in old perl versions (slow)
         : \&DB_profiler;

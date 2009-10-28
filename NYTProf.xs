@@ -263,7 +263,9 @@ static struct NYTP_int_options_t options[] = {
 #define profile_findcaller options[11].option_value
     { "findcaller", 0 },                         /* find sub caller instead of trusting outer */
 #define profile_forkdepth options[12].option_value
-    { "forkdepth", -1 }                          /* how many generations of kids to profile */
+    { "forkdepth", -1 },                         /* how many generations of kids to profile */
+#define opt_perldb options[13].option_value
+    { "perldb", 0 }                              /* force certain PL_perldb value */
 };
 
 /* time tracking */
@@ -909,7 +911,8 @@ output_header(pTHX)
     NYTP_printf(out, ":%s=%d.%d.%d\n", "perl_version",  PERL_REVISION, PERL_VERSION, PERL_SUBVERSION);
     NYTP_printf(out, ":%s=%d\n",       "clock_id",      profile_clock);
     NYTP_printf(out, ":%s=%u\n",       "ticks_per_sec", ticks_per_sec);
-    NYTP_printf(out, ":%s=%lu\n",      "nv_size", (long unsigned int)sizeof(NV));
+    NYTP_printf(out, ":%s=%d\n",       "nv_size",       (int)sizeof(NV));
+    NYTP_printf(out, ":%s=%lu\n",      "PL_perldb",     (long unsigned int)PL_perldb);
     /* $0 - application name */
     sv = get_sv("0",GV_ADDWARN);
     NYTP_printf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
@@ -2970,6 +2973,8 @@ init_profiler(pTHX)
         PL_perldb |= PERLDBf_LINE;    /* line-by-line profiling via DB::DB (if $DB::single true) */
         PL_perldb |= PERLDBf_SINGLE; /* start (after BEGINs) with single-step on XXX still needed? */
     }
+    if (opt_perldb) /* not documented - for testing only */
+        PL_perldb = opt_perldb;
 
 #ifdef HAS_CLOCK_GETTIME
     if (profile_clock == -1) { /* auto select */
