@@ -345,7 +345,8 @@ profile data file.
 
 =head2 leave=0
 
-Set to 0 to disable the extra work done to allocate times accurately when
+Set to 0 to disable the extra work done by the statement profiler
+to allocate times accurately when
 returning into the middle of statement. For example leaving a subroutine
 and returning into the middle of statement, or re-evaluating a loop condition.
 
@@ -693,6 +694,13 @@ Calls to XSubs which exit via an exception are not recorded by subroutine profil
 
 The reporting code currently doesn't handle #line directives, but at least it
 warns about them. Patches welcome.
+
+=head2 Scope::Upper unwind()
+
+NYTProf is currently incompatible with the deep magic performed by
+Scope::Upper's unwind() function. As a partial workaround you can set the
+C<subs=0:leave=0> options, but you won't get any subroutine timings.
+See L<http://rt.cpan.org/Public/Bug/Display.html?id=50634>
 
 =head1 CAVEATS
 
