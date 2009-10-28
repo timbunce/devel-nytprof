@@ -2454,7 +2454,6 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     subr_entry_t *caller_subr_entry;
     char *found_caller_by;
     char *file;
-    GV *called_gv = Nullgv;
 
     /* allocate struct to save stack (very efficient) */
     /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
@@ -2478,7 +2477,8 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
      * mainly for xsubs because otherwise they're transparent
      * because xsub calls don't get a new context
      */
-    if (op_type == OP_ENTERSUB) {
+    if (op_type == OP_ENTERSUB || op_type == OP_GOTO) {
+        GV *called_gv = Nullgv;
         subr_entry->called_cv = resolve_sub_to_cv(aTHX_ subr_sv, &called_gv);
         if (called_gv) {
             subr_entry->called_subpkg_pv = HvNAME(GvSTASH(called_gv));
@@ -2487,11 +2487,23 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
         else {
             subr_entry->called_subnam_sv = newSV(0); /* see incr_sub_inclusive_time */
         }
+        subr_entry->called_is_xs = NULL; /* work it out later */
     }
-    else {
-        subr_entry->called_subnam_sv = newSV(0); /* see incr_sub_inclusive_time */
+    else { /* slowop */
+
+        /* pretend slowops (builtins) are xsubs */
+        const char *slowop_name = PL_op_name[op_type];
+        if (profile_slowops == 1) { /* 1 == put slowops into 1 package */
+            subr_entry->called_subpkg_pv = "CORE";
+            subr_entry->called_subnam_sv = newSVpv(slowop_name, 0);
+        }
+        else {                     /* 2 == put slowops into multiple packages */
+            subr_entry->called_subpkg_pv = CopSTASHPV(PL_curcop);
+            subr_entry->called_subnam_sv = newSVpvf("CORE:%s", slowop_name);
+        }
+        subr_entry->called_cv_depth = 1; /* an approximation for slowops */
+        subr_entry->called_is_xs = "sop";
     }
-    subr_entry->called_is_xs = NULL; /* work it out later */
 
     file = OutCopFILE(prev_cop);
     subr_entry->caller_fid = (file == last_executed_fileptr)
@@ -2568,7 +2580,8 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     }
 
     if (trace_level >= 4) {
-        logwarn("Making sub call at %u:%d from %s::%s %s (seix %d->%d)\n",
+        logwarn(" >> %s at %u:%d from %s::%s %s (seix %d->%d)\n",
+            PL_op_name[op_type],
             subr_entry->caller_fid, subr_entry->caller_line,
             subr_entry->caller_subpkg_pv,
             SvPV_nolen(subr_entry->caller_subnam_sv),
@@ -2615,8 +2628,6 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     SV *sub_sv = *SP;
     I32 this_subr_entry_ix = 0; /* local copy (needed for goto) */
 
-    char *stash_name = NULL;
-    char *is_xs;
     subr_entry_t *subr_entry;
 
     /* pre-conditions */
@@ -2721,23 +2732,12 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
 
     if (is_slowop) {
-        /* pretend builtins are xsubs in the same package
-        * but with "CORE:" (one colon) prepended to the name.
-        */
-        const char *slowop_name = OP_NAME_safe(PL_op);
-        called_cv = NULL;
-        is_xs = "sop";
-        if (profile_slowops == 1) { /* 1 == put slowops into 1 package */
-            stash_name = "CORE";
-            sv_setpv(subr_entry->called_subnam_sv, slowop_name);
-        }
-        else {                     /* 2 == put slowops into multiple packages */
-            stash_name = CopSTASHPV(PL_curcop);
-            sv_setpvf(subr_entry->called_subnam_sv, "CORE:%s", slowop_name);
-        }
-        subr_entry->called_cv_depth = 1; /* an approximation for slowops */
+        /* already fully handled by subr_entry_setup */
     }
     else {
+        char *stash_name = NULL;
+        char *is_xs = NULL;
+
         if (op_type == OP_GOTO) {
             /* use the called_cv that was the arg to the goto op */
             is_xs = (CvISXSUB(called_cv)) ? "xsub" : NULL;
@@ -2803,16 +2803,18 @@ pp_subcall_profiler(pTHX_ int is_slowop)
             if (trace_level)
                 sv_dump(sub_sv);
         }
+        subr_entry->called_subpkg_pv = stash_name;
 
         /* if called was xsub then we've already left it, so use depth+1 */
         subr_entry->called_cv_depth = (called_cv) ? CvDEPTH(called_cv)+(is_xs?1:0) : 0;
+        subr_entry->called_cv = called_cv;
+        subr_entry->called_is_xs = is_xs;
     }
-    subr_entry->called_subpkg_pv = stash_name;
-    subr_entry->called_cv = called_cv;
-    subr_entry->called_is_xs = is_xs;
 
     /* ignore our own DB::_INIT sub - only shows up with 5.8.9+ & 5.10.1+ */
-    if (is_xs && *stash_name == 'D' && strEQ(stash_name,"DB")
+    if (subr_entry->called_is_xs
+    && *subr_entry->called_subpkg_pv == 'D'
+    && strEQ(subr_entry->called_subpkg_pv,"DB")
     && strEQ(SvPV_nolen(subr_entry->called_subnam_sv), "_INIT")
     ) {
         subr_entry->already_counted++;
@@ -2824,7 +2826,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     if (trace_level >= 2) {
         logwarn(" ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
-            (is_xs) ? is_xs : "sub", stash_name, SvPV_nolen(subr_entry->called_subnam_sv),
+            (subr_entry->called_is_xs) ? subr_entry->called_is_xs : "sub",
+            subr_entry->called_subpkg_pv, SvPV_nolen(subr_entry->called_subnam_sv),
             subr_entry->caller_subpkg_pv, SvPV_nolen(subr_entry->caller_subnam_sv),
             subr_entry->called_cv_depth,
             subr_entry->initial_overhead_ticks,
@@ -2833,7 +2836,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         );
     }
 
-    if (is_xs) {
+    if (subr_entry->called_is_xs) {
         /* for xsubs/builtins we've already left the sub, so end the timing now
             * rather than wait for the calling scope to get cleaned up.
             */

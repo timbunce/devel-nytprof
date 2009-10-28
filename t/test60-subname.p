@@ -18,8 +18,11 @@ Subclass->example_xsub();
 my $subname = "Devel::NYTProf::Test::example_xsub";
 &$subname("foo");
 
-# call builtin (will be recorded if slowops option set)
+# call builtin
 wait();
+
+# call builtin that exits via an exception
+eval { open my $f, '<&', 'nonesuch' }; # $@ "Bad filehandle: nonesuch"
 
 # XXX currently goto isn't noticed by the profiler
 # it's as if the call never happened. This most frequently
@@ -32,3 +35,4 @@ launch("foo");
 sub will_die { die "foo\n" }
 eval { example_xsub(0, \&will_die); 1; };
 warn "\$@ not set ($@)" if $@ ne "foo\n";
+

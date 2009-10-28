@@ -23,7 +23,6 @@ fid_block_time	2	17	2	1	[ 0 1 ]
 fid_block_time	2	20	[ 0 1 ]
 fid_fileinfo	1	[ test14.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	16-16
-fid_fileinfo	1	sub	main::CORE:require	0-0
 fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	call	17	test14::pre	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	18	AutoLoader::AUTOLOAD	[ 1 0 0 0 0 0 0 main::RUNTIME ]
@@ -58,7 +57,6 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 16 16 0 0 0 0 0 ]
-sub_subinfo	main::CORE:require	[ 1 0 0 2 0 0 0 0 ]
 sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	test14::BEGIN	[ 2 2 2 0 0 0 0 0 ]
 sub_subinfo	test14::bar	[ 2 16 18 1 0 0 0 0 ]
