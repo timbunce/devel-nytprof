@@ -119,8 +119,10 @@ sub is_perl_std_lib {
     my $self = shift;
     my $filename = $self->filename;
     my $attributes = $self->profile->attributes;
-    return 1 if $filename =~ /\Q$attributes->{PRIVLIB_EXP}/;
-    return 1 if $filename =~ /\Q$attributes->{ARCHLIB_EXP}/;
+    for (@{$attributes}{qw(PRIVLIB_EXP ARCHLIB_EXP)}) {
+        next unless $_;
+        return 1 if $filename =~ /\Q$_/;
+    }
     return 0;
 }
 
