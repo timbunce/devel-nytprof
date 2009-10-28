@@ -73,6 +73,10 @@ Performs per-subroutine statement profiling for overview
 
 =item *
 
+Performs per-opcode profiling for slow perl builtins
+
+=item *
+
 Performs per-block statement profiling (the first profiler to do so)
 
 =item *
@@ -184,7 +188,7 @@ leaving it. It then increments a call count and accumulates the duration.
 For each subroutine called, separate counts and durations are stored I<for each
 location that called the subroutine>.
 
-Subroutine entry is detected by intercepting the entersub opcode. Subroutine
+Subroutine entry is detected by intercepting the C<entersub> opcode. Subroutine
 exit is detected via perl's internal save stack. The result is both extremely
 fast and very robust.
 
@@ -404,15 +408,12 @@ If C<N> is 1 then all the builtins are treated as being defined in the C<CORE>
 package. So times for C<print> calls from anywhere in your code are merged and
 accounted for as calls to an xsub called C<CORE::print>.
 
-If C<N> is 2 then builtins are treated as being defined in the package that
-calls them. So calls to C<print> from package C<Foo> are treated as calls to an
-xsub called C<Foo::CORE:print>. Note the single colon after CORE.
-
-Default is 0 as this is a new feature and still somewhat experimental.
-The default may change to 2 in a future release.
+If C<N> is 2 (the default) then builtins are treated as being defined in the
+package that calls them. So calls to C<print> from package C<Foo> are treated
+as calls to an xsub called C<Foo::CORE:print>. Note the single colon after CORE.
 
 The opcodes are currently profiled using their internal names, so C<printf> is C<prtf>
-and the C<-x> file test is C<fteexec>. This is likely to change in future.
+and the C<-x> file test is C<fteexec>. This may change in future.
 
 =head2 usecputime=1
 
@@ -590,6 +591,12 @@ NYTProf is currently incompatible with the deep magic performed by
 Scope::Upper's unwind() function. As a partial workaround you can set the
 C<subs=0:leave=0> options, but you won't get any subroutine timings.
 See L<http://rt.cpan.org/Public/Bug/Display.html?id=50634>
+
+=head2 Slowops doesn't include all kinds of s/// substitutions
+
+Currently the C<substcont> opcode isn't profiled. This means that substitutions
+using variables in the replacement string, or that use the C</e> modifier,
+are not fully profiled.
 
 =head1 CLOCKS
 
