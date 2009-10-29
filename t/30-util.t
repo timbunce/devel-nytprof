@@ -28,7 +28,7 @@ is(fmt_incl_excl_time(3, 3), "3.00s");
 is(fmt_incl_excl_time(3, 2), "3.00s (2.00+1.00)");
 is(fmt_incl_excl_time(3, 2.997), "3.00s (3.00+3.00ms)");
 is(fmt_incl_excl_time(0.1, 0.0997), "100ms (99.7+300$us)");
-is(fmt_incl_excl_time(1.5e-5, 3.5e-6), "15$us (4+12)");
+is(fmt_incl_excl_time(4e-5, 1e-5), "40$us (10+30)");
 
 is html_safe_filename('/foo/bar'), 'foo-bar';
 is html_safe_filename('\foo\bar'), 'foo-bar';
