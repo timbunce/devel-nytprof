@@ -83,6 +83,9 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #else
 #define default_compression_level 0
 #endif
+#ifndef ZLIB_VERSION
+#define ZLIB_VERSION "0"
+#endif
 
 #define NYTP_START_NO            0
 #define NYTP_START_BEGIN         1
@@ -459,8 +462,9 @@ NYTP_start_deflate(NYTP_file file) {
     file->zs.zfree = (free_func) 0;
     file->zs.opaque = 0;
 
-    status = deflateInit2(&(file->zs), compression_level, Z_DEFLATED, 15,
-                       9 /* memLevel */, Z_DEFAULT_STRATEGY);
+    status = deflateInit2(&(file->zs), compression_level, Z_DEFLATED,
+        15 /* windowBits */,
+        9 /* memLevel */, Z_DEFAULT_STRATEGY);
     if (status != Z_OK) {
         croak("deflateInit2 failed, error %d (%s)", status, file->zs.msg);
     }
@@ -1833,8 +1837,8 @@ DB_stmt(pTHX_ COP *cop, OP *op)
     file = OutCopFILE(cop);
     if (!last_executed_fid) {                     /* first time */
         if (trace_level >= 1) {
-            logwarn("NYTProf pid %ld: first statement line %d of %s\n",
-                (long)getpid(), (int)CopLINE(cop), OutCopFILE(cop));
+            logwarn("~ first statement profiled at line %d of %s, pid %ld\n",
+                (int)CopLINE(cop), OutCopFILE(cop), (long)getpid());
         }
     }
     if (file != last_executed_fileptr) { /* cache (hit ratio ~50% e.g. for perlcritic) */
@@ -2035,7 +2039,7 @@ open_output_file(pTHX_ char *filename)
         croak("Failed to open output '%s': %s%s", filename, strerror(fopen_errno), hint);
     }
     if (trace_level >= 1)
-        logwarn("Opened %s\n", filename);
+        logwarn("~ opened %s\n", filename);
 
     output_header(aTHX);
 }
@@ -2064,12 +2068,14 @@ close_output_file(pTHX) {
 static int
 reinit_if_forked(pTHX)
 {
+    int open_new_file;
+
     if (getpid() == last_pid)
-        return 0;                                 /* not forked */
+        return 0; /* not forked */
 
     /* we're now the child process */
     if (trace_level >= 1)
-        logwarn("New pid %d (was %d) forkdepth %d\n", getpid(), last_pid, profile_forkdepth);
+        logwarn("~ new pid %d (was %d) forkdepth %d\n", getpid(), last_pid, profile_forkdepth);
 
     /* reset state */
     last_pid = getpid();
@@ -2078,24 +2084,27 @@ reinit_if_forked(pTHX)
     if (sub_callers_hv)
         hv_clear(sub_callers_hv);
 
-    if (out) {
+    open_new_file = (out) ? 1 : 0;
+    if (open_new_file) {
         /* data that was unflushed in the parent when it forked
         * is now duplicated unflushed in this child,
         * so discard it when we close the inherited filehandle.
         */
         NYTP_close(out, 1);
-
-        if (profile_forkdepth == 0) {
-            /* user doesn't want this child profiled */
-            disable_profile(aTHX);
-        }
-        else {
-            open_output_file(aTHX_ PROF_output_file);
-        }
+        out = NULL;
+        /* if we fork while profiling then ensure we'll get a distinct filename */
+        profile_opts |= NYTP_OPTf_ADDPID;
     }
 
-    if (profile_forkdepth > 0)
+    if (profile_forkdepth == 0) { /* parent doesn't want children profiled */
+        disable_profile(aTHX);
+        open_new_file = 0;
+    }
+    else /* count down another generation */
         --profile_forkdepth;
+
+    if (open_new_file)
+        open_output_file(aTHX_ PROF_output_file);
 
     return 1;                                     /* have forked */
 }
@@ -2246,7 +2255,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     if ( (sprintf(called_subname_pv, "%s::%s", subr_entry->called_subpkg_pv,
             SvPV_nolen(subr_entry->called_subnam_sv)) >= sizeof(called_subname_pv)) )
-        croak("NYTProf called_subname_pv buffer overflow on '%s'\n", called_subname_pv);
+        croak("~ called_subname_pv buffer overflow on '%s'\n", called_subname_pv);
 
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
     sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, strlen(called_subname_pv), 1);
@@ -2301,7 +2310,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         sv_inc(AvARRAY(subr_call_av)[NYTP_SCi_CALL_COUNT]);
     }
 
-    if (trace_level >= 3)
+    if (trace_level >= 4)
         logwarn("%02d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%d:%d #%lu %p\n",
             subr_entry->subr_prof_depth,
             called_subname_pv,
@@ -2473,7 +2482,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
     subr_entry = subr_entry_ix_ptr(subr_entry_ix);
     if (subr_entry_ix <= prev_subr_entry_ix) {
-        logwarn("NYTProf: stack is confused!\n");
+        logwarn("NYTProf panic: stack is confused!\n");
     }
     Zero(subr_entry, 1, subr_entry_t);
 
@@ -2833,7 +2842,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
                     logwarn("unknown entersub %s assumed to be anon called_cv '%s'\n",
                         what, SvPV_nolen(sub_sv));
             }
-            if (trace_level)
+            if (trace_level >= 9)
                 sv_dump(sub_sv);
         }
         subr_entry->called_subpkg_pv = stash_name;
@@ -2857,7 +2866,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     if (!profile_subs)
         subr_entry->already_counted++;
 
-    if (trace_level >= 2) {
+    if (trace_level >= 3) {
         logwarn("%02d ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
             subr_entry->subr_prof_depth,
             (subr_entry->called_is_xs) ? subr_entry->called_is_xs : "sub",
@@ -2892,7 +2901,6 @@ pp_stmt_profiler(pTHX)                            /* handles OP_DBSTATE, OP_SETS
     return op;
 }
 
-
 static OP *
 pp_leave_profiler(pTHX)                           /* handles OP_LEAVESUB, OP_LEAVEEVAL, etc */
 {
@@ -2901,6 +2909,13 @@ pp_leave_profiler(pTHX)                           /* handles OP_LEAVESUB, OP_LEA
     return op;
 }
 
+static OP *
+pp_fork_profiler(pTHX)                            /* handles OP_FORK */
+{
+    OP *op = run_original_op(PL_op->op_type);
+    reinit_if_forked(aTHX);
+    return op;
+}
 
 static OP *
 pp_exit_profiler(pTHX)                            /* handles OP_EXIT, OP_EXEC, etc */
@@ -2919,7 +2934,7 @@ enable_profile(pTHX_ char *file)
     int prev_is_profiling = is_profiling;
 
     if (trace_level)
-        logwarn("NYTProf enable_profile (previously %s) to %s\n",
+        logwarn("~ enable_profile (previously %s) to %s\n",
             prev_is_profiling ? "enabled" : "disabled",
             (file && *file) ? file : PROF_output_file);
 
@@ -2959,8 +2974,8 @@ disable_profile(pTHX)
         is_profiling = 0;
     }
     if (trace_level)
-        logwarn("NYTProf disable_profile (previously %s)\n",
-            prev_is_profiling ? "enabled" : "disabled");
+        logwarn("~ disable_profile (previously %s, pid %d)\n",
+            prev_is_profiling ? "enabled" : "disabled", getpid());
     return prev_is_profiling;
 }
 
@@ -2971,8 +2986,8 @@ finish_profile(pTHX)
     int saved_errno = errno;
 
     if (trace_level >= 1)
-        logwarn("finish_profile (last_pid %d, getpid %d, overhead %"NVff"s, is_profiling %d)\n",
-            last_pid, getpid(), cumulative_overhead_ticks/ticks_per_sec, is_profiling);
+        logwarn("~ finish_profile (overhead %"NVff"s, is_profiling %d)\n",
+            cumulative_overhead_ticks/ticks_per_sec, is_profiling);
 
     /* write data for final statement, unless DB_leave has already */
     if (!profile_leave || opt_use_db_sub)
@@ -3010,7 +3025,17 @@ init_profiler(pTHX)
         PL_perldb |= PERLDBf_LINE;    /* line-by-line profiling via DB::DB (if $DB::single true) */
         PL_perldb |= PERLDBf_SINGLE; /* start (after BEGINs) with single-step on XXX still needed? */
     }
-    if (opt_perldb) /* not documented - for testing only */
+
+    if (profile_opts & NYTP_OPTf_OPTIMIZE)
+         PL_perldb &= ~PERLDBf_NOOPT;
+    else PL_perldb |=  PERLDBf_NOOPT;
+
+    if (profile_opts & NYTP_OPTf_SAVESRC) {
+        /* ask perl to keep the source lines so we can copy them */
+        PL_perldb |= PERLDBf_SAVESRC | PERLDBf_SAVESRC_NOSUBS;
+    }
+
+    if (opt_perldb) /* force a PL_perldb value - for testing only, not documented */
         PL_perldb = opt_perldb;
 
 #ifdef HAS_CLOCK_GETTIME
@@ -3024,7 +3049,7 @@ init_profiler(pTHX)
     /* downgrade to CLOCK_REALTIME if desired clock not available */
     if (clock_gettime(profile_clock, &start_time) != 0) {
         if (trace_level)
-            logwarn("clock_gettime clock %d not available (%s) using CLOCK_REALTIME instead\n",
+            logwarn("~ clock_gettime clock %d not available (%s) using CLOCK_REALTIME instead\n",
                 profile_clock, strerror(errno));
         profile_clock = CLOCK_REALTIME;
         /* check CLOCK_REALTIME as well, just in case */
@@ -3039,18 +3064,9 @@ init_profiler(pTHX)
     }
 #endif
 
-    if (profile_opts & NYTP_OPTf_OPTIMIZE)
-         PL_perldb &= ~PERLDBf_NOOPT;
-    else PL_perldb |=  PERLDBf_NOOPT;
-
-    if (profile_opts & NYTP_OPTf_SAVESRC) {
-        /* ask perl to keep the source lines so we can copy them */
-        PL_perldb |= PERLDBf_SAVESRC | PERLDBf_SAVESRC_NOSUBS;
-    }
-
     if (trace_level)
-        logwarn("NYTProf init pid %d, clock %d, start %d\n",
-            last_pid, profile_clock, profile_start);
+        logwarn("~ init_profiler for pid %d, clock %d, start %d, perldb %lx\n",
+            last_pid, profile_clock, profile_start, PL_perldb);
 
     if (get_hv("DB::sub", 0) == NULL) {
         logwarn("NYTProf internal error - perl not in debug mode\n");
@@ -3063,7 +3079,7 @@ init_profiler(pTHX)
     if (!svp || !SvIOK(*svp)) croak("Time::HiRes is required");
     u2time = INT2PTR(int(*)(pTHX_ UV*), SvIV(*svp));
     if (trace_level)
-        logwarn("Using Time::HiRes %p\n", u2time);
+        logwarn("NYTProf using Time::HiRes %p\n", u2time);
 #endif
 
     /* create file id mapping hash */
@@ -3089,7 +3105,6 @@ init_profiler(pTHX)
             PL_ppaddr[OP_LEAVEWRITE] = pp_leave_profiler;
             PL_ppaddr[OP_LEAVEEVAL]  = pp_leave_profiler;
             PL_ppaddr[OP_LEAVETRY]   = pp_leave_profiler;
-            PL_ppaddr[OP_DUMP]       = pp_leave_profiler;
             PL_ppaddr[OP_RETURN]     = pp_leave_profiler;
             /* natural end of simple loop */
             PL_ppaddr[OP_UNSTACK]    = pp_leave_profiler;
@@ -3099,32 +3114,11 @@ init_profiler(pTHX)
             PL_ppaddr[OP_EXEC]       = pp_exit_profiler;
         }
     }
+    /* calls reinit_if_forked() asap after a fork */
+    PL_ppaddr[OP_FORK] = pp_fork_profiler;
 
     if (profile_slowops) {
-        /* possible list of sys ops to profile:
-            sysopen open close readline rcatline getc read
-            print prtf sysread syswrite send recv
-            eof tell seek sysseek readdir telldir seekdir rewinddir
-            rand srand dbmopen dbmclose
-            stat lstat readlink link unlink rename symlink truncate
-            sselect select pipe_op bind connect listen accept shutdown
-            ftatime ftblk ftchr ftctime ftdir fteexec fteowned fteread
-            ftewrite ftfile ftis ftlink ftmtime ftpipe ftrexec ftrowned
-            ftrread ftsgid ftsize ftsock ftsuid fttty ftzero ftrwrite ftsvtx
-            fttext ftbinary custom
-            ghbyname ghbyaddr ghostent shostent ehostent      -- hosts
-            gnbyname gnbyaddr gnetent snetent enetent         -- networks
-            gpbyname gpbynumber gprotoent sprotoent eprotoent -- protocols
-            gsbyname gsbyport gservent sservent eservent      -- services
-            gpwnam gpwuid gpwent spwent epwent getlogin       -- users
-            ggrnam ggrgid ggrent sgrent egrent                -- groups
-            open_dir closedir mkdir rmdir utime chmod chown fcntl
-            backtick system fork wait waitpid glob
-            msgget msgrcv msgsnd semget semop
-            chdir flock ioctl sleep syscall dump chroot
-            Perhaps make configurable. Could interate with Opcode module.
-        */
-        /* XXX this will turn into a loop over an array that maps
+        /* XXX this should turn into a loop over an array that maps
          * opcodes to the subname we'll use: OP_PRTF => "printf"
          */
 #include "slowops.h"
@@ -3156,8 +3150,8 @@ init_profiler(pTHX)
         get_time_of_day(start_time);
     }
 
-    if (trace_level >= 3)
-        logwarn("NYTProf init done\n");
+    if (trace_level >= 2)
+        logwarn("~ init_profiler done\n");
 
     return 1;
 }
@@ -3263,7 +3257,7 @@ write_sub_line_ranges(pTHX)
     unsigned int fid;
 
     if (trace_level >= 2)
-        logwarn("writing sub line ranges\n");
+        logwarn("~ writing sub line ranges\n");
 
     /* Skim through PL_DBsub hash to build a package to filename hash
      * by associating the package part of the sub_name in the key
@@ -3383,7 +3377,7 @@ write_sub_callers(pTHX)
     if (!sub_callers_hv)
         return;
     if (trace_level >= 2)
-        logwarn("writing sub callers\n");
+        logwarn("~ writing sub callers\n");
 
     hv_iterinit(sub_callers_hv);
     while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &called_subname, &called_subname_len))) {
@@ -3465,8 +3459,8 @@ write_src_of_files(pTHX)
     int t_no_src = 0;
     long t_lines = 0;
 
-    if (trace_level >= 1)
-        logwarn("writing file source code\n");
+    if (trace_level >= 2)
+        logwarn("~ writing file source code\n");
 
     for (e = hashtable.first_inserted; e; e = (Hash_entry *)e->next_inserted) {
         I32 lines;
@@ -3520,8 +3514,8 @@ write_src_of_files(pTHX)
         }
     }
 
-    if (trace_level >= 1)
-        logwarn("wrote %ld source lines for %d files (%d skipped without savesrc option, %d others had no source available)\n",
+    if (trace_level >= 2)
+        logwarn("~ wrote %ld source lines for %d files (%d skipped without savesrc option, %d others had no source available)\n",
             t_lines, t_save_src, t_has_src-t_save_src, t_no_src);
 }
 
@@ -4545,6 +4539,7 @@ BOOT:
     newCONSTSUB(stash, "NYTP_SCi_CALLING_SUB",  newSViv(NYTP_SCi_CALLING_SUB));
     /* others */
     newCONSTSUB(stash, "NYTP_DEFAULT_COMPRESSION", newSViv(default_compression_level));
+    newCONSTSUB(stash, "NYTP_ZLIB_VERSION",     newSVpv(ZLIB_VERSION, 0));
 }
 
 
@@ -4639,8 +4634,8 @@ _INIT()
     }
     else if (profile_start == NYTP_START_END) {
         SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
-        if (trace_level >= 1)
-            logwarn("enable_profile defered until END\n");
+        if (trace_level >= 2)
+            logwarn("~ enable_profile defered until END\n");
         av_unshift(PL_endav, 1);  /* we want to be first */
         av_store(PL_endav, 0, SvREFCNT_inc(enable_profile_sv));
     }
@@ -4649,6 +4644,8 @@ _INIT()
      * so it's likely to be the last thing run.
      */
     av_push(PL_endav, (SV *)get_cv("DB::finish_profile", GV_ADDWARN));
+    if (trace_level >= 2)
+        logwarn("~ INIT done\n");
 
 
 

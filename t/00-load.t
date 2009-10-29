@@ -10,9 +10,13 @@ use_ok( 'Devel::NYTProf::Core' );
 
 diag( "Testing Devel::NYTProf $Devel::NYTProf::Core::VERSION on perl $] $Config{archname}" );
 
-use_ok( 'Devel::NYTProf::Constants', qw(NYTP_DEFAULT_COMPRESSION) );
+use_ok( 'Devel::NYTProf::Constants', qw(
+    NYTP_DEFAULT_COMPRESSION NYTP_ZLIB_VERSION
+) );
 
-diag( sprintf "default compression level is %d", NYTP_DEFAULT_COMPRESSION() );
+diag( sprintf "Compression: default level is %d, zlib version %s",
+    NYTP_DEFAULT_COMPRESSION(), NYTP_ZLIB_VERSION()
+);
 
 if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x) {
     diag("It looks like this is running inside a Xen virtual machine.");

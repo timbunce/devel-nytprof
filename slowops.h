@@ -25,7 +25,6 @@ PL_ppaddr[OP_EPWENT] = pp_slowop_profiler;
 PL_ppaddr[OP_ESERVENT] = pp_slowop_profiler;
 PL_ppaddr[OP_FCNTL] = pp_slowop_profiler;
 PL_ppaddr[OP_FLOCK] = pp_slowop_profiler;
-PL_ppaddr[OP_FORK] = pp_slowop_profiler;
 PL_ppaddr[OP_FORMLINE] = pp_slowop_profiler;
 PL_ppaddr[OP_FTATIME] = pp_slowop_profiler;
 PL_ppaddr[OP_FTBINARY] = pp_slowop_profiler;

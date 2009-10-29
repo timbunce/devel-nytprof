@@ -22,7 +22,6 @@ fid_block_time	1	20	[ 0 1 ]
 fid_block_time	1	22	[ 0 1 ]
 fid_fileinfo	1	[ test30-fork-0.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	0-0
-fid_fileinfo	1	sub	main::CORE:fork	0-0
 fid_fileinfo	1	sub	main::CORE:print	0-0
 fid_fileinfo	1	sub	main::CORE:wait	0-0
 fid_fileinfo	1	sub	main::RUNTIME	1-1
@@ -35,7 +34,6 @@ fid_fileinfo	1	call	7	main::CORE:print	[ 3 0 0 0 0 0 0 main::other ]
 fid_fileinfo	1	call	11	main::CORE:print	[ 1 0 0 0 0 0 0 main::postfork ]
 fid_fileinfo	1	call	12	main::other	[ 1 0 0 0 0 0 0 main::postfork ]
 fid_fileinfo	1	call	15	main::prefork	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-fid_fileinfo	1	call	17	main::CORE:fork	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	19	main::postfork	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	20	main::other	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	22	main::CORE:wait	[ 1 0 0 0 0 0 0 main::RUNTIME ]
@@ -61,8 +59,6 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
-sub_subinfo	main::CORE:fork	[ 1 0 0 1 0 0 0 0 ]
-sub_subinfo	main::CORE:fork	called_by	1	17	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::CORE:print	[ 1 0 0 5 0 0 0 0 ]
 sub_subinfo	main::CORE:print	called_by	1	2	[ 1 0 0 0 0 0 0 main::prefork ]
 sub_subinfo	main::CORE:print	called_by	1	7	[ 3 0 0 0 0 0 0 main::other ]

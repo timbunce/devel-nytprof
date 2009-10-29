@@ -21,13 +21,14 @@ exit 0;
 
 sub run_forkdepth {
     my ($forkdepth) = @_;
+    printf "run_forkdepth %s\n", defined($forkdepth) ? $forkdepth : "undef";
 
     unlink $_ for glob("$out.*");
 
-    $ENV{NYTPROF} = "file=$out:addpid=1";
+    $ENV{NYTPROF} = "file=$out:addpid=1:trace=0";
     $ENV{NYTPROF} .= ":forkdepth=$forkdepth" if defined $forkdepth;
 
-    my $forkdepth_cmd = q{-d:NYTProf -e "fork and wait,exit 0; fork and wait"};
+    my $forkdepth_cmd = q{-d:NYTProf -e "sub f { fork or return; wait; exit \$? } f; f; exit 0"};
     run_perl_command($forkdepth_cmd);
 
     my @files = glob("$out.*");
