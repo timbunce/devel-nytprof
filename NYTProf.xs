@@ -2311,7 +2311,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
 
     if (trace_level >= 4)
-        logwarn("%02d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%g-%g), oh %g-%g=%gt, d%d @%d:%d #%lu %p\n",
+        logwarn("%02d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%"NVff"-%"NVff"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
             subr_entry->subr_prof_depth,
             called_subname_pv,
             excl_subr_sec, incl_subr_sec, called_sub_secs,
@@ -4173,7 +4173,7 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 if (trace_level >= 3)
-                    logwarn("Sub %s called by %s %u:%u: count %d, incl %f, excl %f, ucpu %f scpu %f\n",
+                    logwarn("Sub %s called by %s %u:%u: count %d, incl %"NVff", excl %"NVff", ucpu %"NVff" scpu %"NVff"\n",
                         SvPV_nolen(called_subname_sv), SvPV_nolen(caller_subname_sv), fid, line,
                         count, incl_time, excl_time, ucpu_time, scpu_time);
 
@@ -4224,7 +4224,7 @@ load_profile_data_from_stream(SV *cb)
                     sv = *av_fetch(av, NYTP_SCi_CALLING_SUB, 1);
                     if (!SvROK(sv))               /* autoviv */
                         sv_setsv(sv, newRV_noinc((SV*)newHV()));
-                    hv_fetch_ent((HV *)SvRV(sv), caller_subname_sv, 1, 0);
+                    (void)hv_fetch_ent((HV *)SvRV(sv), caller_subname_sv, 1, 0);
 
                     /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
                     /* => { line => { subname => [ ... ] } } */
@@ -4449,7 +4449,7 @@ load_profile_data_from_stream(SV *cb)
         int show_summary_stats = (trace_level >= 1);
 
         if (profiler_end_time && total_stmts_duration > profiler_duration * 1.1) {
-            logwarn("The sum of the statement timings is %.1f%% of the total time profiling."
+            logwarn("The sum of the statement timings is %.1"NVff"%% of the total time profiling."
                  " (Values slightly over 100%% can be due simply to cumulative timing errors,"
                  " whereas larger values can indicate a problem with the clock used.)\n",
                 total_stmts_duration / profiler_duration * 100);
