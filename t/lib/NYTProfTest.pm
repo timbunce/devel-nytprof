@@ -17,7 +17,6 @@ our @EXPORT = qw(
     run_command
     run_perl_command
     do_foreach_env_combination
-    profile_this_code
 );
 
 use Devel::NYTProf::Data;
@@ -190,6 +189,9 @@ sub run_test_group {
         print "nytprofcvs: $nytprofcsv\n";
     }
 
+    plan skip_all => "No '$group.*' test files and no extra_test_code"
+        if !@tests and !$extra_test_code;
+
     my $tests_per_env = number_of_tests(@tests) + $extra_test_count + 1;
 
     plan tests => 1 + $tests_per_env * @env_combinations;
@@ -199,22 +201,25 @@ sub run_test_group {
 
     # non-default to test override works and allow parallel testing
     my $profile_datafile = "nytprof_$group.out";
-    $NYTPROF_TEST{file} = $profile_datafile;
 
     do_foreach_env_combination( sub {
         my ($env) = @_;
 
         for my $test (@tests) {
+            local $NYTPROF_TEST{file} = $profile_datafile;
             run_test($test);
         }
 
         if ($extra_test_code) {
             print("running $extra_test_count extra tests...\n");
-            my $profile = eval { Devel::NYTProf::Data->new({ filename => $profile_datafile }) };
-            if ($@) {
-                diag($@);
-                fail("extra tests group '$group'") foreach (1 .. $extra_test_count);
-                return;
+            my $profile;
+            if (@tests) {
+                $profile = eval { Devel::NYTProf::Data->new({ filename => $profile_datafile }) };
+                if ($@) {
+                    diag($@);
+                    fail("extra tests group '$group'") foreach (1 .. $extra_test_count);
+                    return;
+                }
             }
 
             $extra_test_code->($profile, $env);
@@ -526,39 +531,6 @@ sub count_of_failed_tests {
     return scalar grep { not $_->{ok} } @details;
 }
 
-
-sub profile_this_code {
-    my %opt = @_;
-
-    my (undef, $out_file) = tempfile('nytprof_XXXXXX', SUFFIX => 'out');
-    
-    my @perl = ($perl, '-d:NYTProf');
-    push @perl, @{ $opt{perl_opts} } if $opt{perl_opts};
-
-    if (my $src_file = $opt{src_file}) {
-        system($perl, '-d:NYTProf', $src_file) == 0
-            or carp "@perl $src_file exited with an error status";
-    }
-    elsif (my $src_code = $opt{src_code}) {
-        open my $fh, '|-', @perl
-            or croak "Can't open pipe to @perl";
-        print $fh $src_code; 
-        close $fh
-            or carp "@perl exited with an error status";
-    }
-    else {
-        croak "Neither src_file or src_code was provided";
-    }
-    
-    my $profile = Devel::NYTProf::Data->new( {
-        filename => $out_file,
-        callback => $opts{for_chunks},
-    } );
-
-    unlink $out_file;
-
-    return $profile;
-}
 
 
 1;

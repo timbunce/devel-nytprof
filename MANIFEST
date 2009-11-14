@@ -25,6 +25,7 @@ lib/Devel/NYTProf/FileInfo.pm
 lib/Devel/NYTProf/PgPLPerl.pm
 lib/Devel/NYTProf/ReadStream.pm
 lib/Devel/NYTProf/Reader.pm
+lib/Devel/NYTProf/Run.pm
 lib/Devel/NYTProf/SubInfo.pm
 lib/Devel/NYTProf/Test.pm
 lib/Devel/NYTProf/Util.pm
@@ -47,6 +48,7 @@ perftest.pl
 ppport.h
 slowops.h
 t/00-load.t
+t/10-run.t
 t/22-readstream.t
 t/30-util.t
 t/31-env.t
