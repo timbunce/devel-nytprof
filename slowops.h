@@ -105,7 +105,9 @@ PL_ppaddr[OP_REGCOMP] = pp_slowop_profiler;
 PL_ppaddr[OP_RENAME] = pp_slowop_profiler;
 PL_ppaddr[OP_REWINDDIR] = pp_slowop_profiler;
 PL_ppaddr[OP_RMDIR] = pp_slowop_profiler;
+#if (PERL_VERSION >= 10)
 PL_ppaddr[OP_SAY] = pp_slowop_profiler;
+#endif
 PL_ppaddr[OP_SEEK] = pp_slowop_profiler;
 PL_ppaddr[OP_SEEKDIR] = pp_slowop_profiler;
 PL_ppaddr[OP_SELECT] = pp_slowop_profiler;
