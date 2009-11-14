@@ -1357,7 +1357,7 @@ EOD
     <script type="text/javascript" src="js/jquery-min.js"></script> 
 
     <script type="text/javascript" src="js/jquery-tablesorter-min.js"></script> 
-    <link rel="stylesheet" type="text/css" href="style-tablesorter.css" />
+    <link rel="stylesheet" type="text/css" href="js/style-tablesorter.css" />
     <script type="text/javascript">
     // when a column is first clicked on to sort it, use descending order
     // XXX doesn't seem to work (and not just because the tablesorter formatSortingOrder() is broken)
