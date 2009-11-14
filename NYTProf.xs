@@ -2675,6 +2675,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv || sub_sv == DB_fin_cv))
         /* don't profile other kids of goto */
     || (op_type==OP_GOTO && !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV))
+    || (op_type==OP_SUBSTCONT) /* XXX not handled yet */
     ) {
         return run_original_op(op_type);
     }
