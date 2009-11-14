@@ -201,12 +201,12 @@ sub run_test_group {
 
     # non-default to test override works and allow parallel testing
     my $profile_datafile = "nytprof_$group.out";
+    $NYTPROF_TEST{file} = $profile_datafile;
 
     do_foreach_env_combination( sub {
         my ($env) = @_;
 
         for my $test (@tests) {
-            local $NYTPROF_TEST{file} = $profile_datafile;
             run_test($test);
         }
 
@@ -241,6 +241,7 @@ sub run_test {
         return;
     };
     my ($basename, $fork_seqn, $type) = ($1, $2 || 0, $3);
+    #warn "($basename, $fork_seqn, $type)\n";
 
     my $profile_datafile = $NYTPROF_TEST{file};
     my $test_datafile = (profile_datafiles($profile_datafile))[$fork_seqn];

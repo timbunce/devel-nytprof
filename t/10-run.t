@@ -9,11 +9,12 @@ use Devel::NYTProf::Run qw(profile_this);
 
 run_test_group( {
     extra_test_count => 1,
-    _extra_test_code  => sub {
+    extra_test_code  => sub {
         my ($profile, $env) = @_;
 
         $profile = profile_this(
-            src_code => "1+1"
+            src_code => "1+1",
+            out_file => $env->{file},
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
     },
