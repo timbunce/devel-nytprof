@@ -44,6 +44,7 @@ fid_fileinfo	1	sub	MyTie::TIESCALAR	6-6
 fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	sub	main::CORE:sort	0-0
 fid_fileinfo	1	sub	main::CORE:subst	0-0
+fid_fileinfo	1	sub	main::CORE:substcont	0-0
 fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::sub1	21-21
 fid_fileinfo	1	sub	main::sub2	25-25
@@ -60,6 +61,7 @@ fid_fileinfo	1	call	27	main::CORE:sort	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	28	main::sub2	[ 6 0 0 0 0 0 0 main::CORE:sort ]
 fid_fileinfo	1	call	33	main::CORE:sort	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	38	main::CORE:subst	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+fid_fileinfo	1	call	38	main::CORE:substcont	[ 3 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	38	main::sub4	[ 2 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	2	[ Devel/NYTProf/Test.pm   2 2 0 0 ]
 fid_fileinfo	2	sub	Devel::NYTProf::Test::example_sub	13-13
@@ -134,6 +136,8 @@ sub_subinfo	main::CORE:sort	called_by	1	27	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::CORE:sort	called_by	1	33	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::CORE:subst	[ 1 0 0 1 0 0 0 0 ]
 sub_subinfo	main::CORE:subst	called_by	1	38	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+sub_subinfo	main::CORE:substcont	[ 1 0 0 3 0 0 0 0 ]
+sub_subinfo	main::CORE:substcont	called_by	1	38	[ 3 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	main::sub1	[ 1 21 21 1 0 0 0 0 ]
 sub_subinfo	main::sub1	called_by	1	22	[ 1 0 0 0 0 0 0 main::RUNTIME ]

@@ -1485,17 +1485,39 @@ output_nv_from_av(pTHX_ AV *av, int idx, NV default_nv)
     output_nv( nv );
     return nv;
 }
-        
 
-static const char* block_type[] =
-{
-    "NULL",
-    "SUB",
-    "EVAL",
-    "LOOP",
-    "SUBST",
-    "BLOCK",
-};
+
+static char *
+cx_block_type(PERL_CONTEXT *cx) {
+    switch (CxTYPE(cx)) {
+    case CXt_NULL:              return "CXt_NULL";
+    case CXt_SUB:               return "CXt_SUB";
+    case CXt_FORMAT:            return "CXt_FORMAT";
+    case CXt_EVAL:              return "CXt_EVAL";
+    case CXt_SUBST:             return "CXt_SUBST";
+#ifdef CXt_WHEN:
+    case CXt_WHEN:              return "CXt_WHEN";
+#endif
+    case CXt_BLOCK:             return "CXt_BLOCK";
+#ifdef CXt_GIVEN:
+    case CXt_GIVEN:             return "CXt_GIVEN";
+#endif
+#ifdef CXt_LOOP_FOR:
+    case CXt_LOOP_FOR:          return "CXt_LOOP_FOR";
+#endif
+#ifdef CXt_LOOP_PLAIN:
+    case CXt_LOOP_PLAIN:        return "CXt_LOOP_PLAIN";
+#endif
+#ifdef CXt_LOOP_LAZYSV:
+    case CXt_LOOP_LAZYSV:       return "CXt_LOOP_LAZYSV";
+#endif
+#ifdef CXt_LOOP_LAZYIV:
+    case CXt_LOOP_LAZYIV:       return "CXt_LOOP_LAZYIV";
+#endif
+    }
+    return "CXt_???";
+}
+
 
 /* based on S_dopoptosub_at() from perl pp_ctl.c */
 static int
@@ -1565,7 +1587,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
     if (!start_op) {
         if (trace_level >= trace)
             logwarn("\tstart_cop_of_context: can't find start of %s\n",
-                block_type[CxTYPE(cx)]);
+                cx_block_type(cx));
         return NULL;
     }
     /* find next cop from OP */
@@ -1574,14 +1596,14 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
         if (type == OP_NEXTSTATE || type == OP_SETSTATE || type == OP_DBSTATE) {
             if (trace_level >= trace)
                 logwarn("\tstart_cop_of_context %s is %s line %d of %s\n",
-                    block_type[CxTYPE(cx)], OP_NAME(o), (int)CopLINE((COP*)o),
+                    cx_block_type(cx), OP_NAME(o), (int)CopLINE((COP*)o),
                     OutCopFILE((COP*)o));
             return (COP*)o;
         }
         /* should never get here but we do */
         if (trace_level >= trace) {
             logwarn("\tstart_cop_of_context %s op '%s' isn't a cop\n",
-                block_type[CxTYPE(cx)], OP_NAME(o));
+                cx_block_type(cx), OP_NAME(o));
             if (trace_level >  trace)
                 do_op_dump(1, PerlIO_stderr(), o);
         }
@@ -1589,7 +1611,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
     }
     if (trace_level >= 3) {
         logwarn("\tstart_cop_of_context: can't find next cop for %s line %ld\n",
-            block_type[CxTYPE(cx)], (long)CopLINE(PL_curcop_nytprof));
+            cx_block_type(cx), (long)CopLINE(PL_curcop_nytprof));
         do_op_dump(1, PerlIO_stderr(), start_op);
     }
     return NULL;
@@ -1639,7 +1661,7 @@ UV *cx_type_mask_ptr))
         cx = &ccstack[cxix];
         if (trace_level >= 5)
             logwarn("visit_context: %s cxix %d (si_prev %p)\n",
-                block_type[CxTYPE(cx)], (int)cxix, top_si->si_prev);
+                cx_block_type(cx), (int)cxix, top_si->si_prev);
         if (callback(aTHX_ cx, &cx_type_mask))
             return cx;
         /* no joy, look further */
@@ -1689,7 +1711,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *cx_type_mask_ptr)
             GV *sv = CvGV(cx->blk_sub.cv);
             logwarn("\tat %d: block %d sub %d for %s %s\n",
                 last_executed_line, last_block_line, last_sub_line,
-                block_type[CxTYPE(cx)], (sv) ? GvNAME(sv) : "");
+                cx_block_type(cx), (sv) ? GvNAME(sv) : "");
             if (trace_level >= 9)
                 sv_dump((SV*)cx->blk_sub.cv);
         }
@@ -1699,7 +1721,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *cx_type_mask_ptr)
 
     /* NULL, EVAL, LOOP, SUBST, BLOCK context */
     if (trace_level >= 6)
-        logwarn("\t%s\n", block_type[CxTYPE(cx)]);
+        logwarn("\t%s\n", cx_block_type(cx));
 
     /* if we've got a block line, skip this context and keep looking for a sub */
     if (last_block_line)
@@ -1720,7 +1742,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *cx_type_mask_ptr)
         /* shouldn't happen! */
         if (trace_level >= 5)
             logwarn("at %d: %s in different file (%s, %s)\n",
-                last_executed_line, block_type[CxTYPE(cx)],
+                last_executed_line, cx_block_type(cx),
                 OutCopFILE(near_cop), OutCopFILE(PL_curcop_nytprof));
         return 1;                                 /* stop looking */
     }
@@ -1728,7 +1750,7 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *cx_type_mask_ptr)
     last_block_line = CopLINE(near_cop);
     if (trace_level >= 5)
         logwarn("\tat %d: block %d for %s\n",
-            last_executed_line, last_block_line, block_type[CxTYPE(cx)]);
+            last_executed_line, last_block_line, cx_block_type(cx));
     return 0;
 }
 
@@ -2311,7 +2333,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
 
     if (trace_level >= 4)
-        logwarn("%02d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%"NVff"-%"NVff"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
+        logwarn("%2d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%"NVff"-%"NVff"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
             subr_entry->subr_prof_depth,
             called_subname_pv,
             excl_subr_sec, incl_subr_sec, called_sub_secs,
@@ -2446,7 +2468,7 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
 
     if (trace_level >= 9)
         logwarn("finding current_cv(%d,%p) - cx_type %d %s, si_type %d\n",
-            (int)ix, si, CxTYPE(cx), block_type[CxTYPE(cx)], (int)si->si_type);
+            (int)ix, si, CxTYPE(cx), cx_block_type(cx), (int)si->si_type);
 
     /* the common case of finding the caller on the same stack */
     if (CxTYPE(cx) == CXt_SUB || CxTYPE(cx) == CXt_FORMAT)
@@ -2675,7 +2697,6 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv || sub_sv == DB_fin_cv))
         /* don't profile other kids of goto */
     || (op_type==OP_GOTO && !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV))
-    || (op_type==OP_SUBSTCONT) /* XXX not handled yet */
     ) {
         return run_original_op(op_type);
     }
@@ -2775,7 +2796,15 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     assert(subr_entry->caller_fid < next_fid);
 
     if (is_slowop) {
-        /* already fully handled by subr_entry_setup */
+        /* check if this call has already been counted because the op performed
+         * a leave_scope(). E.g., OP_SUBSTCONT at end of s/.../\1/;
+         */
+        if (subr_entry->already_counted) {
+            if (trace_level >= 9)
+                logwarn("%2d -- already counted\n", subr_entry->subr_prof_depth);
+            goto skip_sub_profile;
+        }
+        /* else already fully handled by subr_entry_setup */
     }
     else {
         char *stash_name = NULL;
@@ -2868,11 +2897,13 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         subr_entry->already_counted++;
 
     if (trace_level >= 3) {
-        logwarn("%02d ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
+        logwarn("%2d ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
             subr_entry->subr_prof_depth,
             (subr_entry->called_is_xs) ? subr_entry->called_is_xs : "sub",
-            subr_entry->called_subpkg_pv, SvPV_nolen(subr_entry->called_subnam_sv),
-            subr_entry->caller_subpkg_pv, SvPV_nolen(subr_entry->caller_subnam_sv),
+            subr_entry->called_subpkg_pv,
+            subr_entry->called_subnam_sv ? SvPV_nolen(subr_entry->called_subnam_sv) : "(null)",
+            subr_entry->caller_subpkg_pv,
+            subr_entry->caller_subnam_sv ? SvPV_nolen(subr_entry->caller_subnam_sv) : "(null)",
             subr_entry->called_cv_depth,
             subr_entry->initial_overhead_ticks,
             subr_entry->initial_subr_secs,
