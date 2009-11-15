@@ -2792,18 +2792,20 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
 
     /* detect wiedness/corruption */
-    assert(subr_entry->already_counted < 100);
     assert(subr_entry->caller_fid < next_fid);
 
+    /* Check if this call has already been counted because the op performed
+     * a leave_scope(). E.g., OP_SUBSTCONT at end of s/.../\1/
+     * or Scope::Upper's unwind()
+     */
+    if (subr_entry->already_counted) {
+        assert(subr_entry->already_counted < 3);
+        if (trace_level >= 9)
+            logwarn("%2d -- already counted\n", subr_entry->subr_prof_depth);
+        goto skip_sub_profile;
+    }
+
     if (is_slowop) {
-        /* check if this call has already been counted because the op performed
-         * a leave_scope(). E.g., OP_SUBSTCONT at end of s/.../\1/;
-         */
-        if (subr_entry->already_counted) {
-            if (trace_level >= 9)
-                logwarn("%2d -- already counted\n", subr_entry->subr_prof_depth);
-            goto skip_sub_profile;
-        }
         /* else already fully handled by subr_entry_setup */
     }
     else {
