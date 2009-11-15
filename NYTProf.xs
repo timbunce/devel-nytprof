@@ -2503,10 +2503,16 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     prev_subr_entry_ix = subr_entry_ix;
     subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
     subr_entry = subr_entry_ix_ptr(subr_entry_ix);
-    if (subr_entry_ix <= prev_subr_entry_ix) {
-        logwarn("NYTProf panic: stack is confused!\n");
-    }
     Zero(subr_entry, 1, subr_entry_t);
+
+    if (subr_entry_ix <= prev_subr_entry_ix) {
+        /* one cause of this is running NYTProf with threads */
+        logwarn("NYTProf panic: stack is confused!\n");
+        /* limit the damage */
+        disable_profile(aTHX);
+        subr_entry->already_counted++;
+        return subr_entry_ix;
+    }
 
     subr_entry->prev_subr_entry_ix = prev_subr_entry_ix;
     caller_subr_entry = subr_entry_ix_ptr(prev_subr_entry_ix);
