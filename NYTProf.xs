@@ -2784,11 +2784,6 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         SvREFCNT_dec(sub_sv);
     }
 
-    /* push a destructor hook onto the context stack to ensure we account
-     * for time in the sub when we leave it, even if via an exception.
-     */
-    save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)this_subr_entry_ix));
-
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
 
     /* detect wiedness/corruption */
@@ -2915,9 +2910,15 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     if (subr_entry->called_is_xs) {
         /* for xsubs/builtins we've already left the sub, so end the timing now
-            * rather than wait for the calling scope to get cleaned up.
-            */
+         * rather than wait for the calling scope to get cleaned up.
+         */
         incr_sub_inclusive_time(aTHX_ subr_entry);
+    }
+    else {
+        /* push a destructor hook onto the context stack to ensure we account
+         * for time in the sub when we leave it, even if via an exception.
+         */
+        save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)this_subr_entry_ix));
     }
 
     skip_sub_profile:
