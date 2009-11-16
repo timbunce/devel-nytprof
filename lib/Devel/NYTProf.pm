@@ -415,6 +415,10 @@ as calls to an xsub called C<Foo::CORE:print>. Note the single colon after CORE.
 The opcodes are currently profiled using their internal names, so C<printf> is C<prtf>
 and the C<-x> file test is C<fteexec>. This may change in future.
 
+Opcodes that call subroutines, perhaps by triggering a FETCH from a tied
+variable, currently appear in the call tree as the call of the sub. This is
+likely to change in future.
+
 =head2 usecputime=1
 
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'

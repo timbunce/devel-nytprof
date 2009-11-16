@@ -52,6 +52,7 @@ t/10-run.t
 t/22-readstream.t
 t/30-util.t
 t/31-env.t
+t/40-savesrc.t
 t/50-errno.t
 t/60-forkdepth.t
 t/80-version.t

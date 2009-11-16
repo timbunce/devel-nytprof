@@ -49,6 +49,8 @@ sub profile_this {
 
     my @perl = ($this_perl, '-d:NYTProf');
     push @perl, @{ $opt{perl_opts} } if $opt{perl_opts};
+    my $NYTPROF = $ENV{NYTPROF} || '';
+    #warn "profile_this using [@perl] with NYTPROF=$NYTPROF\n";
 
     if (my $src_file = $opt{src_file}) {
         system(@perl, $src_file) == 0

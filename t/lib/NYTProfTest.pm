@@ -125,7 +125,11 @@ sub do_foreach_opt_combination {
         my $prev_failures = count_of_failed_tests();
 
         my %env = (%$env, %NYTPROF_TEST);
-        local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} sort keys %env;
+        my @keys = sort keys %env; # put trace option first:
+        @keys = ('trace', grep { $_ ne 'trace' } @keys) if $env{trace};
+
+        local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} @keys;
+
         my $context = "NYTPROF=$ENV{NYTPROF}\n";
         ($opts{v}) ? warn $context : print $context;
 
@@ -147,6 +151,7 @@ sub do_foreach_opt_combination {
 # report which env vars influenced the failures, if any
 sub report_env_influence {
     my ($tag) = @_;
+    #warn Dumper(\%env_influence);
 
     my @env_influence;
     for my $envvar (sort keys %env_influence) {
@@ -166,7 +171,7 @@ sub report_env_influence {
     %env_influence = ();
 
     if (@env_influence and not defined wantarray) {
-        diag "Test failures of $tag related to settings:";
+        diag "SUMMARY: Breakdown of $tag test failures by option settings:";
         diag $_ for @env_influence;
     }
 

@@ -7,12 +7,9 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 =head2 Changes in Devel::NYTProf 2.11
 
 XXX subroutine profiler docs need update
-XXX should add test for embedded src code, incl string eval
 XXX handling of BEGIN's e.g., Perl::Critic::Document (1.105) line 325
-XXX test treemap?
+XXX add u key to treemap to trigger moving 'up' a level
 XXX add "calls N subs" to treemap mouseover box
-XXX Should slowops that call other code appear in call tree?
-XXX test profiling code that has syntax errors
 
   Note: The file format has changed. Old files can't be read.
 
