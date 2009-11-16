@@ -121,6 +121,9 @@ t/test16.x
 t/test17-goto.p
 t/test17-goto.rdt
 t/test17-goto.t
+t/test18-goto2.t
+t/test18-goto2.pm
+t/test18-goto2.p
 t/test20-streval.p
 t/test20-streval.rdt
 t/test20-streval.t

@@ -2190,13 +2190,13 @@ subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
         /* ignore the typical second (fallback) destroy */
         && !(subr_entry->prev_subr_entry_ix == subr_entry_ix && subr_entry->already_counted==1)
     ) {
-        logwarn("%2d <<     %s::%s done (seix %d->%d, ac%u)\n",
+        logwarn("%2d <<     %s::%s done (seix %d<-%d, ac%u)\n",
             subr_entry->subr_prof_depth,
             subr_entry->called_subpkg_pv,
             (subr_entry->called_subnam_sv && SvOK(subr_entry->called_subnam_sv))
                 ? SvPV_nolen(subr_entry->called_subnam_sv)
                 : "?",
-            (int)subr_entry_ix, (int)subr_entry->prev_subr_entry_ix,
+            (int)subr_entry->prev_subr_entry_ix, (int)subr_entry_ix,
             subr_entry->already_counted);
     }
     if (subr_entry->caller_subnam_sv) {
@@ -2750,7 +2750,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     else {
 
         /* goto &sub opcode acts like a return followed by a call all in one.
-         * When this op start executing, the 'current' subr_entry that was
+         * When this op starts executing, the 'current' subr_entry that was
          * pushed onto the savestack by pp_subcall_profiler will be 'already_counted'
          * so the profiling of that call will be handled naturally for us.
          * So far so good.
@@ -2758,8 +2758,11 @@ pp_subcall_profiler(pTHX_ int is_slowop)
          * Then tell subr_entry_setup() to use our copy as a template so it'll
          * seem like the sub we goto'd was called by the same sub that called
          * the one that executed the goto. Except that we do use the fid:line
-         * of the goto statement. Got all that?
+         * of the goto statement. That way the call graph makes sense and the
+         * 'calling location' make sense. Got all that?
          */
+        /* save a copy of prev_cop - see t/test18-goto2.p */
+        COP prev_cop_copy = *prev_cop;
         /* save a copy of the subr_entry of the sub we're goto'ing out of */
         /* so we can reuse the caller _* info after it's destroyed */
         subr_entry_t goto_subr_entry;
@@ -2786,7 +2789,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         /* now we're in goto'd sub, mortalize the REFCNT_inc's done above */
         sv_2mortal(goto_subr_entry.caller_subnam_sv);
         sv_2mortal(goto_subr_entry.called_subnam_sv);
-        this_subr_entry_ix = subr_entry_setup(aTHX_ prev_cop, &goto_subr_entry, op_type, sub_sv);
+        this_subr_entry_ix = subr_entry_setup(aTHX_ &prev_cop_copy, &goto_subr_entry, op_type, sub_sv);
         SvREFCNT_dec(sub_sv);
     }
 
