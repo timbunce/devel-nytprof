@@ -16,7 +16,6 @@ our @EXPORT = qw(
     run_test_group
     run_command
     run_perl_command
-    do_foreach_env_combination
 );
 
 use Devel::NYTProf::Data;
@@ -87,32 +86,41 @@ my @test_opt_use_db_sub = (defined $opts{use_db_sub}) ? ($opts{use_db_sub}) : (0
 my @test_opt_savesrc    = (defined $opts{savesrc})    ? ($opts{savesrc})    : (0, 1);
 my @test_opt_compress   = (defined $opts{compress})   ? ($opts{compress})   : (0, 1);
 
-# build @env_combinations
-my @env_combinations;
-for my $leave (@test_opt_leave) {
-    for my $use_db_sub (@test_opt_use_db_sub) {
-        for my $savesrc (@test_opt_savesrc) {
-            for my $compress (@test_opt_compress) {
-                push @env_combinations, {
-                    start      => 'init',
-                    slowops    => 2,
-                    leave      => $leave,
-                    use_db_sub => $use_db_sub,
-                    savesrc    => $savesrc,
-                    compress   => $compress,
+sub mk_opt_combinations {
+    my ($overrides) = @_;
+
+    my @opt_combinations;
+    my %seen;
+    for my $leave (@test_opt_leave) {
+        for my $use_db_sub (@test_opt_use_db_sub) {
+            for my $savesrc (@test_opt_savesrc) {
+                for my $compress (@test_opt_compress) {
+                    my $o = {
+                        start      => 'init',
+                        slowops    => 2,
+                        leave      => $leave,
+                        use_db_sub => $use_db_sub,
+                        savesrc    => $savesrc,
+                        compress   => $compress,
+                        ($overrides) ? %$overrides : (),
+                    };
+                    my $key = join "\t", map { "$_=>$o->{$_}" } sort keys %$o;
+                    next if $seen{$key}++;
+                    push @opt_combinations, $o;
                 }
             }
         }
     }
+    return \@opt_combinations;
 }
 
 my %env_influence;
 
 
-sub do_foreach_env_combination {
-    my ($code) = @_;
+sub do_foreach_opt_combination {
+    my ($opt_combinations, $code) = @_;
     COMBINATION:
-    for my $env (@env_combinations) {
+    for my $env (@$opt_combinations) {
 
         my $prev_failures = count_of_failed_tests();
 
@@ -168,9 +176,10 @@ sub report_env_influence {
 
 # execute a group of tests (t/testFoo.*) - calls plan()
 sub run_test_group {
-    my ($opts) = @_;
-    my $extra_test_code  = $opts->{extra_test_code};
-    my $extra_test_count = $opts->{extra_test_count} || 0;
+    my ($rtg_opts) = @_;
+    my $extra_test_code  = $rtg_opts->{extra_test_code};
+    my $extra_test_count = $rtg_opts->{extra_test_count} || 0;
+    my $extra_options    = $rtg_opts->{extra_options};
 
     # obtain group from file name
     my $group;
@@ -192,9 +201,10 @@ sub run_test_group {
     plan skip_all => "No '$group.*' test files and no extra_test_code"
         if !@tests and !$extra_test_code;
 
+    my $opts = mk_opt_combinations($extra_options);
     my $tests_per_env = number_of_tests(@tests) + $extra_test_count + 1;
 
-    plan tests => 1 + $tests_per_env * @env_combinations;
+    plan tests => 1 + $tests_per_env * @$opts;
 
     # Windows emulates the executable bit based on file extension only
     ok($^O eq "MSWin32" ? -f $nytprofcsv : -x $nytprofcsv, "Found nytprofcsv as $nytprofcsv");
@@ -203,7 +213,7 @@ sub run_test_group {
     my $profile_datafile = "nytprof_$group.out";
     $NYTPROF_TEST{file} = $profile_datafile;
 
-    do_foreach_env_combination( sub {
+    do_foreach_opt_combination( $opts, sub {
         my ($env) = @_;
 
         for my $test (@tests) {
