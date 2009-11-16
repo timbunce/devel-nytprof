@@ -1,0 +1,8 @@
+\B\.svn\b
+^MANIFEST\.
+^Makefile$
+\.DS_Store$
+~$
+^blib/
+^info/
+^Devel-NYTProf-\d
