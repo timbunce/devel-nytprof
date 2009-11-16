@@ -677,6 +677,11 @@ flush_output(NYTP_file ofile, int flush) {
 #endif
         status = deflate(&(ofile->zs), flush);
 
+        /* workaround for RT#50851 */
+        if (status == Z_BUF_ERROR && flush != Z_NO_FLUSH
+                && !ofile->zs.avail_in && ofile->zs.avail_out)
+            status = Z_OK;
+
 #ifdef DEBUG_DEFLATE
         fprintf(stderr, "flush_output postdef next_in= %p avail_in= %08x\n"
                         "                     next_out=%p avail_out=%08x "

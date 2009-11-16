@@ -13,6 +13,7 @@ XXX test treemap?
 XXX add "calls N subs" to treemap mouseover box
 XXX Should slowops that call other code appear in call tree?
 XXX test profiling code that has syntax errors
+XXX profile with larger sizes of large_buffer (ie x10 small buffer)
 
   Note: The file format has changed. Old files can't be read.
 
