@@ -196,8 +196,15 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 #define NYTP_FILE_DEFLATE       1
 #define NYTP_FILE_INFLATE       2
 
+/* During profiling the large buffer collects the raw data until full.
+ * Then flush_output zips it into the small buffer and writes it to disk.
+ * A scale factor of ~90 makes the large buffer usually almost fill the small
+ * one when zipped (so calls to flush_output() almost always trigger one fwrite()).
+ * We use a lower number to save some memory as there's little performance
+ * impact either way.
+ */
 #define NYTP_FILE_SMALL_BUFFER_SIZE   4096
-#define NYTP_FILE_LARGE_BUFFER_SIZE   16384
+#define NYTP_FILE_LARGE_BUFFER_SIZE   (NYTP_FILE_SMALL_BUFFER_SIZE * 40)
 
 #ifdef HAS_ZLIB
 #  define FILE_STATE(f)         ((f)->state)
