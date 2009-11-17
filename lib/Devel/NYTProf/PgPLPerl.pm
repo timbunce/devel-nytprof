@@ -67,12 +67,20 @@ but I've not had time to dig sufficiently deeply into that yet.)
 
 =head2 Explicit call to finish_profile needed
 
-Currently postgres doesn't execute END blocks when it shuts down, so NYTProf
+Postgres <= 8.4 doesn't execute END blocks when it shuts down, so NYTProf
 doesn't get a chance to terminate the profile cleanly. To get a useable profile
 you need to explicitly call finish_profile() in your plperl code.
 
 I've submitted a bug report asking for END blocks to be run at shutdown:
 http://archives.postgresql.org/pgsql-bugs/2009-09/threads.php#00289
+and I'm working on a patch to fix that and make other improvements to plperl.
+
+=head2 Can't use plperl and plperlu at the same time
+
+Postgres uses separate Perl interpreters for the plperl and plperlu languages.
+NYTProf is not multiplicity safe so if you call functions implemented in the
+plperl and plperlu languages in the same session, while using NYTProf, you're
+likely to get garbage or worse.
 
 =head1 SEE ALSO
 

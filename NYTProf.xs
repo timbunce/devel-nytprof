@@ -3121,7 +3121,7 @@ init_profiler(pTHX)
 #endif
 
     if (trace_level)
-        logwarn("~ init_profiler for pid %d, clock %d, start %d, perldb %lx\n",
+        logwarn("~ init_profiler for pid %d, clock %d, start %d, perldb 0x%lx\n",
             last_pid, profile_clock, profile_start, PL_perldb);
 
     if (get_hv("DB::sub", 0) == NULL) {
@@ -3564,8 +3564,10 @@ write_src_of_files(pTHX)
             output_tag_int(NYTP_TAG_SRC_LINE, e->id);
             output_int(line);
             output_str(src, (I32)len);    /* includes newline */
-            if (trace_level >= 5)
-                logwarn("fid %d src line %d: %s\n", e->id, line, src);
+            if (trace_level >= 5) {
+                logwarn("fid %d src line %d: %s%s", e->id, line, src,
+                    (*src && src[strlen(src)-1]!=='\n') ? "\n" : "");
+            }
             ++t_lines;
         }
     }

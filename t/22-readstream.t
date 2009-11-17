@@ -1,4 +1,4 @@
-use Test::More 0.84;
+use Test::More;
 
 use strict;
 use lib qw(t/lib);
@@ -25,7 +25,7 @@ for_chunks {
     push @seqn, "$.";
     my $tag = shift;
     push @{ $prof{$tag} }, [ @_ ];
-    if (1) { chomp @_; note("$. $tag @_"); }
+    if (1) { chomp @_; print "# $. $tag @_\n"; }
 } filename => $out;
 
 ok scalar @seqn, 'should have read chunks';

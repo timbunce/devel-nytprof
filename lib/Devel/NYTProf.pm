@@ -554,10 +554,11 @@ reports (including statistics, source code and color highlighting).
 
 =head1 LIMITATIONS
 
-=head2 threads
+=head2 Threads and Multiplicity
 
-C<Devel::NYTProf> is not currently thread safe. If you'd be interested in
-helping to make it thread safe then please get in touch with us.
+C<Devel::NYTProf> is not currently thread safe or multiplicity safe.
+If you'd be interested in helping to fix that then please get in
+touch with us.
 
 =head2 For perl < 5.8.8 it may change what caller() returns
 
