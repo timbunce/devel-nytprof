@@ -1149,8 +1149,8 @@ fid_is_pmc(pTHX_ Hash_entry *fid_info)
     if (len > 3 && strnEQ(&file_name[len-3],".pm", len)) {
         /* ends in .pm, ok, does a newer .pmc exist? */
         /* based on doopen_pm() in perl's pp_ctl.c */
-        SV *pmsv  = Perl_newSVpvn(aTHX_ file_name, len);
-        SV *pmcsv = Perl_newSVpvf(aTHX_ "%s%c", SvPV_nolen(pmsv), 'c');
+        SV *pmsv  = newSVpvn(file_name, len);
+        SV *pmcsv = newSVpvf("%s%c", SvPV_nolen(pmsv), 'c');
         Stat_t pmstat;
         Stat_t pmcstat;
         if (PerlLIO_lstat(SvPV_nolen(pmcsv), &pmcstat) == 0) {
@@ -3543,16 +3543,17 @@ write_src_of_files(pTHX)
         }
         ++t_save_src;
 
-        lines = av_len(src_av);
+        lines = av_len(src_av); /* -1 is empty, 1 is 1 line etc, 0 shouldn't happen */
         if (trace_level >= 4)
-            logwarn("fid %d has %ld src lines\n", e->id, (long)lines);
+            logwarn("fid %d has %ld src lines for %.*s\n",
+                e->id, (long)lines, e->key_len, e->key);
         /* for perl 5.10.0 or 5.8.8 (or earlier) use_db_sub is needed to get src */
         /* give a hint for the common case */
-        if (0 == lines && !opt_use_db_sub
+        if (lines <= 0 && !opt_use_db_sub
             &&   ( (e->key_len == 1 && strnEQ(e->key, "-",  1))
                 || (e->key_len == 2 && strnEQ(e->key, "-e", 2)) )
         ) {
-            av_store(src_av, 1, newSVpv("# source not available, try using use_db_sub=1 option.\n",0));
+            av_store(src_av, 1, newSVpvf("# fid%d: source not available, try using use_db_sub=1 option.\n",e->id));
             lines = 1;
         }
         for (line = 1; line <= lines; ++line) { /* lines start at 1 */
@@ -3566,7 +3567,7 @@ write_src_of_files(pTHX)
             output_str(src, (I32)len);    /* includes newline */
             if (trace_level >= 5) {
                 logwarn("fid %d src line %d: %s%s", e->id, line, src,
-                    (*src && src[strlen(src)-1]!=='\n') ? "\n" : "");
+                    (*src && src[strlen(src)-1]=='\n') ? "" : "\n");
             }
             ++t_lines;
         }

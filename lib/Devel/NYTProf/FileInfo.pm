@@ -182,7 +182,7 @@ sub srclines_array {
     }
 
     if ($self->flags & NYTP_FIDf_IS_FAKE) {
-        return [ "# NYTP_FIDf_IS_FAKE - e.g., unknown caller of an eval.\n" ];
+        return [ "# fid$fid: NYTP_FIDf_IS_FAKE - e.g., unknown caller of an eval.\n" ];
     }
 
     return undef;
