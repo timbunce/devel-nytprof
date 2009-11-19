@@ -48,16 +48,16 @@ sub profile_this {
     my $out_file = $opt{out_file} || 'nytprof.out';
 
     my @perl = ($this_perl, '-d:NYTProf');
-    push @perl, @{ $opt{perl_opts} } if $opt{perl_opts};
-    my $NYTPROF = $ENV{NYTPROF} || '';
-    #warn "profile_this using [@perl] with NYTPROF=$NYTPROF\n";
+    warn sprintf "profile_this using %s with NYTPROF=%s\n",
+            join(" ", @perl), $ENV{NYTPROF} || ''
+        if 0;
 
     if (my $src_file = $opt{src_file}) {
         system(@perl, $src_file) == 0
             or carp "@perl $src_file exited with an error status";
     }
     elsif (my $src_code = $opt{src_code}) {
-        open my $fh, '|-', @perl
+        open my $fh, "| @perl"
             or croak "Can't open pipe to @perl";
         print $fh $src_code;
         close $fh 
