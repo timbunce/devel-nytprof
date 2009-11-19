@@ -2272,7 +2272,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         /* calculate ticks since we entered the sub */
         get_time_of_day(sub_end_time);
         get_ticks_between(subr_entry->initial_call_time, sub_end_time, ticks, overflow);
-        
+
         incl_subr_sec = overflow + (ticks / (NV)ticks_per_sec);
         /* subtract statement measurement overheads */
         incl_subr_sec -= (overhead_ticks / ticks_per_sec);
@@ -3429,6 +3429,7 @@ write_sub_callers(pTHX)
     char *called_subname;
     I32 called_subname_len;
     SV *fid_line_rvhv;
+    int negative_time_calls = 0;
 
     if (!sub_callers_hv)
         return;
@@ -3483,9 +3484,11 @@ write_sub_callers(pTHX)
 
             /* sanity check - early warning */
             if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {
-                logwarn("%s call has negative time for call from %u:%d!\n",
-                    called_subname, fid, line);
-                trace = 1;
+                ++negative_time_calls;
+                if (trace_level) {
+                    logwarn("%s call has negative time:  (bad clock)\n", called_subname);
+                    trace = 1;
+                }
             }
 
             if (trace) {
@@ -3502,6 +3505,10 @@ write_sub_callers(pTHX)
                 }
             }
         }
+    }
+    if (negative_time_calls) {
+        logwarn("Warning: %d subroutine calls had negative time! The clock being used (%d) and the results you'll get are likely to be unstable.\n",
+            negative_time_calls, profile_clock);
     }
 }
 
