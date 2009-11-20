@@ -18,21 +18,18 @@ Subclass->example_xsub();
 my $subname = "Devel::NYTProf::Test::example_xsub";
 &$subname("foo");
 
+# return from xsub call via an exception
+# should correctly record the name of the xsub
+sub will_die { die "foo\n" }
+eval { example_xsub(0, \&will_die); 1; };
+warn "\$@ was not the expected 'foo': $@" if $@ ne "foo\n";
+
+# goto &$sub
+sub launch { goto &$subname }
+launch("foo");
+
 # call builtin
 wait();
 
 # call builtin that exits via an exception
 eval { open my $f, '<&', 'nonesuch' }; # $@ "Bad filehandle: nonesuch"
-
-# XXX currently goto isn't noticed by the profiler
-# it's as if the call never happened. This most frequently
-# affects AUTOLOAD subs.
-sub launch { goto &$subname }
-launch("foo");
-
-# return from xsub call via an exception
-# should correctly record the name of the xsub
-sub will_die { die "foo\n" }
-eval { example_xsub(0, \&will_die); 1; };
-warn "\$@ not set ($@)" if $@ ne "foo\n";
-
