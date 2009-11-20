@@ -19,6 +19,7 @@ diag( sprintf "Compression: default level is %d, zlib version %s",
 );
 
 if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x) {
+    diag("--- Xen platform issues:");
     diag("It looks like this is running inside a Xen virtual machine.");
     diag("Operating system clocks may be unstable in this situation,");
     diag("so tests may fail or produce odd warnings.");
@@ -29,3 +30,7 @@ if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x) {
     diag("In short, you may need to upgrade Xen and/or your OS.");
     diag("Note that use of NYTProf inside a virtual machine is likely to affect accuracy anyway.");
 }
+
+my @env = grep { /^NYTPROF/ } sort keys %ENV;
+diag("--- Environment variables:") if @env;
+diag("\t$_=$ENV{$_}") for @env;
