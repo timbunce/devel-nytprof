@@ -20,7 +20,11 @@ diag( sprintf "Compression: default level is %d, zlib version %s",
 
 if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x) {
     diag("It looks like this is running inside a Xen virtual machine.");
-    diag("Operating system clocks are typically unstable in this situation,");
+    diag("Operating system clocks may be unstable in this situation,");
     diag("so tests may fail or produce odd warnings.");
-    diag("Use of NYTProf inside a virtual machine is not recommended.");
+	diag("See results from http://www.google.com/search?q=xen+clock+backwards");
+	diag("Including https://bugs.launchpad.net/xen/+bug/146924");
+	diag("And https://bugzilla.redhat.com/show_bug.cgi?id=449346");
+	diag("And http://rhn.redhat.com/errata/RHSA-2009-1243.html");
+    diag("Use of NYTProf inside a virtual machine is likely to affect accuracy.");
 }
