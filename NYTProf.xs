@@ -1507,23 +1507,23 @@ cx_block_type(PERL_CONTEXT *cx) {
     case CXt_FORMAT:            return "CXt_FORMAT";
     case CXt_EVAL:              return "CXt_EVAL";
     case CXt_SUBST:             return "CXt_SUBST";
-#ifdef CXt_WHEN:
+#ifdef CXt_WHEN
     case CXt_WHEN:              return "CXt_WHEN";
 #endif
     case CXt_BLOCK:             return "CXt_BLOCK";
-#ifdef CXt_GIVEN:
+#ifdef CXt_GIVEN
     case CXt_GIVEN:             return "CXt_GIVEN";
 #endif
-#ifdef CXt_LOOP_FOR:
+#ifdef CXt_LOOP_FOR
     case CXt_LOOP_FOR:          return "CXt_LOOP_FOR";
 #endif
-#ifdef CXt_LOOP_PLAIN:
+#ifdef CXt_LOOP_PLAIN
     case CXt_LOOP_PLAIN:        return "CXt_LOOP_PLAIN";
 #endif
-#ifdef CXt_LOOP_LAZYSV:
+#ifdef CXt_LOOP_LAZYSV
     case CXt_LOOP_LAZYSV:       return "CXt_LOOP_LAZYSV";
 #endif
-#ifdef CXt_LOOP_LAZYIV:
+#ifdef CXt_LOOP_LAZYIV
     case CXt_LOOP_LAZYIV:       return "CXt_LOOP_LAZYIV";
 #endif
     }
@@ -3122,7 +3122,7 @@ init_profiler(pTHX)
 
     if (trace_level)
         logwarn("~ init_profiler for pid %d, clock %d, start %d, perldb 0x%lx\n",
-            last_pid, profile_clock, profile_start, PL_perldb);
+            last_pid, profile_clock, profile_start, (long unsigned)PL_perldb);
 
     if (get_hv("DB::sub", 0) == NULL) {
         logwarn("NYTProf internal error - perl not in debug mode\n");
