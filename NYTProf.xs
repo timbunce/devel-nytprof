@@ -1659,7 +1659,8 @@ UV *cx_type_mask_ptr))
         while (cxix < 0 && top_si->si_type != PERLSI_MAIN) {
             if (trace_level >= 6)
                 logwarn("Not on main stack (type %d); digging top_si %p->%p, ccstack %p->%p\n",
-                    (int)top_si->si_type, top_si, top_si->si_prev, ccstack, top_si->si_cxstack);
+                    (int)top_si->si_type, (void*)top_si, (void*)top_si->si_prev,
+                    (void*)ccstack, (void*)top_si->si_cxstack);
             top_si  = top_si->si_prev;
             ccstack = top_si->si_cxstack;
             cxix = dopopcx_at(aTHX_ ccstack, top_si->si_cxix, cx_type_mask);
@@ -1673,7 +1674,7 @@ UV *cx_type_mask_ptr))
         cx = &ccstack[cxix];
         if (trace_level >= 5)
             logwarn("visit_context: %s cxix %d (si_prev %p)\n",
-                cx_block_type(cx), (int)cxix, top_si->si_prev);
+                cx_block_type(cx), (int)cxix, (void*)top_si->si_prev);
         if (callback(aTHX_ cx, &cx_type_mask))
             return cx;
         /* no joy, look further */
@@ -2353,7 +2354,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
             (int)subr_entry->called_cv_depth,
             subr_entry->caller_fid, subr_entry->caller_line,
-            (long unsigned int)subr_entry->subr_call_seqn, subr_entry);
+            (long unsigned int)subr_entry->subr_call_seqn, (void*)subr_entry);
 
     /* only count inclusive time for the outer-most calls */
     if (subr_entry->called_cv_depth <= 1) {
@@ -2472,7 +2473,7 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
             return current_cv(aTHX_ si->si_prev->si_cxix, si->si_prev);
         if (trace_level >= 9)
             logwarn("finding current_cv(%d,%p) si_type %d - context stack empty\n",
-                (int)ix, si, (int)si->si_type);
+                (int)ix, (void*)si, (int)si->si_type);
         return Nullcv;  /* PL_main_cv ? */
     }
 
@@ -2480,7 +2481,7 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
 
     if (trace_level >= 9)
         logwarn("finding current_cv(%d,%p) - cx_type %d %s, si_type %d\n",
-            (int)ix, si, CxTYPE(cx), cx_block_type(cx), (int)si->si_type);
+            (int)ix, (void*)si, CxTYPE(cx), cx_block_type(cx), (int)si->si_type);
 
     /* the common case of finding the caller on the same stack */
     if (CxTYPE(cx) == CXt_SUB || CxTYPE(cx) == CXt_FORMAT)
@@ -2598,11 +2599,11 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
 
         if (0) {
             logwarn(" .. caller_subr_entry %p(%s::%s) cxstack_ix=%d: caller_cv=%p\n",
-                caller_subr_entry,
+                (void*)caller_subr_entry,
                 caller_subr_entry ? caller_subr_entry->called_subpkg_pv : "(null)",
                 (caller_subr_entry && caller_subr_entry->called_subnam_sv && SvOK(caller_subr_entry->called_subnam_sv))
                     ? SvPV_nolen(caller_subr_entry->called_subnam_sv) : "(null)",
-                (int)cxstack_ix, caller_cv
+                (int)cxstack_ix, (void*)caller_cv
             );
         }
 
@@ -2637,7 +2638,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
             }
             else {
                 logwarn("Can't determine name of calling sub (GV %p, Stash %p, CV flags %d) at %s line %d\n",
-                    gv, stash_hv, (int)CvFLAGS(caller_cv),
+                    (void*)gv, (void*)stash_hv, (int)CvFLAGS(caller_cv),
                     OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
                 sv_dump((SV*)caller_cv);
 
@@ -2867,7 +2868,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
             }
             else if (trace_level >= 0) {
                 logwarn("I'm confused about CV %p called as %s at %s line %d (please report as a bug)\n",
-                    called_cv, SvPV_nolen(sub_sv), OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
+                    (void*)called_cv, SvPV_nolen(sub_sv), OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
                 /* looks like Class::MOP doesn't give the CV GV stash a name */
                 if (trace_level >= 2)
                     sv_dump((SV*)called_cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP wierdo sub */
@@ -2885,7 +2886,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
             }
             else { /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
                 stash_name = HvNAME(CvSTASH(called_cv));
-                sv_setpvf(subr_entry->called_subnam_sv, "__UNKNOWN__[%s,0x%p]", what, called_cv);
+                sv_setpvf(subr_entry->called_subnam_sv, "__UNKNOWN__[%s,0x%p]", what, (void*)called_cv);
                 if (trace_level)
                     logwarn("unknown entersub %s assumed to be anon called_cv '%s'\n",
                         what, SvPV_nolen(sub_sv));
@@ -4620,6 +4621,7 @@ example_xsub(char *unused="", SV *action=Nullsv, SV *arg=Nullsv)
         XSRETURN(0);
     if (SvROK(action) && SvTYPE(SvRV(action))==SVt_PVCV) {
         /* perl <= 5.8.8 doesn't use OP_ENTERSUB so won't be seen by NYTProf */
+        PUSHMARK(SP);
         call_sv(action, G_VOID|G_DISCARD);
     }
     else if (strEQ(SvPV_nolen(action),"eval"))
