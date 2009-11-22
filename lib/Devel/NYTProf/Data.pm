@@ -682,20 +682,21 @@ sub file_line_range_of_sub {
     my ($fid, $first, $last) = @$sub_subinfo;
 
     my $fileinfo = $fid && $self->{fid_fileinfo}->[$fid];
-    while ($fileinfo->[1]) {    # file is an eval
+    while ($fileinfo->eval_fid) {
 
         # eg string eval
         # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
-        warn sprintf "file_line_range_of_sub: %s: fid %d -> %d for %s\n", $sub, $fid, $fileinfo->[1], $fileinfo->[0]
+        warn sprintf "file_line_range_of_sub: %s: fid %d -> %d for %s\n",
+                $sub, $fid, $fileinfo->eval_fid, $fileinfo->filename
             if $trace;
-        $first = $last = $fileinfo->[2] if 1;    # XXX control via param?
+        $first = $last = $fileinfo->eval_line if 1;    # XXX control via param?
 
         # follow next link in chain
-        my $outer_fid = $fileinfo->[1];
+        my $outer_fid = $fileinfo->eval_fid;
         $fileinfo = $self->{fid_fileinfo}->[$outer_fid];
     }
 
-    return ($fileinfo->[0], $fid, $first, $last);
+    return ($fileinfo->filename, $fid, $first, $last);
 }
 
 

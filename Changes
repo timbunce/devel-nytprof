@@ -10,7 +10,6 @@ XXX subroutine profiler docs need update
 XXX handling of BEGIN's e.g., Perl::Critic::Document (1.105) line 325
 XXX add u key to treemap to trigger moving 'up' a level
 XXX add "calls N subs" to treemap mouseover box
-XXX CORE::GLOBAL::foo
 XXX string eval merging - must allow at least viewing of source for called subs defined in a nested eval
 
   Note: The file format has changed. Old files can't be read.
