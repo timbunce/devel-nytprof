@@ -52,9 +52,13 @@ run_test_group( {
         my $sub;
         is scalar keys %$subs, 3, 'should be 3 subs';
         ok $sub = $subs->{'main::BEGIN'};
-        is $sub->calls, 0, 'main::BEGIN should be called 1 time';
+        SKIP: {
+            skip "needs perl >= 5.8.9 or >= 5.10.1", 1
+                if $] < 5.008009 or $] eq "5.010000";
+            is $sub->calls, 1, 'main::BEGIN should be called 1 time';
+        };
         ok $sub = $subs->{'main::RUNTIME'};
-        is $sub->calls, 0, 'main::RUNTIME should be called 1 time';
+        is $sub->calls, 0, 'main::RUNTIME should be called 0 times';
         ok $sub = $subs->{'main::foo'};
         is $sub->calls, 2, 'main::foo should be called 2 times';
 
