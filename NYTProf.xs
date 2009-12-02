@@ -3287,14 +3287,18 @@ int count, unsigned int fid)
  * else returns the SV.
  * write_sub_line_ranges() updates the SV with the filename associated
  * with the package, or at least its best guess.
+ * As most callers get len via the hash API, they will have an I32, where
+ * "negative" length signifies UTF-8. As we're only dealing with looking for
+ * ASCII here, it doesn't matter to use which encoding sub_name is in, but it
+ * reduces total code by doing the abs(len) in here.
  */
 static SV *
-sub_pkg_filename_sv(pTHX_ char *sub_name)
+sub_pkg_filename_sv(pTHX_ char *sub_name, I32 len)
 {
     SV **svp;
     char *delim = "::";
     /* find end of package name */
-    char *colon = rninstr(sub_name, sub_name+strlen(sub_name), delim, delim+2);
+    char *colon = rninstr(sub_name, sub_name+(len > 0 ? len : -len), delim, delim+2);
     if (!colon || colon == sub_name)
         return Nullsv;   /* no :: delimiter */
     svp = hv_fetch(pkg_fids_hv, sub_name, (I32)(colon-sub_name), 0);
@@ -3328,7 +3332,7 @@ write_sub_line_ranges(pTHX)
         STRLEN filename_len = (first) ? first - filename : 0;
 
         /* get sv for package-of-subname to filename mapping */
-        SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name);
+        SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name, sub_name_len);
 
         if (!pkg_filename_sv) /* we don't know package */
             continue;
@@ -3358,10 +3362,11 @@ write_sub_line_ranges(pTHX)
 
     if (main_runtime_used) { /* Create fake entry for main::RUNTIME sub */
         char *runtime = "main::RUNTIME";
-        SV *sv = *hv_fetch(hv, runtime, strlen(runtime), 1);
+	const I32 runtime_len = strlen(runtime);
+        SV *sv = *hv_fetch(hv, runtime, runtime_len, 1);
         char *filename;
         /* get name of file that contained first profiled sub in 'main::' */
-        SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ runtime);
+        SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ runtime, runtime_len);
         if (!pkg_filename_sv) { /* no subs in main, so guess */
             filename = hashtable.first_inserted->key;
         }
@@ -3394,7 +3399,7 @@ write_sub_line_ranges(pTHX)
 
         if (!filename_len) {    /* no filename, so presumably a fake entry for xsub */
             /* do we know a filename that contains subs in the same package */
-            SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name);
+            SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name, sub_name_len);
             if (pkg_filename_sv && SvTRUE(pkg_filename_sv)) {
                 filename = SvPV(pkg_filename_sv, filename_len);
             if (trace_level >= 2)
