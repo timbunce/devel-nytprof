@@ -681,7 +681,10 @@ sub file_line_range_of_sub {
         or return;    # no such sub
     my ($fid, $first, $last) = @$sub_subinfo;
 
-    my $fileinfo = $fid && $self->{fid_fileinfo}->[$fid];
+    return if not $fid; # sub has no known file
+
+    my $fileinfo = $fid && $self->{fid_fileinfo}->[$fid]
+        or die "No fid_fileinfo for sub $sub fid '$fid'\n";
     while ($fileinfo->eval_fid) {
 
         # eg string eval
