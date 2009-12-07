@@ -87,6 +87,8 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define ZLIB_VERSION "0"
 #endif
 
+#define NDEBUG /* enable assertions */
+
 #define NYTP_FILE_MAJOR_VERSION 3
 #define NYTP_FILE_MINOR_VERSION 0
 
