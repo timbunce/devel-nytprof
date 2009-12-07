@@ -25,6 +25,8 @@ XXX string eval merging - must allow at least viewing of source for called subs 
   Changed ReadStream SUB_LINE_RANGE tag to SUB_INFO.
 
   Added log=F option to write trace log to a file.
+  Added warning when reading a file with a minor version higher
+    than expected.
 
   Added slowops=N option which enables profiling of potentially slow
     perl opcodes (e.g., system calls and regexs). They're treated like xsubs.

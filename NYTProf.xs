@@ -87,6 +87,9 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define ZLIB_VERSION "0"
 #endif
 
+#define NYTP_FILE_MAJOR_VERSION 3
+#define NYTP_FILE_MINOR_VERSION 0
+
 #define NYTP_START_NO            0
 #define NYTP_START_BEGIN         1
 #define NYTP_START_CHECK_unused  2  /* not used */
@@ -911,7 +914,7 @@ output_header(pTHX)
 
     assert(out != NULL);
     /* File header with "magic" string, with file major and minor version */
-    NYTP_printf(out, "NYTProf %d %d\n", 3, 0);
+    NYTP_printf(out, "NYTProf %d %d\n", NYTP_FILE_MAJOR_VERSION, NYTP_FILE_MINOR_VERSION);
     /* Human readable comments and attributes follow
      * comments start with '#', end with '\n', and are discarded
      * attributes start with ':', a word, '=', then the value, then '\n'
@@ -3849,11 +3852,15 @@ load_profile_data_from_stream(SV *cb)
         compressed_io_croak(in, "load_profile_data_from_stream");
     }
     if (2 != fscanf(in->file, "NYTProf %d %d\n", &file_major, &file_minor)) {
-        croak("Profile format error while parsing header");
+        croak("NYTProf data format error while parsing header");
     }
     if (file_major != 3)
-        croak("Profile format version %d.%d not supported by %s %s",
-            file_major, file_minor, __FILE__, XS_VERSION);
+        croak("NYTProf data format version %d.%d is not supported by NYTProf %s (which expects version %d.%d)",
+            file_major, file_minor, XS_VERSION, NYTP_FILE_MAJOR_VERSION, NYTP_FILE_MINOR_VERSION);
+
+    if (file_minor > NYTP_FILE_MINOR_VERSION)
+        warn("NYTProf data format version %d.%d is newer than that understood by this NYTProf %s, so errors are likely",
+            file_major, file_minor, XS_VERSION);
 
     if (cb && SvROK(cb)) {
         input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
@@ -4631,6 +4638,8 @@ BOOT:
     newCONSTSUB(stash, "NYTP_SCi_CALLING_SUB",  newSViv(NYTP_SCi_CALLING_SUB));
     /* others */
     newCONSTSUB(stash, "NYTP_DEFAULT_COMPRESSION", newSViv(default_compression_level));
+    newCONSTSUB(stash, "NYTP_FILE_MAJOR_VERSION",  newSViv(NYTP_FILE_MAJOR_VERSION));
+    newCONSTSUB(stash, "NYTP_FILE_MINOR_VERSION",  newSViv(NYTP_FILE_MINOR_VERSION));
     newCONSTSUB(stash, "NYTP_ZLIB_VERSION",     newSVpv(ZLIB_VERSION, 0));
 }
 
