@@ -194,7 +194,8 @@ sub run_test_group {
         croak "Can't determine test group";
     }
 
-    my @tests = grep { -f $_ } map { join('.', $group, $_) } sort keys %$tests_per_extn;
+    my @tests = grep { -f $_ } map { "$group.$_" } sort keys %$tests_per_extn;
+    unlink <$group.*_new{,p}>; # delete _new and _newp files from previous run
 
     if ($opts{v}) {
         print "tests: @tests\n";
@@ -214,7 +215,7 @@ sub run_test_group {
     # Windows emulates the executable bit based on file extension only
     ok($^O eq "MSWin32" ? -f $nytprofcsv : -x $nytprofcsv, "Found nytprofcsv as $nytprofcsv");
 
-    # non-default to test override works and allow parallel testing
+    # non-default output file to test override works and to allow parallel testing
     my $profile_datafile = "nytprof_$group.out";
     $NYTPROF_TEST{file} = $profile_datafile;
 
@@ -222,11 +223,11 @@ sub run_test_group {
         my ($env) = @_;
 
         for my $test (@tests) {
-            run_test($test);
+            run_test($test, $env);
         }
 
         if ($extra_test_code) {
-            print("running $extra_test_count extra tests...\n");
+            print("running $extra_test_count extra tests...\n") if @tests;
             my $profile;
             if (@tests) {
                 $profile = eval { Devel::NYTProf::Data->new({ filename => $profile_datafile }) };
@@ -248,7 +249,8 @@ sub run_test_group {
 
 
 sub run_test {
-    my ($test) = @_;
+    my ($test, $env) = @_;
+    my $tag = join " ", map { ($_ ne 'file') ? "$_=$env->{$_}" : () } sort keys %$env;
 
     #print $test . '.'x (20 - length $test);
     $test =~ / (.+?) \. (?:(\d)\.)? (\w+) $/x or do {
@@ -274,13 +276,13 @@ sub run_test {
         }
     }
     elsif ($type eq 'rdt') {
-        verify_data($test, $test_datafile);
+        verify_data($test, $tag, $test_datafile);
     }
     elsif ($type eq 'x') {
         mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
         unlink <$outdir/*>;
 
-        verify_csv_report($test, $test_datafile, $outdir);
+        verify_csv_report($test, $tag, $test_datafile, $outdir);
     }
     elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
         # skip; handy for "test.pl t/test01.*"
@@ -333,7 +335,7 @@ sub profile {
 
 
 sub verify_data {
-    my ($test, $profile_datafile) = @_;
+    my ($test, $tag, $profile_datafile) = @_;
 
     my $profile = eval { Devel::NYTProf::Data->new({filename => $profile_datafile}) };
     if ($@) {
@@ -345,12 +347,12 @@ sub verify_data {
     SKIP: {
         skip 'Expected profile data does not have VMS paths',1 if(($^O eq 'VMS') && ($test =~m/test60|test14/i));
 	$profile->normalize_variables;
-        dump_profile_to_file($profile, $test.'_new');
-        my @got      = slurp_file($test.'_new');
-        my @expected = slurp_file($test);
-        is_deeply(\@got, \@expected, "$test match generated profile data")
+        dump_profile_to_file($profile, $test.'_new', $test.'_newp');
+        my @got      = slurp_file($test.'_new'); chomp @got;
+        my @expected = slurp_file($test);        chomp @expected;
+        is_deeply(\@got, \@expected, "$test match generated profile data for $tag")
             ? unlink($test.'_new')
-            : diff_files($test, $test.'_new');
+            : diff_files($test, $test.'_new', $test.'_newp');
     }
 }
 
@@ -366,7 +368,9 @@ sub dump_data_to_file {
 
 
 sub dump_profile_to_file {
-    my ($profile, $file) = @_;
+    my ($profile, $file, $rename_existing) = @_;
+    rename $file, $rename_existing or warn "rename($file, $rename_existing): $!"
+        if $rename_existing && -f $file;
     open my $fh, ">", $file or croak "Can't open $file: $!";
     $profile->dump_profile_data(
         {   filehandle => $fh,
@@ -379,16 +383,17 @@ sub dump_profile_to_file {
 
 
 sub diff_files {
+    my ($old_file, $new_file, $newp_file) = @_;
 
     # we don't care if this fails, it's just an aid to debug test failures
     my @opts = split / /, $ENV{NYTPROF_DIFF_OPTS} || '';    # e.g. '-y'
     @opts = ('-u') unless @opts;
-    system("diff @opts @_ 1>&2");
+    system("cmp -s $new_file $newp_file || diff @opts $old_file $new_file 1>&2");
 }
 
 
 sub verify_csv_report {
-    my ($test, $profile_datafile, $outdir) = @_;
+    my ($test, $tag, $profile_datafile, $outdir) = @_;
 
     # generate and parse/check csv report
 
@@ -476,9 +481,11 @@ sub verify_csv_report {
         print "\n";
     }
 
-    is_deeply(\@got, \@expected, "$test match generated CSV data") or do {
-        spit_file($test.'_new', join("", @got));
-        diff_files($test, $test.'_new');
+    chomp @got;
+    chomp @expected;
+    is_deeply(\@got, \@expected, "$test match generated CSV data for $tag") or do {
+        spit_file($test.'_new', join("\n", @got,''), $test.'_newp');
+        diff_files($test, $test.'_new', $test.'_newp');
     };
     is(join("\n", @accuracy_errors), '', "$test times should be reasonable");
 }
@@ -516,7 +523,9 @@ sub slurp_file {    # individual lines in list context, entire file in scalar co
 
 
 sub spit_file {
-    my ($file, $content) = @_;
+    my ($file, $content, $rename_existing) = @_;
+    rename $file, $rename_existing or warn "rename($file, $rename_existing): $!"
+        if $rename_existing && -f $file;
     open my $fh, ">", $file or croak "Can't open $file: $!";
     print $fh $content;
     close $fh or die "Error closing $file: $!";
