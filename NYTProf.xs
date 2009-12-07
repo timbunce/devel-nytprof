@@ -1567,7 +1567,7 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
             break;
 #ifdef CXt_LOOP
         case CXt_LOOP:
-#  if (PERL_VERSION < 10)
+#  if (PERL_VERSION < 10) || (PERL_VERSION == 9 && !defined(CX_LOOP_NEXTOP_GET))
             start_op = cx->blk_loop.redo_op;
 #  else
             start_op = cx->blk_loop.my_op->op_redoop;
