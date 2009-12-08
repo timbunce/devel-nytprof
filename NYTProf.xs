@@ -27,6 +27,11 @@
 #   include "ppport.h"
 #endif
 
+#ifdef USE_HARD_ASSERT
+#undef NDEBUG
+#include <assert.h>
+#endif
+
 #if !defined(OutCopFILE)
 #    define OutCopFILE CopFILE
 #endif
@@ -86,8 +91,6 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #ifndef ZLIB_VERSION
 #define ZLIB_VERSION "0"
 #endif
-
-#define NDEBUG /* enable assertions */
 
 #define NYTP_FILE_MAJOR_VERSION 3
 #define NYTP_FILE_MINOR_VERSION 0

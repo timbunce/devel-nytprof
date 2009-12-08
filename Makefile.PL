@@ -20,7 +20,7 @@ use Config;
 
 my $is_developer = (-d '.svn');
 
-# This lets me build it under ext/Devel, and profile parts of the core in place
+# This lets perl developers build under ext/Devel, and profile parts of the core in place
 unless($ENV{PERL_CORE}) {
     $ENV{PERL_CORE} = 1 if grep { $_ eq 'PERL_CORE=1' } @ARGV;
 }
@@ -37,10 +37,15 @@ if ($ENV{PERL_CORE}) {
 
 # --- Options
 GetOptions(
-    'g!'  => \my $opt_g,
-    'pg!' => \my $opt_pg,
+    'g!'      => \my $opt_g,            # compile with -g (for debugging)
+    'assert!' => \my $opt_assert,	# enable assert()ions in the code (and perl headers)
+    'pg!'     => \my $opt_pg,           # compile with -pg (for profiling NYTProf itself)
 ) or exit 1;
 
+if (not defined $opt_assert) {
+    $opt_assert = 1 if $opt_g;
+    $opt_assert = 1 if $ENV{AUTOMATED_TESTING}; # enable assert()s for cpan-testers
+}
 
 # --- make sure t/test40pmc.pmc is newer than t/test40pmc.pmc
 
@@ -81,6 +86,10 @@ foreach (['time.h', qr/(clock_gettime)\s*\(/, '-DHAS_CLOCK_GETTIME', '-lrt'],
 	push @libs, $libs;
 	$mm_opts{DEFINE} .= " $define";
     }
+}
+if ($opt_assert or (not defined $opt_assert and $is_developer)) {
+    warn "Assertion testing enabled\n";
+    $mm_opts{DEFINE} .= " -DUSE_HARD_ASSERT";
 }
 
 $mm_opts{LICENSE}  = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
