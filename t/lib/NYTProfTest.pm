@@ -75,12 +75,17 @@ my $perl     = $opts{p} || $^X;
 # turn ./perl into ../perl, because of chdir(t) above.
 $perl = ".$perl" if $perl =~ m|^\./|;
 
+
 if ($opts{one}) {           # for one quick test
     $opts{leave}      = 1;
     $opts{use_db_sub} = 0;
     $opts{savesrc}    = 1;
     $opts{compress}   = 1;
 }
+
+# force savesrc off for perl 5.11.2 due to perl bug RT#70804
+$opts{savesrc} = 0 if $] eq "5.011002";
+
 my @test_opt_leave      = (defined $opts{leave})      ? ($opts{leave})      : (0, 1);
 my @test_opt_use_db_sub = (defined $opts{use_db_sub}) ? ($opts{use_db_sub}) : (0, 1);
 my @test_opt_savesrc    = (defined $opts{savesrc})    ? ($opts{savesrc})    : (0, 1);
