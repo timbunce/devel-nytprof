@@ -2489,7 +2489,7 @@ resolve_sub_to_cv(pTHX_ SV *sv, GV **subname_gv_ptr)
                 return NULL;
             break;
     }
-    if (cv && !*subname_gv_ptr && CvGV(cv)) {
+    if (cv && !*subname_gv_ptr && CvGV(cv) && isGV_with_GP(CvGV(cv))) {
         *subname_gv_ptr = CvGV(cv);
     }
     return cv;
@@ -2916,8 +2916,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
                 stash_name = HvNAME(GvSTASH(gv));
                 sv_setpv(subr_entry->called_subnam_sv, GvNAME(gv));
             }
-            else if (trace_level >= 0) {
-                logwarn("I'm confused about CV %p called as %s at %s line %d (please report as a bug)\n",
+            else if (trace_level >= 1) {
+                logwarn("NYTProf is confused about CV %p called as %s at %s line %d (please report as a bug)\n",
                     (void*)called_cv, SvPV_nolen(sub_sv), OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
                 /* looks like Class::MOP doesn't give the CV GV stash a name */
                 if (trace_level >= 2)
