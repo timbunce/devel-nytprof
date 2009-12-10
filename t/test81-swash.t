@@ -19,7 +19,7 @@ run_test_group( {
         start => 'begin',
         compress => 1,
     },
-    extra_test_count => 1,
+    extra_test_count => 2,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
@@ -28,6 +28,8 @@ run_test_group( {
             out_file => $env->{file},
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
+        # check if data truncated due to assertion failure
+        ok $profile->{attribute}{complete};
     },
 });
 

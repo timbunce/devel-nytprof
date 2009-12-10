@@ -42,6 +42,9 @@ my $this_perl = $^X;
 $this_perl .= $Config{_exe} if $^O ne 'VMS' and $this_perl !~ m/$Config{_exe}$/i;
 
 
+# croaks on failure to execute
+# carps, not croak, if process has non-zero exit status
+# Devel::NYTProf::Data->new may croak, e.g., if data trucated
 sub profile_this {
     my %opt = @_;
 

@@ -4524,7 +4524,12 @@ load_profile_data_from_stream(SV *cb)
     if (HvKEYS(live_pids_hv)) {
         logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
             HvKEYS(live_pids_hv));
+        store_attrib_sv(aTHX_ attr_hv, "complete", &PL_sv_no);
     }
+    else {
+        store_attrib_sv(aTHX_ attr_hv, "complete", &PL_sv_yes);
+    }
+
     sv_free((SV*)live_pids_hv);
     sv_free(tmp_str1_sv);
     sv_free(tmp_str2_sv);

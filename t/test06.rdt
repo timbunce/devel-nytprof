@@ -1,6 +1,7 @@
 attribute	application	test06.p
 attribute	basetime	0
 attribute	clock_id	0
+attribute	complete	1
 attribute	nv_size	0
 attribute	perl_version	0
 attribute	profiler_duration	0
