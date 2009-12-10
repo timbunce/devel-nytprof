@@ -2755,7 +2755,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         /* don't profile calls to non-existant import() methods */
         /* or our DB::_INIT as that makes tests perl version sensitive */
     || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv || sub_sv == DB_fin_cv))
-        /* don't profile other kids of goto */
+        /* don't profile other kinds of goto */
     || (op_type==OP_GOTO && !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV))
 #ifdef MULTIPLICITY
     || (my_perl != orig_my_perl)
