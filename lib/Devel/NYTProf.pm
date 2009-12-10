@@ -36,6 +36,8 @@ if ($use_db_sub) {                     # install DB::DB sub
 }
 sub sub { die "DB::sub" }              # needed for perl <5.8.7 (<perl@24265)
 
+sub CLONE { DB::disable_profiler }
+
 init_profiler();                       # provides true return value for module
 
 # put nothing here!
@@ -588,7 +590,9 @@ reports (including statistics, source code and color highlighting).
 
 C<Devel::NYTProf> is not currently thread safe or multiplicity safe.
 If you'd be interested in helping to fix that then please get in
-touch with us.
+touch with us. Meanwhile, profiling is disabled when a thread is created, and
+NYTProf tries to ignore any activity from perl interpreters other than the
+first one that loaded it.
 
 =head2 For perl < 5.8.8 it may change what caller() returns
 

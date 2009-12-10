@@ -1823,9 +1823,13 @@ DB_stmt(pTHX_ COP *cop, OP *op)
     char *file;
     long elapsed, overflow;
 
-    if (!is_profiling || !profile_stmts) {
+    if (!is_profiling || !profile_stmts)
         return;
-    }
+#ifdef MULTIPLICITY
+    if (my_perl != orig_my_perl)
+        return;
+#endif
+
     saved_errno = errno;
 
     if (usecputime) {
@@ -1947,6 +1951,10 @@ DB_leave(pTHX_ OP *op)
 
     if (!is_profiling || !out || !profile_stmts)
         return;
+#ifdef MULTIPLICITY
+    if (my_perl != orig_my_perl)
+        return;
+#endif
 
     /* measure and output end time of previous statement
      * (earlier than it would have been done)
@@ -2749,6 +2757,9 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv || sub_sv == DB_fin_cv))
         /* don't profile other kids of goto */
     || (op_type==OP_GOTO && !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV))
+#ifdef MULTIPLICITY
+    || (my_perl != orig_my_perl)
+#endif
     ) {
         return run_original_op(op_type);
     }
@@ -3029,6 +3040,10 @@ enable_profile(pTHX_ char *file)
 {
     /* enable the run-time aspects to profiling */
     int prev_is_profiling = is_profiling;
+#ifdef MULTIPLICITY
+    if (my_perl != orig_my_perl)
+        return 0;
+#endif
 
     if (trace_level)
         logwarn("~ enable_profile (previously %s) to %s\n",
@@ -3063,6 +3078,10 @@ static int
 disable_profile(pTHX)
 {
     int prev_is_profiling = is_profiling;
+#ifdef MULTIPLICITY
+    if (my_perl != orig_my_perl)
+        return 0;
+#endif
     if (is_profiling) {
         if (opt_use_db_sub)
             sv_setiv(PL_DBsingle, 0);
@@ -3081,6 +3100,10 @@ static void
 finish_profile(pTHX)
 {
     int saved_errno = errno;
+#ifdef MULTIPLICITY
+    if (my_perl != orig_my_perl)
+        return;
+#endif
 
     if (trace_level >= 1)
         logwarn("~ finish_profile (overhead %"NVff"s, is_profiling %d)\n",
@@ -4768,13 +4791,6 @@ finish_profile(...)
 void
 _INIT()
     CODE:
-#ifdef MULTIPLICITY
-    if (orig_my_perl != my_perl) {
-        logwarn("NYTProf: threads/multiplicity not supported, giving up!\n");
-        disable_profile(aTHX);
-        XSRETURN_UNDEF;
-    }
-#endif
     if (profile_start == NYTP_START_INIT)  {
         enable_profile(aTHX_ NULL);
     }
