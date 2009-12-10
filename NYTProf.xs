@@ -2178,7 +2178,7 @@ typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
     unsigned int  already_counted;
     unsigned int  subr_prof_depth;
-    UV  subr_call_seqn;
+    long unsigned subr_call_seqn;
     I32 prev_subr_entry_ix; /* ix to callers subr_entry */
 
     time_of_day_t initial_call_time;
@@ -2304,13 +2304,14 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     subr_call_key_len = sprintf(subr_call_key, "%s::%s[%u:%d]",
         subr_entry->caller_subpkg_pv,
-        SvPV_nolen(subr_entry->caller_subnam_sv),
+        (subr_entry->caller_subnam_sv) ? SvPV_nolen(subr_entry->caller_subnam_sv) : "(null)",
         subr_entry->caller_fid, subr_entry->caller_line);
     if (subr_call_key_len >= sizeof(subr_call_key))
         croak("panic: NYTProf buffer overflow on %s\n", subr_call_key);
 
     if ( (sprintf(called_subname_pv, "%s::%s", subr_entry->called_subpkg_pv,
-            SvPV_nolen(subr_entry->called_subnam_sv)) >= sizeof(called_subname_pv)) )
+                (subr_entry->called_subnam_sv) ? SvPV_nolen(subr_entry->called_subnam_sv) : "(null)")
+            >= sizeof(called_subname_pv)) )
         croak("~ called_subname_pv buffer overflow on '%s'\n", called_subname_pv);
 
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
@@ -2375,7 +2376,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
             (int)subr_entry->called_cv_depth,
             subr_entry->caller_fid, subr_entry->caller_line,
-            (long unsigned int)subr_entry->subr_call_seqn, (void*)subr_entry);
+            subr_entry->subr_call_seqn, (void*)subr_entry);
 
     /* only count inclusive time for the outer-most calls */
     if (subr_entry->called_cv_depth <= 1) {
@@ -2944,17 +2945,18 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         subr_entry->already_counted++;
 
     if (trace_level >= 3) {
-        logwarn("%2d ->%4s %s::%s from %s::%s (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
+        logwarn("%2d ->%4s %s::%s from %s::%s @%u:%u (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
             subr_entry->subr_prof_depth,
             (subr_entry->called_is_xs) ? subr_entry->called_is_xs : "sub",
             subr_entry->called_subpkg_pv,
             subr_entry->called_subnam_sv ? SvPV_nolen(subr_entry->called_subnam_sv) : "(null)",
             subr_entry->caller_subpkg_pv,
             subr_entry->caller_subnam_sv ? SvPV_nolen(subr_entry->caller_subnam_sv) : "(null)",
+            subr_entry->caller_fid, subr_entry->caller_line,
             subr_entry->called_cv_depth,
             subr_entry->initial_overhead_ticks,
             subr_entry->initial_subr_secs,
-            (long unsigned int)subr_entry->subr_call_seqn
+            subr_entry->subr_call_seqn
         );
     }
 
@@ -3520,7 +3522,8 @@ write_sub_callers(pTHX)
             if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {
                 ++negative_time_calls;
                 if (trace_level) {
-                    logwarn("%s call has negative time:  (bad clock)\n", called_subname);
+                    logwarn("%s call has negative time: incl %"NVff"s, excl %"NVff"s (clock id %d)\n",
+                        called_subname, sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME], profile_clock);
                     trace = 1;
                 }
             }
