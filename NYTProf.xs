@@ -173,6 +173,11 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 
 static int next_fid = 1;         /* 0 is reserved */
 
+/* we're not thread-safe (or even multiplicity safe) yet, so detect and bail */
+#ifdef MULTIPLICITY
+static PerlInterpreter *orig_my_perl;
+#endif
+
 typedef struct hash_entry
 {
     unsigned int id;
@@ -283,7 +288,11 @@ static struct NYTP_int_options_t options[] = {
 #define profile_forkdepth options[12].option_value
     { "forkdepth", -1 },                         /* how many generations of kids to profile */
 #define opt_perldb options[13].option_value
-    { "perldb", 0 }                              /* force certain PL_perldb value */
+    { "perldb", 0 },                             /* force certain PL_perldb value */
+#define opt_nameevals options[14].option_value
+    { "nameevals", 1 },                          /* change $^P 0x100 bit */
+#define opt_nameanonsubs options[15].option_value
+    { "nameanonsubs", 1 }                        /* change $^P 0x200 bit */
 };
 
 /* time tracking */
@@ -2026,7 +2035,8 @@ set_option(pTHX_ const char* option, const char* value)
         bool found = FALSE;
         do {
             if (strEQ(option, opt_p->option_name)) {
-                opt_p->option_value = atoi(value);
+                opt_p->option_value = (strnEQ(value,"0x",2))
+                    ? strtol(value, NULL, 16) : atoi(value);
                 found = TRUE;
                 break;
             }
@@ -2542,7 +2552,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
 
     if (subr_entry_ix <= prev_subr_entry_ix) {
         /* one cause of this is running NYTProf with threads */
-        logwarn("NYTProf panic: stack is confused!\n");
+        logwarn("NYTProf panic: stack is confused, giving up!\n");
         /* limit the damage */
         disable_profile(aTHX);
         subr_entry->already_counted++;
@@ -3102,6 +3112,15 @@ init_profiler(pTHX)
     SV **svp;
 #endif
 
+#ifdef MULTIPLICITY
+    if (!orig_my_perl)
+        orig_my_perl = my_perl;
+    else if (orig_my_perl != my_perl) {
+        logwarn("NYTProf: threads/multiplicity not supported!\n");
+        return 0;
+    }
+#endif
+
     /* Save the process id early. We monitor it to detect forks */
     last_pid = getpid();
     ticks_per_sec = (usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
@@ -3121,6 +3140,11 @@ init_profiler(pTHX)
         /* ask perl to keep the source lines so we can copy them */
         PL_perldb |= PERLDBf_SAVESRC | PERLDBf_SAVESRC_NOSUBS;
     }
+
+    if (!opt_nameevals)
+        PL_perldb &= PERLDBf_NAMEEVAL;
+    if (!opt_nameanonsubs)
+        PL_perldb &= PERLDBf_NAMEANON;
 
     if (opt_perldb) /* force a PL_perldb value - for testing only, not documented */
         PL_perldb = opt_perldb;
@@ -4744,6 +4768,13 @@ finish_profile(...)
 void
 _INIT()
     CODE:
+#ifdef MULTIPLICITY
+    if (orig_my_perl != my_perl) {
+        logwarn("NYTProf: threads/multiplicity not supported, giving up!\n");
+        disable_profile(aTHX);
+        XSRETURN_UNDEF;
+    }
+#endif
     if (profile_start == NYTP_START_INIT)  {
         enable_profile(aTHX_ NULL);
     }
