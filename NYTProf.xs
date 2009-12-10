@@ -2475,7 +2475,7 @@ resolve_sub_to_cv(pTHX_ SV *sv, GV **subname_gv_ptr)
             cv = (CV*)sv;
             break;
         case SVt_PVGV:
-            if (!(cv = GvCVu((GV*)sv)))
+            if (!(isGV_with_GP(sv) && (cv = GvCVu((GV*)sv))))
                 cv = sv_2cv(sv, &stash, subname_gv_ptr, FALSE);
             if (!cv)                              /* would autoload in this situation */
                 return NULL;
