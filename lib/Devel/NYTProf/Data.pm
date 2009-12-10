@@ -58,7 +58,12 @@ my $trace = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) && $1; # XXX a hack
 
 =head2 new
 
-  $profile = Devel::NYTProf::Data->new( { filename => 'nytprof.out' } );
+  $profile = Devel::NYTProf::Data->new( );
+
+  $profile = Devel::NYTProf::Data->new( {
+    filename => 'nytprof.out', # default
+    quiet    => 0,             # default, 1 to silence message
+  } );
 
 Reads the specified file containing profile data written by L<Devel::NYTProf>,
 aggregates the contents, and returns the results as a blessed data structure.
@@ -849,6 +854,10 @@ __END__
 
 XXX
 
+=head1 LIMITATION
+
+There's currently no way to merge profile data from multiple files.
+
 =head1 SEE ALSO
 
 L<Devel::NYTProf>
@@ -862,7 +871,7 @@ B<Steve Peters>, C<< <steve at fisharerojo.org> >>
 =head1 COPYRIGHT AND LICENSE
 
  Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
- Copyright (C) 2008 by Tim Bunce, Ireland.
+ Copyright (C) 2008,2009 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
