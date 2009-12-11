@@ -24,6 +24,12 @@
 #include "XSUB.h"
 
 #ifndef NO_PPPORT_H
+#define NEED_eval_pv
+#define NEED_grok_number
+#define NEED_grok_numeric_radix
+#define NEED_newCONSTSUB
+#define NEED_newRV_noinc
+#define NEED_sv_2pv_flags
 #   include "ppport.h"
 #endif
 
@@ -4281,7 +4287,7 @@ load_profile_data_from_stream(SV *cb)
                 /* add sub to NYTP_FIDi_SUBS_DEFINED hash */
                 sv = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
                 sv = SvRV(*av_fetch((AV *)sv, NYTP_FIDi_SUBS_DEFINED, 1));
-                (void)hv_store((HV *)sv, subname_pv, (I32)subname_len, newRV((SV*)av), 0);
+                (void)hv_store((HV *)sv, subname_pv, (I32)subname_len, newRV_inc((SV*)av), 0);
 
                 break;
             }
@@ -4388,7 +4394,7 @@ load_profile_data_from_stream(SV *cb)
                     if (!SvROK(fi))               /* autoviv */
                         sv_setsv(fi, newRV_noinc((SV*)newHV()));
                     fi = HeVAL(hv_fetch_ent((HV *)SvRV(fi), called_subname_sv, 1, 0));
-                    sv_setsv(fi, newRV((SV *)av));
+                    sv_setsv(fi, newRV_inc((SV *)av));
                 }
                 else {                            /* is meta-data about sub */
                     /* line == 0: is_xs - set line range to 0,0 as marker */
