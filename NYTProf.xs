@@ -3945,6 +3945,7 @@ load_profile_data_from_stream(SV *cb)
         sv_setiv(cb_args[i], file_minor);  XPUSHs(cb_args[i++]);
         PUTBACK;
         call_sv(cb, G_DISCARD);
+        SPAGAIN;
     }
     else {
         cb = Nullsv;
@@ -3978,6 +3979,7 @@ load_profile_data_from_stream(SV *cb)
                     XPUSHs(cb_DISCOUNT_tag);
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4021,6 +4023,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4119,6 +4122,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4201,6 +4205,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4249,6 +4254,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4329,6 +4335,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4439,6 +4446,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4469,6 +4477,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4513,6 +4522,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                 }
 
                 store_attrib_sv(aTHX_ attr_hv, text, value_sv);
@@ -4544,6 +4554,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                     break;
                 }
 
@@ -4563,6 +4574,7 @@ load_profile_data_from_stream(SV *cb)
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
+                    SPAGAIN;
                 }
                 NYTP_start_inflate(in);
 #else
