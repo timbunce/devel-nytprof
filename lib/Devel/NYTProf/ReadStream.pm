@@ -183,7 +183,7 @@ At the end of the run the profiler will output chunks that report on
 the perl subroutines defined in all the files visited while profiling.
 See also C<%DB::sub> in L<perldebguts>.
 
-=item SUB_CALLERS => $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $name
+=item SUB_CALLERS => $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $name, $caller_name
 
 At the end of the run the profiler will output chunks that report on
 where subroutines were called from.

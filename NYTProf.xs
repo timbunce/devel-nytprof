@@ -4331,6 +4331,7 @@ load_profile_data_from_stream(SV *cb)
                     sv_setnv(cb_args[i], reci_time);      XPUSHs(cb_args[i++]);
                     sv_setiv(cb_args[i], rec_depth);      XPUSHs(cb_args[i++]);
                     sv_setsv(cb_args[i], called_subname_sv);     XPUSHs(cb_args[i++]);
+                    sv_setsv(cb_args[i], caller_subname_sv);     XPUSHs(cb_args[i++]);
                     assert(i <= C_ARRAY_LENGTH(cb_args));
 
                     PUTBACK;
