@@ -584,9 +584,16 @@ sub output_index_page {
         "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
     print $fh q{<br/>You can view subroutines in a treemap of <a href="subs-treemap-excl.html">exclusive time</a>, grouped by package.<br/>};
 
-    output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot", undef, 1);
-    print $fh q{<br/>A representation of the calls between subroutines in diferent packages is available as a <a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> <a href="subs-callgraph.dot">dot file</a>.<br/>};
-
+    output_subs_callgraph_dot_file($reporter, "packages-callgraph.dot", undef, 1);
+    print $fh q{<br/>NYTProf also generates call-graph files in }
+        .q{<a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> format: }
+        .q{<a href="packages-callgraph.dot">inter-package calls</a>};
+    output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot", undef, 0);
+    print $fh q{, <a href="subs-callgraph.dot">all inter-subroutine calls</a>};
+    print $fh q{ (possibly too complex to render easily)}
+        if $all_subs > 200; # arbitrary
+    print $fh q{.<br/>};
+    
     output_file_table($fh, $profile, $stats, 1);
 
     my $footer = get_footer($profile);
