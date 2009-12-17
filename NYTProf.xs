@@ -3737,7 +3737,7 @@ read_nv()
 }
 
 
-static SV *
+static void
 normalize_eval_seqn(pTHX_ SV *sv) {
     /* in-place-edit any eval sequence numbers to 0 */
     int found = 0;
@@ -3747,7 +3747,7 @@ normalize_eval_seqn(pTHX_ SV *sv) {
     char *dst = start;
 
     if (len < 5)
-        return sv;
+        return;
 
     /* effectively does $sv =~ s/(?<!$assert) \s \d+/eval 0/xg;
      * where $assert is qr/\((?:re_)?eval/ so it only matches '(eval ' and '(re_eval '
@@ -3778,8 +3778,6 @@ normalize_eval_seqn(pTHX_ SV *sv) {
         if (trace_level >= 5)
             logwarn("edited it to: %s\n", start);
     }
-
-    return sv;
 }
 
 
@@ -4102,8 +4100,6 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int file_mtime    = read_int();
 
                 filename_sv = read_str(aTHX_ NULL);
-                if (eval_file_num)
-                    normalize_eval_seqn(aTHX_ filename_sv);
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -4125,6 +4121,9 @@ load_profile_data_from_stream(SV *cb)
                     SPAGAIN;
                     break;
                 }
+
+                if (eval_file_num)
+                    normalize_eval_seqn(aTHX_ filename_sv);
 
                 if (trace_level >= 2) {
                     logwarn("Fid %2u is %s (eval %u:%u) 0x%x sz%u mt%u\n",
@@ -4231,7 +4230,7 @@ load_profile_data_from_stream(SV *cb)
                 AV *av;
                 SV *sv;
                 unsigned int fid        = read_int();
-                SV *subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str1_sv));
+                SV *subname_sv = read_str(aTHX_ tmp_str1_sv);
                 unsigned int first_line = read_int();
                 unsigned int last_line  = read_int();
                 int skip_subinfo_store = 0;
@@ -4257,6 +4256,8 @@ load_profile_data_from_stream(SV *cb)
                     SPAGAIN;
                     break;
                 }
+
+                normalize_eval_seqn(aTHX_ subname_sv);
 
                 subname_pv = SvPV(subname_sv, subname_len);
                 if (trace_level >= 2)
@@ -4306,7 +4307,7 @@ load_profile_data_from_stream(SV *cb)
                 int len;
                 unsigned int fid   = read_int();
                 unsigned int line  = read_int();
-                SV *caller_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str2_sv));
+                SV *caller_subname_sv = read_str(aTHX_ tmp_str2_sv);
                 unsigned int count = read_int();
                 NV incl_time       = read_nv();
                 NV excl_time       = read_nv();
@@ -4314,7 +4315,7 @@ load_profile_data_from_stream(SV *cb)
                 NV scpu_time       = read_nv();
                 NV reci_time       = read_nv();
                 UV rec_depth       = read_int();
-                SV *called_subname_sv = normalize_eval_seqn(aTHX_ read_str(aTHX_ tmp_str1_sv));
+                SV *called_subname_sv = read_str(aTHX_ tmp_str1_sv);
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -4339,6 +4340,9 @@ load_profile_data_from_stream(SV *cb)
                     SPAGAIN;
                     break;
                 }
+
+                normalize_eval_seqn(aTHX_ caller_subname_sv);
+                normalize_eval_seqn(aTHX_ called_subname_sv);
 
                 if (trace_level >= 3)
                     logwarn("Sub %s called by %s %u:%u: count %d, incl %"NVff", excl %"NVff", ucpu %"NVff" scpu %"NVff"\n",
