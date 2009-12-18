@@ -454,6 +454,13 @@ NYTP_type_of_offset(NYTP_file file) {
 #define NYTP_type_of_offset(file) ""
 #endif
 
+#define CROAK_IF_NOT_STDIO(file, where)             \
+    STMT_START {                                    \
+        if (FILE_STATE(file) != NYTP_FILE_STDIO) {  \
+            compressed_io_croak((file), (where));   \
+        }                                           \
+    } STMT_END
+
 #ifdef HASATTRIBUTE_NORETURN
 __attribute__noreturn__
 #endif 
@@ -484,9 +491,7 @@ static void
 NYTP_start_deflate(NYTP_file file) {
     int status;
 
-    if (FILE_STATE(file) != NYTP_FILE_STDIO) {
-        compressed_io_croak(file, "NYTP_start_deflate");
-    }
+    CROAK_IF_NOT_STDIO(file, "NYTP_start_deflate");
     FILE_STATE(file) = NYTP_FILE_DEFLATE;
     file->zs.next_in = (Bytef *) file->large_buffer;
     file->zs.avail_in = 0;
@@ -507,9 +512,7 @@ NYTP_start_deflate(NYTP_file file) {
 static void
 NYTP_start_inflate(NYTP_file file) {
     int status;
-    if (FILE_STATE(file) != NYTP_FILE_STDIO) {
-        compressed_io_croak(file, "NYTP_start_inflate");
-    }
+    CROAK_IF_NOT_STDIO(file, "NYTP_start_inflate");
     FILE_STATE(file) = NYTP_FILE_INFLATE;
 
     file->zs.next_in = (Bytef *) file->small_buffer;
@@ -552,9 +555,7 @@ NYTP_open(const char *name, const char *mode) {
 
 static char *
 NYTP_gets(NYTP_file ifile, char *buffer, unsigned int len) {
-    if (FILE_STATE(ifile) != NYTP_FILE_STDIO) {
-        compressed_io_croak(ifile, "NYTP_gets");
-    }
+    CROAK_IF_NOT_STDIO(ifile, "NYTP_gets");
 
     return fgets(buffer, len, ifile->file);
 }
@@ -815,9 +816,7 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
     int retval;
     va_list args;
 
-    if (FILE_STATE(ofile) != NYTP_FILE_STDIO) {
-        compressed_io_croak(ofile, "NYTP_printf");
-    }
+    CROAK_IF_NOT_STDIO(ofile, "NYTP_printf");
 
     va_start(args, format);
     retval = vfprintf(ofile->file, format, args);
@@ -3931,9 +3930,7 @@ load_profile_data_from_stream(SV *cb)
     av_extend(fid_srclines_av, 64);
     av_extend(fid_line_time_av, 64);
 
-    if (FILE_STATE(in) != NYTP_FILE_STDIO) {
-        compressed_io_croak(in, "load_profile_data_from_stream");
-    }
+    CROAK_IF_NOT_STDIO(in, "load_profile_data_from_stream");
     if (2 != fscanf(in->file, "NYTProf %d %d\n", &file_major, &file_minor)) {
         croak("NYTProf data format error while parsing header");
     }
