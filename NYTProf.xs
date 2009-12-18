@@ -481,7 +481,7 @@ NYTP_start_deflate(NYTP_file file) {
     int status;
 
     if (FILE_STATE(file) != NYTP_FILE_STDIO) {
-        compressed_io_croak(in, "NYTP_start_deflate");
+        compressed_io_croak(file, "NYTP_start_deflate");
     }
     FILE_STATE(file) = NYTP_FILE_DEFLATE;
     file->zs.next_in = (Bytef *) file->large_buffer;
@@ -504,7 +504,7 @@ static void
 NYTP_start_inflate(NYTP_file file) {
     int status;
     if (FILE_STATE(file) != NYTP_FILE_STDIO) {
-        compressed_io_croak(in, "NYTP_start_inflate");
+        compressed_io_croak(file, "NYTP_start_inflate");
     }
     FILE_STATE(file) = NYTP_FILE_INFLATE;
 
@@ -666,7 +666,7 @@ NYTP_read(NYTP_file ifile, void *buffer, size_t len, const char *what) {
     if (got != len) {
         croak("Profile format error whilst reading %s at %ld%s: expected %ld got %ld, %s",
               what, NYTP_tell(ifile), NYTP_type_of_offset(ifile), (long)len, (long)got,
-                (NYTP_eof(in)) ? "end of file" : NYTP_fstrerror(in));
+                (NYTP_eof(ifile)) ? "end of file" : NYTP_fstrerror(ifile));
     }
     return len;
 }
