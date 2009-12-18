@@ -2,6 +2,8 @@
 .indent.pro
 .perltidyrc
 Changes
+FileHandle.h
+FileHandle.xs
 HACKING
 INSTALL
 MANIFEST

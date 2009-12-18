@@ -135,6 +135,7 @@ WriteMakefile(
 	'JSON::Any'    => 0,
     },
     LIBS      => [join ' ', @libs],
+    OBJECT    => q/$(O_FILES)/,
     EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv', 'bin/nytprofcg'],
     @man,
     INC   => $INCLUDE,
