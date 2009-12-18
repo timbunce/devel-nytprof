@@ -644,16 +644,20 @@ SV *handle
         XSRETURN(0);
 
 void
-output_nv(handle, value)
+output_nv(handle, ...)
 SV *handle
-NV value
     PREINIT:
         NYTP_file fh;
-    CODE:
+        SV **last = sp + items;
+    PPCODE:
         if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
             croak("handle is not a Devel::NYTProf::FileHandle");
         fh = (NYTP_file)SvPVX(SvRV(handle));
-        output_nv(fh, value);
+        ++sp; /* A pointer to the function is first item on the stack.
+                 It's not included in items  */
+        while(sp++ < last)
+            output_nv(fh, SvNV(*sp));
+        XSRETURN(0);
 
 
 void
