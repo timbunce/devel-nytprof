@@ -327,7 +327,7 @@ static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set *
 static void output_header(pTHX);
 static void output_tag_int(NYTP_file file, unsigned char tag, unsigned int);
 #define     output_int(fh, i)   output_tag_int(fh, NYTP_TAG_NO_TAG, (unsigned int)(i))
-static void output_str(char *str, I32 len);
+static void output_str(NYTP_file file, char *str, I32 len);
 static void output_nv(NYTP_file file, NV nv);
 static unsigned int read_int(void);
 static SV *read_str(pTHX_ SV *sv);
@@ -459,7 +459,7 @@ output_header(pTHX)
 
 
 static void
-output_str(char *str, I32 len) {    /* negative len signifies utf8 */
+output_str(NYTP_file file, char *str, I32 len) {    /* negative len signifies utf8 */
     unsigned char tag = NYTP_TAG_STRING;
     if (len < 0) {
         tag = NYTP_TAG_STRING_UTF8;
@@ -467,8 +467,8 @@ output_str(char *str, I32 len) {    /* negative len signifies utf8 */
     }
     if (trace_level >= 10)
         logwarn("output_str('%.*s', %d)\n", (int)len, str, (int)len);
-    output_tag_int(out, tag, len);
-    NYTP_write(out, str, len);
+    output_tag_int(file, tag, len);
+    NYTP_write(file, str, len);
 }
 
 
@@ -624,13 +624,13 @@ emit_fid (Hash_entry *fid_info)
             char ch = file_name[i];
             file_name_copy[i] = ch == '\\' ? '/' : ch;
         }
-        output_str(file_name_copy, (I32)file_name_len);
+        output_str(out, file_name_copy, (I32)file_name_len);
         Safefree(file_name_copy);
         return;
     }
 #endif
 
-    output_str(file_name, (I32)file_name_len);
+    output_str(out, file_name, (I32)file_name_len);
 }
 
 
@@ -3004,7 +3004,7 @@ write_sub_line_ranges(pTHX)
                 sub_name, fid, (unsigned long)first_line, (unsigned long)last_line);
 
         output_tag_int(out, NYTP_TAG_SUB_INFO, fid);
-        output_str(sub_name, sub_name_len);
+        output_str(out, sub_name, sub_name_len);
         output_int(out, first_line);
         output_int(out, last_line);
         output_int(out, 0);  /* how many extra items follow */
@@ -3061,7 +3061,7 @@ write_sub_callers(pTHX)
 
             output_tag_int(out, NYTP_TAG_SUB_CALLERS, fid);
             output_int(out, line);
-            output_str(caller_subname, caller_subname_len);
+            output_str(out, caller_subname, caller_subname_len);
             sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
             sc[NYTP_SCi_EXCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
@@ -3069,7 +3069,7 @@ write_sub_callers(pTHX)
             sc[NYTP_SCi_INCL_STIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_STIME, 0.0);
             sc[NYTP_SCi_RECI_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
             sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0) * 1.0;
-            output_str(called_subname, called_subname_len);
+            output_str(out, called_subname, called_subname_len);
 
             /* sanity check - early warning */
             if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {
@@ -3161,7 +3161,7 @@ write_src_of_files(pTHX)
              * is a little inefficient, but not enough to worry about */
             output_tag_int(out, NYTP_TAG_SRC_LINE, e->id);
             output_int(out, line);
-            output_str(src, (I32)len);    /* includes newline */
+            output_str(out, src, (I32)len);    /* includes newline */
             if (trace_level >= 5) {
                 logwarn("fid %d src line %d: %s%s", e->id, line, src,
                     (*src && src[strlen(src)-1]=='\n') ? "" : "\n");
