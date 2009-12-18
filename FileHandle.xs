@@ -569,3 +569,42 @@ NYTP_close(NYTP_file file, int discard) {
     }
     return fclose(raw_file) == 0 ? 0 : errno;
 }
+
+MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle
+
+PROTOTYPES: DISABLE
+
+void
+open(pathname, mode)
+char *pathname
+char *mode
+    PREINIT:
+        NYTP_file fh = NYTP_open(pathname, mode);
+        SV *object;
+    PPCODE:
+        if(!fh)
+            XSRETURN(0);
+        object = newSV(0);
+        sv_usepvn(object, (char *) fh, sizeof(struct NYTP_file_t));
+        ST(0) = sv_bless(sv_2mortal(newRV_noinc(object)), gv_stashpvs("Devel::NYTProf::FileHandle", GV_ADD));
+        XSRETURN(1);
+
+int
+DESTROY(handle)
+SV *handle
+    ALIAS:
+        close = 1
+    PREINIT:
+        SV *guts;
+    CODE:
+        if (ix == ix) {
+            /* Unused argument.  */
+        }
+        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
+            croak("handle is not a Devel::NYTProf::FileHandle");
+        guts = SvRV(handle);
+        RETVAL = NYTP_close((NYTP_file)SvPVX(guts), 0);
+        SvPV_set(guts, NULL);
+        SvLEN_set(guts, 0);
+    OUTPUT:
+        RETVAL
