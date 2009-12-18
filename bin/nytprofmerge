@@ -50,6 +50,11 @@ my $next_fid = 1;
 my %file_to_fid;
 my %fids = (0 => 0);
 
+my $version;
+my %seen_subs;
+
+my %callers;
+
 sub _time_block_or_line {
     my ($tag, undef, undef, $ticks, $fid, $line, $block_line, $sub_line) = @_;
     my $is_line = $tag eq 'TIME_LINE';
@@ -61,11 +66,21 @@ sub _time_block_or_line {
     }
 }
 
+# Effectively, this is a global variable. Sorry.
+my $input;
+
 my %dispatcher =
     (
      VERSION => sub {
 	 my (undef, $major, $minor) = @_;
-	 $out->write("NYTProf $major $minor\n");
+	 my $this_version = "$major $minor";
+	 if($version) {
+	     die "Incompatible version '$this_version' in $input, expected '$version'"
+		 unless $this_version eq $version;
+	 } else {
+	     $version = $this_version;
+	     $out->write("NYTProf $version\n");
+	 }
      },
      COMMENT => sub {
 	 my (undef, $text) = @_;
@@ -103,11 +118,11 @@ my %dispatcher =
 	 } else {
 	     $new_eval_fid = $eval_fid;
 	     $new_fid = $file_to_fid{$name};
-	     unless(defined $new_fid) {
-		 $new_fid = $next_fid++;
-		 $fids{$fid} = $new_fid;
-		 $file_to_fid{$name} = $fid;
-	     }
+	     return if defined $new_fid;
+
+	     $new_fid = $next_fid++;
+	     $fids{$fid} = $new_fid;
+	     $file_to_fid{$name} = $fid;
 	 }
 	 $out->write('@');
 	 $out->output_int($new_fid, $new_eval_fid, $eval_line, $flags, $size, $mtime);
@@ -121,20 +136,39 @@ my %dispatcher =
      },
      SUB_INFO => sub {
 	 my (undef, $fid, $first_line, $last_line, $name) = @_;
-	 $out->write('s');
-	 $out->output_int($fids{$fid});
-	 $out->output_str($name);
-	 $out->output_int($first_line, $last_line, 0);
+	 if(!$seen_subs{"$fid,$name"}++) {
+	     $out->write('s');
+	     $out->output_int($fids{$fid});
+	     $out->output_str($name);
+	     $out->output_int($first_line, $last_line, 0);
+	 }
      },
      SUB_CALLERS => sub {
 	 my (undef, $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $called, $caller) = @_;
-	 $out->write('c');
-	 $out->output_int($fids{$fid}, $line);
-	 $out->output_str($caller);
-	 $out->output_int($count);
-	 $out->output_nv($incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time);
-	 $out->output_int($rec_depth);
-	 $out->output_str($called);
+	 $fid = $fids{$fid};
+
+	 if ($callers{"$fid,$line"}{$called}{$caller}) {
+	     my $sum = $callers{"$fid,$line"}{$called}{$caller};
+	     $sum->{count} += $count;
+	     $sum->{incl} += $incl_time;
+	     $sum->{excl} += $excl_time;
+	     $sum->{ucpu} += $ucpu_time;
+	     $sum->{scpu} += $scpu_time;
+	     $sum->{reci} += $reci_time;
+	     $sum->{depth} = $rec_depth if $rec_depth > $sum->{depth};
+	 } else {
+	     # New;
+	     $callers{"$fid,$line"}{$called}{$caller} =
+		 {
+		  depth => $rec_depth,
+		  count => $count,
+		  incl => $incl_time,
+		  excl => $excl_time,
+		  ucpu => $ucpu_time,
+		  scpu => $scpu_time,
+		  reci => $reci_time,
+		 };
+	 }
      },
      SRC_LINE => sub {
 	 my (undef, $fid, $line, $text) = @_;
@@ -144,12 +178,29 @@ my %dispatcher =
      },
     );
 
-my $input = shift @ARGV;
+foreach $input (@ARGV) {
+    for_chunks {
+	my $tag = $_[0];
 
-for_chunks {
-    my $tag = $_[0];
+	my $sub = $dispatcher{$tag};
+	die "Unknown tag '$tag'" unless defined $sub;
+	&$sub(@_);
+    } filename => $input;
+}
 
-    my $sub = $dispatcher{$tag};
-    die "Unknown tag '$tag'" unless defined $sub;
-    &$sub(@_);
-} filename => $input;
+# Deterministic order is useful for testing.
+foreach my $fid_line (sort keys %callers) {
+    my ($fid, $line) = split ',', $fid_line;
+    foreach my $called (sort keys %{$callers{$fid_line}}) {
+	foreach my $caller (sort keys %{$callers{$fid_line}{$called}}) {
+	    my $sum = $callers{$fid_line}{$called}{$caller};
+	    $out->write('c');
+	    $out->output_int($fid, $line);
+	    $out->output_str($caller);
+	    $out->output_int($sum->{count});
+	    $out->output_nv(@{$sum}{qw(incl excl ucpu scpu reci)});
+	    $out->output_int($sum->{depth});
+	    $out->output_str($called);
+	}
+    }
+}
