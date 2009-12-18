@@ -328,7 +328,7 @@ static void output_header(pTHX);
 static void output_tag_int(NYTP_file file, unsigned char tag, unsigned int);
 #define     output_int(fh, i)   output_tag_int(fh, NYTP_TAG_NO_TAG, (unsigned int)(i))
 static void output_str(char *str, I32 len);
-static void output_nv(NV nv);
+static void output_nv(NYTP_file file, NV nv);
 static unsigned int read_int(void);
 static SV *read_str(pTHX_ SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
@@ -450,7 +450,7 @@ output_header(pTHX)
         
     output_tag_int(out, NYTP_TAG_PID_START, getpid());
     output_int(out, getppid());
-    output_nv(gettimeofday_nv());
+    output_nv(out, gettimeofday_nv());
 
     write_cached_fids();                          /* empty initially, non-empty after fork */
 
@@ -983,9 +983,9 @@ output_uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
  * (Minor portbility issues are seen as less important than speed and space.)
  */
 static void
-output_nv(NV nv)
+output_nv(NYTP_file file, NV nv)
 {
-    NYTP_write(out, (unsigned char *)&nv, sizeof(NV));
+    NYTP_write(file, (unsigned char *)&nv, sizeof(NV));
 }
 
 
@@ -994,7 +994,7 @@ output_nv_from_av(pTHX_ AV *av, int idx, NV default_nv)
 {
     SV **svp = av_fetch(av, idx, 0);
     NV nv = (!svp || !SvOK(*svp)) ? default_nv : SvNV(*svp);
-    output_nv( nv );
+    output_nv( out, nv );
     return nv;
 }
 
@@ -1602,7 +1602,7 @@ close_output_file(pTHX) {
      * which is the pid that this file relates to
      */
     output_tag_int(out, NYTP_TAG_PID_END, last_pid);
-    output_nv(gettimeofday_nv());
+    output_nv(out, gettimeofday_nv());
 
     if ((result = NYTP_close(out, 0)))
         logwarn("Error closing profile data file: %s\n", strerror(result));
