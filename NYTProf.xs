@@ -325,8 +325,8 @@ static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set *
 
 /* prototypes */
 static void output_header(pTHX);
-static void output_tag_int(unsigned char tag, unsigned int);
-#define     output_int(i)   output_tag_int(NYTP_TAG_NO_TAG, (unsigned int)(i))
+static void output_tag_int(NYTP_file file, unsigned char tag, unsigned int);
+#define     output_int(fh, i)   output_tag_int(fh, NYTP_TAG_NO_TAG, (unsigned int)(i))
 static void output_str(char *str, I32 len);
 static void output_nv(NV nv);
 static unsigned int read_int(void);
@@ -448,8 +448,8 @@ output_header(pTHX)
     }
 #endif
         
-    output_tag_int(NYTP_TAG_PID_START, getpid());
-    output_int(getppid());
+    output_tag_int(out, NYTP_TAG_PID_START, getpid());
+    output_int(out, getppid());
     output_nv(gettimeofday_nv());
 
     write_cached_fids();                          /* empty initially, non-empty after fork */
@@ -467,7 +467,7 @@ output_str(char *str, I32 len) {    /* negative len signifies utf8 */
     }
     if (trace_level >= 10)
         logwarn("output_str('%.*s', %d)\n", (int)len, str, (int)len);
-    output_tag_int(tag, len);
+    output_tag_int(out, tag, len);
     NYTP_write(out, str, len);
 }
 
@@ -608,12 +608,12 @@ emit_fid (Hash_entry *fid_info)
         file_name = fid_info->key_abs;
         file_name_len = strlen(file_name);
     }
-    output_tag_int(NYTP_TAG_NEW_FID, fid_info->id);
-    output_int(fid_info->eval_fid);
-    output_int(fid_info->eval_line_num);
-    output_int(fid_info->fid_flags);
-    output_int(fid_info->file_size);
-    output_int(fid_info->file_mtime);
+    output_tag_int(out, NYTP_TAG_NEW_FID, fid_info->id);
+    output_int(out, fid_info->eval_fid);
+    output_int(out, fid_info->eval_line_num);
+    output_int(out, fid_info->fid_flags);
+    output_int(out, fid_info->file_size);
+    output_int(out, fid_info->file_mtime);
 
 #ifdef WIN32
     /* Make sure we only use forward slashes in filenames */
@@ -923,13 +923,13 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 
 /**
  * Output an integer in bytes, optionally preceded by a tag. Use the special tag
- * NYTP_TAG_NO_TAG to suppress the tag output. A wrapper macro output_int(i)
+ * NYTP_TAG_NO_TAG to suppress the tag output. A wrapper macro output_int(fh, i)
  * does this for you.
  * "In bytes" means output the number in binary, using the least number of bytes
  * possible.  All numbers are positive. Use sign slot as a marker
  */
 static void
-output_tag_int(unsigned char tag, unsigned int i)
+output_tag_int(NYTP_file file, unsigned char tag, unsigned int i)
 {
     U8 buffer[6];
     U8 *p = buffer;
@@ -963,7 +963,7 @@ output_tag_int(unsigned char tag, unsigned int i)
         *p++ = (U8)(i >> 8);
         *p++ = (U8)i;
     }
-    NYTP_write(out, buffer, p - buffer);
+    NYTP_write(file, buffer, p - buffer);
 }
 
 
@@ -972,7 +972,7 @@ output_uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
 {
     SV **svp = av_fetch(av, idx, 0);
     UV uv = (!svp || !SvOK(*svp)) ? default_uv : SvUV(*svp);
-    output_int( uv );
+    output_int( out, uv );
     return uv;
 }
         
@@ -1332,13 +1332,13 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
     if (last_executed_fid) {
 
-        output_tag_int((unsigned char)((profile_blocks)
+        output_tag_int(out, (unsigned char)((profile_blocks)
                         ? NYTP_TAG_TIME_BLOCK : NYTP_TAG_TIME_LINE), elapsed);
-        output_int(last_executed_fid);
-        output_int(last_executed_line);
+        output_int(out, last_executed_fid);
+        output_int(out, last_executed_line);
         if (profile_blocks) {
-            output_int(last_block_line);
-            output_int(last_sub_line);
+            output_int(out, last_block_line);
+            output_int(out, last_sub_line);
         }
         if (trace_level >= 4)
             logwarn("Wrote %d:%-4d %2ld ticks (%u, %u)\n", last_executed_fid,
@@ -1601,7 +1601,7 @@ close_output_file(pTHX) {
     /* mark end of profile data for last_pid pid
      * which is the pid that this file relates to
      */
-    output_tag_int(NYTP_TAG_PID_END, last_pid);
+    output_tag_int(out, NYTP_TAG_PID_END, last_pid);
     output_nv(gettimeofday_nv());
 
     if ((result = NYTP_close(out, 0)))
@@ -3003,11 +3003,11 @@ write_sub_line_ranges(pTHX)
             logwarn("Sub %s fid %u lines %lu..%lu\n",
                 sub_name, fid, (unsigned long)first_line, (unsigned long)last_line);
 
-        output_tag_int(NYTP_TAG_SUB_INFO, fid);
+        output_tag_int(out, NYTP_TAG_SUB_INFO, fid);
         output_str(sub_name, sub_name_len);
-        output_int(first_line);
-        output_int(last_line);
-        output_int(0);  /* how many extra items follow */
+        output_int(out, first_line);
+        output_int(out, last_line);
+        output_int(out, 0);  /* how many extra items follow */
     }
 }
 
@@ -3059,8 +3059,8 @@ write_sub_callers(pTHX)
             /* trim length to effectively hide the [fid:line] suffix */
             caller_subname_len = fid_line_start-caller_subname;
 
-            output_tag_int(NYTP_TAG_SUB_CALLERS, fid);
-            output_int(line);
+            output_tag_int(out, NYTP_TAG_SUB_CALLERS, fid);
+            output_int(out, line);
             output_str(caller_subname, caller_subname_len);
             sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
@@ -3159,8 +3159,8 @@ write_src_of_files(pTHX)
             char *src = (svp) ? SvPV(*svp, len) : "";
             /* outputting the tag and fid for each (non empty) line
              * is a little inefficient, but not enough to worry about */
-            output_tag_int(NYTP_TAG_SRC_LINE, e->id);
-            output_int(line);
+            output_tag_int(out, NYTP_TAG_SRC_LINE, e->id);
+            output_int(out, line);
             output_str(src, (I32)len);    /* includes newline */
             if (trace_level >= 5) {
                 logwarn("fid %d src line %d: %s%s", e->id, line, src,
