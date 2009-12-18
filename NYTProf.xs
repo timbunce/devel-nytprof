@@ -3987,7 +3987,7 @@ load_profile_data_from_stream(SV *cb)
                         HvKEYS(live_pids_hv), profiler_end_time);
 
                 store_attrib_sv(aTHX_ attr_hv, "profiler_end_time", newSVnv(profiler_end_time));
-                profiler_duration = profiler_end_time - profiler_start_time;
+                profiler_duration += profiler_end_time - profiler_start_time;
                 store_attrib_sv(aTHX_ attr_hv, "profiler_duration", newSVnv(profiler_duration));
 
                 break;
