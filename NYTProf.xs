@@ -433,6 +433,7 @@ NYTP_tell(NYTP_file file) {
     return (long)ftell(file->file);
 }
 
+#ifdef HAS_ZLIB
 static const char *
 NYTP_type_of_offset(NYTP_file file) {
     switch (FILE_STATE(file)) {
@@ -449,6 +450,9 @@ NYTP_type_of_offset(NYTP_file file) {
                                    FILE_STATE(file));
     }
 }
+#else
+#define NYTP_type_of_offset(file) ""
+#endif
 
 #ifdef HASATTRIBUTE_NORETURN
 __attribute__noreturn__
