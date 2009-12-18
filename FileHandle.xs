@@ -21,6 +21,7 @@
 #include "XSUB.h"
 
 #include "FileHandle.h"
+#include "NYTProf.h"
 
 #ifdef HAS_ZLIB
 #  include <zlib.h>
@@ -608,3 +609,60 @@ SV *handle
         SvLEN_set(guts, 0);
     OUTPUT:
         RETVAL
+
+size_t
+write(handle, string)
+SV *handle
+SV *string
+    PREINIT:
+        STRLEN len;
+	char *p;
+        NYTP_file fh;
+    CODE:
+        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
+            croak("handle is not a Devel::NYTProf::FileHandle");
+	p = SvPVbyte(string, len);
+        fh = (NYTP_file)SvPVX(SvRV(handle));
+        RETVAL = NYTP_write(fh, p, len);
+    OUTPUT:
+        RETVAL
+
+void
+output_int(handle, value)
+SV *handle
+unsigned int value
+    PREINIT:
+        NYTP_file fh;
+    CODE:
+        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
+            croak("handle is not a Devel::NYTProf::FileHandle");
+        fh = (NYTP_file)SvPVX(SvRV(handle));
+        output_int(fh, value);
+
+void
+output_nv(handle, value)
+SV *handle
+NV value
+    PREINIT:
+        NYTP_file fh;
+    CODE:
+        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
+            croak("handle is not a Devel::NYTProf::FileHandle");
+        fh = (NYTP_file)SvPVX(SvRV(handle));
+        output_nv(fh, value);
+
+
+void
+output_str(handle, value)
+SV *handle
+SV *value
+    PREINIT:
+        STRLEN len;
+	char *p;
+        NYTP_file fh;
+    CODE:
+        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
+            croak("handle is not a Devel::NYTProf::FileHandle");
+        fh = (NYTP_file)SvPVX(SvRV(handle));
+        p = SvPV(value, len);
+	output_str(fh, p, SvUTF8(value) ? -(I32)len : (I32) len);

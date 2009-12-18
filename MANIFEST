@@ -8,6 +8,7 @@ HACKING
 INSTALL
 MANIFEST
 Makefile.PL
+NYTProf.h
 NYTProf.xs
 README
 benchmark.pl

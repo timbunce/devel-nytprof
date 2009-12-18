@@ -24,6 +24,7 @@
 #include "XSUB.h"
 
 #include "FileHandle.h"
+#include "NYTProf.h"
 
 #ifndef NO_PPPORT_H
 #define NEED_eval_pv
@@ -136,7 +137,6 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_TAG_STRING          '\'' 
 #define NYTP_TAG_STRING_UTF8     '"' 
 #define NYTP_TAG_START_DEFLATE   'z' 
-#define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
 
 /* indices to elements of the file info array */
 #define NYTP_FIDi_FILENAME      0
@@ -325,10 +325,6 @@ static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set *
 
 /* prototypes */
 static void output_header(pTHX);
-static void output_tag_int(NYTP_file file, unsigned char tag, unsigned int);
-#define     output_int(fh, i)   output_tag_int(fh, NYTP_TAG_NO_TAG, (unsigned int)(i))
-static void output_str(NYTP_file file, char *str, I32 len);
-static void output_nv(NYTP_file file, NV nv);
 static unsigned int read_int(void);
 static SV *read_str(pTHX_ SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
@@ -458,7 +454,7 @@ output_header(pTHX)
 }
 
 
-static void
+void
 output_str(NYTP_file file, char *str, I32 len) {    /* negative len signifies utf8 */
     unsigned char tag = NYTP_TAG_STRING;
     if (len < 0) {
@@ -928,7 +924,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
  * "In bytes" means output the number in binary, using the least number of bytes
  * possible.  All numbers are positive. Use sign slot as a marker
  */
-static void
+void
 output_tag_int(NYTP_file file, unsigned char tag, unsigned int i)
 {
     U8 buffer[6];
@@ -982,7 +978,7 @@ output_uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
  * Output a double precision float via a simple binary write of the memory.
  * (Minor portbility issues are seen as less important than speed and space.)
  */
-static void
+void
 output_nv(NYTP_file file, NV nv)
 {
     NYTP_write(file, (unsigned char *)&nv, sizeof(NV));
