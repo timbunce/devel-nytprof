@@ -863,6 +863,7 @@ NYTP_fstrerror(NYTP_file file) {
 static int
 NYTP_close(NYTP_file file, int discard) {
     FILE *raw_file = file->file;
+    int result;
 
 #ifdef HAS_ZLIB
     if (!discard && FILE_STATE(file) == NYTP_FILE_DEFLATE) {
@@ -900,8 +901,7 @@ NYTP_close(NYTP_file file, int discard) {
 
     Safefree(file);
 
-    if (ferror(raw_file))
-        logwarn("There was an error writing to the profile data file\n");
+    result = ferror(raw_file) ? errno : 0;
 
     if (discard) {
         /* close the underlying fd first so any buffered data gets discarded
@@ -909,6 +909,11 @@ NYTP_close(NYTP_file file, int discard) {
         close(fileno(raw_file));
     }
 
+    if (result || discard) {
+        /* Something has already gone wrong, so try to preserve its error */
+        fclose(raw_file);
+        return result;
+    }
     return fclose(raw_file) == 0 ? 0 : errno;
 }
 
@@ -2165,7 +2170,9 @@ reinit_if_forked(pTHX)
         * is now duplicated unflushed in this child,
         * so discard it when we close the inherited filehandle.
         */
-        NYTP_close(out, 1);
+        int result = NYTP_close(out, 1);
+        if (result)
+            logwarn("Error closing profile data file: %s\n", strerror(result));
         out = NULL;
         /* if we fork while profiling then ensure we'll get a distinct filename */
         profile_opts |= NYTP_OPTf_ADDPID;
@@ -4868,6 +4875,8 @@ HV*
 load_profile_data_from_file(file,cb=NULL)
 char *file;
 SV* cb;
+    PREINIT:
+    int result;
     CODE:
     if (trace_level)
         logwarn("reading profile data from file %s\n", file);
@@ -4876,6 +4885,7 @@ SV* cb;
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
     RETVAL = load_profile_data_from_stream(cb);
-    NYTP_close(in, 0);
+    if ((result = NYTP_close(in, 0)))
+        logwarn("Error closing profile data file: %s\n", strerror(result));
     OUTPUT:
     RETVAL
