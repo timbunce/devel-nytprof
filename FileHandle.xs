@@ -23,6 +23,10 @@
 #include "FileHandle.h"
 #include "NYTProf.h"
 
+#define NEED_newRV_noinc
+#define NEED_sv_2pvbyte
+#include "ppport.h"
+
 #ifdef HAS_ZLIB
 #  include <zlib.h>
 #endif
