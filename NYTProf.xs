@@ -909,7 +909,7 @@ NYTP_close(NYTP_file file, int discard) {
         close(fileno(raw_file));
     }
 
-    return fclose(raw_file);
+    return fclose(raw_file) == 0 ? 0 : errno;
 }
 
 
@@ -2121,6 +2121,7 @@ open_output_file(pTHX_ char *filename)
 
 static void
 close_output_file(pTHX) {
+    int result;
     if (!out)
         return;
 
@@ -2133,8 +2134,8 @@ close_output_file(pTHX) {
     output_tag_int(NYTP_TAG_PID_END, last_pid);
     output_nv(gettimeofday_nv());
 
-    if (-1 == NYTP_close(out, 0))
-        logwarn("Error closing profile data file: %s\n", strerror(errno));
+    if ((result = NYTP_close(out, 0)))
+        logwarn("Error closing profile data file: %s\n", strerror(result));
     out = NULL;
 }
 
