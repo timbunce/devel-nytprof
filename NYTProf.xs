@@ -2615,6 +2615,12 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
         subr_entry->called_is_xs = "sop";
     }
 
+    /* These refer to the last perl statement executed, so aren't
+     * strictly correct where an opcode or xsub is making the call,
+     * but they're still more useful than nothing.
+     * In reports the references line shows calls made by the
+     * opcode or xsub that's called at that line.
+     */
     file = OutCopFILE(prev_cop);
     subr_entry->caller_fid = (file == last_executed_fileptr)
         ? last_executed_fid
@@ -2695,8 +2701,22 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
         found_caller_by = (profile_findcaller) ? "" : "(calculated)";
     }
     else {
-        subr_entry->caller_subpkg_pv = caller_subr_entry->called_subpkg_pv;
-        subr_entry->caller_subnam_sv = SvREFCNT_inc(caller_subr_entry->called_subnam_sv);
+        subr_entry_t *caller_se = caller_subr_entry;
+        int caller_is_op = caller_se->called_is_xs && strEQ(caller_se->called_is_xs,"sop");
+        /* if the caller is an op then use the caller of that op as our caller.
+         * that makes more sense from the users perspective (and is consistent
+         * with the findcaller=1 option).
+         * XXX disabled for now because (I'm pretty sure) it needs a corresponding
+         * change in incr_sub_inclusive_time otherwise the incl/excl times are distorted.
+         */
+        if (0 && caller_is_op) {
+            subr_entry->caller_subpkg_pv = caller_se->caller_subpkg_pv;
+            subr_entry->caller_subnam_sv = SvREFCNT_inc(caller_se->caller_subnam_sv);
+        }
+        else {
+            subr_entry->caller_subpkg_pv = caller_se->called_subpkg_pv;
+            subr_entry->caller_subnam_sv = SvREFCNT_inc(caller_se->called_subnam_sv);
+        }
         found_caller_by = "(inherited)";
     }
 
