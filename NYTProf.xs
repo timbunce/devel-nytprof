@@ -454,12 +454,16 @@ NYTP_type_of_offset(NYTP_file file) {
 #define NYTP_type_of_offset(file) ""
 #endif
 
-#define CROAK_IF_NOT_STDIO(file, where)             \
+#ifdef HAS_ZLIB
+#  define CROAK_IF_NOT_STDIO(file, where)           \
     STMT_START {                                    \
         if (FILE_STATE(file) != NYTP_FILE_STDIO) {  \
             compressed_io_croak((file), (where));   \
         }                                           \
     } STMT_END
+#else
+#  define CROAK_IF_NOT_STDIO(file, where)
+#endif
 
 #ifdef HASATTRIBUTE_NORETURN
 __attribute__noreturn__
