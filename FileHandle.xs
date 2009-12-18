@@ -628,16 +628,20 @@ SV *string
         RETVAL
 
 void
-output_int(handle, value)
+output_int(handle, ...)
 SV *handle
-unsigned int value
     PREINIT:
         NYTP_file fh;
-    CODE:
+        SV **last = sp + items;
+    PPCODE:
         if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
             croak("handle is not a Devel::NYTProf::FileHandle");
         fh = (NYTP_file)SvPVX(SvRV(handle));
-        output_int(fh, value);
+        ++sp; /* A pointer to the function is first item on the stack.
+                 It's not included in items  */
+        while(sp++ < last)
+            output_int(fh, SvUV(*sp));
+        XSRETURN(0);
 
 void
 output_nv(handle, value)
