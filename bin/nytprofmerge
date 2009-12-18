@@ -46,6 +46,10 @@ END
 
 my $out = Devel::NYTProf::FileHandle::open($opt{out}, "wb");
 
+my $next_fid = 1;
+my %file_to_fid;
+my %fids = (0 => 0);
+
 sub _time_block_or_line {
     my ($tag, undef, undef, $ticks, $fid, $line, $block_line, $sub_line) = @_;
     my $is_line = $tag eq 'TIME_LINE';
@@ -90,8 +94,23 @@ my %dispatcher =
 
      NEW_FID => sub {
 	 my (undef, $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
+	 my ($new_fid, $new_eval_fid);
+	 if($eval_fid) {
+	     $new_eval_fid = $fids{$eval_fid};
+	     confess("unknown eval_fid $eval_fid") unless defined $new_eval_fid;
+	     $new_fid = $next_fid++;
+	     $fids{$fid} = $new_fid;
+	 } else {
+	     $new_eval_fid = $eval_fid;
+	     $new_fid = $file_to_fid{$name};
+	     unless(defined $new_fid) {
+		 $new_fid = $next_fid++;
+		 $fids{$fid} = $new_fid;
+		 $file_to_fid{$name} = $fid;
+	     }
+	 }
 	 $out->write('@');
-	 $out->output_int($fid, $eval_fid, $eval_line, $flags, $size, $mtime);
+	 $out->output_int($new_fid, $new_eval_fid, $eval_line, $flags, $size, $mtime);
 	 $out->output_str($name);
      },
      TIME_BLOCK => \&_time_block_or_line,
@@ -103,14 +122,14 @@ my %dispatcher =
      SUB_INFO => sub {
 	 my (undef, $fid, $first_line, $last_line, $name) = @_;
 	 $out->write('s');
-	 $out->output_int($fid);
+	 $out->output_int($fids{$fid});
 	 $out->output_str($name);
 	 $out->output_int($first_line, $last_line, 0);
      },
      SUB_CALLERS => sub {
 	 my (undef, $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $called, $caller) = @_;
 	 $out->write('c');
-	 $out->output_int($fid, $line);
+	 $out->output_int($fids{$fid}, $line);
 	 $out->output_str($caller);
 	 $out->output_int($count);
 	 $out->output_nv($incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time);
@@ -120,7 +139,7 @@ my %dispatcher =
      SRC_LINE => sub {
 	 my (undef, $fid, $line, $text) = @_;
 	 $out->write('S');
-	 $out->output_int($fid, $line);
+	 $out->output_int($fids{$fid}, $line);
 	 $out->output_str($text);
      },
     );
