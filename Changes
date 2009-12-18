@@ -43,11 +43,16 @@ XXX string eval merging - must allow at least viewing of source for called subs 
   Added forkdepth=N option to enable profiling to be turned off after N
     generations of fork().
 
-  Added nameevals=0 and nameanonsubs=0 to make NYTProf less visible
-    to code that may assume the default perl naming behaviour.
+  Added nameevals=0 and nameanonsubs=0 options to make NYTProf less
+    visible to code that may assume the default perl naming behaviour.
+    Note that using these will limit the usefulness of reports.
 
   Added initial support for profiling PostgreSQL PL/Perl code
     via Devel::NYTProf::PgPLPerl module.
+
+  Added nytprofmerge utility:
+    Reads multiple nytprof data files and writes a new merged file.
+    Many thanks to Nicholas Clark!
 
 Changes to subroutine profiler:
 
