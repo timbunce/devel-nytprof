@@ -465,6 +465,7 @@ NYTP_type_of_offset(NYTP_file file) {
 #  define CROAK_IF_NOT_STDIO(file, where)
 #endif
 
+#ifdef HAS_ZLIB
 #ifdef HASATTRIBUTE_NORETURN
 __attribute__noreturn__
 #endif 
@@ -490,7 +491,6 @@ compressed_io_croak(NYTP_file file, const char *function) {
           what, NYTP_tell(file));
 }
 
-#ifdef HAS_ZLIB
 static void
 NYTP_start_deflate(NYTP_file file) {
     int status;
@@ -641,11 +641,11 @@ NYTP_read_unchecked(NYTP_file ifile, void *buffer, size_t len) {
     if (FILE_STATE(ifile) == NYTP_FILE_STDIO) {
         return fread(buffer, 1, len, ifile->file);
     }
+#ifdef HAS_ZLIB
     else if (FILE_STATE(ifile) != NYTP_FILE_INFLATE) {
         compressed_io_croak(ifile, "NYTP_read");
         return 0;
     }
-#ifdef HAS_ZLIB
     while (1) {
         unsigned char *p = ifile->large_buffer + ifile->count;
         unsigned int remaining = ((unsigned char *) ifile->zs.next_out) - p;
@@ -786,11 +786,11 @@ NYTP_write(NYTP_file ofile, const void *buffer, size_t len) {
         }
         return len;
     }
+#ifdef HAS_ZLIB
     else if (FILE_STATE(ofile) != NYTP_FILE_DEFLATE) {
         compressed_io_croak(ofile, "NYTP_write");
         return 0;
     }
-#ifdef HAS_ZLIB
     while (1) {
         unsigned int remaining
             = NYTP_FILE_LARGE_BUFFER_SIZE - ofile->zs.avail_in;
