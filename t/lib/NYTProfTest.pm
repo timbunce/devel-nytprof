@@ -23,8 +23,6 @@ use Devel::NYTProf::Reader;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths html_safe_filename);
 
 
-my $tests_per_extn = {p => 1, rdt => 1, x => 3};
-
 my $this_perl = $^X;
 $this_perl .= $Config{_exe} if $^O ne 'VMS' and $this_perl !~ m/$Config{_exe}$/i;
 
@@ -32,6 +30,7 @@ my %opts = (
     one          => $ENV{NYTPROF_TEST_ONE},
     profperlopts => $ENV{NYTPROF_TEST_PROFPERLOPTS} || '-d:NYTProf',
     html         => $ENV{NYTPROF_TEST_HTML},
+    mergerdt     => $ENV{NYTPROF_TEST_MERGERDT}, # overkill, but handy
 );
 GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i savesrc=i compress=i one abort/)
     or exit 1;
@@ -59,6 +58,12 @@ for my $opt (qw(trace)) {
 }
 
 
+my $tests_per_extn = {
+    p   => 1,
+    rdt => ($opts{mergerdt}) ? 2 : 1,
+    x   => 3
+};
+
 chdir('t') if -d 't';
 
 if (-d '../blib') {
@@ -67,6 +72,7 @@ if (-d '../blib') {
 my $bindir      = (grep {-d} qw(./blib/script ../blib/script))[0];
 my $nytprofcsv  = "$bindir/nytprofcsv";
 my $nytprofhtml = "$bindir/nytprofhtml";
+my $nytprofmerge= "$bindir/nytprofmerge";
 
 my $path_sep = $Config{path_sep} || ':';
 my $perl5lib = $opts{I} || join($path_sep, @INC);
@@ -124,6 +130,7 @@ my %env_influence;
 
 sub do_foreach_opt_combination {
     my ($opt_combinations, $code) = @_;
+
     COMBINATION:
     for my $env (@$opt_combinations) {
 
@@ -147,8 +154,8 @@ sub do_foreach_opt_combination {
         # did any tests fail?
         my $failed = (count_of_failed_tests() - $prev_failures) ? 1 : 0;
         # record what env settings may have influenced the failure
-        ++$env_influence{$_}{$env->{$_}}{$failed ? 'fail' : 'pass'} for keys %$env;
-
+        ++$env_influence{$_}{$env->{$_}}{$failed ? 'fail' : 'pass'}
+            for keys %$env;
     }
 }
 
@@ -282,6 +289,15 @@ sub run_test {
     }
     elsif ($type eq 'rdt') {
         verify_data($test, $tag, $test_datafile);
+
+        if ($opts{mergerdt}) { # run the file through nytprofmerge
+            my $merged = "$profile_datafile.merged";
+            my $merge_cmd = "$nytprofmerge -v --out=$merged $test_datafile";
+            system($merge_cmd) == 0
+                or die "Error running $merge_cmd\n";
+            verify_data($test, "$tag (merged)", $merged);
+            unlink $merged;
+        }
     }
     elsif ($type eq 'x') {
         mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
@@ -350,7 +366,8 @@ sub verify_data {
     }
 
     SKIP: {
-        skip 'Expected profile data does not have VMS paths',1 if(($^O eq 'VMS') && ($test =~m/test60|test14/i));
+        skip 'Expected profile data does not have VMS paths', 1
+            if $^O eq 'VMS' and $test =~ m/test60|test14/i;
 	$profile->normalize_variables;
         dump_profile_to_file($profile, $test.'_new', $test.'_newp');
         my @got      = slurp_file($test.'_new'); chomp @got;
