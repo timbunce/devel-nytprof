@@ -15,6 +15,7 @@ benchmark.pl
 bin/nytprofcg
 bin/nytprofcsv
 bin/nytprofhtml
+bin/nytprofmerge
 demo/README
 demo/demo-code.pl
 demo/demo-run.pl

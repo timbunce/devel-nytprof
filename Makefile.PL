@@ -136,7 +136,7 @@ WriteMakefile(
     },
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
-    EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv', 'bin/nytprofcg'],
+    EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv', 'bin/nytprofcg', 'bin/nytprofmerge'],
     @man,
     INC   => $INCLUDE,
     clean => {

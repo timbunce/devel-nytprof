@@ -1,0 +1,136 @@
+#!/usr/bin/perl
+##########################################################
+# This script is part of the Devel::NYTProf distribution
+#
+# Copyright, contact and other information can be found
+# at the bottom of this file, or by going to:
+# http://search.cpan.org/dist/Devel-NYTProf/
+#
+##########################################################
+# $Id$
+##########################################################
+
+use warnings;
+use strict;
+require Devel::NYTProf::FileHandle;
+use Devel::NYTProf::ReadStream qw(for_chunks);
+
+use Getopt::Long;
+use Carp;
+
+my %opt = (
+	   out  => 'nytprof-merged.out',
+	  );
+
+GetOptions(\%opt, qw/out|o=s help|h/)
+    or do {
+        usage();
+        exit 1;
+    };
+
+if (defined($opt{help})) {
+    usage();
+    exit;
+}
+
+sub usage {
+    print <<END
+usage: [perl] nytprofmerge [opts]
+ --out <dir>,   -o <dir>   Place merged file [default: ./nytprof-merged.out]
+ --help,        -h         Print this message
+
+This script of part of the Devel::NYTProf distribution.
+See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
+END
+}
+
+my $out = Devel::NYTProf::FileHandle::open($opt{out}, "wb");
+
+sub _time_block_or_line {
+    my ($tag, undef, undef, $ticks, $fid, $line, $block_line, $sub_line) = @_;
+    my $is_line = $tag eq 'TIME_LINE';
+    $out->write($is_line ? '+' : '*');
+    $out->output_int($ticks, $fid, $line);
+    if (!$is_line) {
+	$out->output_int($block_line);
+	$out->output_int($sub_line);
+    }
+}
+
+my %dispatcher =
+    (
+     VERSION => sub {
+	 my (undef, $major, $minor) = @_;
+	 $out->write("NYTProf $major $minor\n");
+     },
+     COMMENT => sub {
+	 my (undef, $text) = @_;
+	 $out->write("#$text");
+     },
+     ATTRIBUTE => sub {
+	 my (undef, $key, $value) = @_;
+	 $out->write(":$key=$value\n");
+     },
+
+     START_DEFLATE => sub {
+     },
+
+     PID_START => sub {
+	 my (undef, $pid, $parent, $time) = @_;
+	 $out->write('P');
+	 $out->output_int($pid, $parent);
+	 $out->output_nv($time);
+     },
+     PID_END => sub {
+	 my (undef, $pid, $time) = @_;
+	 $out->write('p');
+	 $out->output_int($pid);
+	 $out->output_nv($time);
+     },
+
+     NEW_FID => sub {
+	 my (undef, $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
+	 $out->write('@');
+	 $out->output_int($fid, $eval_fid, $eval_line, $flags, $size, $mtime);
+	 $out->output_str($name);
+     },
+     TIME_BLOCK => \&_time_block_or_line,
+     TIME_LINE => \&_time_block_or_line,
+
+     DISCOUNT => sub {
+	 $out->write('-');
+     },
+     SUB_INFO => sub {
+	 my (undef, $fid, $first_line, $last_line, $name) = @_;
+	 $out->write('s');
+	 $out->output_int($fid);
+	 $out->output_str($name);
+	 $out->output_int($first_line, $last_line, 0);
+     },
+     SUB_CALLERS => sub {
+	 my (undef, $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $called, $caller) = @_;
+	 $out->write('c');
+	 $out->output_int($fid, $line);
+	 $out->output_str($caller);
+	 $out->output_int($count);
+	 $out->output_nv($incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time);
+	 $out->output_int($rec_depth);
+	 $out->output_str($called);
+     },
+     SRC_LINE => sub {
+	 my (undef, $fid, $line, $text) = @_;
+	 $out->write('S');
+	 $out->output_int($fid, $line);
+	 $out->output_str($text);
+     },
+    );
+
+my $input = shift @ARGV;
+
+for_chunks {
+    my $tag = $_[0];
+
+    my $sub = $dispatcher{$tag};
+    die "Unknown tag '$tag'" unless defined $sub;
+    &$sub(@_);
+} filename => $input;
