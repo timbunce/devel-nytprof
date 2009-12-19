@@ -31,7 +31,7 @@ run_test_group( {
         ok $subs->{'main::pass'}->calls;
 
     },
-    extra_test_count => 3,
+    extra_test_count => 4,
 });
 
 __DATA__
