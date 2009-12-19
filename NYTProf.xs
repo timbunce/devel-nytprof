@@ -780,6 +780,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         else if (strnEQ(file_name, "(eval ", 6)) {
             /* strange eval that doesn't have a filename associated */
             /* seen in mod_perl, possibly from eval_sv(sv) api call */
+            /* also when nameevals=0 option is in effect */
             char *eval_file = "/unknown-eval-invoker";
             found->eval_fid = get_file_id(aTHX_ eval_file, strlen(eval_file),
                 NYTP_FIDf_IS_FAKE | created_via
@@ -1817,6 +1818,14 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
     sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, strlen(called_subname_pv), 1);
 
+#ifdef BUG_HUNT
+if (strEQ(called_subname_pv,"CORE::print")) {
+    (void)newHV(); /* adding or removing this newHV() changes the behaviour */
+    subr_entry_destroy(aTHX_ subr_entry);
+    return;
+}
+#endif
+
     if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this called subname from anywhere */
         HV *hv = newHV();
         sv_setsv(sv_tmp, newRV_noinc((SV *)hv));
@@ -2037,17 +2046,17 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     /* XXX "warning: cast from pointer to integer of different size" with use64bitall=define */
     prev_subr_entry_ix = subr_entry_ix;
     subr_entry_ix = SSNEWa(sizeof(*subr_entry), MEM_ALIGNBYTES);
-    subr_entry = subr_entry_ix_ptr(subr_entry_ix);
-    Zero(subr_entry, 1, subr_entry_t);
 
     if (subr_entry_ix <= prev_subr_entry_ix) {
         /* one cause of this is running NYTProf with threads */
         logwarn("NYTProf panic: stack is confused, giving up!\n");
         /* limit the damage */
         disable_profile(aTHX);
-        subr_entry->already_counted++;
-        return subr_entry_ix;
+        return prev_subr_entry_ix;
     }
+
+    subr_entry = subr_entry_ix_ptr(subr_entry_ix);
+    Zero(subr_entry, 1, subr_entry_t);
 
     subr_entry->prev_subr_entry_ix = prev_subr_entry_ix;
     caller_subr_entry = subr_entry_ix_ptr(prev_subr_entry_ix);
@@ -2209,7 +2218,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     }
 
     /* This is our safety-net destructor. For perl subs an identical destructor
-     * will be pushed onto the stack inside the scope we're interested in.
+     * will be pushed onto the stack _inside_ the scope we're interested in.
      * That destructor will be more accurate than this one. This one is here
      * mainly to catch exceptions thrown from xs subs and slowops.
      */
@@ -2305,6 +2314,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         SETERRNO(saved_errno, 0);
         op = run_original_op(op_type);
         saved_errno = errno;
+
     }
     else {
 
@@ -2354,7 +2364,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
 
-    /* detect wiedness/corruption */
+    /* detect wierdness/corruption */
     assert(subr_entry->caller_fid < next_fid);
 
     /* Check if this call has already been counted because the op performed
@@ -3023,10 +3033,16 @@ write_sub_callers(pTHX)
 
     hv_iterinit(sub_callers_hv);
     while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &called_subname, &called_subname_len))) {
-        HV *fid_lines_hv = (HV*)SvRV(fid_line_rvhv);
+        HV *fid_lines_hv;
         char *caller_subname;
         I32 caller_subname_len;
         SV *sv;
+
+        if (!SvROK(fid_line_rvhv) || SvTYPE(SvRV(fid_line_rvhv))!=SVt_PVHV) {
+            logwarn("bad entry %s in sub_callers_hv\n", called_subname);
+            continue;
+        }
+        fid_lines_hv = (HV*)SvRV(fid_line_rvhv);
 
         if (0) {
             logwarn("Callers of %s:\n", called_subname);
