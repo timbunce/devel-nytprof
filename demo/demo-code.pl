@@ -19,6 +19,9 @@ sub foo {
     1;
 }
 
+BEGIN { add() }
+BEGIN { add() }
+
 sub inc {
     1;
     # call foo and then execute a slow expression *in the same statement*

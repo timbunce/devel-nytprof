@@ -6,11 +6,11 @@ my $NYTPROF = ($ENV{NYTPROF}) ? "$ENV{NYTPROF}:" : "";
 
 my %runs = (
     start_begin => {
-        skip => 1,
+        skip => 0,
         NYTPROF => 'start=begin:optimize=0',
     },
     start_check => {
-        skip => 0,
+        skip => 1,
         NYTPROF => 'start=init:optimize=0',
     },
     start_end => {

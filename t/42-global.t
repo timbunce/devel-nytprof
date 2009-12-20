@@ -31,8 +31,8 @@ run_test_group( {
 
         my $subs = $profile->subname_subinfo_map;
 
-        is scalar keys %$subs, 3, 'should be 3 subs';
-        ok $subs->{'main::BEGIN'};
+        is scalar keys %$subs, 3, "should be 3 subs (found: @{[ keys %$subs ]})";
+        ok $subs->{'main::BEGIN@3'};
         ok $subs->{'main::RUNTIME'};
         ok $subs->{'main::foo'};
 
@@ -41,7 +41,7 @@ run_test_group( {
         my $fid = $fi[0]->fid;
 
         my @a; # ($file, $fid, $first, $last); 
-        @a = $profile->file_line_range_of_sub('main::BEGIN');
+        @a = $profile->file_line_range_of_sub('main::BEGIN@3');
         is "$a[1] $a[2] $a[3]", "$fid 3 6", 'details for main::BEGIN should match';
         @a = $profile->file_line_range_of_sub('main::RUNTIME');
         is "$a[1] $a[2] $a[3]", "$fid 1 1", 'details for main::RUNTIME should match';
@@ -51,7 +51,7 @@ run_test_group( {
         $subs = $profile->subs_defined_in_file($fid);
         my $sub;
         is scalar keys %$subs, 3, 'should be 3 subs';
-        ok $sub = $subs->{'main::BEGIN'};
+        ok $sub = $subs->{'main::BEGIN@3'};
         SKIP: {
             skip "needs perl >= 5.8.9 or >= 5.10.1", 1
                 if $] < 5.008009 or $] eq "5.010000";

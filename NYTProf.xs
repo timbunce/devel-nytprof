@@ -335,6 +335,7 @@ static int disable_profile(pTHX);
 static void finish_profile(pTHX);
 static void open_output_file(pTHX_ char *);
 static int reinit_if_forked(pTHX);
+static int parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *last_line_p);
 static void write_cached_fids(void);
 static void write_src_of_files(pTHX);
 static void write_sub_line_ranges(pTHX);
@@ -1705,6 +1706,34 @@ static I32 subr_entry_ix = 0;
 #define subr_entry_ix_ptr(ix) ((ix) ? SSPTR(ix, subr_entry_t *) : NULL)
 
 
+static void
+append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
+    UV line = 0;
+    SV *fullnamesv;
+    SV *DBsv;
+    char *subname = SvPVX(subr_entry->called_subnam_sv);
+
+    /* If sub is a BEGIN then append the line number to our name
+     * so multiple BEGINs (either explicit or implicit, e.g., "use")
+     * in the same file/package can be distinguished.
+     */
+    if (!subname || *subname != 'B' || strNE(subname,"BEGIN"))
+        return;
+
+    /* get, and delete, the entry for this sub in the PL_DBsub hash */
+    fullnamesv = newSVpvf("%s::%s", subr_entry->called_subpkg_pv, subname);
+    DBsv = hv_delete(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), SvCUR(fullnamesv), 1);
+
+    if (DBsv && parse_DBsub_value(aTHX_ DBsv, NULL, &line, NULL)) {
+        SvREFCNT_inc(DBsv); /* was made mortal by hv_delete */
+        sv_catpvf(subr_entry->called_subnam_sv, "@%u", (unsigned int)line);
+        sv_catpvf(fullnamesv,                   "@%u", (unsigned int)line);
+        hv_store(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), SvCUR(fullnamesv), DBsv, 0);
+    }
+    SvREFCNT_dec(fullnamesv);
+}
+
+
 static char *
 subr_entry_summary(pTHX_ subr_entry_t *subr_entry, int state)
 {
@@ -1817,14 +1846,6 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
     sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, strlen(called_subname_pv), 1);
-
-#ifdef BUG_HUNT
-if (strEQ(called_subname_pv,"CORE::print")) {
-    (void)newHV(); /* adding or removing this newHV() changes the behaviour */
-    subr_entry_destroy(aTHX_ subr_entry);
-    return;
-}
-#endif
 
     if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this called subname from anywhere */
         HV *hv = newHV();
@@ -2385,7 +2406,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     }
 
     if (is_slowop) {
-        /* else already fully handled by subr_entry_setup */
+        /* already fully handled by subr_entry_setup */
     }
     else {
         char *stash_name = NULL;
@@ -2456,7 +2477,10 @@ pp_subcall_profiler(pTHX_ int is_slowop)
             if (trace_level >= 9)
                 sv_dump(sub_sv);
         }
+        
         subr_entry->called_subpkg_pv = stash_name;
+        if (*SvPVX(subr_entry->called_subnam_sv) == 'B')
+            append_linenum_to_begin(aTHX_ subr_entry);
 
         /* if called was xsub then we've already left it, so use depth+1 */
         subr_entry->called_cv_depth = (called_cv) ? CvDEPTH(called_cv)+(is_xs?1:0) : 0;
@@ -2897,6 +2921,24 @@ sub_pkg_filename_sv(pTHX_ char *sub_name, I32 len)
 }
 
 
+static int
+parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *last_line_p) {
+    /* "filename:first-last" */
+    char *filename = SvPV_nolen(sv);
+    char *first = strrchr(filename, ':');
+    char *last = (first) ? strchr(first, '-') : NULL;
+
+    if (!first || !last || !grok_number(first+1, last-first-1, first_line_p))
+        return 0;
+    if (last_line_p)
+        *last_line_p = atoi(++last);
+    if (filename_len_p)
+        *filename_len_p = first - filename;
+
+    return 1;
+}
+
+
 static void
 write_sub_line_ranges(pTHX)
 {
@@ -2972,19 +3014,13 @@ write_sub_line_ranges(pTHX)
     while (NULL != (file_lines_sv = hv_iternextsv(hv, &sub_name, &sub_name_len))) {
         /* "filename:first-last" */
         char *filename = SvPV_nolen(file_lines_sv);
-        char *first = strrchr(filename, ':');
-        char *last = (first) ? strchr(first, '-') : NULL;
-        STRLEN filename_len = first - filename;
+        STRLEN filename_len;
         UV first_line, last_line;
 
-        if (!first || !last || !grok_number(first+1, last-first-1, &first_line)) {
+        if (!parse_DBsub_value(aTHX_ file_lines_sv, &filename_len, &first_line, &last_line)) {
             logwarn("Can't parse %%DB::sub entry for %s '%s'\n", sub_name, filename);
             continue;
         }
-        last_line = atoi(++last);
-
-        if (0 &&!first_line && !last_line && strstr(sub_name, "::BEGIN"))
-            continue;                             /* no point writing these XXX? */
 
         if (!filename_len) {    /* no filename, so presumably a fake entry for xsub */
             /* do we know a filename that contains subs in the same package */
