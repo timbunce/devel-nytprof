@@ -205,7 +205,6 @@ prove:: pure_all
 # not dofile because it's an alias for require
 # (and causes problems like http://www.nntp.perl.org/group/perl.cpan.testers/2009/12/msg6409150.html)
 # not fork because it doesn't make much sense
-# not substcont yet - needs more work XXX
 slowops::
 	$(NOECHO) $(PERL) -e 'require v5.10.0; # only regenerate with 5.10+ to get all ops'
 	$(PERL) -MOpcode=opset_to_ops,opset \
