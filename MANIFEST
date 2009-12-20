@@ -182,7 +182,6 @@ t/test80-recurs.p
 t/test80-recurs.rdt
 t/test80-recurs.t
 t/test81-swash.t
-t/test82-stress.t
 t/zzz.t
 typemap
 xt/test23-strevalxs.p
@@ -190,4 +189,5 @@ xt/test23-strevalxs.rdt
 xt/test23-strevalxs.t
 xt/test45-overload.p
 xt/test71-while.p
+xt/test82-stress.t
 xt/test90-stress.p
