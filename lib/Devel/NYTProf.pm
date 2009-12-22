@@ -606,11 +606,12 @@ For perl versions prior to 5.8.9 and 5.10.1, some implicit subroutine calls
 can't be seen by the I<subroutine> profiler. Technically this affects calls
 made via the various perl C<call_*()> internal APIs.
 
-For example, the C<TIE><whatever> subroutine called by C<tie()>, all calls
-made via operator overloading, and callbacks from XS code, are not seen.
+For example, BEGIN/CHECK/INIT/END blocks, the C<TIE>I<whatever> subroutine
+called by C<tie()>, all calls made via operator overloading, and callbacks from
+XS code, are not seen.
 
-The effect is that time in the subroutines for those calls is
-accumulated by the subs that trigger them. So time spent in calls invoked by
+The effect is that time in those subroutines is accumulated by the
+subs that triggered the call to them. So time spent in calls invoked by
 perl to handle overloading are accumulated by the subroutines that trigger
 overloading (so it is measured, but the cost is dispersed across possibly many
 calling locations).
