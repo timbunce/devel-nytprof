@@ -22,6 +22,8 @@ use List::Util qw(sum);
 
 use Devel::NYTProf::Data;
 use Devel::NYTProf::Util qw(
+    fmt_float
+    fmt_time
     strip_prefix_from_paths
     html_safe_filename
     calculate_median_absolute_deviation
@@ -98,7 +100,7 @@ sub new {
                 replace => "\$self->{filestats}->{\$filestr}->{'calls'}"
             },
             {   pattern => '!~TOTAL_TIME~!',
-                replace => "\$self->{filestats}->{\$filestr}->{'time'}"
+                replace => "fmt_time(\$self->{filestats}->{\$filestr}->{'time'})"
             },
         ],
         callsfunc         => undef,

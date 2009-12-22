@@ -134,8 +134,8 @@ $reporter->set_param(
 <td align="left">!~TOTAL_CALLS~!</td>
 </tr>
 <tr>
-<td class="h" align="right">Total Time</td>
-<td align="left">!~TOTAL_TIME~! seconds</td>
+<td class="h" align="right">Statement Execution Time</td>
+<td align="left">!~TOTAL_TIME~!</td>
 </tr>
 </table>
 };
