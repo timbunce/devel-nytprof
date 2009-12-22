@@ -466,10 +466,12 @@ sub report_src_line {
                 $count, $count == 1 ? "" : "s";
             (my $subname_trimmed = $subname) =~ s/$inc_path_regex//g;
             $html .= sprintf qq{<a %s>%s</a>}, $reporter->href_for_sub($subname), $subname_trimmed;
-            $html .= sprintf qq{, avg %s/call}, fmt_time($incl_time / $count)
+            $html .= sprintf qq{, avg %s/call}, fmt_time(($incl_time+$reci_time) / $count),
                 if $count > 1;
-            $html .= sprintf qq{, max recursion depth %d}, $rec_depth
-                if $rec_depth;
+            if ($rec_depth) {
+                $html .= sprintf qq{, recursion: max depth %d, time %s},
+                    $rec_depth, fmt_time($reci_time);
+            }
             $html;
         } @calls_to;
         $epilogue = sprintf qq{<div class="calls"><div class="calls_out">%s</div></div>}, $epilogue;
