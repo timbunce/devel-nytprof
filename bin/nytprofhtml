@@ -582,9 +582,14 @@ sub output_index_page {
         }, "index-subs-excl.html", $all_subs;
     }
 
-    output_subs_treemap_page($reporter, "subs-treemap-excl.html",
-        "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
-    print $fh q{<br/>You can view subroutines in a treemap of <a href="subs-treemap-excl.html">exclusive time</a>, grouped by package.<br/>};
+    if ($json_any) {
+        output_subs_treemap_page($reporter, "subs-treemap-excl.html",
+            "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
+        print $fh q{<br/>You can view subroutines in a treemap of <a href="subs-treemap-excl.html">exclusive time</a>, grouped by package.<br/>};
+    }
+    else {
+        print $fh q{<br/>(Can't create visual treemap of subroutine exclusive times without the <a href="http://search.cpan.org/dist/JSON-Any/">JSON::Any</a> module.)<br/>};
+    }
 
     output_subs_callgraph_dot_file($reporter, "packages-callgraph.dot", undef, 1);
     print $fh q{<br/>NYTProf also generates call-graph files in }
