@@ -9,6 +9,8 @@ use Data::Dumper;
 
 use Devel::NYTProf::Run qw(profile_this);
 
+my $pre589 = ($] < 5.008009 or $] eq "5.010000");
+
 run_test_group( {
     extra_options => { start => 'begin' },
     extra_test_count => 16,
@@ -30,9 +32,11 @@ run_test_group( {
         isa_ok $profile, 'Devel::NYTProf::Data';
 
         my $subs = $profile->subname_subinfo_map;
+        print "subs: @{[ keys %$subs ]}\n";
 
-        is scalar keys %$subs, 3, "should be 3 subs (found: @{[ keys %$subs ]})";
-        ok $subs->{'main::BEGIN@3'};
+        my $begin = ($pre589) ? 'main::BEGIN' : 'main::BEGIN@3';
+        is scalar keys %$subs, 3, "should be 3 subs";
+        ok $subs->{$begin};
         ok $subs->{'main::RUNTIME'};
         ok $subs->{'main::foo'};
 
@@ -41,8 +45,8 @@ run_test_group( {
         my $fid = $fi[0]->fid;
 
         my @a; # ($file, $fid, $first, $last); 
-        @a = $profile->file_line_range_of_sub('main::BEGIN@3');
-        is "$a[1] $a[2] $a[3]", "$fid 3 6", 'details for main::BEGIN should match';
+        @a = $profile->file_line_range_of_sub($begin);
+        is "$a[1] $a[2] $a[3]", "$fid 3 6", "details for $begin should match";
         @a = $profile->file_line_range_of_sub('main::RUNTIME');
         is "$a[1] $a[2] $a[3]", "$fid 1 1", 'details for main::RUNTIME should match';
         @a = $profile->file_line_range_of_sub('main::foo');
@@ -51,11 +55,10 @@ run_test_group( {
         $subs = $profile->subs_defined_in_file($fid);
         my $sub;
         is scalar keys %$subs, 3, 'should be 3 subs';
-        ok $sub = $subs->{'main::BEGIN@3'};
+        ok $sub = $subs->{$begin};
         SKIP: {
-            skip "needs perl >= 5.8.9 or >= 5.10.1", 1
-                if $] < 5.008009 or $] eq "5.010000";
-            is $sub->calls, 1, 'main::BEGIN should be called 1 time';
+            skip "needs perl >= 5.8.9 or >= 5.10.1", 1 if $pre589;
+            is $sub->calls, 1, "$begin should be called 1 time";
         };
         ok $sub = $subs->{'main::RUNTIME'};
         is $sub->calls, 0, 'main::RUNTIME should be called 0 times';

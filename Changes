@@ -62,8 +62,9 @@ Changes to subroutine profiler:
     linking of call trees. Previously only the calling file and line
     were recorded. (This is more significant than it sounds :)
   Added docs describing how the subroutine profiler works.
-  Multiple BEGIN blocks (i.e., "use") within a package are now distinguished
-    by appending the number of the line they start on.
+  Multiple BEGIN blocks (including "use") within a package are now
+    distinguished by appending the number of the line they start on
+    (for perl 5.8.9+ and 5.10.1+)
 
 Changes to nytprofhtml:
 
