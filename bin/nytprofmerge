@@ -52,7 +52,10 @@ print "Writing $opt_out\n" if $opt_verbose;
 my $out = Devel::NYTProf::FileHandle::open($opt_out, "wb")
     or die "Error opening $opt_out: $!\n";
 
+my $sub_is_anon_in_eval = qr/__ANON__\[\(eval/;
+
 my $next_fid = 1;
+my %fid_to_file;
 my %file_to_fid;
 my %fids = (0 => 0);
 # Similar, but with all evals folded too
@@ -62,14 +65,22 @@ my %eval_to_fid;
 
 my $version;
 my %seen_subs;
-
 my %callers;
+my %map_range;
+
+my @pending_fids;
+my %pending_subs;
 
 sub _time_block_or_line {
     my ($tag, undef, undef, $ticks, $fid, $line, $block_line, $sub_line) = @_;
     my $is_line = $tag eq 'TIME_LINE';
+
     confess("No mapping for $fid") unless defined $fids{$fid};
     $fid = $fids{$fid};
+    # Is this a subroutine (re)defined in an eval?
+    my $mapped_fid = $map_range{$fid}[$line];
+    $fid = $mapped_fid if defined $mapped_fid;
+
     $out->write($is_line ? '+' : '*');
     $out->output_int($ticks, $fid, $line);
     if (!$is_line) {
@@ -121,40 +132,10 @@ my %dispatcher =
 
      NEW_FID => sub {
 	 my (undef, $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
-	 my ($new_fid, $new_eval_fid);
-	 if($eval_fid) {
-	     # Generally, treat every eval as distinct, even at the same location
-	     $new_eval_fid = $fids{$eval_fid};
-	     confess("unknown eval_fid $eval_fid") unless defined $new_eval_fid;
 
-	     $new_fid = $next_fid++;
-	     $fids{$fid} = $new_fid;
+	 return unless $pending_fids[$fid];
+	 my ($new_fid, $new_eval_fid) = @{$pending_fids[$fid]};
 
-	     # But also track the first fid to be allocated at that line of the eval
-	     my $folded_fid = $fids_folded{$eval_fid};
-	     confess("unknown folded eval_fid $eval_fid") unless defined $folded_fid;
-
-	     my $corresponding_eval = $eval_to_fid{"$folded_fid,$eval_line"};
-	     if (!defined $corresponding_eval) {
-		 # Not seen a fid generated in an eval at this location before
-		 $eval_to_fid{"$folded_fid,$eval_line"} = $new_fid;
-		 $fids_folded{$fid} = $new_fid;
-	     } else {
-		 $fids_folded{$fid} = $corresponding_eval;
-	     }
-	 } else {
-	     $new_eval_fid = $eval_fid;
-	     $new_fid = $file_to_fid{$name};
-
-	     if(defined $new_fid) {
-		 $fids_folded{$fid} = $fids{$fid} = $new_fid;
-		 return;
-	     }
-
-	     $new_fid = $next_fid++;
-	     $fids_folded{$fid} = $fids{$fid} = $new_fid;
-	     $file_to_fid{$name} = $fid;
-	 }
 	 $out->write('@');
 	 $out->output_int($new_fid, $new_eval_fid, $eval_line, $flags, $size, $mtime);
 	 $out->output_str($name);
@@ -167,19 +148,21 @@ my %dispatcher =
      },
      SUB_INFO => sub {
 	 my (undef, $fid, $first_line, $last_line, $name) = @_;
-	 confess("No mapping for $fid") unless defined $fids_folded{$fid};
-	 $fid = $fids_folded{$fid};
-	 if(!$seen_subs{"$fid,$name"}++) {
-	     $out->write('s');
-	     $out->output_int($fid);
-	     $out->output_str($name);
-	     $out->output_int($first_line, $last_line, 0);
-	 }
+
+	 my $output_fid = $pending_subs{"$fid,$first_line,$last_line,$name"};
+	 return unless defined $output_fid;
+
+	 $out->write('s');
+	 $out->output_int($output_fid);
+	 $out->output_str($name);
+	 $out->output_int($first_line, $last_line, 0);
      },
      SUB_CALLERS => sub {
 	 my (undef, $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $called, $caller) = @_;
 	 confess("No mapping for $fid") unless defined $fids{$fid};
 	 $fid = $fids{$fid};
+	 my $mapped_fid = $map_range{$fid}[$line];
+	 $fid = $mapped_fid if defined $mapped_fid;
 
 	 if ($callers{"$fid,$line"}{$called}{$caller}) {
 	     my $sum = $callers{"$fid,$line"}{$called}{$caller};
@@ -206,14 +189,102 @@ my %dispatcher =
      },
      SRC_LINE => sub {
 	 my (undef, $fid, $line, $text) = @_;
+	 confess("No mapping for $fid") unless defined $fids{$fid};
+	 $fid = $fids{$fid};
+	 # Is this a subroutine (re)defined in an eval?
+	 my $mapped_fid = $map_range{$fid}[$line];
+	 $fid = $mapped_fid if defined $mapped_fid;
 	 $out->write('S');
-	 $out->output_int($fids{$fid}, $line);
+	 $out->output_int($fid, $line);
 	 $out->output_str($text);
      },
     );
 
 foreach $input (@ARGV) {
     print "Reading $input...\n" if $opt_verbose;
+    @pending_fids = ();
+    %pending_subs = ();
+
+    for_chunks {
+	my $tag = shift;
+	if($tag eq 'NEW_FID') {
+	    my ($fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
+	    my ($new_fid, $new_eval_fid);
+	    if($eval_fid) {
+		# Generally, treat every eval as distinct, even at the same location
+		$new_eval_fid = $fids{$eval_fid};
+		confess("unknown eval_fid $eval_fid") unless defined $new_eval_fid;
+
+		$new_fid = $next_fid++;
+		$fids{$fid} = $new_fid;
+
+		# But also track the first fid to be allocated at that line of the eval
+		my $folded_fid = $fids_folded{$eval_fid};
+		confess("unknown folded eval_fid $eval_fid") unless defined $folded_fid;
+
+		my $corresponding_eval = $eval_to_fid{"$folded_fid,$eval_line"};
+		if (!defined $corresponding_eval) {
+		    # Not seen a fid generated in an eval at this location before
+		    $eval_to_fid{"$folded_fid,$eval_line"} = $new_fid;
+		    $fids_folded{$fid} = $new_fid;
+		} else {
+		    $fids_folded{$fid} = $corresponding_eval;
+		}
+	    } else {
+		$new_eval_fid = $eval_fid;
+		$new_fid = $file_to_fid{$name};
+
+		if(defined $new_fid) {
+		    $fids_folded{$fid} = $fids{$fid} = $new_fid;
+		    return;
+		}
+
+		$new_fid = $next_fid++;
+		$fids_folded{$fid} = $fids{$fid} = $new_fid;
+		$file_to_fid{$name} = $fid;
+	    }
+	    $fid_to_file{$new_fid} = $name;
+	    $pending_fids[$fid] = [$new_fid, $new_eval_fid];
+	} elsif ($tag eq 'SUB_INFO') {
+	    my ($fid, $first_line, $last_line, $name) = @_;
+	    my $output_fid;
+	    if ($name =~ $sub_is_anon_in_eval) {
+		confess("No mapping for $fid") unless defined $fids{$fid};
+		$output_fid = $fids{$fid};
+		$seen_subs{"$output_fid,$name"} ||= "$first_line,$last_line";
+	    } else {
+		confess("No mapping for $fid") unless defined $fids_folded{$fid};
+		my $folded = $fids_folded{$fid};
+		my $seen = $seen_subs{"$folded,$name"};
+		if (defined $seen && $seen ne "$first_line,$last_line") {
+		    # Warn that we are not folding
+
+		    # Carry on, and output a SUB_INFO block for this fid
+		    $output_fid = $fid;
+		} else {
+		    # This subroutine has be (re)defined in two distinct
+		    # evals, but appears to be identical. So for this lines
+		    # range in the second eval, treat profiling data as if it
+		    # came from the fid of the first eval, so that all calls
+		    # to the sub are collated.
+
+		    # Have to use the mapped fid as the key to this hash, as
+		    # only the mapped fids are are unique
+		    my $mapped_fid = $fids{$fid};
+		    $map_range{$mapped_fid}[$_] = $folded
+			for $first_line .. $last_line;
+
+		    return if defined $seen;
+
+		    $seen_subs{"$folded,$name"} = "$first_line,$last_line";
+		    $output_fid = $folded;
+		}
+	    }
+	    $pending_subs{"$fid,$first_line,$last_line,$name"} = $output_fid;
+	}
+    } filename => $input;
+
+    print "Re-reading $input...\n" if $opt_verbose;
     for_chunks {
 	my $sub = $dispatcher{$_[0]}
             or die "Unknown tag '$_[0]' in $input\n";
