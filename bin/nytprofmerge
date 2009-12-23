@@ -124,7 +124,10 @@ my %dispatcher =
 	 } else {
 	     $new_eval_fid = $eval_fid;
 	     $new_fid = $file_to_fid{$name};
-	     return if defined $new_fid;
+	     if(defined $new_fid) {
+		 $fids{$fid} = $new_fid;
+		 return;
+	     }
 
 	     $new_fid = $next_fid++;
 	     $fids{$fid} = $new_fid;
@@ -142,15 +145,18 @@ my %dispatcher =
      },
      SUB_INFO => sub {
 	 my (undef, $fid, $first_line, $last_line, $name) = @_;
+	 confess("No mapping for $fid") unless defined $fids{$fid};
+	 $fid = $fids{$fid};
 	 if(!$seen_subs{"$fid,$name"}++) {
 	     $out->write('s');
-	     $out->output_int($fids{$fid});
+	     $out->output_int($fid);
 	     $out->output_str($name);
 	     $out->output_int($first_line, $last_line, 0);
 	 }
      },
      SUB_CALLERS => sub {
 	 my (undef, $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $called, $caller) = @_;
+	 confess("No mapping for $fid") unless defined $fids{$fid};
 	 $fid = $fids{$fid};
 
 	 if ($callers{"$fid,$line"}{$called}{$caller}) {
