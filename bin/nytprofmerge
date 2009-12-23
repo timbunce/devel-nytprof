@@ -68,6 +68,8 @@ my %callers;
 sub _time_block_or_line {
     my ($tag, undef, undef, $ticks, $fid, $line, $block_line, $sub_line) = @_;
     my $is_line = $tag eq 'TIME_LINE';
+    confess("No mapping for $fid") unless defined $fids{$fid};
+    $fid = $fids{$fid};
     $out->write($is_line ? '+' : '*');
     $out->output_int($ticks, $fid, $line);
     if (!$is_line) {
