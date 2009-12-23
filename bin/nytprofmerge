@@ -55,6 +55,10 @@ my $out = Devel::NYTProf::FileHandle::open($opt_out, "wb")
 my $next_fid = 1;
 my %file_to_fid;
 my %fids = (0 => 0);
+# Similar, but with all evals folded too
+my %fids_folded = (0 => 0);
+
+my %eval_to_fid;
 
 my $version;
 my %seen_subs;
@@ -117,20 +121,36 @@ my %dispatcher =
 	 my (undef, $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
 	 my ($new_fid, $new_eval_fid);
 	 if($eval_fid) {
+	     # Generally, treat every eval as distinct, even at the same location
 	     $new_eval_fid = $fids{$eval_fid};
 	     confess("unknown eval_fid $eval_fid") unless defined $new_eval_fid;
+
 	     $new_fid = $next_fid++;
 	     $fids{$fid} = $new_fid;
+
+	     # But also track the first fid to be allocated at that line of the eval
+	     my $folded_fid = $fids_folded{$eval_fid};
+	     confess("unknown folded eval_fid $eval_fid") unless defined $folded_fid;
+
+	     my $corresponding_eval = $eval_to_fid{"$folded_fid,$eval_line"};
+	     if (!defined $corresponding_eval) {
+		 # Not seen a fid generated in an eval at this location before
+		 $eval_to_fid{"$folded_fid,$eval_line"} = $new_fid;
+		 $fids_folded{$fid} = $new_fid;
+	     } else {
+		 $fids_folded{$fid} = $corresponding_eval;
+	     }
 	 } else {
 	     $new_eval_fid = $eval_fid;
 	     $new_fid = $file_to_fid{$name};
+
 	     if(defined $new_fid) {
-		 $fids{$fid} = $new_fid;
+		 $fids_folded{$fid} = $fids{$fid} = $new_fid;
 		 return;
 	     }
 
 	     $new_fid = $next_fid++;
-	     $fids{$fid} = $new_fid;
+	     $fids_folded{$fid} = $fids{$fid} = $new_fid;
 	     $file_to_fid{$name} = $fid;
 	 }
 	 $out->write('@');
@@ -145,8 +165,8 @@ my %dispatcher =
      },
      SUB_INFO => sub {
 	 my (undef, $fid, $first_line, $last_line, $name) = @_;
-	 confess("No mapping for $fid") unless defined $fids{$fid};
-	 $fid = $fids{$fid};
+	 confess("No mapping for $fid") unless defined $fids_folded{$fid};
+	 $fid = $fids_folded{$fid};
 	 if(!$seen_subs{"$fid,$name"}++) {
 	     $out->write('s');
 	     $out->output_int($fid);
