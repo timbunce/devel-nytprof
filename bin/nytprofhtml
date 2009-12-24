@@ -585,7 +585,7 @@ sub output_index_page {
     if ($json_any) {
         output_subs_treemap_page($reporter, "subs-treemap-excl.html",
             "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
-        print $fh q{<br/>You can view subroutines in a treemap of <a href="subs-treemap-excl.html">exclusive time</a>, grouped by package.<br/>};
+        print $fh q{<br/>You can view a <a href="subs-treemap-excl.html">treemap of subroutine exclusive time</a>, grouped by package.<br/>};
     }
     else {
         print $fh q{<br/>(Can't create visual treemap of subroutine exclusive times without the <a href="http://search.cpan.org/dist/JSON-Any/">JSON::Any</a> module.)<br/>};
@@ -857,15 +857,6 @@ sub output_subs_treemap_page {
                 $area_sub || sub { shift->excl_time }, 0);
         }
     };
-    push @specs, {
-        id => 2,
-        title => "Treemap of subroutine inclusive time",
-        get_data => sub {
-            package_subinfo_map_to_tm_data(
-                $profile->package_subinfo_map(0,1),
-                sub { shift->incl_time }, 0);
-        }
-    } if 0; # XXX overlays first treemap!
 
     my @root_ids;
     for my $spec (@specs) {
@@ -876,7 +867,7 @@ sub output_subs_treemap_page {
         );
     }
 
-    print $fh qq{<div class="vis_header"><br/>Boxes represent time spent in a subroutine. Coloring represents packages. Click to drill-down into package hierarchy.</div>\n};
+    print $fh qq{<div class="vis_header"><br/>Boxes represent time spent in a subroutine. Coloring represents packages. Click to drill-down into package hierarchy, reload page to reset.</div>\n};
     print $fh qq{<div id="infovis">\n};
     print $fh qq{<br /><div id="$_"></div>\n} for @root_ids;
     print $fh qq{</div>\n};
