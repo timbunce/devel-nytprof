@@ -4,12 +4,16 @@ Devel::NYTProf::Changes - List of significant changes to Devel::NYTProf
 
 (As of $Date$ $Revision$)
 
-=head2 Changes in Devel::NYTProf 2.11
+=cut
 
-XXX subroutine profiler docs need update
-XXX add u key to treemap to trigger moving 'up' a level
-XXX add "calls N subs" to treemap mouseover box
-XXX string eval merging - must allow at least viewing of source for called subs defined in a nested eval
+TODO soonish
+
+subroutine profiler docs need update
+add u key to treemap to trigger moving 'up' a level
+add "calls N subs" to treemap mouseover box
+string eval merging - must allow at least viewing of source for called subs defined in a nested eval
+
+=head2 Changes in Devel::NYTProf 3.00 (svn r998) 24th Dec 2009
 
   Note: The file format has changed. Old files can't be read.
 
