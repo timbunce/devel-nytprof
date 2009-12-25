@@ -15,7 +15,8 @@ string eval merging - must allow at least viewing of source for called subs defi
 
 =head2 Changes in Devel::NYTProf 3.01
 
-  Added documentation to nytprofcg.
+  Fixed version number in nytprofmerge.
+  Added documentation to nytprofcg and nytprofmerge.
   Minor updates to nytprofcsv documentation.
 
 =head2 Changes in Devel::NYTProf 3.00 (svn r998) 24th Dec 2009
