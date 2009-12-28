@@ -172,7 +172,9 @@ statement executed in foo()>! Here's another example:
 
 After the first time around the loop, any further time spent evaluating the
 condition (waiting for input in this example) would be be recorded as having
-been spent I<on the last statement executed in the loop>!
+been spent I<on the last statement executed in the loop>! (Until perl bug
+#60954 is fixed this problem still applies to some loops. For more information
+see L<http://rt.perl.org/rt3/Ticket/Display.html?id=60954>)
 
 NYTProf avoids these problems by intercepting the opcodes which indicate that
 control is returning into some previous statement and adjusting the profile
@@ -218,7 +220,7 @@ be useful when analyzing the performance. It also records the filename and line
 ranges of all the subroutines.
 
 NYTProf can profile applications that fork, and does so with no loss of
-performance. There's (now) no special 'allowfork' mode. It just works.
+performance.
 NYTProf detects the fork and starts writing a new profile file with the pid
 appended to the filename.
 
@@ -261,7 +263,8 @@ Or you can avoid the need to add the -d option at all by using the C<PERL5OPT> e
   PERL5OPT=-d:NYTProf
 
 That's also very handy when you can't alter the perl command line being used to
-run the script you want to profile.
+run the script you want to profile. Usually you'll want to enable the
+L</addpid=1> option to ensure any nested invocations of perl don't overwrite the profile.
 
 =head1 NYTPROF ENVIRONMENT VARIABLE
 
@@ -605,8 +608,6 @@ The L<Devel::NYTProf::Reader> module provides an interface for generating
 arbitrary reports.  This means that you can implement your own output format in
 perl. (Though the module is in a state of flux and may be deprecated soon.)
 
-There is currently no tool to merge multiple data files into one.
-
 Included in the bin directory of this distribution are some scripts which
 turn the raw profile data into more useful formats:
 
@@ -623,6 +624,10 @@ L<http://kcachegrind.sourceforge.net>
 
 Creates attractive, richly annotated, and fully cross-linked html
 reports (including statistics, source code and color highlighting).
+
+=head2 nytprofmerge
+
+Reads multiple profile data files and writes out a new file containing the merged profile data.
 
 =head1 LIMITATIONS
 
@@ -885,11 +890,23 @@ it's very likely to be deprecated in a future release).
 L<Devel::NYTProf::ReadStream> is the module that lets you read a profile data
 file as a stream of chunks of data.
 
-=head1 AUTHOR
+=head1 AUTHORS AND CONTRIBUTORS
 
-B<Adam Kaplan>, C<< <akaplan at nytimes.com> >>.
-B<Tim Bunce>, L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>.
-B<Steve Peters>, C<< <steve at fisharerojo.org> >>.
+B<Tim Bunce> (L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>)
+leads the project and has done most of the development work thus far.
+
+B<Nicholas Clark> contributed zip compression and C<nytprofmerge>.
+B<Chia-liang Kao> contributed C<nytprofcg>.
+B<Peter (Stig) Edwards> contributed the VMS port.
+B<Jan Dubois> contributed the Windows port.
+B<Gisle Aas> contributed the Devel::NYTProf::ReadStream module.
+B<Steve Peters> contributed greater perl version portability and use of POSIX
+high-resolution clocks.
+Other contributors are noted in the Changes file.
+
+Many thanks to B<Adam Kaplan> who created C<NYTProf> initially by forking
+C<Devel::FastProf> adding reporting from C<Devel::Cover> and a test suite.
+For more details see L</HISTORY> below.
 
 =head1 COPYRIGHT AND LICENSE
 
@@ -902,7 +919,7 @@ at your option, any later version of Perl 5 you may have available.
 
 =head1 HISTORY
 
-A bit of history and a shameless plug...
+A bit of history (and a shameless plug from Adam)...
 
 NYTProf stands for 'New York Times Profiler'. Indeed, this module was initially
 developed from Devel::FastProf by The New York Times Co. to help our developers

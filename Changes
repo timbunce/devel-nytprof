@@ -19,6 +19,8 @@ string eval merging - must allow at least viewing of source for called subs defi
   Fixed version number in nytprofmerge.
 
   Added documentation to nytprofcg and nytprofmerge.
+
+  Updated NYTProf docs, including noting major contributors.
   Updated docs to fix assorted typos, thanks to Jonathan Yu.
   Updated nytprofcsv documentation.
 
