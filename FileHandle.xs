@@ -1,18 +1,9 @@
 /* vim: ts=8 sw=4 expandtab:
  * ************************************************************************
  * This file is part of the Devel::NYTProf package.
- * Copyright 2008 Adam J. Kaplan, The New York Times Company.
- * Copyright 2008 Tim Bunce, Ireland.
- * Released under the same terms as Perl 5.8
  * See http://search.cpan.org/dist/Devel-NYTProf/
- *
- * Contributors:
- * Adam Kaplan, akaplan at nytimes.com
- * Tim Bunce, http://www.tim.bunce.name and http://blog.timbunce.org
- * Steve Peters, steve at fisharerojo.org
- *
- * ************************************************************************
- * $Id$
+ * For Copyright see lib/Devel/NYTProf.pm
+ * For contribution history see repository logs.
  * ************************************************************************
  */
 
@@ -606,12 +597,12 @@ SV *handle
 SV *string
     PREINIT:
         STRLEN len;
-	char *p;
+        char *p;
         NYTP_file fh;
     CODE:
         if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
             croak("handle is not a Devel::NYTProf::FileHandle");
-	p = SvPVbyte(string, len);
+        p = SvPVbyte(string, len);
         fh = (NYTP_file)SvPVX(SvRV(handle));
         RETVAL = NYTP_write(fh, p, len);
     OUTPUT:
@@ -656,11 +647,11 @@ SV *handle
 SV *value
     PREINIT:
         STRLEN len;
-	char *p;
+        char *p;
         NYTP_file fh;
     CODE:
         if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
             croak("handle is not a Devel::NYTProf::FileHandle");
         fh = (NYTP_file)SvPVX(SvRV(handle));
         p = SvPV(value, len);
-	output_str(fh, p, SvUTF8(value) ? -(I32)len : (I32) len);
+        output_str(fh, p, SvUTF8(value) ? -(I32)len : (I32) len);
