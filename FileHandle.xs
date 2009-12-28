@@ -460,20 +460,6 @@ NYTP_write(NYTP_file ofile, const void *buffer, size_t len) {
 }
 
 int
-NYTP_scanf(NYTP_file ofile, const char *format, ...) {
-    int retval;
-    va_list args;
-
-    CROAK_IF_NOT_STDIO(ofile, "NYTP_scanf");
-
-    va_start(args, format);
-    retval = vfscanf(ofile->file, format, args);
-    va_end(args);
-
-    return retval;
-}
-
-int
 NYTP_printf(NYTP_file ofile, const char *format, ...) {
     int retval;
     va_list args;

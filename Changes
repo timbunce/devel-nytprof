@@ -15,10 +15,12 @@ string eval merging - must allow at least viewing of source for called subs defi
 
 =head2 Changes in Devel::NYTProf 3.01
 
+  Fixed (removed) use of vfscanf() which broke on Windows.
   Fixed version number in nytprofmerge.
-  Fixed typos in docs thanks to Jonathan Yu.
+
   Added documentation to nytprofcg and nytprofmerge.
-  Minor updates to nytprofcsv documentation.
+  Updated docs to fix assorted typos, thanks to Jonathan Yu.
+  Updated nytprofcsv documentation.
 
 =head2 Changes in Devel::NYTProf 3.00 (svn r998) 24th Dec 2009
 

@@ -3451,20 +3451,25 @@ load_profile_data_from_stream(SV *cb)
     SV *cb_TIME_LINE_tag = NULL;
     SV *cb_args[12];  /* must be large enough for the largest callback argument list */
 
-    av_extend(fid_fileinfo_av, 64);               /* grow it up front. */
+    av_extend(fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(fid_srclines_av, 64);
     av_extend(fid_line_time_av, 64);
 
-    if (2 != NYTP_scanf(in, "NYTProf %d %d\n", &file_major, &file_minor)) {
-        croak("NYTProf data format error while parsing header");
-    }
-    if (file_major != 3)
-        croak("NYTProf data format version %d.%d is not supported by NYTProf %s (which expects version %d.%d)",
-            file_major, file_minor, XS_VERSION, NYTP_FILE_MAJOR_VERSION, NYTP_FILE_MINOR_VERSION);
+    if (1) {
+        char header[7+1+3+1+3+1+1];
 
-    if (file_minor > NYTP_FILE_MINOR_VERSION)
-        warn("NYTProf data format version %d.%d is newer than that understood by this NYTProf %s, so errors are likely",
-            file_major, file_minor, XS_VERSION);
+        if (NULL == NYTP_gets(in, header, sizeof(header)))
+            croak("NYTProf data format error while reading header");
+        if (2 != sscanf(header, "NYTProf %d %d\n", &file_major, &file_minor))
+            croak("NYTProf data format error while parsing header");
+        if (file_major != 3)
+            croak("NYTProf data format version %d.%d is not supported by NYTProf %s (which expects version %d.%d)",
+                file_major, file_minor, XS_VERSION, NYTP_FILE_MAJOR_VERSION, NYTP_FILE_MINOR_VERSION);
+
+        if (file_minor > NYTP_FILE_MINOR_VERSION)
+            warn("NYTProf data format version %d.%d is newer than that understood by this NYTProf %s, so errors are likely",
+                file_major, file_minor, XS_VERSION);
+    }
 
     if (cb && SvROK(cb)) {
         input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
