@@ -629,7 +629,7 @@ returns the current value of parameter.
 
 Basic Parameters:
 
-  Paramter       Description
+  Parameter       Description
   ------------   --------------
   suffix         The file suffix for the output file
   header         Text printed at the start of the output file

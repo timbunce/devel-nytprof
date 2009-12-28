@@ -476,7 +476,7 @@ SEGV, BUS) and ensure a usable by executing:
     exit 1;
 
 You can also specify which signals to catch in this way by listing them,
-seperated by commas, as the value of the option (case is not significant):
+separated by commas, as the value of the option (case is not significant):
 
     sigexit=int,hup
 

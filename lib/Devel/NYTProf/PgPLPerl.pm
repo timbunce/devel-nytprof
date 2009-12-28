@@ -68,7 +68,7 @@ but I've not had time to dig sufficiently deeply into that yet.)
 =head2 Explicit call to finish_profile needed
 
 Postgres <= 8.4 doesn't execute END blocks when it shuts down, so NYTProf
-doesn't get a chance to terminate the profile cleanly. To get a useable profile
+doesn't get a chance to terminate the profile cleanly. To get a usable profile
 you need to explicitly call finish_profile() in your plperl code.
 
 I've submitted a bug report asking for END blocks to be run at shutdown:
