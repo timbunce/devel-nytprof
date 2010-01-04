@@ -32,10 +32,9 @@ run_test_group( {
         isa_ok $profile, 'Devel::NYTProf::Data';
 
         my $subs = $profile->subname_subinfo_map;
-        print "subs: @{[ keys %$subs ]}\n";
 
         my $begin = ($pre589) ? 'main::BEGIN' : 'main::BEGIN@3';
-        is scalar keys %$subs, 3, "should be 3 subs";
+        is scalar keys %$subs, 3, "should be 3 subs (got @{[ keys %$subs ]})";
         ok $subs->{$begin};
         ok $subs->{'main::RUNTIME'};
         ok $subs->{'main::foo'};
