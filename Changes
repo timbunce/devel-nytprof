@@ -13,6 +13,11 @@ add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
 string eval merging - must allow at least viewing of source for called subs defined in a nested eval
 
+=head2 Changes in Devel::NYTProf 3.02
+
+  Updated NYTProf docs to include a note about timing on Windows.
+  Changed some tests to be more informative on failure.
+
 =head2 Changes in Devel::NYTProf 3.01 (svn r1005) 28th Dec 2009
 
   Fixed (removed) use of vfscanf() which broke on Windows.

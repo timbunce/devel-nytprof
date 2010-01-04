@@ -516,7 +516,7 @@ sub normalize_variables {
         }
     }
 
-    # zero sub into and sub caller times
+    # zero sub info and sub caller times
     $_->normalize_for_test for values %{ $self->{sub_subinfo} };
     $_->normalize_for_test for $self->all_fileinfos;
 

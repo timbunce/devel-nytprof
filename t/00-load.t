@@ -2,13 +2,11 @@ use Test::More tests => 2;
 
 use Config;
 
-# we note the time in the test log here (the first test) and in t/zzz.t
-# so we can judge how fast the set of tests ran and this the rough speed of the system
-diag("Tests started at ". localtime(time));
-
 use_ok( 'Devel::NYTProf::Core' );
 
-diag( "Testing Devel::NYTProf $Devel::NYTProf::Core::VERSION on perl $] $Config{archname}" );
+# we note the time in the test log here (the first test) and in t/zzz.t
+# so we can judge how fast the set of tests ran and this the rough speed of the system
+diag( "Testing Devel::NYTProf $Devel::NYTProf::Core::VERSION started at ".localtime(time) );
 
 use_ok( 'Devel::NYTProf::Constants', qw(
     NYTP_DEFAULT_COMPRESSION NYTP_ZLIB_VERSION
@@ -17,6 +15,13 @@ use_ok( 'Devel::NYTProf::Constants', qw(
 diag( sprintf "Compression: default level is %d, zlib version %s",
     NYTP_DEFAULT_COMPRESSION(), NYTP_ZLIB_VERSION()
 );
+
+diag "--- Perl $] Config on $Config{archname}:";
+diag "\t$_: ".(defined $Config{$_} ? $Config{$_} : '(undef)')
+    for qw(
+        privlibexp archlibexp vendorlibexp
+        d_gettimeod
+    );
 
 if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x) {
     diag("--- Xen platform issues:");

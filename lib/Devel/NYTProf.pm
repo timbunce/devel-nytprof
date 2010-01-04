@@ -843,6 +843,18 @@ Note that processor affinity is inherited by child processes, so if the process
 you're profiling spawns cpu intensive sub processes then your process will be
 impacted by those more than it otherwise would.
 
+=head3 Windows
+
+On Windows NYTProf uses Time::HiRes which uses the windows
+QueryPerformanceCounter() API with some extra logic to adjust for the current
+clock speed and try to resync the raw counter to wallclock time every so often
+(every 30 seconds or if the timer drifts by more than 0.5 of a seconds).
+This extra logic may lead to occasional spurious results.
+
+(It would be great if someone could contribute a patch to NYTProf to use
+QueryPerformanceCounter() directly and avoid the overheads and resyncing
+behaviour of Time::HiRes.)
+
 =head2 Virtual Machines
 
 I recommend you don't do performance profiling while running in a
