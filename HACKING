@@ -381,3 +381,7 @@ for xsubs & opcodes, add a list of subs that it called (typically none).
 That would be handy because currently calls from xsubs & opcodes appear in the
 reports at the line of the last _perl_ statement executed, and not in the fake
 'stub' that we add to the end of the package source.
+
+Use gethrtime() on platforms that support it.
+http://developers.sun.com/solaris/articles/time_stamp.html
+http://www.informit.com/guides/content.aspx?g=cplusplus&seqNum=332

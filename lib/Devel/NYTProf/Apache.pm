@@ -11,7 +11,7 @@
 ###########################################################
 package Devel::NYTProf::Apache;
 
-our $VERSION = '3.00';
+our $VERSION = '3.01';
 
 BEGIN {
 

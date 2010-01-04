@@ -17,7 +17,7 @@ use Devel::NYTProf::Core;
 require Devel::NYTProf::FileHandle;
 use Devel::NYTProf::ReadStream qw(for_chunks);
 
-our $VERSION = '3.00';
+our $VERSION = '3.01';
     
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
