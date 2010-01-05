@@ -15,8 +15,10 @@ string eval merging - must allow at least viewing of source for called subs defi
 
 =head2 Changes in Devel::NYTProf 3.02
 
-  Updated NYTProf docs to include a note about timing on Windows.
   Changed some tests to be more informative on failure.
+
+  Updated docs to include a note about timing on Windows.
+  Updated docs to include a section about making NYTProf faster.
 
 =head2 Changes in Devel::NYTProf 3.01 (svn r1005) 28th Dec 2009
 

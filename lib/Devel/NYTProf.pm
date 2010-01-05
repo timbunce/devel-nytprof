@@ -421,7 +421,7 @@ The opcodes are currently profiled using their internal names, so C<printf> is C
 and the C<-x> file test is C<fteexec>. This may change in future.
 
 Opcodes that call subroutines, perhaps by triggering a FETCH from a tied
-variable, currently appear in the call tree as the call of the sub. This is
+variable, currently appear in the call tree as the caller of the sub. This is
 likely to change in future.
 
 =head2 usecputime=1
@@ -598,6 +598,23 @@ classes is executed on a unicode string you'll find profile data like this:
 
 =for comment
 No doubt more odd cases will be added here over time.
+
+=head1 MAKING NYTPROF FASTER
+
+You can reduce the cost of profiling by adjusting some options. The trade-off
+is reduced detail and/or accuracy in reports.
+
+If you don't need statement-level profiling then you can disable it via L</stmts=0>.
+If you do need it but don't mind loosing block-level timings then set L</blocks=0>.
+If you want need still more speed then set L</leave=0> to disable the
+adjustments made for statements that 'leave' the current control flow (doing
+this I<will> make timings for some kinds of statements less accurate).
+
+If you don't need subroutine profiling then you can disable it via L</subs=0>.
+If you do need it but don't need timings for perl opcodes then set L</slowops=0>.
+
+Another approach is to only enable NYTProf in the sections of code that
+interest you. See L</RUN-TIME CONTROL OF PROFILING> for more details.
 
 =head1 REPORTS
 

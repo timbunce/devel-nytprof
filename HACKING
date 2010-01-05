@@ -336,7 +336,8 @@ ASAP (to avoid problems with scripts that chdir).
 
 Add (very) basic nytprofhtml test (ie it runs and produces output) so we check the VERSION has been updated.
 
-called by list: "by $subname line $line of $file" make the file not include the inc portion
+In the called by list in html: "by $subname line $line of $file"
+make the file not include the @INC portion
 
 Monitor and report when method cache is invalidated. Watch generation number
 and output a tag when it changes. Report locations of changes. Highlight those
@@ -359,7 +360,7 @@ reports can include a list of autoloaded subs.
 Check if pp_leavegiven and pp_leavewhen need handling in init_profiler().
 
 Copy the nytprof.out file into the output report dir, so a report is more
-'self-contained' and can be archives and thrown around as a tarball/zip and
+'self-contained' and can be archived and thrown around as a tarball/zip and
 still used for further analysis.
 
 The pseudo-sub "main::BEGIN" doesn't appear to be 'called' in NYTProf data.
@@ -385,3 +386,7 @@ reports at the line of the last _perl_ statement executed, and not in the fake
 Use gethrtime() on platforms that support it.
 http://developers.sun.com/solaris/articles/time_stamp.html
 http://www.informit.com/guides/content.aspx?g=cplusplus&seqNum=332
+
+Use clock_gettime clone on OS X?
+http://developer.apple.com/mac/library/qa/qa2004/qa1398.html
+http://le-depotoir.googlecode.com/svn/trunk/misc/clock_gettime_stub.c
