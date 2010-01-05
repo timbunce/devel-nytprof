@@ -1839,10 +1839,29 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     if (subr_call_key_len >= sizeof(subr_call_key))
         croak("panic: NYTProf buffer overflow on %s\n", subr_call_key);
 
-    if ( (sprintf(called_subname_pv, "%s::%s", subr_entry->called_subpkg_pv,
-                (subr_entry->called_subnam_sv) ? SvPV_nolen(subr_entry->called_subnam_sv) : "(null)")
-            >= sizeof(called_subname_pv)) )
-        croak("~ called_subname_pv buffer overflow on '%s'\n", called_subname_pv);
+    /* compose called_subname_pv as "${pkg}::${sub}" avoiding sprintf */
+    STMT_START {
+        STRLEN len;
+        char *p;
+        char *called_subname_pvp = called_subname_pv;
+
+        p = subr_entry->called_subpkg_pv;
+        while (*p)
+            *called_subname_pvp++ = *p++;
+        *called_subname_pvp++ = ':';
+        *called_subname_pvp++ = ':';
+        if (subr_entry->called_subnam_sv) {
+            p = SvPV(subr_entry->called_subnam_sv, len);
+        }
+        else {
+            p = "(null)"; len = 6;
+        }
+        memcpy(called_subname_pvp, p, len);
+        called_subname_pvp += len;
+        *called_subname_pvp++ = '\0';
+        if (called_subname_pvp >= called_subname_pv+sizeof(called_subname_pv))
+            croak("panic: called_subname_pv buffer overflow on '%s'\n", called_subname_pv);
+    } STMT_END;
 
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
     sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, strlen(called_subname_pv), 1);
