@@ -267,6 +267,7 @@ static struct NYTP_int_options_t options[] = {
 
 /* time tracking */
 static struct tms start_ctime, end_ctime;
+
 #ifdef HAS_CLOCK_GETTIME
 /* http://www.freebsd.org/cgi/man.cgi?query=clock_gettime
  * http://webnews.giga.net.tw/article//mailing.freebsd.performance/710
@@ -284,6 +285,24 @@ typedef struct timespec time_of_day_t;
 } STMT_END
 
 #else                                             /* !HAS_CLOCK_GETTIME */
+
+#ifdef HAS_MACH_TIME
+
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+
+mach_timebase_info_data_t  our_timebase;
+typedef uint64_t time_of_day_t;
+
+#  define CLOCKS_PER_TICK 10000000                /* 10 million - 100ns */
+#  define get_time_of_day(into) if(!profile_zero) into = mach_absolute_time()
+#  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
+    overflow = 0; \
+    if( our_timebase.denom == 0 ) mach_timebase_info(&our_timebase); \
+    ticks = (e-s) * our_timebase.numer / our_timebase.denom / 100; \
+} STMT_END
+
+#else                                             /* !HAS_MACH_TIME */
 
 #ifdef HAS_GETTIMEOFDAY
 typedef struct timeval time_of_day_t;
@@ -304,6 +323,8 @@ typedef UV time_of_day_t[2];
 } STMT_END
 #endif
 #endif
+#endif
+
 static time_of_day_t start_time;
 static time_of_day_t end_time;
 
