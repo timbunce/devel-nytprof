@@ -1421,14 +1421,15 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
     if (usecputime) {
         times(&start_ctime);
+        /* insufficient accuracy for cumulative_overhead_ticks */
     }
     else {
         get_time_of_day(start_time);
-    }
 
-    /* measure time we've spent measuring so we can discount it */
-    get_ticks_between(end_time, start_time, elapsed, overflow);
-    cumulative_overhead_ticks += elapsed;
+        /* measure time we've spent measuring so we can discount it */
+        get_ticks_between(end_time, start_time, elapsed, overflow);
+        cumulative_overhead_ticks += elapsed;
+    }
 
     SETERRNO(saved_errno, 0);
     return;
@@ -2644,7 +2645,12 @@ enable_profile(pTHX_ char *file)
         sv_setiv(PL_DBsingle, 1);
 
     /* discard time spent since profiler was disabled */
-    get_time_of_day(start_time);
+    if (usecputime) {
+        times(&start_ctime);
+    }
+    else {
+        get_time_of_day(start_time);
+    }
 
     return prev_is_profiling;
 }
