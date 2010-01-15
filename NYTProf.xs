@@ -1925,11 +1925,11 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
         if (subr_entry->called_subpkg_pv) { /* note that a sub in this package was called */
             SV *pf_sv = *hv_fetch(pkg_fids_hv, subr_entry->called_subpkg_pv, (I32)strlen(subr_entry->called_subpkg_pv), 1);
-            if (!SvOK(pf_sv)) { /* log when first created */
+            if (SvTYPE(pf_sv) == SVt_NULL) { /* log when first created */
+                SvUPGRADE(pf_sv, SVt_PV);
                 if (trace_level >= 5)
                     logwarn("Noting that subs in package '%s' were called\n",
                         subr_entry->called_subpkg_pv);
-                sv_setsv(pf_sv, &PL_sv_no);
             }
         }
     }
@@ -3015,7 +3015,7 @@ write_sub_line_ranges(pTHX)
             continue;
 
         /* already got a filename for this package XXX should allow multiple */
-        if (SvTRUE(pkg_filename_sv))
+        if (SvOK(pkg_filename_sv))
             continue;
 
         /* ignore if filename is empty (eg xs) */
@@ -3041,16 +3041,19 @@ write_sub_line_ranges(pTHX)
         char *runtime = "main::RUNTIME";
 	const I32 runtime_len = strlen(runtime);
         SV *sv = *hv_fetch(hv, runtime, runtime_len, 1);
-        char *filename;
+
         /* get name of file that contained first profiled sub in 'main::' */
         SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ runtime, runtime_len);
         if (!pkg_filename_sv) { /* no subs in main, so guess */
-            filename = hashtable.first_inserted->key;
+            sv_setpvn(sv, hashtable.first_inserted->key, hashtable.first_inserted->key_len);
+        }
+        else if (SvOK(pkg_filename_sv)) {
+            sv_setsv(sv, pkg_filename_sv);
         }
         else {
-            filename = SvPV_nolen(pkg_filename_sv);
+            sv_setpvn(sv, "", 0);
         }
-        sv_setpvf(sv, "%s:%d-%d", filename, 1, 1);
+        sv_catpvf(sv, ":%d-%d", 1, 1);
     }
 
     /* Iterate over PL_DBsub writing out fid and source line range of subs.
@@ -3071,7 +3074,7 @@ write_sub_line_ranges(pTHX)
         if (!filename_len) {    /* no filename, so presumably a fake entry for xsub */
             /* do we know a filename that contains subs in the same package */
             SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name, sub_name_len);
-            if (pkg_filename_sv && SvTRUE(pkg_filename_sv)) {
+            if (pkg_filename_sv && SvOK(pkg_filename_sv)) {
                 filename = SvPV(pkg_filename_sv, filename_len);
             if (trace_level >= 2)
                 logwarn("Sub %s is xsub, we'll associate it with filename %.*s\n",
