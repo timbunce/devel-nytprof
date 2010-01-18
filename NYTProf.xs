@@ -3004,12 +3004,36 @@ write_sub_line_ranges(pTHX)
      */
     hv_iterinit(hv);
     while (NULL != (file_lines_sv = hv_iternextsv(hv, &sub_name, &sub_name_len))) {
-        char *filename = SvPV_nolen(file_lines_sv);
-        char *first = strrchr(filename, ':');
-        STRLEN filename_len = (first) ? first - filename : 0;
+        STRLEN file_lines_len;
+        char *filename = SvPV(file_lines_sv, file_lines_len);
+        char *first;
+        STRLEN filename_len;
+        SV *pkg_filename_sv;
+
+        /* This is a heuristic, and might not be robust, but it seems that
+           it's possible to get problematically bogus entries in this hash.
+           Specifically, setting the 'lvalue' attribute on an XS subroutine
+           during a bootstrap can cause op.c to load attributes, and in turn
+           cause a DynaLoader::BEGIN entry in %DB::sub associated with the
+           .pm file of the XS sub's module, not DynaLoader. This has the result
+           that if we try to associate XSUBs with filenames using %DB::sub,
+           we can go very wrong.
+
+           Fortunately all "wrong" entries so far spotted have a line range
+           with a non-zero start, and a zero end. This cannot be legal, so we
+           ignore those.
+         */
+
+        if (file_lines_len > 4
+            && filename[file_lines_len - 2] == '-' && filename[file_lines_len - 1] == '0'
+            && filename[file_lines_len - 4] != ':' && filename[file_lines_len - 3] != '0')
+	    continue;
+
+        first = strrchr(filename, ':');
+        filename_len = (first) ? first - filename : 0;
 
         /* get sv for package-of-subname to filename mapping */
-        SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name, sub_name_len);
+        pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name, sub_name_len);
 
         if (!pkg_filename_sv) /* we don't know package */
             continue;
