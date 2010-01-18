@@ -1909,7 +1909,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
                     */
                 SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, strlen(called_subname_pv), 1);
                 if (!SvOK(sv))
-                    sv_setpv(sv, ":0-0"); /* empty file name */
+                    sv_setpvs(sv, ":0-0"); /* empty file name */
                 if (trace_level >= 2)
                     logwarn("Adding fake DBsub entry for '%s' xsub\n", called_subname_pv);
             }
@@ -2214,7 +2214,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
              * some sub is called from main::RUNTIME. That may change.
              */
             subr_entry->caller_subpkg_pv = "main";
-            sv_setpv(subr_entry->caller_subnam_sv, "RUNTIME"); /* *cough* */
+            sv_setpvs(subr_entry->caller_subnam_sv, "RUNTIME"); /* *cough* */
             ++main_runtime_used;
         }
         else if (caller_cv == 0) {
@@ -2222,7 +2222,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
              * possibly because perl_run() has already returned
              */
             subr_entry->caller_subpkg_pv = "main";
-            sv_setpv(subr_entry->caller_subnam_sv, "NULL"); /* *cough* */
+            sv_setpvs(subr_entry->caller_subnam_sv, "NULL"); /* *cough* */
         }
         else {
             HV *stash_hv = NULL;
@@ -2242,7 +2242,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
                 sv_dump((SV*)caller_cv);
 
                 subr_entry->caller_subpkg_pv = "__UNKNOWN__";
-                sv_setpv(subr_entry->caller_subnam_sv, "__UNKNOWN__");
+                sv_setpvs(subr_entry->caller_subnam_sv, "__UNKNOWN__");
             }
         }
         found_caller_by = (profile_findcaller) ? "" : "(calculated)";
