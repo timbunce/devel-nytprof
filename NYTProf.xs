@@ -1750,7 +1750,7 @@ append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
         SvREFCNT_inc(DBsv); /* was made mortal by hv_delete */
         sv_catpvf(subr_entry->called_subnam_sv, "@%u", (unsigned int)line);
         sv_catpvf(fullnamesv,                   "@%u", (unsigned int)line);
-        hv_store(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), SvCUR(fullnamesv), DBsv, 0);
+        (void) hv_store(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), SvCUR(fullnamesv), DBsv, 0);
     }
     SvREFCNT_dec(fullnamesv);
 }
@@ -1926,7 +1926,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         if (subr_entry->called_subpkg_pv) { /* note that a sub in this package was called */
             SV *pf_sv = *hv_fetch(pkg_fids_hv, subr_entry->called_subpkg_pv, (I32)strlen(subr_entry->called_subpkg_pv), 1);
             if (SvTYPE(pf_sv) == SVt_NULL) { /* log when first created */
-                SvUPGRADE(pf_sv, SVt_PV);
+                sv_upgrade(pf_sv, SVt_PV);
                 if (trace_level >= 5)
                     logwarn("Noting that subs in package '%s' were called\n",
                         subr_entry->called_subpkg_pv);
