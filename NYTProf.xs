@@ -3361,41 +3361,63 @@ read_nv()
 static void
 normalize_eval_seqn(pTHX_ SV *sv) {
     /* in-place-edit any eval sequence numbers to 0 */
-    int found = 0;
     STRLEN len;
     char *start = SvPV(sv, len);
-    char *src = start;
-    char *dst = start;
+    char *first_space;
 
-    if (len < 5)
-        return;
+    /* effectively does
+       s/(
+          \(                  # first character is literal (
+          (?:re_)?eval\       # eval or re_eval followed by space
+         )                    # [capture that]
+         [0-9]+               # digits
+         (?=\))               # look ahead for literal )
+         /$1 0/xg             # and rebuild, replacing the digts with 0
+    */
 
-    /* effectively does $sv =~ s/(?<!$assert) \s \d+/eval 0/xg;
-     * where $assert is qr/\((?:re_)?eval/ so it only matches '(eval ' and '(re_eval '
-     */
-    while (*src) {
-        if (*src == ' ' && isdigit(*(src+1)) &&
-            (  (src-start >= 5 && strnEQ(src-5,    "(eval ", 6))
-            || (src-start >= 8 && strnEQ(src-8, "(re_eval ", 8)) )
-        ) {
-            ++found;
-            if (trace_level >= 5)
-                logwarn("found eval at '%s' in %s\n", src, start);
-            *dst++ = ' ';
-            *dst++ = '0';
-             src++; /* skip space */
-             src++; /* skip first digit */
-            while (isdigit(*src)) { /* skip any extra digits */
-                ++src;
-            }
+    /* Assumption is that space is the least common character in a filename.  */
+
+    for (; len >= 8 && (first_space = memchr(start, ' ', len));
+         (len -= first_space - start - 1), (start = first_space + 1)) {
+        char *first_digit;
+        char *close;
+
+        if (!((first_space - start >= 5
+               && memEQ(first_space - 5, "(eval", 5))
+              || (first_space - start >= 8
+                  && memEQ(first_space - 8, "(re_eval", 8)))) {
+            /* Fixed string not found. Try again.  */
+            continue;
         }
-        else {
-            *dst++ = *src++;
+
+        first_digit = first_space + 1;
+        if (*first_digit < '0' || *first_digit > '9')
+            continue;
+
+        close = first_digit + 1;
+
+        while (*close >= '0' && *close <= '9')
+            ++close;
+
+        if (*close != ')')
+            continue;
+
+        if (trace_level >= 5)
+            logwarn("found eval at '%s' in %s\n", first_digit, start);
+
+        *first_digit++ = '0';
+
+        /* first_digit now points to the target of the move.  */
+
+        if (close != first_digit) {
+            /* 2 or more digits */
+            memmove(first_digit, close,
+                    start + len + 1 /* pointer beyond the trailing '\0'  */
+                    - close);       /* pointer to the )  */
+
+            SvCUR_set(sv, len - (close - first_digit));
         }
-    }
-    if (found) {
-        *dst++ = '\0';
-        SvCUR_set(sv, strlen(start));
+
         if (trace_level >= 5)
             logwarn("edited it to: %s\n", start);
     }
