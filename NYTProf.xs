@@ -2984,6 +2984,22 @@ parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *la
     return 1;
 }
 
+/* Returns a pointer to the ')' after the digits in the (?:re_)?eval prefix.
+   As the prefix length is known, this gives the length of the digits.  */
+
+static char *
+eval_prefix(char *filename, const char *prefix, STRLEN prefix_len) {
+    if (memEQ(filename, prefix, prefix_len)
+        && isdigit(filename[prefix_len])) {
+        char *s = filename + prefix_len + 1;
+
+        while (isdigit(*s))
+            ++s;
+        if (s[0] == ')' && s[1] == '[')
+            return s;
+    }
+    return NULL;
+}
 
 static void
 write_sub_line_ranges(pTHX)
@@ -3031,6 +3047,13 @@ write_sub_line_ranges(pTHX)
 
         first = strrchr(filename, ':');
         filename_len = (first) ? first - filename : 0;
+
+        /* skip filenames for generated evals /\A\((?:re_)?eval \d+\)\[.*]\z/
+         */
+        if (filename_len > 9 && filename[filename_len - 1] == ']'
+            && (eval_prefix(filename, "(eval ", 6) ||
+                eval_prefix(filename, "(re_eval ", 9)))
+            continue;
 
         /* get sv for package-of-subname to filename mapping */
         pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name, sub_name_len);

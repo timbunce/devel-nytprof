@@ -21,6 +21,8 @@ fid_block_time	1	8	2	1	[ 0 3 ]
 fid_block_time	1	8	2	2	[ 0 3 ]
 fid_fileinfo	1	[ test61-submerge.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	0-0
+fid_fileinfo	1	sub	main::CORE:print	0-0
+fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::foo	4-4
 fid_fileinfo	1	call	4	main::CORE:print	[ 3 0 0 0 0 0 0 main::foo ]
 fid_fileinfo	1	call	8	main::__ANON__[(eval 0)[test61-submerge.p:8]:1]	[ 3 0 0 0 0 0 0 main::RUNTIME ]
@@ -32,8 +34,6 @@ fid_fileinfo	3	[ (eval 0)[test61-submerge.p:8] 1 8 3 2 0 0 ]
 fid_fileinfo	3	sub	main::__ANON__[(eval 0)[test61-submerge.p:8]:1]	1-1
 fid_fileinfo	3	call	1	main::foo	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test61-submerge.p:8]:1] ]
 fid_fileinfo	4	[ (eval 0)[test61-submerge.p:8] 1 8 4 2 0 0 ]
-fid_fileinfo	4	sub	main::CORE:print	0-0
-fid_fileinfo	4	sub	main::RUNTIME	1-1
 fid_fileinfo	4	sub	main::__ANON__[(eval 0)[test61-submerge.p:8]:1]	1-1
 fid_fileinfo	4	call	1	main::foo	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test61-submerge.p:8]:1] ]
 fid_line_time	1	4	[ 0 3 ]
@@ -52,9 +52,9 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
-sub_subinfo	main::CORE:print	[ 4 0 0 3 0 0 0 0 ]
+sub_subinfo	main::CORE:print	[ 1 0 0 3 0 0 0 0 ]
 sub_subinfo	main::CORE:print	called_by	1	4	[ 3 0 0 0 0 0 0 main::foo ]
-sub_subinfo	main::RUNTIME	[ 4 1 1 0 0 0 0 0 ]
+sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	main::__ANON__[(eval 0)[test61-submerge.p:8]:1]	[ 2 1 1 3 0 0 0 0 ]
 sub_subinfo	main::__ANON__[(eval 0)[test61-submerge.p:8]:1]	called_by	1	8	[ 3 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::foo	[ 1 4 4 3 0 0 0 0 ]

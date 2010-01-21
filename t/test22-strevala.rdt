@@ -28,14 +28,14 @@ fid_block_time	1	12	2	1	[ 0 2 ]
 fid_block_time	1	12	2	2	[ 0 4 ]
 fid_fileinfo	1	[ test22-strevala.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	0-0
+fid_fileinfo	1	sub	main::CORE:print	0-0
+fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	call	6	main::__ANON__[(eval 0)[test22-strevala.p:6]:1]	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	9	main::__ANON__[(eval 0)[test22-strevala.p:9]:1]	[ 2 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	eval	6	[ 1 0 ]
 fid_fileinfo	1	eval	9	[ 2 0 ]
 fid_fileinfo	1	eval	12	[ 1 2 ]
 fid_fileinfo	2	[ (eval 0)[test22-strevala.p:6] 1 6 2 2 0 0 ]
-fid_fileinfo	2	sub	main::CORE:print	0-0
-fid_fileinfo	2	sub	main::RUNTIME	1-1
 fid_fileinfo	2	sub	main::__ANON__[(eval 0)[test22-strevala.p:6]:1]	1-1
 fid_fileinfo	2	call	1	main::CORE:print	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test22-strevala.p:6]:1] ]
 fid_fileinfo	3	[ (eval 0)[test22-strevala.p:9] 1 9 3 2 0 0 ]
@@ -83,13 +83,13 @@ profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
-sub_subinfo	main::CORE:print	[ 2 0 0 5 0 0 0 0 ]
+sub_subinfo	main::CORE:print	[ 1 0 0 5 0 0 0 0 ]
 sub_subinfo	main::CORE:print	called_by	2	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test22-strevala.p:6]:1] ]
 sub_subinfo	main::CORE:print	called_by	3	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test22-strevala.p:9]:1] ]
 sub_subinfo	main::CORE:print	called_by	4	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test22-strevala.p:9]:1] ]
 sub_subinfo	main::CORE:print	called_by	6	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1] ]
 sub_subinfo	main::CORE:print	called_by	7	1	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1] ]
-sub_subinfo	main::RUNTIME	[ 2 1 1 0 0 0 0 0 ]
+sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1]	[ 6 1 1 2 0 0 0 0 ]
 sub_subinfo	main::__ANON__[(eval 0)[(eval 0)[test22-strevala.p:12]:2]:1]	called_by	5	2	[ 2 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	main::__ANON__[(eval 0)[test22-strevala.p:6]:1]	[ 2 1 1 1 0 0 0 0 ]
