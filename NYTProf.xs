@@ -670,22 +670,29 @@ fid_is_pmc(pTHX_ Hash_entry *fid_info)
         len = strlen(file_name);
     }
 
-    if (len > 3 && strnEQ(&file_name[len-3],".pm", len)) {
+    if (len > 3 && memEQs(file_name + len - 3, 3, ".pm")) {
         /* ends in .pm, ok, does a newer .pmc exist? */
         /* based on doopen_pm() in perl's pp_ctl.c */
-        SV *pmsv  = newSVpvn(file_name, len);
-        SV *pmcsv = newSVpvf("%s%c", SvPV_nolen(pmsv), 'c');
+        SV *const pmcsv = newSV(len + 2);
+        char *const pmc = SvPVX(pmcsv);
         Stat_t pmstat;
         Stat_t pmcstat;
-        if (PerlLIO_lstat(SvPV_nolen(pmcsv), &pmcstat) == 0) {
+
+        memcpy(pmc, file_name, len);
+        pmc[len] = 'c';
+        pmc[len + 1] = '\0';
+
+        if (PerlLIO_lstat(pmc, &pmcstat) == 0) {
             /* .pmc exists, is it newer than the .pm (if that exists) */
-            if (PerlLIO_lstat(SvPV_nolen(pmsv), &pmstat) < 0 ||
+
+            /* Keys in the fid_info are explicitly written with a terminating
+               '\0', so it is safe to pass file_name to a system call.  */
+            if (PerlLIO_lstat(file_name, &pmstat) < 0 ||
             pmstat.st_mtime < pmcstat.st_mtime) {
                 is_pmc = 1; /* hey, maybe it's Larry working on the perl6 comiler */
             }
         }
         SvREFCNT_dec(pmcsv);
-        SvREFCNT_dec(pmsv);
     }
 
     return is_pmc;
