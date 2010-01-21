@@ -422,7 +422,7 @@ sub _generate_report {
                 keys %$subs_defined_hash,
                 keys %stats_by_line
             );
-            $src_lines->[$_] ||= '' for 1..max(@interesting_lines); # grow array
+            $src_lines->[$_] ||= '' for 0..max(@interesting_lines)-1; # grow array
         }
 
         my $line_sub = $self->{mk_report_source_line}
