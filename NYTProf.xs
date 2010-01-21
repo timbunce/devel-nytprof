@@ -228,7 +228,6 @@ static NYTP_file in;
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static unsigned int profile_opts = NYTP_OPTf_OPTIMIZE;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
-static int profile_zero = 0;                      /* don't do timing, all times are zero */
 
 struct NYTP_int_options_t {
   const char *option_name;
@@ -284,7 +283,7 @@ static struct tms start_ctime, end_ctime;
 typedef struct timespec time_of_day_t;
 #  define CLOCK_GETTIME(ts) clock_gettime(profile_clock, ts)
 #  define CLOCKS_PER_TICK 10000000                /* 10 million - 100ns */
-#  define get_time_of_day(into) if (!profile_zero) CLOCK_GETTIME(&into)
+#  define get_time_of_day(into) CLOCK_GETTIME(&into)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
     overflow = 0; \
     ticks = ((e.tv_sec - s.tv_sec) * CLOCKS_PER_TICK + (e.tv_nsec / 100) - (s.tv_nsec / 100)); \
@@ -301,7 +300,7 @@ mach_timebase_info_data_t  our_timebase;
 typedef uint64_t time_of_day_t;
 
 #  define CLOCKS_PER_TICK 10000000                /* 10 million - 100ns */
-#  define get_time_of_day(into) if(!profile_zero) into = mach_absolute_time()
+#  define get_time_of_day(into) into = mach_absolute_time()
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
     overflow = 0; \
     if( our_timebase.denom == 0 ) mach_timebase_info(&our_timebase); \
@@ -313,7 +312,7 @@ typedef uint64_t time_of_day_t;
 #ifdef HAS_GETTIMEOFDAY
 typedef struct timeval time_of_day_t;
 #  define CLOCKS_PER_TICK 1000000                 /* 1 million */
-#  define get_time_of_day(into) if (!profile_zero) gettimeofday(&into, NULL)
+#  define get_time_of_day(into) gettimeofday(&into, NULL)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
     overflow = 0; \
     ticks = ((e.tv_sec - s.tv_sec) * CLOCKS_PER_TICK + e.tv_usec - s.tv_usec); \
@@ -322,7 +321,7 @@ typedef struct timeval time_of_day_t;
 static int (*u2time)(pTHX_ UV *) = 0;
 typedef UV time_of_day_t[2];
 #  define CLOCKS_PER_TICK 1000000                 /* 1 million */
-#  define get_time_of_day(into) if (!profile_zero) (*u2time)(aTHX_ into)
+#  define get_time_of_day(into) (*u2time)(aTHX_ into)
 #  define get_ticks_between(s, e, ticks, overflow)  STMT_START { \
     overflow = 0; \
     ticks = ((e[0] - s[0]) * CLOCKS_PER_TICK + e[1] - s[1]); \
@@ -1550,9 +1549,6 @@ set_option(pTHX_ const char* option, const char* value)
         if (atoi(value))
             PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
     }
-    else if (strEQ(option, "zero")) {
-        profile_zero = atoi(value);
-    }
     else {
         struct NYTP_int_options_t *opt_p = options;
         const struct NYTP_int_options_t *const opt_end
@@ -1848,11 +1844,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* seconds spent in subroutines called by this subroutine */
     called_sub_secs = (cumulative_subr_secs - subr_entry->initial_subr_secs);
 
-    if (profile_zero) {
-        incl_subr_sec = 0.0;
-        excl_subr_sec = 0.0;
-    }
-    else {
+    if (1) {
         time_of_day_t sub_end_time;
         long ticks, overflow;
 
