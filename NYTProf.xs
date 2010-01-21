@@ -3125,7 +3125,7 @@ write_sub_line_ranges(pTHX)
         else {
             sv_setpvn(sv, "", 0);
         }
-        sv_catpvf(sv, ":%d-%d", 1, 1);
+        sv_catpvs(sv, ":1-1");
     }
 
     /* Iterate over PL_DBsub writing out fid and source line range of subs.
@@ -4344,14 +4344,14 @@ load_profile_data_from_stream(SV *cb)
     (void)hv_stores(profile_hv, "fid_fileinfo",       newRV_noinc((SV*)fid_fileinfo_av));
     (void)hv_stores(profile_hv, "fid_srclines",   newRV_noinc((SV*)fid_srclines_av));
     (void)hv_stores(profile_hv, "fid_line_time",      newRV_noinc((SV*)fid_line_time_av));
-    (void)hv_stores(profile_modes, "fid_line_time", newSVpvf("line"));
+    (void)hv_stores(profile_modes, "fid_line_time", newSVpvs("line"));
     if (fid_block_time_av) {
         (void)hv_stores(profile_hv, "fid_block_time",      newRV_noinc((SV*)fid_block_time_av));
-        (void)hv_stores(profile_modes, "fid_block_time", newSVpvf("block"));
+        (void)hv_stores(profile_modes, "fid_block_time", newSVpvs("block"));
     }
     if (fid_sub_time_av) {
         (void)hv_stores(profile_hv, "fid_sub_time",    newRV_noinc((SV*)fid_sub_time_av));
-        (void)hv_stores(profile_modes, "fid_sub_time", newSVpvf("sub"));
+        (void)hv_stores(profile_modes, "fid_sub_time", newSVpvs("sub"));
     }
     (void)hv_stores(profile_hv, "sub_subinfo",      newRV_noinc((SV*)sub_subinfo_hv));
     (void)hv_stores(profile_hv, "profile_modes",    newRV_noinc((SV*)profile_modes));
