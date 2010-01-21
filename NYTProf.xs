@@ -3316,7 +3316,7 @@ write_src_of_files(pTHX)
             output_str(out, src, (I32)len);    /* includes newline */
             if (trace_level >= 5) {
                 logwarn("fid %d src line %d: %s%s", e->id, line, src,
-                    (*src && src[strlen(src)-1]=='\n') ? "" : "\n");
+                    (len && src[len-1]=='\n') ? "" : "\n");
             }
             ++t_lines;
         }
