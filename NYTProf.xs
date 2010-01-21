@@ -2538,12 +2538,17 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     /* ignore our own DB::_INIT sub - only shows up with 5.8.9+ & 5.10.1+ */
     if (subr_entry->called_is_xs
-    && *subr_entry->called_subpkg_pv == 'D'
-    && strEQ(subr_entry->called_subpkg_pv,"DB")
-    && strEQ(SvPV_nolen(subr_entry->called_subnam_sv), "_INIT")
+    && subr_entry->called_subpkg_pv[0] == 'D'
+    && subr_entry->called_subpkg_pv[1] == 'B'
+    && subr_entry->called_subpkg_pv[2] == '\0'
     ) {
-        subr_entry->already_counted++;
-        goto skip_sub_profile;
+        STRLEN len;
+        char *p = SvPV(subr_entry->called_subnam_sv, len);
+
+        if(memEQs(p, len, "_INIT")) {
+            subr_entry->already_counted++;
+            goto skip_sub_profile;
+        }
     }
     /* catch profile_subs being turned off by disable_profile call */
     if (!profile_subs)
