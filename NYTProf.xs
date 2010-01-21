@@ -3483,11 +3483,11 @@ lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
 
 
 static void
-store_attrib_sv(pTHX_ HV *attr_hv, const char *text, SV *value_sv)
+store_attrib_sv(pTHX_ HV *attr_hv, const char *text, STRLEN text_len, SV *value_sv)
 {
-    (void)hv_store(attr_hv, text, (I32)strlen(text), value_sv, 0);
+    (void)hv_store(attr_hv, text, text_len, value_sv, 0);
     if (trace_level >= 1)
-        logwarn(": %s = '%s'\n", text, SvPV_nolen(value_sv));
+        logwarn(": %.*s = '%s'\n", (int) text_len, text, SvPV_nolen(value_sv));
 }
 
 static int
@@ -4134,7 +4134,7 @@ load_profile_data_from_stream(SV *cb)
                     logwarn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live) at %"NVff"\n",
                         text, ppid, HvKEYS(live_pids_hv), profiler_start_time);
 
-                store_attrib_sv(aTHX_ attr_hv, "profiler_start_time", newSVnv(profiler_start_time));
+                store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("profiler_start_time"), newSVnv(profiler_start_time));
 
                 break;
             }
@@ -4167,9 +4167,9 @@ load_profile_data_from_stream(SV *cb)
                     logwarn("End of profile data for pid %s (%"IVdf" remaining) at %"NVff"\n", text,
                         HvKEYS(live_pids_hv), profiler_end_time);
 
-                store_attrib_sv(aTHX_ attr_hv, "profiler_end_time", newSVnv(profiler_end_time));
+                store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("profiler_end_time"), newSVnv(profiler_end_time));
                 profiler_duration += profiler_end_time - profiler_start_time;
-                store_attrib_sv(aTHX_ attr_hv, "profiler_duration", newSVnv(profiler_duration));
+                store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("profiler_duration"), newSVnv(profiler_duration));
 
                 break;
             }
@@ -4188,8 +4188,7 @@ load_profile_data_from_stream(SV *cb)
                     logwarn("attribute malformed '%s'\n", text);
                     continue;
                 }
-                text_end = value;
-                *value++ = '\0';
+                text_end = value++;
                 value_sv = newSVpvn(value, end-value);
 
                 if (cb) {
@@ -4205,7 +4204,7 @@ load_profile_data_from_stream(SV *cb)
                     SPAGAIN;
                 }
 
-                store_attrib_sv(aTHX_ attr_hv, text, value_sv);
+                store_attrib_sv(aTHX_ attr_hv, text, text_end - text, value_sv);
                 if (memEQs(text, text_end - text, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)SvUV(value_sv);
                 }
@@ -4272,10 +4271,10 @@ load_profile_data_from_stream(SV *cb)
     if (HvKEYS(live_pids_hv)) {
         logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
             HvKEYS(live_pids_hv));
-        store_attrib_sv(aTHX_ attr_hv, "complete", &PL_sv_no);
+        store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("complete"), &PL_sv_no);
     }
     else {
-        store_attrib_sv(aTHX_ attr_hv, "complete", &PL_sv_yes);
+        store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("complete"), &PL_sv_yes);
     }
 
     sv_free((SV*)live_pids_hv);
@@ -4297,10 +4296,10 @@ load_profile_data_from_stream(SV *cb)
 
     if (statement_discount) /* discard unused statement_discount */
         total_stmts_discounted -= statement_discount;
-    store_attrib_sv(aTHX_ attr_hv, "total_stmts_measured",   newSVnv(total_stmts_measured));
-    store_attrib_sv(aTHX_ attr_hv, "total_stmts_discounted", newSVnv(total_stmts_discounted));
-    store_attrib_sv(aTHX_ attr_hv, "total_stmts_duration",   newSVnv(total_stmts_duration));
-    store_attrib_sv(aTHX_ attr_hv, "total_sub_calls",        newSVnv(total_sub_calls));
+    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_measured"),   newSVnv(total_stmts_measured));
+    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_discounted"), newSVnv(total_stmts_discounted));
+    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_duration"),   newSVnv(total_stmts_duration));
+    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_sub_calls"),        newSVnv(total_sub_calls));
 
     if (1) {
         int show_summary_stats = (trace_level >= 1);
