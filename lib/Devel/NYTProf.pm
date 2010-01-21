@@ -427,7 +427,7 @@ likely to change in future.
 =head2 usecputime=1
 
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
-time (which is the default).
+time (which is the default). This currently only applies to the statement profiler.
 
 Measuring CPU time has the advantage of making the measurements independent of
 time spent blocked waiting for the cpu or network i/o etc. But it also has the
@@ -439,7 +439,8 @@ happen so rarely relative to the activity of a most applications that you'd
 have to run the code for many hours to have any hope of reasonably useful results.
 
 A better alternative would be to use the C<clock=N> option to select a
-high-resolution cpu time clock, if available on your system.
+high-resolution cpu time clock, if available on your system, because that'll
+give you higher resolution and work for the subroutine profiler as well.
 
 =head2 file=...
 

@@ -18,12 +18,13 @@ string eval merging - must allow at least viewing of source for called subs defi
 XXX Fixed one problem with usecputime=1 option but results are *10 on my mac.
 XXX Needs tests.
 
-  Fixed handling of usecputime=1 option
+  Fixed handling of usecputime=1 option but updated
+    docs to note the significant limitations.
   Fixed handling of assignment of XS subs to files
     in some edge cases thanks to Nicholas Clark.
 
   Added high-resolution (100ns) timer for Mac OS X
-    thanks to Markus Peter.
+    many thanks to Markus Peter.
   Added assorted optimizations thanks to Nicholas Clark.
 
   Changed subroutine profiler to be slightly more efficient.

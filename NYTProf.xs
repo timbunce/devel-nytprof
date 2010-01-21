@@ -1852,9 +1852,9 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         get_time_of_day(sub_end_time);
         get_ticks_between(subr_entry->initial_call_time, sub_end_time, ticks, overflow);
 
-        incl_subr_sec = overflow + (ticks / (NV)ticks_per_sec);
+        incl_subr_sec = overflow + (ticks / (NV)CLOCKS_PER_TICK);
         /* subtract statement measurement overheads */
-        incl_subr_sec -= (overhead_ticks / ticks_per_sec);
+        incl_subr_sec -= (overhead_ticks / CLOCKS_PER_TICK);
         /* exclusive = inclusive - time spent in subroutines called by this subroutine */
         excl_subr_sec = incl_subr_sec - called_sub_secs;
     }

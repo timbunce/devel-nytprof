@@ -70,6 +70,11 @@ sub profile_this {
         croak "Neither src_file or src_code was provided";
     }
 
+    # undocumented hack that's handy for testing
+    if ($opt{htmlopen}) {
+        warn system("nytprofhtml --open --file='$out_file'");
+    }
+
     my $profile = Devel::NYTProf::Data->new( { filename => $out_file } );
 
     unlink $out_file;
