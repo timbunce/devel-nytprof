@@ -1815,6 +1815,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 {
     int saved_errno = errno;
     char called_subname_pv[500];    /* XXX */
+    char *called_subname_pv_end = called_subname_pv;
     char subr_call_key[500]; /* XXX */
     int subr_call_key_len;
     NV  overhead_ticks, called_sub_secs;
@@ -1870,31 +1871,29 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     STMT_START {
         STRLEN len;
         char *p;
-        char *called_subname_pvp = called_subname_pv;
 
         p = subr_entry->called_subpkg_pv;
         while (*p)
-            *called_subname_pvp++ = *p++;
-        *called_subname_pvp++ = ':';
-        *called_subname_pvp++ = ':';
+            *called_subname_pv_end++ = *p++;
+        *called_subname_pv_end++ = ':';
+        *called_subname_pv_end++ = ':';
         if (subr_entry->called_subnam_sv) {
             /* We create this SV, so we know that it is well-formed, and has a
                trailing '\0'  */
             p = SvPV(subr_entry->called_subnam_sv, len);
-            ++len;
         }
         else {
             /* C string constants have a trailing '\0'.  */
-            p = "(null)"; len = 7;
+            p = "(null)"; len = 6;
         }
-        memcpy(called_subname_pvp, p, len);
-        called_subname_pvp += len;
-        if (called_subname_pvp >= called_subname_pv+sizeof(called_subname_pv))
+        memcpy(called_subname_pv_end, p, len + 1);
+        called_subname_pv_end += len;
+        if (called_subname_pv_end >= called_subname_pv+sizeof(called_subname_pv))
             croak("panic: called_subname_pv buffer overflow on '%s'\n", called_subname_pv);
     } STMT_END;
 
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
-    sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, strlen(called_subname_pv), 1);
+    sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, called_subname_pv_end - called_subname_pv, 1);
 
     if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this called subname from anywhere */
         HV *hv = newHV();
@@ -1915,7 +1914,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
                     * The reader can try to associate the xsubs with the
                     * corresonding .pm file using the package part of the subname.
                     */
-                SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, strlen(called_subname_pv), 1);
+                SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, called_subname_pv_end - called_subname_pv, 1);
                 if (!SvOK(sv))
                     sv_setpvs(sv, ":0-0"); /* empty file name */
                 if (trace_level >= 2)
