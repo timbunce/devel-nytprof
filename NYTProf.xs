@@ -1743,6 +1743,8 @@ append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
     SV *fullnamesv;
     SV *DBsv;
     char *subname = SvPVX(subr_entry->called_subnam_sv);
+    STRLEN pkg_len;
+    STRLEN total_len;
 
     /* If sub is a BEGIN then append the line number to our name
      * so multiple BEGINs (either explicit or implicit, e.g., "use")
@@ -1752,8 +1754,14 @@ append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
         return;
 
     /* get, and delete, the entry for this sub in the PL_DBsub hash */
-    fullnamesv = newSVpvf("%s::%s", subr_entry->called_subpkg_pv, subname);
-    DBsv = hv_delete(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), SvCUR(fullnamesv), 1);
+    pkg_len = strlen(subr_entry->called_subpkg_pv);
+    total_len = pkg_len + 2 /* :: */  + 5; /* BEGIN */
+    fullnamesv = newSV(total_len + 1); /* +1 for '\0' */
+    memcpy(SvPVX(fullnamesv), subr_entry->called_subpkg_pv, pkg_len);
+    memcpy(SvPVX(fullnamesv) + pkg_len, "::BEGIN", 7 + 1); /* + 1 for '\0' */
+    SvCUR_set(fullnamesv, total_len);
+    SvPOK_on(fullnamesv);
+    DBsv = hv_delete(GvHV(PL_DBsub), SvPVX(fullnamesv), total_len, 1);
 
     if (DBsv && parse_DBsub_value(aTHX_ DBsv, NULL, &line, NULL)) {
         SvREFCNT_inc(DBsv); /* was made mortal by hv_delete */
