@@ -1878,14 +1878,17 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         *called_subname_pvp++ = ':';
         *called_subname_pvp++ = ':';
         if (subr_entry->called_subnam_sv) {
+            /* We create this SV, so we know that it is well-formed, and has a
+               trailing '\0'  */
             p = SvPV(subr_entry->called_subnam_sv, len);
+            ++len;
         }
         else {
-            p = "(null)"; len = 6;
+            /* C string constants have a trailing '\0'.  */
+            p = "(null)"; len = 7;
         }
         memcpy(called_subname_pvp, p, len);
         called_subname_pvp += len;
-        *called_subname_pvp++ = '\0';
         if (called_subname_pvp >= called_subname_pv+sizeof(called_subname_pv))
             croak("panic: called_subname_pv buffer overflow on '%s'\n", called_subname_pv);
     } STMT_END;
