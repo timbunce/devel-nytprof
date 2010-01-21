@@ -1553,8 +1553,7 @@ set_option(pTHX_ const char* option, const char* value)
         bool found = FALSE;
         do {
             if (strEQ(option, opt_p->option_name)) {
-                opt_p->option_value = (strnEQ(value,"0x",2))
-                    ? strtol(value, NULL, 16) : atoi(value);
+                opt_p->option_value = strtol(value, NULL, 0);
                 found = TRUE;
                 break;
             }
