@@ -36,6 +36,12 @@
 #   include "ppport.h"
 #endif
 
+/* Until ppport.h gets this:  */
+#ifndef memEQs
+#  define memEQs(s1, l, s2) \
+          (sizeof(s2)-1 == l && memEQ(s1, ("" s2 ""), (sizeof(s2)-1)))
+#endif
+
 #ifdef USE_HARD_ASSERT
 #undef NDEBUG
 #include <assert.h>
@@ -4171,7 +4177,7 @@ load_profile_data_from_stream(SV *cb)
             case NYTP_TAG_ATTRIBUTE:
             {
                 char text[MAXPATHLEN*2];
-                char *value, *end;
+                char *value, *end, *text_end;
                 SV *value_sv;
                 if (NULL == NYTP_gets(in, text, sizeof(text)))
                     /* probably EOF */
@@ -4182,6 +4188,7 @@ load_profile_data_from_stream(SV *cb)
                     logwarn("attribute malformed '%s'\n", text);
                     continue;
                 }
+                text_end = value;
                 *value++ = '\0';
                 value_sv = newSVpvn(value, end-value);
 
@@ -4190,7 +4197,7 @@ load_profile_data_from_stream(SV *cb)
 
                     i = 0;
                     sv_setpvs(cb_args[i], "ATTRIBUTE");  XPUSHs(cb_args[i++]);
-                    sv_setpv(cb_args[i], text);          XPUSHs(cb_args[i++]);
+                    sv_setpvn(cb_args[i], text, text_end - text); XPUSHs(cb_args[i++]);
                     sv_setsv(cb_args[i], value_sv);      XPUSHs(cb_args[i++]);
 
                     PUTBACK;
@@ -4199,10 +4206,10 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 store_attrib_sv(aTHX_ attr_hv, text, value_sv);
-                if ('t' == *text && strEQ(text, "ticks_per_sec")) {
+                if (memEQs(text, text_end - text, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)SvUV(value_sv);
                 }
-                else if ('n' == *text && strEQ(text, "nv_size")) {
+                else if (memEQs(text, text_end - text, "nv_size")) {
                     if (sizeof(NV) != atoi(value))
                         croak("Profile data created by incompatible perl config (NV size %d but ours is %d)",
                             atoi(value), (int)sizeof(NV));
