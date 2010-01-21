@@ -566,7 +566,7 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
     while(NULL != found) {
 
         if (found->key_len == entry.key_len &&
-        strnEQ(found->key, entry.key, entry.key_len)) {
+        memEQ(found->key, entry.key, entry.key_len)) {
             *retval = found;
             return 0;
         }
@@ -581,7 +581,7 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
                 e->key_len = entry.key_len;
                 e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
                 e->key[e->key_len] = '\0';
-                strncpy(e->key, entry.key, e->key_len);
+                memcpy(e->key, entry.key, e->key_len);
                 found->next_entry = e;
                 *retval = (Hash_entry*)found->next_entry;
                 if (hashtable.last_inserted)
@@ -605,7 +605,7 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
         e->key_len = entry.key_len;
         e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
         e->key[e->key_len] = '\0';
-        strncpy(e->key, entry.key, e->key_len);
+        memcpy(e->key, entry.key, e->key_len);
 
         *retval =   hashtable.table[h] = e;
 
