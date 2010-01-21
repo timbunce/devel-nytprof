@@ -815,8 +815,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             /* strange eval that doesn't have a filename associated */
             /* seen in mod_perl, possibly from eval_sv(sv) api call */
             /* also when nameevals=0 option is in effect */
-            char *eval_file = "/unknown-eval-invoker";
-            found->eval_fid = get_file_id(aTHX_ eval_file, strlen(eval_file),
+            char eval_file[] = "/unknown-eval-invoker";
+            found->eval_fid = get_file_id(aTHX_ eval_file, sizeof(eval_file) - 1,
                 NYTP_FIDf_IS_FAKE | created_via
             );
             found->eval_line_num = 1;
@@ -3090,8 +3090,8 @@ write_sub_line_ranges(pTHX)
     }
 
     if (main_runtime_used) { /* Create fake entry for main::RUNTIME sub */
-        char *runtime = "main::RUNTIME";
-	const I32 runtime_len = strlen(runtime);
+        char runtime[] = "main::RUNTIME";
+        const I32 runtime_len = sizeof(runtime) - 1;
         SV *sv = *hv_fetch(hv, runtime, runtime_len, 1);
 
         /* get name of file that contained first profiled sub in 'main::' */
