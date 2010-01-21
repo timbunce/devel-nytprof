@@ -858,8 +858,9 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     /* determine absolute path if file_name is relative */
     found->key_abs = NULL;
     if (!found->eval_fid &&
-        !(file_name_len==1 && strEQ(file_name,"-" )) &&
-        !(file_name_len==2 && strEQ(file_name,"-e")) &&
+        !(file_name[0] == '-'
+         && (file_name_len==1
+             || (file_name[1] == 'e' && file_name_len==2))) &&
 #ifdef WIN32
         /* XXX should we check for UNC names too? */
         (file_name_len < 3 || !isALPHA(file_name[0]) || file_name[1] != ':' ||
@@ -921,8 +922,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
      */
     if (found->eval_fid
     || (found->key_len > 10 && found->key[9] == 'x' && strnEQ(found->key, "/loader/0x", 10))
-    || (found->key_len == 1 && strnEQ(found->key, "-",  1))
-    || (found->key_len == 2 && strnEQ(found->key, "-e", 2))
+    || (found->key[0] == '-' && (found->key_len == 1 ||
+                                 (found->key[1] == 'e' && found->key_len == 2)))
     || (profile_opts & NYTP_OPTf_SAVESRC)
     ) {
         found->fid_flags |= NYTP_FIDf_SAVE_SRC;
@@ -3297,8 +3298,9 @@ write_src_of_files(pTHX)
         /* for perl 5.10.0 or 5.8.8 (or earlier) use_db_sub is needed to get src */
         /* give a hint for the common case */
         if (lines <= 0 && !opt_use_db_sub
-            &&   ( (e->key_len == 1 && strnEQ(e->key, "-",  1))
-                || (e->key_len == 2 && strnEQ(e->key, "-e", 2)) )
+            &&   ( e->key[0] == '-'
+                   && ( e->key_len == 1
+                        || ( e->key[1] == 'e' &&  e->key_len == 2 ) ) )
         ) {
             av_store(src_av, 1, newSVpvf("# fid%d: source not available, try using use_db_sub=1 option.\n",e->id));
             lines = 1;
