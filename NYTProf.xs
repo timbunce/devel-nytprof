@@ -349,6 +349,8 @@ static SV *DB_fin_cv;
 
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
 
+static AV *slowop_name_cache;
+
 /* prototypes */
 static void output_header(pTHX);
 static unsigned int read_int(void);
@@ -2175,8 +2177,25 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
             subr_entry->called_subnam_sv = newSVpv(slowop_name, 0);
         }
         else {                     /* 2 == put slowops into multiple packages */
+            SV **opname = NULL;
+            SV *sv;
+            if (!slowop_name_cache)
+                slowop_name_cache = newAV();
+            opname = av_fetch(slowop_name_cache, op_type, TRUE);
+            if (!opname)
+                croak("panic: opname cache read for '%s' (%d)\n", slowop_name, op_type);
+            sv = *opname;
+
+            if(!SvOK(sv)) {
+                const STRLEN len = strlen(slowop_name);
+                sv_grow(sv, 5 + len + 1);
+                memcpy(SvPVX(sv), "CORE:", 5);
+                memcpy(SvPVX(sv) + 5, slowop_name, len + 1);
+                SvCUR_set(sv, 5 + len);
+                SvPOK_on(sv);
+            }
+            subr_entry->called_subnam_sv = SvREFCNT_inc(sv);
             subr_entry->called_subpkg_pv = CopSTASHPV(PL_curcop);
-            subr_entry->called_subnam_sv = newSVpvf("CORE:%s", slowop_name);
         }
         subr_entry->called_cv_depth = 1; /* an approximation for slowops */
         subr_entry->called_is_xs = "sop";
