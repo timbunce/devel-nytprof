@@ -228,7 +228,7 @@ foreach $input (@ARGV) {
 
 		$new_fid = $next_fid++;
 		$fids_folded{$fid} = $fids{$fid} = $new_fid;
-		$file_to_fid{$name} = $fid;
+		$file_to_fid{$name} = $new_fid;
 	    }
 	    $fid_to_file{$new_fid} = $name;
 	    $pending_fids[$fid] = [$new_fid, $new_eval_fid];
