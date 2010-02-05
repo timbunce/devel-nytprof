@@ -3446,7 +3446,7 @@ normalize_eval_seqn(pTHX_ SV *sv) {
     /* Assumption is that space is the least common character in a filename.  */
 
     for (; len >= 8 && (first_space = memchr(start, ' ', len));
-         (len -= first_space - start - 1), (start = first_space + 1)) {
+         (len -= first_space +1 - start), (start = first_space + 1)) {
         char *first_digit;
         char *close;
 
