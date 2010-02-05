@@ -4217,7 +4217,6 @@ load_profile_data_from_stream(SV *cb)
             {
                 char text[MAXPATHLEN*2];
                 char *value, *end, *text_end;
-                SV *value_sv;
                 if (NULL == NYTP_gets(in, text, sizeof(text)))
                     /* probably EOF */
                     croak("Profile format error reading attribute");
@@ -4228,7 +4227,6 @@ load_profile_data_from_stream(SV *cb)
                     continue;
                 }
                 text_end = value++;
-                value_sv = newSVpvn(value, end-value);
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -4236,14 +4234,14 @@ load_profile_data_from_stream(SV *cb)
                     i = 0;
                     sv_setpvs(cb_args[i], "ATTRIBUTE");  XPUSHs(cb_args[i++]);
                     sv_setpvn(cb_args[i], text, text_end - text); XPUSHs(cb_args[i++]);
-                    sv_setsv(cb_args[i], value_sv);      XPUSHs(cb_args[i++]);
+                    sv_setpvn(cb_args[i], value, end - value);    XPUSHs(cb_args[i++]);
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
                     SPAGAIN;
+                } else {
+                    store_attrib_sv(aTHX_ attr_hv, text, text_end - text, newSVpvn(value, end - value));
                 }
-
-                store_attrib_sv(aTHX_ attr_hv, text, text_end - text, value_sv);
                 if (memEQs(text, text_end - text, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)atoi(value);
                 }
