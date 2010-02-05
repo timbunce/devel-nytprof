@@ -3483,7 +3483,8 @@ normalize_eval_seqn(pTHX_ SV *sv) {
                     start + len + 1 /* pointer beyond the trailing '\0'  */
                     - close);       /* pointer to the )  */
 
-            SvCUR_set(sv, len - (close - first_digit));
+            len -= (close - first_digit);
+            SvCUR_set(sv, SvCUR(sv) - (close - first_digit));
         }
 
         if (trace_level >= 5)
