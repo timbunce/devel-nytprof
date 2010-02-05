@@ -4245,7 +4245,7 @@ load_profile_data_from_stream(SV *cb)
 
                 store_attrib_sv(aTHX_ attr_hv, text, text_end - text, value_sv);
                 if (memEQs(text, text_end - text, "ticks_per_sec")) {
-                    ticks_per_sec = (unsigned int)SvUV(value_sv);
+                    ticks_per_sec = (unsigned int)atoi(value);
                 }
                 else if (memEQs(text, text_end - text, "nv_size")) {
                     if (sizeof(NV) != atoi(value))
