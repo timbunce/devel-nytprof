@@ -16,6 +16,7 @@ use strict;
 use Devel::NYTProf::Core;
 require Devel::NYTProf::FileHandle;
 use Devel::NYTProf::ReadStream qw(for_chunks);
+use List::Util qw(min);
 
 our $VERSION = '3.01';
     
@@ -76,8 +77,14 @@ sub _time_block_or_line {
     }
 }
 
-# Effectively, this is a global variable. Sorry.
+# Croak if any of these attributes differ between profiles
+my %identical = map {$_, 1}
+    qw (ARCHLIB_EXP PL_perldb PRIVLIB_EXP clock_id nv_size perl_version
+	ticks_per_sec xs_version);
+
+# Effectively, these are global variables. Sorry.
 my $input;
+my %attributes;
 
 my %dispatcher =
     (
@@ -98,7 +105,18 @@ my %dispatcher =
      },
      ATTRIBUTE => sub {
 	 my (undef, $key, $value) = @_;
-	 $out->write(":$key=$value\n");
+	 if ($identical{$key}) {
+	     if (exists $attributes{$key}) {
+		 if ($attributes{$key} ne $value) {
+		     die ("In $input, attribute '$key' has value '$value', which differs from the previous value for that key, '$attributes{$key}'\n");
+		 }
+	     } else {
+		 $attributes{$key} = $value;
+		 $out->write(":$key=$value\n");
+	     }
+	 } else {
+	     push @{$attributes{$key}}, $value;
+	 }
      },
 
      START_DEFLATE => sub {
@@ -294,6 +312,21 @@ foreach my $fid_line (sort keys %callers) {
 	    $out->output_int($sum->{depth});
 	    $out->output_str($called);
 	}
+    }
+}
+
+foreach my $key (sort grep {!$identical{$_}} keys %attributes) {
+    my @values = @{$attributes{$key}};
+    if ($key eq 'basetime') {
+	my $value = min(@values);
+	$out->write(":$key=$value\n");
+    } elsif ($key eq 'application') {
+	my $last = pop @values;
+	my $value = @values ? join (', ', @values) . "and $last" : $last;
+	$out->write(":$key=$value\n");
+    } else {
+	warn "Unknown attribute $key\n";
+	$out->write(":$key=$_\n") foreach @values;
     }
 }
 
