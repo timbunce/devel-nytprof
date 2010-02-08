@@ -321,8 +321,16 @@ foreach my $key (sort grep {!$identical{$_}} keys %attributes) {
 	my $value = min(@values);
 	$out->write(":$key=$value\n");
     } elsif ($key eq 'application') {
-	my $last = pop @values;
-	my $value = @values ? join (', ', @values) . "and $last" : $last;
+	my %counts;
+	$counts{$_}++ foreach @values;
+	my @grouped;
+	foreach my $prog (sort keys %counts) {
+	    my $count = $counts{$prog};
+	    push @grouped,
+		sprintf "$prog ($count run%s)", $count == 1 ? '' : 's';
+	}
+	my $last = pop @grouped;
+	my $value = @grouped ? join (', ', @grouped) . "and $last" : $last;
 	$out->write(":$key=$value\n");
     } else {
 	warn "Unknown attribute $key\n";
