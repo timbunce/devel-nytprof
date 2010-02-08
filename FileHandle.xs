@@ -596,19 +596,17 @@ char *mode
 
 int
 DESTROY(handle)
-SV *handle
+NYTP_file handle
     ALIAS:
         close = 1
     PREINIT:
         SV *guts;
     CODE:
+	guts = SvRV(ST(0));
         if (ix == ix) {
             /* Unused argument.  */
         }
-        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
-            croak("handle is not a Devel::NYTProf::FileHandle");
-        guts = SvRV(handle);
-        RETVAL = NYTP_close((NYTP_file)SvPVX(guts), 0);
+        RETVAL = NYTP_close(handle, 0);
         SvPV_set(guts, NULL);
         SvLEN_set(guts, 0);
     OUTPUT:
@@ -616,65 +614,49 @@ SV *handle
 
 size_t
 write(handle, string)
-SV *handle
+NYTP_file handle
 SV *string
     PREINIT:
         STRLEN len;
         char *p;
-        NYTP_file fh;
     CODE:
-        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
-            croak("handle is not a Devel::NYTProf::FileHandle");
         p = SvPVbyte(string, len);
-        fh = (NYTP_file)SvPVX(SvRV(handle));
-        RETVAL = NYTP_write(fh, p, len);
+        RETVAL = NYTP_write(handle, p, len);
     OUTPUT:
         RETVAL
 
 void
 output_int(handle, ...)
-SV *handle
+NYTP_file handle
     PREINIT:
-        NYTP_file fh;
         SV **last = sp + items;
     PPCODE:
-        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
-            croak("handle is not a Devel::NYTProf::FileHandle");
-        fh = (NYTP_file)SvPVX(SvRV(handle));
         ++sp; /* A pointer to the function is first item on the stack.
                  It's not included in items  */
         while(sp++ < last)
-            output_int(fh, SvUV(*sp));
+            output_int(handle, SvUV(*sp));
         XSRETURN(0);
 
 void
 output_nv(handle, ...)
-SV *handle
+NYTP_file handle
     PREINIT:
-        NYTP_file fh;
         SV **last = sp + items;
     PPCODE:
-        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
-            croak("handle is not a Devel::NYTProf::FileHandle");
-        fh = (NYTP_file)SvPVX(SvRV(handle));
         ++sp; /* A pointer to the function is first item on the stack.
                  It's not included in items  */
         while(sp++ < last)
-            output_nv(fh, SvNV(*sp));
+            output_nv(handle, SvNV(*sp));
         XSRETURN(0);
 
 
 void
 output_str(handle, value)
-SV *handle
+NYTP_file handle
 SV *value
     PREINIT:
         STRLEN len;
         char *p;
-        NYTP_file fh;
     CODE:
-        if(!sv_isa(handle, "Devel::NYTProf::FileHandle"))
-            croak("handle is not a Devel::NYTProf::FileHandle");
-        fh = (NYTP_file)SvPVX(SvRV(handle));
         p = SvPV(value, len);
-        output_str(fh, p, SvUTF8(value) ? -(I32)len : (I32) len);
+        output_str(handle, p, SvUTF8(value) ? -(I32)len : (I32) len);
