@@ -334,7 +334,7 @@ foreach my $key (sort grep {!$identical{$_}} keys %attributes) {
 		sprintf "$prog ($count run%s)", $count == 1 ? '' : 's';
 	}
 	my $last = pop @grouped;
-	my $value = @grouped ? join (', ', @grouped) . "and $last" : $last;
+	my $value = @grouped ? join (', ', @grouped) . " and $last" : $last;
 	$out->write(":$key=$value\n");
     } else {
 	warn "Unknown attribute $key\n";
