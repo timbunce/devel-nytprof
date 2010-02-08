@@ -25,7 +25,7 @@ void NYTP_start_deflate(NYTP_file file, int compression_level);
 void NYTP_start_inflate(NYTP_file file);
 
 NYTP_file NYTP_open(const char *name, const char *mode);
-char *NYTP_gets(NYTP_file ifile, char *buffer, unsigned int len);
+char *NYTP_gets(NYTP_file ifile, char **buffer, size_t *len);
 size_t NYTP_read_unchecked(NYTP_file ifile, void *buffer, size_t len);
 size_t NYTP_read(NYTP_file ifile, void *buffer, size_t len, const char *what);
 size_t NYTP_write(NYTP_file ofile, const void *buffer, size_t len);

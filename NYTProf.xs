@@ -3615,16 +3615,17 @@ load_profile_data_from_stream(SV *cb)
     SV *cb_TIME_LINE_tag = NULL;
     SV *cb_args[12];  /* must be large enough for the largest callback argument list */
 
+    size_t buffer_len = MAXPATHLEN * 2;
+    char *buffer = safemalloc(buffer_len);
+
     av_extend(fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(fid_srclines_av, 64);
     av_extend(fid_line_time_av, 64);
 
     if (1) {
-        char header[7+1+3+1+3+1+1];
-
-        if (NULL == NYTP_gets(in, header, sizeof(header)))
+        if (!NYTP_gets(in, &buffer, &buffer_len))
             croak("NYTProf data format error while reading header");
-        if (2 != sscanf(header, "NYTProf %d %d\n", &file_major, &file_minor))
+        if (2 != sscanf(buffer, "NYTProf %d %d\n", &file_major, &file_minor))
             croak("NYTProf data format error while parsing header");
         if (file_major != 3)
             croak("NYTProf data format version %d.%d is not supported by NYTProf %s (which expects version %d.%d)",
@@ -4216,37 +4217,36 @@ load_profile_data_from_stream(SV *cb)
 
             case NYTP_TAG_ATTRIBUTE:
             {
-                char text[MAXPATHLEN*2];
-                char *value, *end, *text_end;
-                if (NULL == NYTP_gets(in, text, sizeof(text)))
+                char *value, *key_end;
+                char *end = NYTP_gets(in, &buffer, &buffer_len);
+                if (NULL == end)
                     /* probably EOF */
                     croak("Profile format error reading attribute");
-                if ((NULL == (value = strchr(text, '=')))
-                    ||  (NULL == (end   = strchr(text, '\n')))
-                ) {
-                    logwarn("attribute malformed '%s'\n", text);
+                --end; /* End, as returned, points 1 after the \n  */
+                if ((NULL == (value = memchr(buffer, '=', end - buffer)))) {
+                    logwarn("attribute malformed '%s'\n", buffer);
                     continue;
                 }
-                text_end = value++;
+                key_end = value++;
 
                 if (cb) {
                     PUSHMARK(SP);
 
                     i = 0;
                     sv_setpvs(cb_args[i], "ATTRIBUTE");  XPUSHs(cb_args[i++]);
-                    sv_setpvn(cb_args[i], text, text_end - text); XPUSHs(cb_args[i++]);
+                    sv_setpvn(cb_args[i], buffer, key_end - buffer); XPUSHs(cb_args[i++]);
                     sv_setpvn(cb_args[i], value, end - value);    XPUSHs(cb_args[i++]);
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
                     SPAGAIN;
                 } else {
-                    store_attrib_sv(aTHX_ attr_hv, text, text_end - text, newSVpvn(value, end - value));
+                    store_attrib_sv(aTHX_ attr_hv, buffer, key_end - buffer, newSVpvn(value, end - value));
                 }
-                if (memEQs(text, text_end - text, "ticks_per_sec")) {
+                if (memEQs(buffer, key_end - buffer, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)atoi(value);
                 }
-                else if (memEQs(text, text_end - text, "nv_size")) {
+                else if (memEQs(buffer, key_end - buffer, "nv_size")) {
                     if (sizeof(NV) != atoi(value))
                         croak("Profile data created by incompatible perl config (NV size %d but ours is %d)",
                             atoi(value), (int)sizeof(NV));
@@ -4257,8 +4257,8 @@ load_profile_data_from_stream(SV *cb)
 
             case NYTP_TAG_COMMENT:
             {
-                char text[MAXPATHLEN*2];
-                if (NULL == NYTP_gets(in, text, sizeof(text)))
+                char *end = NYTP_gets(in, &buffer, &buffer_len);
+                if (!end)
                     /* probably EOF */
                     croak("Profile format error reading comment");
 
@@ -4267,7 +4267,7 @@ load_profile_data_from_stream(SV *cb)
 
                     i = 0;
                     sv_setpvs(cb_args[i], "COMMENT"); XPUSHs(cb_args[i++]);
-                    sv_setpv(cb_args[i], text);       XPUSHs(cb_args[i++]);
+                    sv_setpvn(cb_args[i], buffer, end - buffer); XPUSHs(cb_args[i++]);
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
@@ -4276,7 +4276,7 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 if (trace_level >= 1)
-                    logwarn("# %s", text); /* includes \n */
+                    logwarn("# %s", buffer); /* includes \n */
                 break;
             }
 

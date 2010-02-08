@@ -192,11 +192,34 @@ NYTP_open(const char *name, const char *mode) {
     return file;
 }
 
+/* This isn't exactly fgets. It will resize the buffer as needed, and returns
+   a pointer to one beyond the read data (usually the terminating '\0'), or
+   NULL if it hit error/EOF */
+
 char *
-NYTP_gets(NYTP_file ifile, char *buffer, unsigned int len) {
+NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
+    char *buffer = *buffer_p;
+    size_t len = *len_p;
+    size_t prev_len = 0;
+
     CROAK_IF_NOT_STDIO(ifile, "NYTP_gets");
 
-    return fgets(buffer, len, ifile->file);
+    while(fgets(buffer + prev_len, len - prev_len, ifile->file)) {
+	/* We know that there are no '\0' bytes in the part we've already
+	   read, so don't bother running strlen() over that part.  */
+	char *end = buffer + prev_len + strlen(buffer + prev_len);
+	if (end[-1] == '\n') {
+	    *buffer_p = buffer;
+	    *len_p = len;
+	    return end;
+	}
+	prev_len = len - 1; /* -1 to take off the '\0' at the end */
+	len *= 2;
+	buffer = saferealloc(buffer, len);
+    }
+    *buffer_p = buffer;
+    *len_p = len;
+    return NULL;
 }
 
 #ifdef HAS_ZLIB
