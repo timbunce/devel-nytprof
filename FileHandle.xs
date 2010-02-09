@@ -621,7 +621,7 @@ NYTP_close(NYTP_file file, int discard) {
     return fclose(raw_file) == 0 ? 0 : errno;
 }
 
-MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle
+MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
 PROTOTYPES: DISABLE
 
@@ -706,3 +706,12 @@ SV *value
     CODE:
         p = SvPV(value, len);
         output_str(handle, p, SvUTF8(value) ? -(I32)len : (I32) len);
+
+#ifdef HAS_ZLIB
+
+void
+NYTP_start_deflate(handle, compression_level = 6)
+NYTP_file handle
+int compression_level
+
+#endif
