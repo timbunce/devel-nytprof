@@ -192,36 +192,6 @@ NYTP_open(const char *name, const char *mode) {
     return file;
 }
 
-/* This isn't exactly fgets. It will resize the buffer as needed, and returns
-   a pointer to one beyond the read data (usually the terminating '\0'), or
-   NULL if it hit error/EOF */
-
-char *
-NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
-    char *buffer = *buffer_p;
-    size_t len = *len_p;
-    size_t prev_len = 0;
-
-    CROAK_IF_NOT_STDIO(ifile, "NYTP_gets");
-
-    while(fgets(buffer + prev_len, len - prev_len, ifile->file)) {
-	/* We know that there are no '\0' bytes in the part we've already
-	   read, so don't bother running strlen() over that part.  */
-	char *end = buffer + prev_len + strlen(buffer + prev_len);
-	if (end[-1] == '\n') {
-	    *buffer_p = buffer;
-	    *len_p = len;
-	    return end;
-	}
-	prev_len = len - 1; /* -1 to take off the '\0' at the end */
-	len *= 2;
-	buffer = saferealloc(buffer, len);
-    }
-    *buffer_p = buffer;
-    *len_p = len;
-    return NULL;
-}
-
 #ifdef HAS_ZLIB
 
 static void
@@ -336,6 +306,82 @@ NYTP_read(NYTP_file ifile, void *buffer, size_t len, const char *what) {
                 (NYTP_eof(ifile)) ? "end of file" : NYTP_fstrerror(ifile));
     }
     return len;
+}
+
+/* This isn't exactly fgets. It will resize the buffer as needed, and returns
+   a pointer to one beyond the read data (usually the terminating '\0'), or
+   NULL if it hit error/EOF */
+
+char *
+NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
+    char *buffer = *buffer_p;
+    size_t len = *len_p;
+    size_t prev_len = 0;
+
+#ifdef HAS_ZLIB
+    if (FILE_STATE(ifile) == NYTP_FILE_INFLATE) {
+        while (1) {
+            const unsigned char *const p = ifile->large_buffer + ifile->count;
+            const unsigned int remaining = ((unsigned char *) ifile->zs.next_out) - p;
+            unsigned char *const nl = memchr(p, '\n', remaining);
+            size_t got;
+            size_t want;
+            size_t extra;
+
+            if (nl) {
+                want = nl + 1 - p;
+                extra = want + 1; /* 1 more to add a \0 */
+            } else {
+                want = extra = remaining;
+            }
+
+            if (extra > len - prev_len) {
+                prev_len = len;
+                len += extra;
+                buffer = saferealloc(buffer, len);
+            }
+
+            got = NYTP_read_unchecked(ifile, buffer + prev_len, want);
+            if (got != want)
+                croak("NYTP_gets unexpected short read. got %lu, expected %lu\n",
+                      (unsigned long)got, (unsigned long)want);
+
+            if (nl) {
+                buffer[prev_len + want] = '\0';
+                *buffer_p = buffer;
+                *len_p = len;
+                return buffer + prev_len + want;
+            }
+            if (ifile->zlib_at_eof) {
+                *buffer_p = buffer;
+                *len_p = len;
+                return NULL;
+            }
+            grab_input(ifile);
+        }
+    }
+#endif
+    if (FILE_STATE(ifile) != NYTP_FILE_STDIO) {
+        compressed_io_croak(ifile, "NYTP_gets");
+        return 0;
+    }
+
+    while(fgets(buffer + prev_len, len - prev_len, ifile->file)) {
+        /* We know that there are no '\0' bytes in the part we've already
+           read, so don't bother running strlen() over that part.  */
+        char *end = buffer + prev_len + strlen(buffer + prev_len);
+        if (end[-1] == '\n') {
+            *buffer_p = buffer;
+            *len_p = len;
+            return end;
+        }
+        prev_len = len - 1; /* -1 to take off the '\0' at the end */
+        len *= 2;
+        buffer = saferealloc(buffer, len);
+    }
+    *buffer_p = buffer;
+    *len_p = len;
+    return NULL;
 }
 
 
