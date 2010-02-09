@@ -85,6 +85,7 @@ my %identical = map {$_, 1}
 # Effectively, these are global variables. Sorry.
 my $input;
 my %attributes;
+my $deflating;
 
 my %dispatcher =
     (
@@ -124,6 +125,11 @@ my %dispatcher =
      },
 
      START_DEFLATE => sub {
+	 if (!$deflating && $out->can('start_deflate')) {
+	     $out->write('z');
+	     $out->start_deflate;
+	     ++$deflating;
+	 }
      },
 
      PID_START => sub {
