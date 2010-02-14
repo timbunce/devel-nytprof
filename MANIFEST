@@ -182,6 +182,7 @@ t/test80-recurs.p
 t/test80-recurs.rdt
 t/test80-recurs.t
 t/test81-swash.t
+t/test82-version.t
 t/zzz.t
 typemap
 xt/test23-strevalxs.p
