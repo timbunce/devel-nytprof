@@ -10,10 +10,13 @@ BEGIN {
 use Devel::NYTProf;
 use Devel::NYTProf::Test qw(example_xsub example_sub);
 
+# We set errno to some particular non-zero value to see if NYTProf changes it
+# (on many unix-like systems 3 is ESRCH 'No such process')
+my $dflterrno = 3;
 
 # simple assignment and immediate check of $!
-$! = 9999;
-is 0+$!, 9999, '$! should not be altered by NYTProf';
+$! = $dflterrno;
+is 0+$!, $dflterrno, '$! should not be altered by NYTProf';
 
 my $size1 = -s $nytprof_out;
 cmp_ok $size1, '>=', 0, "$nytprof_out should exist";
@@ -23,23 +26,23 @@ SKIP: {
     cmp_ok $size1, '>', 0, "$nytprof_out should not be empty";
 }
 
-$! = 9999;
+$! = $dflterrno;
 example_sub();
-is 0+$!, 9999, "\$! should not be altered by assigning fids to previously unprofiled modules ($!)";
+is 0+$!, $dflterrno, "\$! should not be altered by assigning fids to previously unprofiled modules ($!)";
 
-$! = 9999;
+$! = $dflterrno;
 example_xsub();
-is 0+$!, 9999, "\$! should not be altered by assigning fids to previously unprofiled modules ($!)";
-
-$! = 9999;
+is 0+$!, $dflterrno, "\$! should not be altered by assigning fids to previously unprofiled modules ($!)";
 
 SKIP: {
     skip 'On VMS buffer does not flush', 1 if($^O eq 'VMS');
+
+    $! = $dflterrno;
     while (-s $nytprof_out == $size1) {
         # execute lots of statements to force some i/o even if zipping
         busy();
     }
-    is 0+$!, 9999, '$! should not be altered by NYTProf i/o';
+    is 0+$!, $dflterrno, '$! should not be altered by NYTProf i/o';
 }
 
 ok not eval { example_xsub(0, "die"); 1; };
