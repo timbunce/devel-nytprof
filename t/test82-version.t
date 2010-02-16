@@ -34,7 +34,19 @@ run_test_group( {
 });
 
 __DATA__
-package X;
-require version;
-our $VERSION = '2';
-X->VERSION(1); # core dump
+#!perl -w
+{
+  package X;
+
+  sub warner {
+    print "# Hello world\n"
+  }
+
+  sub DESTROY {
+    goto \&warner;
+  }
+}
+
+my $a = bless [], 'X';
+
+undef $a;
