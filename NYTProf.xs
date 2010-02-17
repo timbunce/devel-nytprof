@@ -2351,7 +2351,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     COP *prev_cop = PL_curcop;                    /* not PL_curcop_nytprof here */
     OP *next_op = PL_op->op_next;                 /* op to execute after sub returns */
     /* pp_entersub can be called with PL_op->op_type==0 */
-    OPCODE op_type = (is_slowop || PL_op->op_type == OP_GOTO) ? PL_op->op_type : OP_ENTERSUB;
+    OPCODE op_type = (is_slowop || (opcode) PL_op->op_type == OP_GOTO) ? (opcode) PL_op->op_type : OP_ENTERSUB;
 
     CV *called_cv;
     dSP;
