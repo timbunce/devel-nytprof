@@ -4152,7 +4152,7 @@ load_profile_data_from_stream(SV *cb)
                 char text[MAXPATHLEN*2];
                 unsigned int pid  = read_int();
                 unsigned int ppid = read_int();
-                int len = sprintf(text, "%d", pid);
+                int len;
                 profiler_start_time = read_nv();
 
                 if (cb) {
@@ -4170,6 +4170,7 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
+                len = sprintf(text, "%d", pid);
                 (void)hv_store(live_pids_hv, text, len, newSVuv(ppid), 0);
                 if (trace_level)
                     logwarn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live) at %"NVff"\n",
@@ -4184,7 +4185,7 @@ load_profile_data_from_stream(SV *cb)
             {
                 char text[MAXPATHLEN*2];
                 unsigned int pid = read_int();
-                int len = sprintf(text, "%d", pid);
+                int len;
                 profiler_end_time = read_nv();
 
                 if (cb) {
@@ -4201,6 +4202,7 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
+                len = sprintf(text, "%d", pid);
                 if (!hv_delete(live_pids_hv, text, len, 0))
                     logwarn("Inconsistent pids in profile data (pid %d not introduced)\n",
                         pid);
