@@ -186,7 +186,7 @@ NYTP_open(const char *name, const char *mode) {
     file->stdio_at_eof = FALSE;
     file->zlib_at_eof = FALSE;
 
-    file->zs.msg = "[Oops. zlib hasn't updated this error string]";
+    file->zs.msg = (char *)"[Oops. zlib hasn't updated this error string]";
 #endif
 
     return file;

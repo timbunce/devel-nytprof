@@ -720,7 +720,7 @@ find_autosplit_parent(pTHX_ char* file_name)
      */
     Hash_entry *e = hashtable.first_inserted;
     Hash_entry *match = NULL;
-    char *sep = "/";
+    const char *sep = "/";
     char *base_end   = strstr(file_name, " (autosplit");
     char *base_start = rninstr(file_name, base_end, sep, sep+1);
     STRLEN base_len;
@@ -1033,7 +1033,7 @@ output_nv_from_av(pTHX_ AV *av, int idx, NV default_nv)
 }
 
 
-static char *
+static const char *
 cx_block_type(PERL_CONTEXT *cx) {
     switch (CxTYPE(cx)) {
     case CXt_NULL:              return "CXt_NULL";
@@ -1722,13 +1722,13 @@ struct subr_entry_st {
 
     unsigned int  caller_fid;
     int           caller_line;
-    char         *caller_subpkg_pv;
+    const char   *caller_subpkg_pv;
     SV           *caller_subnam_sv;
 
     CV           *called_cv;
     int           called_cv_depth;
     const char   *called_is_xs;         /* NULL, "xsub", or "syop" */
-    char         *called_subpkg_pv;
+    const char   *called_subpkg_pv;
     SV           *called_subnam_sv;
     /* ensure all items are initialized in first phase of pp_subcall_profiler */
 };
@@ -1885,7 +1885,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* compose called_subname_pv as "${pkg}::${sub}" avoiding sprintf */
     STMT_START {
         STRLEN len;
-        char *p;
+        const char *p;
 
         p = subr_entry->called_subpkg_pv;
         while (*p)
@@ -2999,7 +2999,7 @@ static SV *
 sub_pkg_filename_sv(pTHX_ char *sub_name, I32 len)
 {
     SV **svp;
-    char *delim = "::";
+    const char *delim = "::";
     /* find end of package name */
     char *colon = rninstr(sub_name, sub_name+(len > 0 ? len : -len), delim, delim+2);
     if (!colon || colon == sub_name)
@@ -4444,7 +4444,7 @@ MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Test
 PROTOTYPES: DISABLE
 
 void
-example_xsub(char *unused="", SV *action=Nullsv, SV *arg=Nullsv)
+example_xsub(const char *unused="", SV *action=Nullsv, SV *arg=Nullsv)
     CODE:
     if (!action)
         XSRETURN(0);
