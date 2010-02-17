@@ -484,7 +484,7 @@ output_header(pTHX)
 
 
 void
-output_str(NYTP_file file, char *str, I32 len) {    /* negative len signifies utf8 */
+output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signifies utf8 */
     unsigned char tag = NYTP_TAG_STRING;
     if (len < 0) {
         tag = NYTP_TAG_STRING_UTF8;
@@ -1727,7 +1727,7 @@ struct subr_entry_st {
 
     CV           *called_cv;
     int           called_cv_depth;
-    char         *called_is_xs;         /* NULL, "xsub", or "syop" */
+    const char   *called_is_xs;         /* NULL, "xsub", or "syop" */
     char         *called_subpkg_pv;
     SV           *called_subnam_sv;
     /* ensure all items are initialized in first phase of pp_subcall_profiler */
@@ -2123,7 +2123,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     subr_entry_t *subr_entry;
     I32 prev_subr_entry_ix;
     subr_entry_t *caller_subr_entry;
-    char *found_caller_by;
+    const char *found_caller_by;
     char *file;
 
     /* allocate struct to save stack (very efficient) */
@@ -2490,7 +2490,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     }
     else {
         char *stash_name = NULL;
-        char *is_xs = NULL;
+        const char *is_xs = NULL;
 
         if (op_type == OP_GOTO) {
             /* use the called_cv that was the arg to the goto op */
@@ -3234,7 +3234,7 @@ write_sub_callers(pTHX)
             int trace = (trace_level >= 3);
 
             unsigned int fid = 0, line = 0;
-            char *fid_line_delim = "[";
+            const char *fid_line_delim = "[";
             char *fid_line_start = rninstr(caller_subname, caller_subname+caller_subname_len, fid_line_delim, fid_line_delim+1);
             if (!fid_line_start) {
                 logwarn("bad fid_lines_hv key '%s'\n", caller_subname);
@@ -3345,7 +3345,7 @@ write_src_of_files(pTHX)
         for (line = 1; line <= lines; ++line) { /* lines start at 1 */
             SV **svp = av_fetch(src_av, line, 0);
             STRLEN len = 0;
-            char *src = (svp) ? SvPV(*svp, len) : "";
+            const char *src = (svp) ? SvPV(*svp, len) : "";
             /* outputting the tag and fid for each (non empty) line
              * is a little inefficient, but not enough to worry about */
             output_tag_int(out, NYTP_TAG_SRC_LINE, e->id);
@@ -3445,7 +3445,7 @@ normalize_eval_seqn(pTHX_ SV *sv) {
 
     /* Assumption is that space is the least common character in a filename.  */
 
-    for (; len >= 8 && (first_space = memchr(start, ' ', len));
+    for (; len >= 8 && (first_space = (char *)memchr(start, ' ', len));
          (len -= first_space +1 - start), (start = first_space + 1)) {
         char *first_digit;
         char *close;
@@ -3616,7 +3616,7 @@ load_profile_data_from_stream(SV *cb)
     SV *cb_args[12];  /* must be large enough for the largest callback argument list */
 
     size_t buffer_len = MAXPATHLEN * 2;
-    char *buffer = safemalloc(buffer_len);
+    char *buffer = (char *)safemalloc(buffer_len);
 
     av_extend(fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(fid_srclines_av, 64);
@@ -4223,7 +4223,7 @@ load_profile_data_from_stream(SV *cb)
                     /* probably EOF */
                     croak("Profile format error reading attribute");
                 --end; /* End, as returned, points 1 after the \n  */
-                if ((NULL == (value = memchr(buffer, '=', end - buffer)))) {
+                if ((NULL == (value = (char *)memchr(buffer, '=', end - buffer)))) {
                     logwarn("attribute malformed '%s'\n", buffer);
                     continue;
                 }

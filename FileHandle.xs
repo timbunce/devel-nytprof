@@ -323,7 +323,7 @@ NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
         while (1) {
             const unsigned char *const p = ifile->large_buffer + ifile->count;
             const unsigned int remaining = ((unsigned char *) ifile->zs.next_out) - p;
-            unsigned char *const nl = memchr(p, '\n', remaining);
+            unsigned char *const nl = (unsigned char *)memchr(p, '\n', remaining);
             size_t got;
             size_t want;
             size_t extra;
@@ -338,7 +338,7 @@ NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
             if (extra > len - prev_len) {
                 prev_len = len;
                 len += extra;
-                buffer = saferealloc(buffer, len);
+                buffer = (char *)saferealloc(buffer, len);
             }
 
             got = NYTP_read_unchecked(ifile, buffer + prev_len, want);
@@ -377,7 +377,7 @@ NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
         }
         prev_len = len - 1; /* -1 to take off the '\0' at the end */
         len *= 2;
-        buffer = saferealloc(buffer, len);
+        buffer = (char *)saferealloc(buffer, len);
     }
     *buffer_p = buffer;
     *len_p = len;

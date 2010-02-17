@@ -21,7 +21,7 @@
    and these 3 return to being static functions, within that library.  */
 
 void output_tag_int(NYTP_file file, unsigned char tag, unsigned int);
-void output_str(NYTP_file file, char *str, I32 len);
+void output_str(NYTP_file file, const char *str, I32 len);
 void output_nv(NYTP_file file, NV nv);
 
 #define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
