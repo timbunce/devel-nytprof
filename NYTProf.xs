@@ -3716,6 +3716,13 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int ticks    = read_int();
                 unsigned int file_num = read_int();
                 unsigned int line_num = read_int();
+                unsigned int block_line_num = 0;
+                unsigned int sub_line_num = 0;
+
+                if (c == NYTP_TAG_TIME_BLOCK) {
+                    block_line_num = read_int();
+                    sub_line_num = read_int();
+                }
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3730,8 +3737,8 @@ load_profile_data_from_stream(SV *cb)
                     sv_setiv(cb_args[i], line_num);       XPUSHs(cb_args[i++]);
 
                     if (c == NYTP_TAG_TIME_BLOCK) {
-                        sv_setiv(cb_args[i], read_int()); XPUSHs(cb_args[i++]); /* block_line_num */
-                        sv_setiv(cb_args[i], read_int()); XPUSHs(cb_args[i++]); /* sub_line_num */
+                        sv_setiv(cb_args[i], block_line_num); XPUSHs(cb_args[i++]);
+                        sv_setiv(cb_args[i], sub_line_num); XPUSHs(cb_args[i++]);
                     }
 
                     PUTBACK;
@@ -3772,9 +3779,6 @@ load_profile_data_from_stream(SV *cb)
                 );
 
                 if (c == NYTP_TAG_TIME_BLOCK) {
-                    unsigned int block_line_num = read_int();
-                    unsigned int sub_line_num   = read_int();
-
                     if (!fid_block_time_av)
                         fid_block_time_av = newAV();
                     add_entry(aTHX_ fid_block_time_av, file_num, block_line_num,
