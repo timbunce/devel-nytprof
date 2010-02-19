@@ -4324,6 +4324,7 @@ load_profile_data_from_stream(SV *cb)
     sv_free((SV*)live_pids_hv);
     sv_free(tmp_str1_sv);
     sv_free(tmp_str2_sv);
+    Safefree(buffer);
 
     if (cb) {
         SvREFCNT_dec(profile_modes);
