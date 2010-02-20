@@ -13,7 +13,7 @@ add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
 string eval merging - must allow at least viewing of source for called subs defined in a nested eval
 
-=head2 Changes in Devel::NYTProf 3.02
+=head2 Changes in Devel::NYTProf 3.01_90 (svn 1076) 20th Feb 2010
 
   Fixed handling of usecputime=1 option and updated
     docs to note the significant limitations.
