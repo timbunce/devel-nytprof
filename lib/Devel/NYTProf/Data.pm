@@ -325,8 +325,6 @@ sub dump_profile_data {
     my $separator  = $args->{separator} || '';
     my $filehandle = $args->{filehandle} || \*STDOUT;
 
-    #skip_stdlib
-
     # shallow clone and add sub_caller for migration of tests
     my $startnode = $self;
 
@@ -335,31 +333,27 @@ sub dump_profile_data {
     my $callback = sub {
         my ($path, $value) = @_;
 
-        if ($path->[0] eq 'attribute' && @$path == 1) {
-            my %v = %$value;
-            delete @v{qw(PRIVLIB_EXP ARCHLIB_EXP)};
-            return ({}, \%v);
-        }
+        # not needed currently
+        #if ($path->[0] eq 'attribute' && @$path == 1) { my %v = %$value; return ({}, \%v); }
 
-        if ($args->{skip_stdlib}) {
+        if (my $hook = $args->{skip_fileinfo_hook}) {
 
             # for fid_fileinfo don't dump internal details of lib modules
             if ($path->[0] eq 'fid_fileinfo' && @$path==2) {
                 my $fi = $self->fileinfo_of($value->[0]);
-                return ({ skip_internal_details => $fi->is_perl_std_lib }, $value);
+                return ({ skip_internal_details => scalar $hook->($fi, $path, $value) }, $value);
             }
 
             # skip sub_subinfo data for 'library modules'
             if ($path->[0] eq 'sub_subinfo' && @$path==2 && $value->[0]) {
                 my $fi = $self->fileinfo_of($value->[0]);
-                return undef if $fi->is_perl_std_lib;
+                return undef if $hook->($fi, $path, $value);
             }
 
             # skip fid_*_time data for 'library modules'
             if ($path->[0] =~ /^fid_\w+_time$/ && @$path==2) {
                 my $fi = $self->fileinfo_of($path->[1]);
-                return undef if $fi->is_perl_std_lib
-                         or $fi->filename =~ m!^/\.\.\./!;
+                return undef if $hook->($fi, $path, $value)
             }
         }
         return ({}, $value);

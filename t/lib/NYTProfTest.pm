@@ -397,7 +397,11 @@ sub dump_profile_to_file {
     $profile->dump_profile_data(
         {   filehandle => $fh,
             separator  => "\t",
-            skip_stdlib => 1,
+            skip_fileinfo_hook => sub {
+                my $fi = shift;
+                return 1 if $fi->filename =~ /(AutoLoader|Exporter)\.pm$/ or $fi->filename =~ m!^/\.\.\./!;
+                return 0;
+            },
         }
     );
     return;

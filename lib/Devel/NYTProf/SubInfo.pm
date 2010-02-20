@@ -218,11 +218,12 @@ sub normalize_for_test {
     # { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } }
     my $callers = $self->caller_fid_line_places || {};
 
-    # delete calls from modules shipped with perl
+    # delete calls from modules shipped with perl that some tests use
+    # (because the line numbers vary between perl versions)
     for my $fid (keys %$callers) {
         next if not $fid;
         my $fileinfo = $profile->fileinfo_of($fid) or next;
-        next if not $fileinfo->is_perl_std_lib;
+        next if $fileinfo->filename !~ /(AutoLoader|Exporter)\.pm$/;
         delete $callers->{$fid};
     }
 

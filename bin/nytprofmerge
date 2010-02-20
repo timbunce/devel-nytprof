@@ -79,7 +79,7 @@ sub _time_block_or_line {
 
 # Croak if any of these attributes differ between profiles
 my %identical = map {$_, 1}
-    qw (ARCHLIB_EXP PL_perldb PRIVLIB_EXP clock_id nv_size perl_version
+    qw (PL_perldb clock_id nv_size perl_version
 	ticks_per_sec xs_version);
 
 # Effectively, these are global variables. Sorry.

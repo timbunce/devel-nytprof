@@ -19,7 +19,6 @@ diag( sprintf "Compression: default level is %d, zlib version %s",
 diag "--- Perl $] Config on $Config{archname}:";
 diag "\t$_: ".(defined $Config{$_} ? $Config{$_} : '(undef)')
     for qw(
-        privlibexp archlibexp vendorlibexp
         d_gettimeod
     );
 

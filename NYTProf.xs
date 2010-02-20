@@ -458,11 +458,6 @@ output_header(pTHX)
     /* $0 - application name */
     sv = get_sv("0",GV_ADDWARN);
     NYTP_printf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
-    /* %Config values */
-    NYTP_printf(out, ":%s=%s\n",       "PRIVLIB_EXP",    PRIVLIB_EXP);
-#ifdef ARCHLIB_EXP /* not defined if would be same as PRIVLIB_EXP */
-    NYTP_printf(out, ":%s=%s\n",       "ARCHLIB_EXP",    ARCHLIB_EXP);
-#endif
 
 #ifdef HAS_ZLIB
     if (compression_level) {
