@@ -2368,7 +2368,10 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         /* or our DB::_INIT as that makes tests perl version sensitive */
     || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv || sub_sv == DB_fin_cv))
         /* don't profile other kinds of goto */
-    || (op_type==OP_GOTO && !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV))
+    || (op_type==OP_GOTO &&
+        (  !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV)
+        || !subr_entry_ix ) /* goto out of sub whose entry wasn't profiled */
+       )
 #ifdef MULTIPLICITY
     || (my_perl != orig_my_perl)
 #endif
@@ -2380,10 +2383,11 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         reinit_if_forked(aTHX);
 
     if (trace_level >= 99) {
-        logwarn("profiling a call [op %ld]\n", (long)op_type);
+        logwarn("profiling a call [op %ld, %s, seix %d]\n",
+            (long)op_type, PL_op_name[op_type], subr_entry_ix);
         /* crude, but the only way to deal with the miriad logic at the
-            * start of pp_entersub (which ought to be available as separate sub)
-            */
+         * start of pp_entersub (which ought to be available as separate sub)
+         */
         sv_dump(sub_sv);
     }
     
