@@ -742,12 +742,13 @@ sub package_subinfo_map_to_tm_data {
             pl("%d file", scalar $si->caller_fids);
 
         my $total_time = $si->profile->{attribute}{profiler_duration};
-        my $excl_time = $si->excl_time;
-        push @html, sprintf "Exclusive time: %s, %.2f%%",
-            fmt_time($excl_time), $excl_time/$total_time*100;
         my $incl_time = $si->incl_time;
         push @html, sprintf "Inclusive time: %s, %.2f%%",
-            fmt_time($incl_time), $incl_time/$total_time*100;
+                fmt_time($incl_time), $incl_time/$total_time*100;
+        my $excl_time = $si->excl_time;
+        push @html, sprintf "Exclusive time: %s, %.2f%%",
+                fmt_time($excl_time), $excl_time/$total_time*100
+            if $excl_time ne $incl_time;
 
         if (my $mrd = $si->recur_max_depth) {
             push @html, sprintf "Recursion: max depth %d, recursive inclusive time %s",
