@@ -14,7 +14,7 @@ run_test_group( {
         # set options for this test:
         usecputime => 1,
         # restrict irrelevant options:
-        compress => 1, slowops => 0, savesrc => 1, leave => 0,
+        compress => 1, slowops => 0, savesrc => 0, leave => 0, stmts => 0,
     },
     extra_test_count => 5,
     extra_test_code  => sub {

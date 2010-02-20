@@ -142,8 +142,8 @@ sub do_foreach_opt_combination {
 
         local $ENV{NYTPROF} = join ":", map {"$_=$env{$_}"} @keys;
 
-        my $context = "NYTPROF=$ENV{NYTPROF}\n";
-        ($opts{v}) ? warn $context : print $context;
+        my $context_msg = "NYTPROF=$ENV{NYTPROF}\n";
+        ($opts{v}) ? warn $context_msg : print $context_msg;
 
         ok eval { $code->(\%env) };
         if ($@) {
@@ -239,9 +239,9 @@ sub run_test_group {
         }
 
         if ($extra_test_code) {
-            print("running $extra_test_count extra tests...\n") if @tests;
             my $profile;
             if (@tests) {
+                print("running $extra_test_count extra tests...\n");
                 $profile = eval { Devel::NYTProf::Data->new({ filename => $profile_datafile }) };
                 if ($@) {
                     diag($@);
