@@ -17,9 +17,9 @@ string eval merging - must allow at least viewing of source for called subs defi
 
   Fixed handling of usecputime=1 option and updated
     docs to note the significant limitations.
-  Fixed handling of assignment of XS subs to files
+  Fixed association of XS subs to source files
     in some edge cases thanks to Nicholas Clark.
-  Fixed nytprofmerge edge-cases thanks to Nicholas Clark.
+  Fixed nytprofmerge edge cases thanks to Nicholas Clark.
 
   Added high-resolution (100ns) timer for Mac OS X
     many thanks to Markus Peter.
@@ -28,6 +28,7 @@ string eval merging - must allow at least viewing of source for called subs defi
   Changed subroutine profiler to be slightly more efficient.
   Changed some tests to be more informative on failure.
   Changed nytprofhtml to be smarter when source isn't available.
+  Changed nytprofhtml to show sort arrow on sortable tables.
 
   Updated docs to include a note about timing on Windows.
   Updated docs to include a section about making NYTProf faster.

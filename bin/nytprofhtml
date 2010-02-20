@@ -119,7 +119,6 @@ $reporter->set_param(
             profile  => $profile,
             title    => "NYTProf Performance Profile",
             subtitle => $subhead,
-            mode     => qq/-$level/
             )
             . qq{
 <div class="body_content">
@@ -538,7 +537,7 @@ sub output_index_page {
         or croak "Unable to open file $opt{out}/$filename: $!";
 
     print $fh get_html_header();
-    print $fh get_page_header(profile => $profile, title => "Performance Profile Index");
+    print $fh get_page_header(profile => $profile, title => "Performance Profile Index", skip_link_to_index=>1);
     print $fh qq{
         <div class="body_content"><br />
     };
@@ -1404,9 +1403,9 @@ EOD
 
 sub get_page_header {
     my %args = @_;
-    my ($profile, $head1, $head2, $right1, $right2, $mode) = (
+    my ($profile, $head1, $head2, $right1, $right2, $skip_link_to_index) = (
         $args{profile}, $args{title},     $args{subtitle},
-        $args{title2},  $args{subtitle2}, $args{mode}
+        $args{title2},  $args{subtitle2}, $args{skip_link_to_index}
     );
 
     $head2  ||= qq{<br />For ${ \($profile->{attribute}{application}) }};
@@ -1415,7 +1414,7 @@ sub get_page_header {
         . localtime(time);
 
     my $back_link = q//;
-    if ($mode) {
+    unless ($skip_link_to_index) {
         $back_link = qq{<div class="header_back">
             <a href="index.html">&larr; Index</a>
         </div>};
