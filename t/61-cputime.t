@@ -16,7 +16,7 @@ run_test_group( {
         # restrict irrelevant options:
         compress => 1, slowops => 0, savesrc => 0, leave => 0, stmts => 0,
     },
-    extra_test_count => 5,
+    extra_test_count => 6,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
@@ -39,12 +39,12 @@ run_test_group( {
 
                     last if $crnt >= $end;
                 }
-                warn "cputime loop count $loops\n";
+                print "cputime loop count $loops\n";
             } 
 
             # sync up: spin till clock ticks
             1 while $cpu1 == ($cpu2 = (times)[0]);
-            warn "cputime step ".($cpu2-$cpu1)."\n";
+            print "cputime step ".($cpu2-$cpu1)."\n";
 
             # record start time
             my $start = time();
@@ -53,7 +53,7 @@ run_test_group( {
             foo($cpu2 + 0.4);
 
             # report realtime to help identify is cputime is really measuring realtime
-            warn "realtime used ".(time()-$start)."\n";
+            print "realtime used ".(time()-$start)."\n";
 
         };
         $profile = profile_this(

@@ -427,7 +427,7 @@ likely to change in future.
 =head2 usecputime=1
 
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
-time (which is the default). This currently only applies to the statement profiler.
+time (which is the default).
 
 Measuring CPU time has the advantage of making the measurements independent of
 time spent blocked waiting for the cpu or network i/o etc. But it also has the

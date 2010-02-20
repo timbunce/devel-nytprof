@@ -15,13 +15,11 @@ string eval merging - must allow at least viewing of source for called subs defi
 
 =head2 Changes in Devel::NYTProf 3.02
 
-XXX Fixed one problem with usecputime=1 option but results are *10 on my mac.
-XXX Needs tests.
-
-  Fixed handling of usecputime=1 option but updated
+  Fixed handling of usecputime=1 option and updated
     docs to note the significant limitations.
   Fixed handling of assignment of XS subs to files
     in some edge cases thanks to Nicholas Clark.
+  Fixed nytprofmerge edge-cases thanks to Nicholas Clark.
 
   Added high-resolution (100ns) timer for Mac OS X
     many thanks to Markus Peter.

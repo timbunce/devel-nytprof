@@ -145,6 +145,15 @@ the resolution etc. Give them names and attributes (cpu, realtime etc).
 User could then pick a clock by name. By default we'd pick the best available
 realtime clock (or best available cputime clock if usecputime=1 option set).
 
+[Conjectural terminology: "clock" means some measuring mechanism, like
+get_clock(), times(), getrusage(), that may yield multiple pieces of
+information, and "measure" is one specific item.
+Clock "time"=times(), measures: "time.user", "time.user+sys" etc
+Clock "clock"=clock_gettime(), measures: "clock.realtime", "clock.monotonic" etc
+Clock "rusage"=getrusage(), measures: "rusage.majflt", "rusage.nvcsw" etc
+Clock "memory" measures: "memory.bytes", "mem.allocs" etc
+] 
+
 Add help option which would print a summary of the options and exit.
 Could also print list of available clocks for the clock=N option
 (using a set of #ifdef's)

@@ -2,13 +2,14 @@
  * ************************************************************************
  * This file is part of the Devel::NYTProf package.
  * Copyright 2008 Adam J. Kaplan, The New York Times Company.
- * Copyright 2008 Tim Bunce, Ireland.
+ * Copyright 2009-2010 Tim Bunce, Ireland.
  * Released under the same terms as Perl 5.8
  * See http://search.cpan.org/dist/Devel-NYTProf/
  *
  * Contributors:
- * Adam Kaplan, akaplan at nytimes.com
  * Tim Bunce, http://www.tim.bunce.name and http://blog.timbunce.org
+ * Nicholas Clark,
+ * Adam Kaplan, akaplan at nytimes.com
  * Steve Peters, steve at fisharerojo.org
  *
  * ************************************************************************
@@ -1713,7 +1714,8 @@ struct subr_entry_st {
     long unsigned subr_call_seqn;
     I32 prev_subr_entry_ix; /* ix to callers subr_entry */
 
-    time_of_day_t initial_call_time;
+    time_of_day_t initial_call_timeofday;
+    struct tms    initial_call_cputimes;
     NV            initial_overhead_ticks;
     NV            initial_subr_secs;
 
@@ -1857,8 +1859,15 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* seconds spent in subroutines called by this subroutine */
     called_sub_secs = (cumulative_subr_secs - subr_entry->initial_subr_secs);
 
-    if (0 && profile_usecputime) {
-        /* XXX */
+    if (profile_usecputime) {
+        struct tms call_end_ctime;
+        long ticks;
+
+        times(&call_end_ctime);
+        ticks = (call_end_ctime.tms_utime - subr_entry->initial_call_cputimes.tms_utime)
+              + (call_end_ctime.tms_stime - subr_entry->initial_call_cputimes.tms_stime);
+        /* ignore overhead_ticks when using cputime because the resolution is so poor */
+        incl_subr_sec = (ticks / (NV)CLK_TCK);
     }
     else {
         time_of_day_t sub_end_time;
@@ -1866,14 +1875,14 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
         /* calculate ticks since we entered the sub */
         get_time_of_day(sub_end_time);
-        get_ticks_between(subr_entry->initial_call_time, sub_end_time, ticks, overflow);
+        get_ticks_between(subr_entry->initial_call_timeofday, sub_end_time, ticks, overflow);
 
         incl_subr_sec = overflow + (ticks / (NV)CLOCKS_PER_TICK);
         /* subtract statement measurement overheads */
         incl_subr_sec -= (overhead_ticks / CLOCKS_PER_TICK);
-        /* exclusive = inclusive - time spent in subroutines called by this subroutine */
-        excl_subr_sec = incl_subr_sec - called_sub_secs;
     }
+    /* exclusive = inclusive - time spent in subroutines called by this subroutine */
+    excl_subr_sec = incl_subr_sec - called_sub_secs;
 
     subr_call_key_len = sprintf(subr_call_key, "%s::%s[%u:%d]",
         subr_entry->caller_subpkg_pv,
@@ -2147,7 +2156,10 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     subr_entry->subr_prof_depth = (caller_subr_entry)
         ? caller_subr_entry->subr_prof_depth+1 : 1;
 
-    get_time_of_day(subr_entry->initial_call_time);
+    if (profile_usecputime)
+        times(&subr_entry->initial_call_cputimes);
+    else
+        get_time_of_day(subr_entry->initial_call_timeofday);
     subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
     subr_entry->initial_subr_secs      = cumulative_subr_secs;
     subr_entry->subr_call_seqn         = ++cumulative_subr_seqn;
@@ -2776,7 +2788,7 @@ init_profiler(pTHX)
 
     /* Save the process id early. We monitor it to detect forks */
     last_pid = getpid();
-    ticks_per_sec = (profile_usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
+    ticks_per_sec = (profile_usecputime) ? CLK_TCK : CLOCKS_PER_TICK;
     DB_INIT_cv = (SV*)GvCV(gv_fetchpv("DB::_INIT",          FALSE, SVt_PVCV));
     DB_fin_cv  = (SV*)GvCV(gv_fetchpv("DB::finish_profile", FALSE, SVt_PVCV));
 
