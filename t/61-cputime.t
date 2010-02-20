@@ -22,16 +22,39 @@ run_test_group( {
 
         my $src_code = q{
             alarm(20); # watchdog timer
+            my $cpu1 = (times)[0];
+            my $cpu2;
+
             sub foo {
-                my $wait = 0.5; # consume this much cpu time inside foo()
-                my $cpu1 = (times)[0];
-                while (1) {
-                    my $cpu2 = (times)[0];
-                    last if $cpu2 > $cpu1 + $wait;
+                my $end = shift;
+                sleep 1; # to separate cputime from realtime
+
+                my $loops = 0;
+                my $prev;
+                while (++$loops) {
+
+                    my $crnt = (times)[0];
+                    #print "tick $crnt\n" if $crnt != $prev;
+                    $prev = $crnt;
+
+                    last if $crnt >= $end;
                 }
+                warn "cputime loop count $loops\n";
             } 
-            # could spin waiting for (times)[0] to change before calling foo
-            foo();
+
+            # sync up: spin till clock ticks
+            1 while $cpu1 == ($cpu2 = (times)[0]);
+            warn "cputime step ".($cpu2-$cpu1)."\n";
+
+            # record start time
+            my $start = time();
+
+            # consume this much cpu time inside foo()
+            foo($cpu2 + 0.4);
+
+            # report realtime to help identify is cputime is really measuring realtime
+            warn "realtime used ".(time()-$start)."\n";
+
         };
         $profile = profile_this(
             src_code => $src_code,
@@ -46,5 +69,6 @@ run_test_group( {
         is $sub->calls, 1, 'main::foo should be called 1 times';
         cmp_ok $sub->incl_time, '>', 0.4, 'cputime of foo() should be at least ~0.5';
         cmp_ok $sub->incl_time, '<', 1.0, 'cputime of foo() should be around 0.5';
+        is $sub->incl_time, $sub->excl_time, 'incl_time and excl_time should be the same';
     },
 });
