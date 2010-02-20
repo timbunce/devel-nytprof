@@ -176,8 +176,8 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_SCi_CALL_COUNT  0   /* count of calls to sub */    
 #define NYTP_SCi_INCL_RTIME  1   /* inclusive real time in sub */    
 #define NYTP_SCi_EXCL_RTIME  2   /* exclusive real time in sub */    
-#define NYTP_SCi_INCL_UTIME  3   /* incl user cpu time in sub */
-#define NYTP_SCi_INCL_STIME  4   /* incl sys  cpu time in sub */
+#define NYTP_SCi_spare_3     3   /* */
+#define NYTP_SCi_spare_4     4   /* */
 #define NYTP_SCi_RECI_RTIME  5   /* recursive incl real time in sub */
 #define NYTP_SCi_REC_DEPTH   6   /* max recursion call depth */
 #define NYTP_SCi_CALLING_SUB 7   /* name of calling sub */
@@ -236,7 +236,7 @@ struct NYTP_int_options_t {
 
 /* XXX boolean options should be moved into profile_opts */
 static struct NYTP_int_options_t options[] = {
-#define usecputime options[0].option_value
+#define profile_usecputime options[0].option_value
     { "usecputime", 0 },
 #define profile_subs options[1].option_value
     { "subs", 1 },                                /* subroutine times */
@@ -1349,7 +1349,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
     saved_errno = errno;
 
-    if (usecputime) {
+    if (profile_usecputime) {
         times(&end_ctime);
         overflow = 0;                             /* XXX */
         elapsed = end_ctime.tms_utime - start_ctime.tms_utime
@@ -1434,7 +1434,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         if (!last_sub_line)   last_sub_line   = last_executed_line;
     }
 
-    if (usecputime) {
+    if (profile_usecputime) {
         times(&start_ctime);
         /* insufficient accuracy for cumulative_overhead_ticks */
     }
@@ -1530,7 +1530,7 @@ set_option(pTHX_ const char* option, const char* value)
         else if (strEQ(value,"init"))  profile_start = NYTP_START_INIT;
         else if (strEQ(value,"end"))   profile_start = NYTP_START_END;
         else if (strEQ(value,"no"))    profile_start = NYTP_START_NO;
-        else croak("NYTProf option begin has invalid value '%s'\n", value);
+        else croak("NYTProf option 'start' has invalid value '%s'\n", value);
     }
     else if (strEQ(option, "addpid")) {
         profile_opts = (atoi(value))
@@ -1699,10 +1699,7 @@ new_sub_call_info_av(pTHX)
     av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(1));
     av_store(av, NYTP_SCi_INCL_RTIME, newSVnv(0.0));
     av_store(av, NYTP_SCi_EXCL_RTIME, newSVnv(0.0));
-    av_store(av, NYTP_SCi_INCL_UTIME, newSVnv(0.0));
-    av_store(av, NYTP_SCi_INCL_STIME, newSVnv(0.0));
-    /* NYTP_SCi_RECI_RTIME - allocated when needed */
-    /* NYTP_SCi_REC_DEPTH  - allocated when needed */
+    /* others allocated when needed */
     return av;
 }
 
@@ -1860,7 +1857,10 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* seconds spent in subroutines called by this subroutine */
     called_sub_secs = (cumulative_subr_secs - subr_entry->initial_subr_secs);
 
-    if (1) {
+    if (0 && profile_usecputime) {
+        /* XXX */
+    }
+    else {
         time_of_day_t sub_end_time;
         long ticks, overflow;
 
@@ -2693,7 +2693,7 @@ enable_profile(pTHX_ char *file)
         sv_setiv(PL_DBsingle, 1);
 
     /* discard time spent since profiler was disabled */
-    if (usecputime) {
+    if (profile_usecputime) {
         times(&start_ctime);
     }
     else {
@@ -2776,7 +2776,7 @@ init_profiler(pTHX)
 
     /* Save the process id early. We monitor it to detect forks */
     last_pid = getpid();
-    ticks_per_sec = (usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
+    ticks_per_sec = (profile_usecputime) ? CLOCKS_PER_SEC : CLOCKS_PER_TICK;
     DB_INIT_cv = (SV*)GvCV(gv_fetchpv("DB::_INIT",          FALSE, SVt_PVCV));
     DB_fin_cv  = (SV*)GvCV(gv_fetchpv("DB::finish_profile", FALSE, SVt_PVCV));
 
@@ -2907,7 +2907,7 @@ init_profiler(pTHX)
     av_push(PL_initav, SvREFCNT_inc(get_cv("DB::_INIT", GV_ADDWARN)));
 
     /* seed first run time */
-    if (usecputime) {
+    if (profile_usecputime) {
         times(&start_ctime);
     }
     else {
@@ -3257,8 +3257,6 @@ write_sub_callers(pTHX)
             sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
             sc[NYTP_SCi_EXCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
-            sc[NYTP_SCi_INCL_UTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_UTIME, 0.0);
-            sc[NYTP_SCi_INCL_STIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_STIME, 0.0);
             sc[NYTP_SCi_RECI_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
             sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0) * 1.0;
             output_str(out, called_subname, called_subname_len);
@@ -3282,7 +3280,6 @@ write_sub_callers(pTHX)
                         called_subname, (int)caller_subname_len,
                         caller_subname, fid, line, (long)sc[NYTP_SCi_CALL_COUNT],
                         sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
-                        sc[NYTP_SCi_INCL_UTIME], sc[NYTP_SCi_INCL_STIME],
                         (int)sc[NYTP_SCi_REC_DEPTH], sc[NYTP_SCi_RECI_RTIME]);
                 }
             }
@@ -4034,8 +4031,6 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int count = read_int();
                 NV incl_time       = read_nv();
                 NV excl_time       = read_nv();
-                NV ucpu_time       = read_nv();
-                NV scpu_time       = read_nv();
                 NV reci_time       = read_nv();
                 UV rec_depth       = read_int();
                 SV *called_subname_sv = read_str(aTHX_ tmp_str1_sv);
@@ -4050,8 +4045,8 @@ load_profile_data_from_stream(SV *cb)
                     sv_setuv(cb_args[i], count);          XPUSHs(cb_args[i++]);
                     sv_setnv(cb_args[i], incl_time);      XPUSHs(cb_args[i++]);
                     sv_setnv(cb_args[i], excl_time);      XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], ucpu_time);      XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], scpu_time);      XPUSHs(cb_args[i++]);
+                    sv_setnv(cb_args[i], 0.0);            XPUSHs(cb_args[i++]);
+                    sv_setnv(cb_args[i], 0.0);            XPUSHs(cb_args[i++]);
                     sv_setnv(cb_args[i], reci_time);      XPUSHs(cb_args[i++]);
                     sv_setiv(cb_args[i], rec_depth);      XPUSHs(cb_args[i++]);
                     sv_setsv(cb_args[i], called_subname_sv);     XPUSHs(cb_args[i++]);
@@ -4068,9 +4063,9 @@ load_profile_data_from_stream(SV *cb)
                 normalize_eval_seqn(aTHX_ called_subname_sv);
 
                 if (trace_level >= 3)
-                    logwarn("Sub %s called by %s %u:%u: count %d, incl %"NVff", excl %"NVff", ucpu %"NVff" scpu %"NVff"\n",
+                    logwarn("Sub %s called by %s %u:%u: count %d, incl %"NVff", excl %"NVff"\n",
                         SvPV_nolen(called_subname_sv), SvPV_nolen(caller_subname_sv), fid, line,
-                        count, incl_time, excl_time, ucpu_time, scpu_time);
+                        count, incl_time, excl_time);
 
                 subinfo_av = lookup_subinfo_av(aTHX_ called_subname_sv, sub_subinfo_hv);
 
@@ -4105,12 +4100,12 @@ load_profile_data_from_stream(SV *cb)
                     sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + incl_time : incl_time);
                     sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
                     sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + excl_time : excl_time);
-                    sv = *av_fetch(av, NYTP_SCi_INCL_UTIME, 1);
-                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + ucpu_time : ucpu_time);
-                    sv = *av_fetch(av, NYTP_SCi_INCL_STIME, 1);
-                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + scpu_time : scpu_time);
+                    sv = *av_fetch(av, NYTP_SCi_spare_3, 1);
+                    sv_setnv(sv, 0.0);
+                    sv = *av_fetch(av, NYTP_SCi_spare_4, 1);
+                    sv_setnv(sv, 0.0);
                     sv = *av_fetch(av, NYTP_SCi_RECI_RTIME, 1);
-                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + scpu_time : reci_time);
+                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + reci_time : reci_time);
                     sv = *av_fetch(av, NYTP_SCi_REC_DEPTH,  1);
                     if (!SvOK(sv) || SvUV(sv) < rec_depth) /* max() */
                         sv_setuv(sv, rec_depth);
@@ -4437,8 +4432,6 @@ BOOT:
     newCONSTSUB(stash, "NYTP_SCi_CALL_COUNT",   newSViv(NYTP_SCi_CALL_COUNT));
     newCONSTSUB(stash, "NYTP_SCi_INCL_RTIME",   newSViv(NYTP_SCi_INCL_RTIME));
     newCONSTSUB(stash, "NYTP_SCi_EXCL_RTIME",   newSViv(NYTP_SCi_EXCL_RTIME));
-    newCONSTSUB(stash, "NYTP_SCi_INCL_UTIME",   newSViv(NYTP_SCi_INCL_UTIME));
-    newCONSTSUB(stash, "NYTP_SCi_INCL_STIME",   newSViv(NYTP_SCi_INCL_STIME));
     newCONSTSUB(stash, "NYTP_SCi_RECI_RTIME",   newSViv(NYTP_SCi_RECI_RTIME));
     newCONSTSUB(stash, "NYTP_SCi_REC_DEPTH",    newSViv(NYTP_SCi_REC_DEPTH));
     newCONSTSUB(stash, "NYTP_SCi_CALLING_SUB",  newSViv(NYTP_SCi_CALLING_SUB));
