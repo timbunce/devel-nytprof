@@ -269,6 +269,7 @@ sub subroutine_table {
     # make table sortable if it contains all the subs
     push @on_ready_js, q{
         $("#subs_table").tablesorter({
+            sortList: [[3,1]],
             headers: {
                 3: { sorter: 'fmt_time' },
                 4: { sorter: 'fmt_time' }
@@ -1191,10 +1192,10 @@ sub output_file_table {
     print $fh '</table>';
     push @on_ready_js, q{
         $("#filestable").tablesorter({
+            sortList: [[1,1]],
             headers: {
                 1: { sorter: 'fmt_time' },
-                2: { sorter: 'fmt_time' },
-                3: { sorter: false      }
+                2: { sorter: false      }
             }
         });
     };
@@ -1310,6 +1311,7 @@ sub get_footer {
         # XXX I've no idea why this workaround is needed (or works).
         # without it the file table on the index page isn't sortable
         @on_ready_js = reverse @on_ready_js;
+
         $js = sprintf q{
             <script type="text/javascript"> $(document).ready(function() { %s } ); </script>
         }, join("\n", '', @on_ready_js, '');
