@@ -3264,6 +3264,8 @@ write_sub_callers(pTHX)
             sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
             sc[NYTP_SCi_EXCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
+            output_nv(out, 0.0); /* NYTP_SCi_spare_3 */
+            output_nv(out, 0.0); /* NYTP_SCi_spare_4 */
             sc[NYTP_SCi_RECI_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
             sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0) * 1.0;
             output_str(out, called_subname, called_subname_len);
@@ -4037,9 +4039,14 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int count = read_int();
                 NV incl_time       = read_nv();
                 NV excl_time       = read_nv();
+                NV spare_3         = read_nv();
+                NV spare_4         = read_nv();
                 NV reci_time       = read_nv();
                 UV rec_depth       = read_int();
                 SV *called_subname_sv = read_str(aTHX_ tmp_str1_sv);
+
+                PERL_UNUSED_VAR(spare_3);
+                PERL_UNUSED_VAR(spare_4);
 
                 if (cb) {
                     PUSHMARK(SP);
