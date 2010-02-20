@@ -55,6 +55,9 @@ sub profile_this {
             join(" ", @perl), $ENV{NYTPROF} || ''
         if 0;
 
+    # ensure child has same libs as us (e.g., if we were run with perl -Mblib)
+    local $ENV{PERL5LIB} = join($Config{path_sep}, @INC);
+
     if (my $src_file = $opt{src_file}) {
         system(@perl, $src_file) == 0
             or carp "@perl $src_file exited with an error status";
