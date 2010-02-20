@@ -2391,7 +2391,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     if (trace_level >= 99) {
         logwarn("profiling a call [op %ld, %s, seix %d]\n",
-            (long)op_type, PL_op_name[op_type], subr_entry_ix);
+            (long)op_type, PL_op_name[op_type], (int)subr_entry_ix);
         /* crude, but the only way to deal with the miriad logic at the
          * start of pp_entersub (which ought to be available as separate sub)
          */
@@ -3283,10 +3283,9 @@ write_sub_callers(pTHX)
                     logwarn("%s is xsub\n", called_subname);
                 }
                 else {
-                    logwarn("%s called by %.*s at %u:%u: count %ld (i%"NVff"s e%"NVff"s u%"NVff"s s%"NVff"s, d%d ri%"NVff"s)\n",
-                        called_subname, (int)caller_subname_len,
-                        caller_subname, fid, line, (long)sc[NYTP_SCi_CALL_COUNT],
-                        sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
+                    logwarn("%s called by %.*s at %u:%u: count %ld (i%"NVff"s e%"NVff"s, d%d ri%"NVff"s)\n",
+                        called_subname, (int)caller_subname_len, caller_subname, fid, line,
+                        (long)sc[NYTP_SCi_CALL_COUNT], sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME],
                         (int)sc[NYTP_SCi_REC_DEPTH], sc[NYTP_SCi_RECI_RTIME]);
                 }
             }
