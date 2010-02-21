@@ -1862,7 +1862,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         ticks = (call_end_ctime.tms_utime - subr_entry->initial_call_cputimes.tms_utime)
               + (call_end_ctime.tms_stime - subr_entry->initial_call_cputimes.tms_stime);
         /* ignore overhead_ticks when using cputime because the resolution is so poor */
-        incl_subr_sec = (ticks / (NV)CLK_TCK);
+        incl_subr_sec = (ticks / (NV)PL_clocktick);
     }
     else {
         time_of_day_t sub_end_time;
@@ -2783,7 +2783,7 @@ init_profiler(pTHX)
 
     /* Save the process id early. We monitor it to detect forks */
     last_pid = getpid();
-    ticks_per_sec = (profile_usecputime) ? CLK_TCK : CLOCKS_PER_TICK;
+    ticks_per_sec = (profile_usecputime) ? PL_clocktick : CLOCKS_PER_TICK;
     DB_INIT_cv = (SV*)GvCV(gv_fetchpv("DB::_INIT",          FALSE, SVt_PVCV));
     DB_fin_cv  = (SV*)GvCV(gv_fetchpv("DB::finish_profile", FALSE, SVt_PVCV));
 
