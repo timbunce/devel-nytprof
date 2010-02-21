@@ -11,20 +11,14 @@ use Devel::NYTProf::Run qw(profile_this);
 
 my $pre589 = ($] < 5.008009 or $] eq "5.010000");
 
+my $src_code = join("", <DATA>);
+
 run_test_group( {
     extra_options => { start => 'begin' },
     extra_test_count => 16,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
-        my $src_code = q{
-            sub foo { 42 }
-            BEGIN {
-                foo(2);
-                *CORE::GLOBAL::sleep = \&foo;
-            }
-            sleep 1;
-        };
         $profile = profile_this(
             src_code => $src_code,
             out_file => $env->{file},
@@ -66,3 +60,12 @@ run_test_group( {
 
     },
 });
+
+__DATA__
+#!perl
+sub foo { 42 }
+BEGIN {
+    foo(2);
+    *CORE::GLOBAL::sleep = \&foo;
+}
+sleep 1;

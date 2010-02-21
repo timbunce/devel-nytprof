@@ -9,6 +9,8 @@ use Data::Dumper;
 
 use Devel::NYTProf::Run qw(profile_this);
 
+my $src_code = join("", <DATA>);
+
 run_test_group( {
     extra_options => {
         # set options for this test:
@@ -20,42 +22,6 @@ run_test_group( {
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
-        my $src_code = q{
-            alarm(20); # watchdog timer
-            my $cpu1 = (times)[0];
-            my $cpu2;
-
-            sub foo {
-                my $end = shift;
-                sleep 1; # to separate cputime from realtime
-
-                my $loops = 0;
-                my $prev;
-                while (++$loops) {
-
-                    my $crnt = (times)[0];
-                    #print "tick $crnt\n" if $crnt != $prev;
-                    $prev = $crnt;
-
-                    last if $crnt >= $end;
-                }
-                print "cputime loop count $loops\n";
-            } 
-
-            # sync up: spin till clock ticks
-            1 while $cpu1 == ($cpu2 = (times)[0]);
-            print "cputime step ".($cpu2-$cpu1)."\n";
-
-            # record start time
-            my $start = time();
-
-            # consume this much cpu time inside foo()
-            foo($cpu2 + 0.4);
-
-            # report realtime to help identify is cputime is really measuring realtime
-            print "realtime used ".(time()-$start)."\n";
-
-        };
         $profile = profile_this(
             src_code => $src_code,
             out_file => $env->{file},
@@ -72,3 +38,46 @@ run_test_group( {
         is $sub->incl_time, $sub->excl_time, 'incl_time and excl_time should be the same';
     },
 });
+
+__DATA__
+#!perl
+
+alarm(20); # watchdog timer
+
+my $trace = 0;
+my $cpu1 = (times)[0];
+my $cpu2;
+
+sub foo {
+    my $end = shift;
+
+    # sleep to separate cputime from realtime
+    # (not very effective in cpu-starved VMs)
+    sleep 1;
+
+    my $loops = 0;
+    my $prev;
+    while (++$loops) {
+
+        my $crnt = (times)[0];
+        warn "tick $crnt ".time()."\n"
+            if $crnt != $prev and $trace >= 2;
+        $prev = $crnt;
+
+        last if $crnt >= $end;
+    }
+    warn "cputime loop count $loops\n" if $trace;
+} 
+
+# sync up: spin till clock ticks
+1 while $cpu1 == ($cpu2 = (times)[0]);
+warn "cputime step ".($cpu2-$cpu1)."\n" if $trace;
+
+# record start time
+my $start = time();
+
+# consume this much cpu time inside foo()
+foo($cpu2 + 0.4);
+
+# report realtime to help identify is cputime is really measuring realtime
+print "realtime used ".(time()-$start)."\n" if $trace;
