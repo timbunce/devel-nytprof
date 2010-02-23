@@ -51,9 +51,9 @@ sub profile_this {
     my $out_file = $opt{out_file} || 'nytprof.out';
 
     my @perl = ($this_perl, '-d:NYTProf');
-    warn sprintf "profile_this using %s with NYTPROF=%s\n",
+    warn sprintf "profile_this() using %s with NYTPROF=%s\n",
             join(" ", @perl), $ENV{NYTPROF} || ''
-        if 0;
+        if $opt{verbose};
 
     # ensure child has same libs as us (e.g., if we were run with perl -Mblib)
     local $ENV{PERL5LIB} = join($Config{path_sep}, @INC);

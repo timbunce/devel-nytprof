@@ -396,6 +396,3 @@ Use gethrtime() on platforms that support it.
 http://developers.sun.com/solaris/articles/time_stamp.html
 http://www.informit.com/guides/content.aspx?g=cplusplus&seqNum=332
 
-Use clock_gettime clone on OS X?
-http://developer.apple.com/mac/library/qa/qa2004/qa1398.html
-http://le-depotoir.googlecode.com/svn/trunk/misc/clock_gettime_stub.c

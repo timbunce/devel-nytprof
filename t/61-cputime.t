@@ -26,15 +26,16 @@ run_test_group( {
             src_code => $src_code,
             out_file => $env->{file},
             #htmlopen => 1,
+            verbose => ($^O eq 'freebsd' or 1), # XXX temp
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
 
         my $subs = $profile->subname_subinfo_map;
         my $sub = $subs->{'main::foo'};
         ok $sub;
-        is $sub->calls, 1, 'main::foo should be called 1 times';
-        cmp_ok $sub->incl_time, '>', 0.4, 'cputime of foo() should be at least ~0.5';
-        cmp_ok $sub->incl_time, '<', 1.0, 'cputime of foo() should be around 0.5';
+        is $sub->calls, 1, 'main::foo should be called 1 time';
+        cmp_ok $sub->incl_time, '>', 0.4, 'cputime of foo() should be at least 0.4';
+        cmp_ok $sub->incl_time, '<', 1.0, 'cputime of foo() should be not much more than 0.4';
         is $sub->incl_time, $sub->excl_time, 'incl_time and excl_time should be the same';
     },
 });
@@ -44,7 +45,7 @@ __DATA__
 
 alarm(20); # watchdog timer
 
-my $trace = 0;
+my $trace = ($^O eq 'freebsd' or 1) ? 2 : 1; # XXX temp
 my $cpu1 = (times)[0];
 my $cpu2;
 
@@ -60,7 +61,7 @@ sub foo {
     while (++$loops) {
 
         my $crnt = (times)[0];
-        warn "tick $crnt ".time()."\n"
+        warn "tick $crnt\t".time()."\n"
             if $crnt != $prev and $trace >= 2;
         $prev = $crnt;
 
