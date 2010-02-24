@@ -26,7 +26,7 @@ run_test_group( {
             src_code => $src_code,
             out_file => $env->{file},
             #htmlopen => 1,
-            verbose => ($^O eq 'freebsd' or 1), # XXX temp
+            verbose => ($^O eq 'freebsd'), # XXX temp
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
 
@@ -43,14 +43,16 @@ run_test_group( {
 __DATA__
 #!perl
 
+BEGIN { eval { require Time::HiRes } and Time::HiRes->import('time') }
+
 alarm(20); # watchdog timer
 
-my $trace = ($^O eq 'freebsd' or 1) ? 2 : 1; # XXX temp
-my $cpu1 = (times)[0];
+my $trace = ($^O eq 'freebsd') ? 2 : 1; # XXX temp
+my $cpu1;
 my $cpu2;
 
 sub foo {
-    my $end = shift;
+    my $cpuspend = shift;
 
     # sleep to separate cputime from realtime
     # (not very effective in cpu-starved VMs)
@@ -60,25 +62,32 @@ sub foo {
     my $prev;
     while (++$loops) {
 
-        my $crnt = (times)[0];
-        warn "tick $crnt\t".time()."\n"
-            if $crnt != $prev and $trace >= 2;
+        my $crnt = (times)[0] - $cpu1;
+        warn sprintf "tick %.4f\t%f\n", $crnt, time()
+            if $trace >= 2 && $prev && $crnt != $prev;
         $prev = $crnt;
 
-        last if $crnt >= $end;
+        last if $crnt >= $cpuspend;
     }
-    warn "cputime loop count $loops\n" if $trace;
+    warn "cputime loop count $loops\n" if $trace >= 2;
 } 
 
-# sync up: spin till clock ticks
-1 while $cpu1 == ($cpu2 = (times)[0]);
-warn "cputime step ".($cpu2-$cpu1)."\n" if $trace;
-
 # record start time
-my $start = time();
+my $start = time() + 1;
+
+# sync up...
+
+# spin till wall clock ticks
+1 while time() <= $start;
+
+# spin till cpu clock ticks (typically 0.1 sec max)
+$cpu1 = (times)[0];
+1 while $cpu1 == ($cpu2 = (times)[0]);
+
+warn sprintf "step %f\t%f\n", $cpu2-$cpu1, time() if $trace;
 
 # consume this much cpu time inside foo()
-foo($cpu2 + 0.4);
+foo(0.4);
 
 # report realtime to help identify is cputime is really measuring realtime
 print "realtime used ".(time()-$start)."\n" if $trace;
