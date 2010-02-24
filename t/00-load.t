@@ -19,7 +19,7 @@ diag( sprintf "Compression: default level is %d, zlib version %s",
 diag "--- Perl $] Config on $Config{archname}:";
 diag "\t$_: ".(defined $Config{$_} ? $Config{$_} : '(undef)')
     for qw(
-        d_gettimeod
+        d_gettimeod d_sysconf
     );
 
 if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x) {

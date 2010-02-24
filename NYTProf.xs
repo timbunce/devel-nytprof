@@ -1349,7 +1349,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         times(&end_ctime);
         overflow = 0;                             /* XXX */
         elapsed = end_ctime.tms_utime - start_ctime.tms_utime
-            + end_ctime.tms_stime - start_ctime.tms_stime;
+                + end_ctime.tms_stime - start_ctime.tms_stime;
     }
     else {
         get_time_of_day(end_time);
@@ -3098,7 +3098,7 @@ write_sub_line_ranges(pTHX)
         if (file_lines_len > 4
             && filename[file_lines_len - 2] == '-' && filename[file_lines_len - 1] == '0'
             && filename[file_lines_len - 4] != ':' && filename[file_lines_len - 3] != '0')
-	    continue;
+            continue;
 
         first = strrchr(filename, ':');
         filename_len = (first) ? first - filename : 0;

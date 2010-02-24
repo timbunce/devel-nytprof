@@ -21,14 +21,17 @@ run_test_group( {
     extra_test_count => 6,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
+        my $trace = ($^O eq 'freebsd'); # XXX temp
 
         $profile = profile_this(
             src_code => $src_code,
             out_file => $env->{file},
             #htmlopen => 1,
-            verbose => ($^O eq 'freebsd'), # XXX temp
+            verbose => $trace,
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
+        warn "ticks_per_sec ".$profile->attributes->{ticks_per_sec}."\n"
+            if $trace;
 
         my $subs = $profile->subname_subinfo_map;
         my $sub = $subs->{'main::foo'};
