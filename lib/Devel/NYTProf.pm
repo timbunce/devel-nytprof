@@ -703,6 +703,11 @@ NYTProf allocates new values while it's profiling, in order to record program
 activity, and so may appear to corrupt C<@_> in this (rare) situation.  If this
 happens, NYTProf is simply exposing an existing problem in the code.
 
+=head2 Lvalue subroutines aren't profiled when using use_db_sub=1
+
+Currently 'lvalue' subroutines (subs that can be assigned to, like C<foo() =
+42>) are not profiled when using use_db_sub=1.
+
 =head1 CLOCKS
 
 Here we discuss the way NYTProf gets high-resolution timing information from
