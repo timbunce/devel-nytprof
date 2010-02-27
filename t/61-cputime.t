@@ -93,6 +93,7 @@ while (1) {
 }
 
 warn sprintf "step %f\t%f\n", $cpu2-$cpu1, time() if $trace;
+$cpu1 = $cpu2; # set cpu1 to new current cpu time
 
 # consume this much cpu time inside foo()
 foo(0.4);
