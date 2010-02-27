@@ -491,7 +491,6 @@ $reporter->_output_additional('style.css', get_css());
 $reporter->report();
 
 output_subs_index_page($reporter, "index-subs-excl.html", 'excl_time');
-output_subs_index_page($reporter, "index-subs-incl.html", 'incl_time');
 output_index_page($reporter, "index.html");
 
 output_js_files($reporter);
