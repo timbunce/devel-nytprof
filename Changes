@@ -30,6 +30,9 @@ string eval merging - must allow at least viewing of source for called subs defi
   Changed nytprofhtml to be smarter when source isn't available.
   Changed nytprofhtml to show sort arrow on sortable tables.
 
+  Removed Devel::NYTProf::PgPLPerl module. That's now a separate
+    PostgreSQL::PLPerl::NYTProf distribution.
+
   Updated docs to include a note about timing on Windows.
   Updated docs to include a section about making NYTProf faster.
 
