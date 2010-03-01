@@ -34,7 +34,11 @@ if ($use_db_sub) {                     # install DB::DB sub
         ? sub { goto &DB_profiler }    # workaround bug in old perl versions (slow)
         : \&DB_profiler;
 }
-sub sub { die "DB::sub" }              # needed for perl <5.8.7 (<perl@24265)
+
+# DB::sub shouldn't be called, but needs to exist for perl <5.8.7 (<perl@24265)
+# Could be called in obscure cases, e.g. if "perl -d" (not -d:NYTProf)
+# was used with Devel::NYTProf loaded some other way
+sub sub { die "DB::sub called unexpectly" }
 
 sub CLONE { DB::disable_profiler }
 
