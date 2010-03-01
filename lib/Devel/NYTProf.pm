@@ -571,7 +571,7 @@ internals of perl mean that, in some cases, the information that's gathered is
 accurate but surprising. In some cases it can appear to be misleading.
 (Of course, in some cases it may actually be plain wrong. Caveat lector.)
 
-=head2 Perl 5.10.1+ (or else 5.8.9+) are Recommended
+=head2 Perl 5.10.1+ (or else 5.8.9+) is Recommended
 
 These versions of perl yield much more detailed information about calls to
 BEGIN, CHECK, INIT, and END blocks, the code handling tied or overloaded

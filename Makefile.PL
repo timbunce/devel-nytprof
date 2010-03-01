@@ -40,6 +40,9 @@ GetOptions(
     'g!'      => \my $opt_g,            # compile with -g (for debugging)
     'assert!' => \my $opt_assert,       # enable assert()ions in the code (and perl headers)
     'pg!'     => \my $opt_pg,           # compile with -pg (for profiling NYTProf itself)
+    'zlib!'     => \(my $opt_zlib=1),       # --nozlib to disallow use of zlib
+    'gettime!'  => \(my $opt_gettime=1),    # --nogettime to disallow use of POSIX clock_gettime
+    'machtime!' => \(my $opt_machtime=1),   # --nomachtime to disallow use of mac osx clock
 ) or exit 1;
 
 if (not defined $opt_assert) {
@@ -77,20 +80,21 @@ $h_files = find_h_files(@h_dirs);
 my %mm_opts;
 my @libs = ();
 
-foreach (['time.h', qr/(clock_gettime)\s*\(/,      '-DHAS_CLOCK_GETTIME', '-lrt'],
-         ['zlib.h', qr/(deflateInit2)(?:_)?\s*\(/, '-DHAS_ZLIB',          '-lz'],
-        ) {
+my @hdr_match_lib;
+push @hdr_match_lib, ['time.h', qr/(clock_gettime)\s*\(/, '-DHAS_CLOCK_GETTIME', '-lrt']
+    if $opt_gettime;
+push @hdr_match_lib, ['zlib.h', qr/(deflateInit2)(?:_)?\s*\(/, '-DHAS_ZLIB',     '-lz']
+    if $opt_zlib;
+push @hdr_match_lib, ['mach_time.h', qr/(mach_absolute_time)\s*\(/, '-DHAS_MACH_TIME', undef]
+    if $opt_machtime and $^O eq 'darwin';
+
+foreach (@hdr_match_lib) {
     my ($header, $regexp, $define, $libs) = @$_;
     if (my $result = search_h_file($header, $regexp)) {
         print "Found $result in $header\n";
-        push @libs, $libs;
-        $mm_opts{DEFINE} .= " $define";
+        push @libs, $libs if $libs;
+        $mm_opts{DEFINE} .= " $define" if $define;
     }
-}
-
-if( $^O eq 'darwin' and search_h_file('mach_time.h', qr/(mach_absolute_time)\s*\(/)) {
-    print "Found mach_absolute_time in mach/mach_time.h\n";
-    $mm_opts{DEFINE} .= " -DHAS_MACH_TIME";
 }
 
 if ($opt_assert or (not defined $opt_assert and $is_developer)) {
