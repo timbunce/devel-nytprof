@@ -475,7 +475,7 @@ sub href_for_sub {
     my ($file, $fid, $first, $last) = $self->{profile}->file_line_range_of_sub($sub);
     if (!$first) {
         if (not defined $first) {
-            warn("No file line range data for sub '$sub'\n")
+            warn("No file line range data for sub '$sub' (perhaps an xsub)\n")
                 unless our $href_for_sub_no_data_warn->{$sub}++;    # warn just once
             return "";
         }
