@@ -696,6 +696,23 @@ fid_is_pmc(pTHX_ Hash_entry *fid_info)
 }
 
 
+static SV *
+fmt_fid_flags(pTHX_ int fid_flags, SV *sv) {
+    if (!sv)
+        sv = sv_newmortal();
+    sv_setpv(sv,"");
+    if (fid_flags & NYTP_FIDf_IS_PMC)         sv_catpv(sv, "pmc,");
+    if (fid_flags & NYTP_FIDf_VIA_STMT)       sv_catpv(sv, "viastmt,");
+    if (fid_flags & NYTP_FIDf_VIA_SUB)        sv_catpv(sv, "viasub,");
+    if (fid_flags & NYTP_FIDf_IS_AUTOSPLIT)   sv_catpv(sv, "autosplit,");
+    if (fid_flags & NYTP_FIDf_HAS_SRC)        sv_catpv(sv, "hassrc,");
+    if (fid_flags & NYTP_FIDf_SAVE_SRC)       sv_catpv(sv, "savesrc,");
+    if (fid_flags & NYTP_FIDf_IS_ALIAS)       sv_catpv(sv, "alias,");
+    if (fid_flags & NYTP_FIDf_IS_FAKE)        sv_catpv(sv, "fake,");
+    return sv;
+}
+
+
 static void
 write_cached_fids()
 {
@@ -3854,9 +3871,16 @@ load_profile_data_from_stream(SV *cb)
                     normalize_eval_seqn(aTHX_ filename_sv);
 
                 if (trace_level >= 2) {
-                    logwarn("Fid %2u is %s (eval %u:%u) 0x%x sz%u mt%u\n",
-                        file_num, SvPV_nolen(filename_sv), eval_file_num, eval_line_num,
-                        fid_flags, file_size, file_mtime);
+                    SV *fid_flags_sv = fmt_fid_flags(aTHX_ fid_flags, NULL);
+                    char parent_fid[80];
+                    if (eval_file_num || eval_line_num)
+                         sprintf(parent_fid, " (is eval at %u:%u)", eval_file_num, eval_line_num);
+                    else 
+                         sprintf(parent_fid, " (file sz%d mt%d)", file_size, file_mtime);
+
+                    logwarn("Fid %2u is %s%s 0x%x(%s)\n",
+                        file_num, SvPV_nolen(filename_sv), parent_fid,
+                        fid_flags, SvPV_nolen(fid_flags_sv));
                 }
 
                 /* [ name, eval_file_num, eval_line_num, fid, flags, size, mtime, ... ]
