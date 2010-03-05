@@ -354,8 +354,8 @@ static AV *slowop_name_cache;
 
 /* prototypes */
 static void output_header(pTHX);
-static unsigned int read_int(void);
-static SV *read_str(pTHX_ SV *sv);
+static unsigned int read_int(NYTP_file ifile);
+static SV *read_str(pTHX_ NYTP_file ifile, SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
 static void DB_stmt(pTHX_ COP *cop, OP *op);
 static void set_option(pTHX_ const char*, const char*);
@@ -494,18 +494,18 @@ output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signif
 
 
 static SV *
-read_str(pTHX_ SV *sv) {
+read_str(pTHX_ NYTP_file ifile, SV *sv) {
     STRLEN len;
     char *buf;
     unsigned char tag;
 
-    NYTP_read(in, &tag, sizeof(tag), "string prefix");
+    NYTP_read(ifile, &tag, sizeof(tag), "string prefix");
 
     if (NYTP_TAG_STRING != tag && NYTP_TAG_STRING_UTF8 != tag)
         croak("File format error at offset %ld%s, expected string tag but found %d ('%c')",
-              NYTP_tell(in)-1, NYTP_type_of_offset(in), tag, tag);
+              NYTP_tell(ifile)-1, NYTP_type_of_offset(ifile), tag, tag);
 
-    len = read_int();
+    len = read_int(ifile);
     if (sv) {
         SvGROW(sv, len+1);  /* forces SVt_PV */
     }
@@ -515,7 +515,7 @@ read_str(pTHX_ SV *sv) {
     SvPOK_on(sv);
 
     buf = SvPV_nolen(sv);
-    NYTP_read(in, buf, len, "string");
+    NYTP_read(ifile, buf, len, "string");
     SvCUR_set(sv, len);
     *SvEND(sv) = '\0';
 
@@ -3396,12 +3396,12 @@ write_src_of_files(pTHX)
  * bit integer. See output_int() for the compression details.
  */
 static unsigned int
-read_int()
+read_int(NYTP_file ifile)
 {
     unsigned char d;
     unsigned int newint;
 
-    NYTP_read(in, &d, sizeof(d), "integer prefix");
+    NYTP_read(ifile, &d, sizeof(d), "integer prefix");
 
     if (d < 0x80) {                               /* 7 bits */
         newint = d;
@@ -3427,7 +3427,7 @@ read_int()
             newint = 0;
             length = 4;
         }
-        NYTP_read(in, buffer, length, "integer");
+        NYTP_read(ifile, buffer, length, "integer");
         while (length--) {
             newint <<= 8;
             newint |= *p++;
@@ -3441,13 +3441,13 @@ read_int()
  * Read an NV by simple byte copy to memory
  */
 static NV
-read_nv()
+read_nv(NYTP_file ifile)
 {
     NV nv;
     /* no error checking on the assumption that a later token read will
      * detect the error/eof condition
      */
-    NYTP_read(in, (unsigned char *)&nv, sizeof(NV), "float");
+    NYTP_read(ifile, (unsigned char *)&nv, sizeof(NV), "float");
     return nv;
 }
 
@@ -3739,15 +3739,15 @@ load_profile_data_from_stream(SV *cb)
                 NV seconds;
                 unsigned int eval_file_num = 0;
                 unsigned int eval_line_num = 0;
-                unsigned int ticks    = read_int();
-                unsigned int file_num = read_int();
-                unsigned int line_num = read_int();
+                unsigned int ticks    = read_int(in);
+                unsigned int file_num = read_int(in);
+                unsigned int line_num = read_int(in);
                 unsigned int block_line_num = 0;
                 unsigned int sub_line_num = 0;
 
                 if (c == NYTP_TAG_TIME_BLOCK) {
-                    block_line_num = read_int();
-                    sub_line_num = read_int();
+                    block_line_num = read_int(in);
+                    sub_line_num = read_int(in);
                 }
 
                 if (cb) {
@@ -3837,14 +3837,14 @@ load_profile_data_from_stream(SV *cb)
                 SV *rv;
                 SV **svp;
                 SV *filename_sv;
-                unsigned int file_num      = read_int();
-                unsigned int eval_file_num = read_int();
-                unsigned int eval_line_num = read_int();
-                unsigned int fid_flags     = read_int();
-                unsigned int file_size     = read_int();
-                unsigned int file_mtime    = read_int();
+                unsigned int file_num      = read_int(in);
+                unsigned int eval_file_num = read_int(in);
+                unsigned int eval_line_num = read_int(in);
+                unsigned int fid_flags     = read_int(in);
+                unsigned int file_size     = read_int(in);
+                unsigned int file_mtime    = read_int(in);
 
-                filename_sv = read_str(aTHX_ NULL);
+                filename_sv = read_str(aTHX_ in, NULL);
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3939,9 +3939,9 @@ load_profile_data_from_stream(SV *cb)
 
             case NYTP_TAG_SRC_LINE:
             {
-                unsigned int file_num = read_int();
-                unsigned int line_num = read_int();
-                SV *src = read_str(aTHX_ NULL);
+                unsigned int file_num = read_int(in);
+                unsigned int line_num = read_int(in);
+                SV *src = read_str(aTHX_ in, NULL);
                 AV *file_av;
 
                 if (cb) {
@@ -3981,17 +3981,17 @@ load_profile_data_from_stream(SV *cb)
             {
                 AV *av;
                 SV *sv;
-                unsigned int fid        = read_int();
-                SV *subname_sv = read_str(aTHX_ tmp_str1_sv);
-                unsigned int first_line = read_int();
-                unsigned int last_line  = read_int();
+                unsigned int fid        = read_int(in);
+                SV *subname_sv = read_str(aTHX_ in, tmp_str1_sv);
+                unsigned int first_line = read_int(in);
+                unsigned int last_line  = read_int(in);
                 int skip_subinfo_store = 0;
                 STRLEN subname_len;
                 char *subname_pv;
-                int extra_items = read_int();
+                int extra_items = read_int(in);
 
                 while (extra_items-- > 0)
-                    (void)read_int();
+                    (void)read_int(in);
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -4057,17 +4057,17 @@ load_profile_data_from_stream(SV *cb)
                 SV *sv;
                 AV *subinfo_av;
                 int len;
-                unsigned int fid   = read_int();
-                unsigned int line  = read_int();
-                SV *caller_subname_sv = read_str(aTHX_ tmp_str2_sv);
-                unsigned int count = read_int();
-                NV incl_time       = read_nv();
-                NV excl_time       = read_nv();
-                NV spare_3         = read_nv();
-                NV spare_4         = read_nv();
-                NV reci_time       = read_nv();
-                UV rec_depth       = read_int();
-                SV *called_subname_sv = read_str(aTHX_ tmp_str1_sv);
+                unsigned int fid   = read_int(in);
+                unsigned int line  = read_int(in);
+                SV *caller_subname_sv = read_str(aTHX_ in, tmp_str2_sv);
+                unsigned int count = read_int(in);
+                NV incl_time       = read_nv(in);
+                NV excl_time       = read_nv(in);
+                NV spare_3         = read_nv(in);
+                NV spare_4         = read_nv(in);
+                NV reci_time       = read_nv(in);
+                UV rec_depth       = read_int(in);
+                SV *called_subname_sv = read_str(aTHX_ in, tmp_str1_sv);
 
                 PERL_UNUSED_VAR(spare_3);
                 PERL_UNUSED_VAR(spare_4);
@@ -4190,10 +4190,10 @@ load_profile_data_from_stream(SV *cb)
             case NYTP_TAG_PID_START:
             {
                 char text[MAXPATHLEN*2];
-                unsigned int pid  = read_int();
-                unsigned int ppid = read_int();
+                unsigned int pid  = read_int(in);
+                unsigned int ppid = read_int(in);
                 int len;
-                profiler_start_time = read_nv();
+                profiler_start_time = read_nv(in);
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -4224,9 +4224,9 @@ load_profile_data_from_stream(SV *cb)
             case NYTP_TAG_PID_END:
             {
                 char text[MAXPATHLEN*2];
-                unsigned int pid = read_int();
+                unsigned int pid = read_int(in);
                 int len;
-                profiler_end_time = read_nv();
+                profiler_end_time = read_nv(in);
 
                 if (cb) {
                     PUSHMARK(SP);
