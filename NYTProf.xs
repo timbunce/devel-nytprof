@@ -4048,8 +4048,8 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("[no tag]"), NULL},
     {STR_WITH_LEN("ATTRIBUTE"), "33"},
     {STR_WITH_LEN("COMMENT"), "3"},
-    {STR_WITH_LEN("TIME_BLOCK"), NULL},
-    {STR_WITH_LEN("TIME_LINE"), NULL},
+    {STR_WITH_LEN("TIME_BLOCK"), "00uuuuu"},
+    {STR_WITH_LEN("TIME_LINE"), "00uuu"},
     {STR_WITH_LEN("DISCOUNT"), ""},
     {STR_WITH_LEN("NEW_FID"), "uuuuuuS"},
     {STR_WITH_LEN("SRC_LINE"), "uuS"},
@@ -4091,6 +4091,14 @@ load_perl_callback(Loader_state *state, nytp_tax_index tag, ...)
 
     while ((type = *arglist++)) {
         switch(type) {
+        case '0':
+        {
+            /* These really should go, but need a flag day change in 
+               documented callback API.  */
+            sv_setuv(cb_args[i], 0);
+            XPUSHs(cb_args[i++]);
+            break;
+        }
         case 'u':
         {
             unsigned int u = va_arg(args, unsigned int);
@@ -4307,27 +4315,10 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 if (cb) {
-                    unsigned int eval_file_num = 0;
-                    unsigned int eval_line_num = 0;
-                    PUSHMARK(SP);
-
-                    XPUSHs(c == NYTP_TAG_TIME_BLOCK ? cb_TIME_BLOCK_tag : cb_TIME_LINE_tag);
-
-                    i = 0;
-                    sv_setiv(cb_args[i], eval_file_num);  XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], eval_line_num);  XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], ticks);          XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], file_num);       XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], line_num);       XPUSHs(cb_args[i++]);
-
-                    if (c == NYTP_TAG_TIME_BLOCK) {
-                        sv_setiv(cb_args[i], block_line_num); XPUSHs(cb_args[i++]);
-                        sv_setiv(cb_args[i], sub_line_num); XPUSHs(cb_args[i++]);
-                    }
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, c == NYTP_TAG_TIME_BLOCK
+                                       ? nytp_time_block : nytp_time_line,
+                                       ticks, file_num, line_num,
+                                       block_line_num, sub_line_num);
                     break;
                 }
 
