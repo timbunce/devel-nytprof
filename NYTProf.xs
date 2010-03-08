@@ -4588,6 +4588,9 @@ load_profile_to_callback(pTHX_ NYTP_file in, CV *cb)
     Loader_state_callback state;
     int i;
 
+    if (SvTYPE(cb) != SVt_PVCV)
+        croak("Not a CODE reference");
+
 #ifdef MULTIPLICITY
     state.interp = my_perl;
 #endif
@@ -4805,8 +4808,6 @@ SV* cb;
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
     if (cb && SvROK(cb)) {
-        if (SvTYPE(SvRV(cb)) != SVt_PVCV)
-            croak("Not a CODE reference");
         load_profile_to_callback(aTHX_ in, (CV *)SvRV(cb));
         RETVAL = newHV(); /* Can we change this to PL_sv_undef?  */
     } else
