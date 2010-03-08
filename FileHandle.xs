@@ -1120,42 +1120,6 @@ SV *string
     OUTPUT:
         RETVAL
 
-void
-output_int(handle, ...)
-NYTP_file handle
-    PREINIT:
-        SV **last = sp + items;
-    PPCODE:
-        ++sp; /* A pointer to the function is first item on the stack.
-                 It's not included in items  */
-        while(sp++ < last)
-            output_int(handle, SvUV(*sp));
-        XSRETURN(0);
-
-void
-output_nv(handle, ...)
-NYTP_file handle
-    PREINIT:
-        SV **last = sp + items;
-    PPCODE:
-        ++sp; /* A pointer to the function is first item on the stack.
-                 It's not included in items  */
-        while(sp++ < last)
-            output_nv(handle, SvNV(*sp));
-        XSRETURN(0);
-
-
-void
-output_str(handle, value)
-NYTP_file handle
-SV *value
-    PREINIT:
-        STRLEN len;
-        char *p;
-    CODE:
-        p = SvPV(value, len);
-        output_str(handle, p, SvUTF8(value) ? -(I32)len : (I32) len);
-
 #ifdef HAS_ZLIB
 
 void
