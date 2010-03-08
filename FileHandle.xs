@@ -688,6 +688,17 @@ NYTP_write_attribute_string(NYTP_file ofile,
 #define LOG_2_OVER_LOG_10   0.30103
 
 size_t
+NYTP_write_attribute_unsigned(NYTP_file ofile, const char *key,
+                              size_t key_len, unsigned long value)
+{
+    /* 3: 1 for rounding errors, 1 for the '\0'  */
+    char buffer[(int)(sizeof (unsigned long) * CHAR_BIT * LOG_2_OVER_LOG_10 + 3)];
+    const size_t len = my_snprintf(buffer, sizeof(buffer), "%lu", value);
+
+    return NYTP_write_attribute_string(ofile, key, key_len, buffer, len);
+}
+
+size_t
 NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
                             size_t key_len, long value)
 {

@@ -51,3 +51,5 @@ size_t NYTP_write_attribute_string(NYTP_file ofile,
                                    const char *value, size_t value_len);
 size_t NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
                                    size_t key_len, long value);
+size_t NYTP_write_attribute_unsigned(NYTP_file ofile, const char *key,
+                                     size_t key_len, unsigned long value);
