@@ -841,6 +841,39 @@ NYTP_write_time_line(NYTP_file ofile, unsigned int elapsed, unsigned int fid,
     return write_time_common(ofile, NYTP_TAG_TIME_LINE, elapsed, fid, line);
 }
 
+size_t
+NYTP_write_sub_info(NYTP_file ofile, unsigned int fid,
+                    const char *name, I32 len,
+                    unsigned int first_line, unsigned int last_line)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_int(ofile, NYTP_TAG_SUB_INFO, fid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_str(ofile, name, (I32)len);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, first_line);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, last_line);
+    if (retval < 1)
+        return retval;
+
+    /* FIXME. Next time we change the file format, remove this:  */
+    /* how many extra items follow */
+    total += retval = output_int(ofile, 0);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
 PROTOTYPES: DISABLE
@@ -1008,3 +1041,20 @@ NYTP_file handle
 unsigned int elapsed
 unsigned int fid
 unsigned int line
+
+size_t
+NYTP_write_sub_info(handle, fid, name, first_line, last_line)
+NYTP_file handle
+unsigned int fid
+SV *name
+unsigned int first_line
+unsigned int last_line
+    PREINIT:
+        STRLEN len;
+        const char *const p = SvPV(name, len);
+    CODE:
+        RETVAL = NYTP_write_sub_info(handle, fid,
+                                     p, SvUTF8(name) ? -(I32)len : (I32)len,
+                                     first_line, last_line);
+    OUTPUT:
+        RETVAL

@@ -82,3 +82,6 @@ size_t NYTP_write_time_block(NYTP_file ofile, unsigned int elapsed,
                              unsigned int last_sub_line);
 size_t NYTP_write_time_line(NYTP_file ofile, unsigned int elapsed,
                             unsigned int fid, unsigned int line);
+size_t NYTP_write_sub_info(NYTP_file ofile, unsigned int fid,
+                           const char *name, I32 len,
+                           unsigned int first_line, unsigned int last_line);

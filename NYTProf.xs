@@ -3211,11 +3211,8 @@ write_sub_line_ranges(pTHX)
             logwarn("Sub %s fid %u lines %lu..%lu\n",
                 sub_name, fid, (unsigned long)first_line, (unsigned long)last_line);
 
-        output_tag_int(out, NYTP_TAG_SUB_INFO, fid);
-        output_str(out, sub_name, sub_name_len);
-        output_int(out, first_line);
-        output_int(out, last_line);
-        output_int(out, 0);  /* how many extra items follow */
+        NYTP_write_sub_info(out, fid, sub_name, sub_name_len, first_line,
+                            last_line);
     }
 }
 

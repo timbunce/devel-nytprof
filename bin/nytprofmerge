@@ -162,10 +162,7 @@ my %dispatcher =
 	 my $output_fid = $pending_subs{"$fid,$first_line,$last_line,$name"};
 	 return unless defined $output_fid;
 
-	 $out->write('s');
-	 $out->output_int($output_fid);
-	 $out->output_str($name);
-	 $out->output_int($first_line, $last_line, 0);
+	 $out->write_sub_info($output_fid, $name, $first_line, $last_line);
      },
      SUB_CALLERS => sub {
 	 my (undef, $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $called, $caller) = @_;
