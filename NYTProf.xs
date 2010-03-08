@@ -1378,15 +1378,14 @@ DB_stmt(pTHX_ COP *cop, OP *op)
     reinit_if_forked(aTHX);
 
     if (last_executed_fid) {
+        if (profile_blocks)
+            NYTP_write_time_block(out, elapsed, last_executed_fid,
+                                  last_executed_line, last_block_line,
+                                  last_sub_line);
+        else 
+            NYTP_write_time_line(out, elapsed, last_executed_fid,
+                                 last_executed_line);
 
-        output_tag_int(out, (unsigned char)((profile_blocks)
-                        ? NYTP_TAG_TIME_BLOCK : NYTP_TAG_TIME_LINE), elapsed);
-        output_int(out, last_executed_fid);
-        output_int(out, last_executed_line);
-        if (profile_blocks) {
-            output_int(out, last_block_line);
-            output_int(out, last_sub_line);
-        }
         if (trace_level >= 4)
             logwarn("Wrote %d:%-4d %2ld ticks (%u, %u)\n", last_executed_fid,
                 last_executed_line, elapsed, last_block_line, last_sub_line);

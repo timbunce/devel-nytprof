@@ -788,6 +788,59 @@ NYTP_write_new_fid(NYTP_file ofile, unsigned int id, unsigned int eval_fid,
     return total;
 }
 
+static size_t
+write_time_common(NYTP_file ofile, int tag, unsigned int elapsed,
+                  unsigned int fid, unsigned int line)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_int(ofile, tag, elapsed);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, fid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, line);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
+size_t
+NYTP_write_time_block(NYTP_file ofile, unsigned int elapsed, unsigned int fid,
+                      unsigned int line, unsigned int last_block_line,
+                      unsigned int last_sub_line)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = write_time_common(ofile, NYTP_TAG_TIME_BLOCK, elapsed,
+                                       fid, line);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, last_block_line);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, last_sub_line);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
+size_t
+NYTP_write_time_line(NYTP_file ofile, unsigned int elapsed, unsigned int fid,
+                     unsigned int line)
+{
+    return write_time_common(ofile, NYTP_TAG_TIME_LINE, elapsed, fid, line);
+}
+
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
 PROTOTYPES: DISABLE

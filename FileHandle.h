@@ -76,3 +76,9 @@ size_t NYTP_write_new_fid(NYTP_file ofile, unsigned int id,
                           unsigned int eval_fid, unsigned int eval_line_num,
                           unsigned int flags, unsigned int size,
                           unsigned int mtime, const char *name, I32 len);
+size_t NYTP_write_time_block(NYTP_file ofile, unsigned int elapsed,
+                             unsigned int fid, unsigned int line,
+                             unsigned int last_block_line,
+                             unsigned int last_sub_line);
+size_t NYTP_write_time_line(NYTP_file ofile, unsigned int elapsed,
+                            unsigned int fid, unsigned int line);
