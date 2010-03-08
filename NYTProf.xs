@@ -4055,7 +4055,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("SRC_LINE"), "uuS"},
     {STR_WITH_LEN("SUB_INFO"), "uuus"},
     {STR_WITH_LEN("SUB_CALLERS"), "uuunn..nuss"},
-    {STR_WITH_LEN("PID_START"), NULL},
+    {STR_WITH_LEN("PID_START"), "uun"},
     {STR_WITH_LEN("PID_END"), NULL},
     {STR_WITH_LEN("[string]"), NULL},
     {STR_WITH_LEN("[string utf8]"), NULL},
@@ -4427,17 +4427,7 @@ load_profile_data_from_stream(SV *cb)
                 NV start_time = read_nv(in);
 
                 if (cb) {
-                    PUSHMARK(SP);
-
-                    i = 0;
-                    sv_setpvs(cb_args[i], "PID_START");   XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], pid);            XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], ppid);           XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], start_time);     XPUSHs(cb_args[i++]);
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, nytp_pid_start, pid, ppid, start_time);
                     break;
                 }
 
