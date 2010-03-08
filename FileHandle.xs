@@ -744,3 +744,12 @@ NYTP_file handle
 int compression_level
 
 #endif
+
+int
+NYTP_write_comment(handle, comment)
+NYTP_file handle
+char *comment
+    CODE:
+        RETVAL = NYTP_write_comment(handle, "%s", comment);
+    OUTPUT:
+        RETVAL

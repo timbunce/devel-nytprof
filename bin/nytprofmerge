@@ -102,11 +102,12 @@ my %dispatcher =
      },
      COMMENT => sub {
 	 my (undef, $text) = @_;
+	 chomp $text; # Arguably this is a bug in the callback interface.
 	 # This isn't true unless we enable compression ourselves, and if we
 	 # do that, the low level code will write out a correct comment
 	 # automatically.
-	 return if $text =~ /\ACompressed at level \d with zlib [0-9.]+\n\z/;
-	 $out->write("#$text")
+	 return if $text =~ /\ACompressed at level \d with zlib [0-9.]+\z/;
+	 $out->write_comment($text)
      },
      ATTRIBUTE => sub {
 	 my (undef, $key, $value) = @_;
