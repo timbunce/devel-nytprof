@@ -355,7 +355,6 @@ static void write_cached_fids(void);
 static void write_src_of_files(pTHX);
 static void write_sub_line_ranges(pTHX);
 static void write_sub_callers(pTHX);
-static HV *load_profile_data_from_stream(SV* cb);
 static AV *store_profile_line_entry(pTHX_ SV *rvav, unsigned int line_num,
                                     NV time, int count, unsigned int fid);
 
@@ -3502,7 +3501,7 @@ typedef struct loader_state_base {
 
 typedef void (*loader_callback)(Loader_state_base *cb_data, const nytp_tax_index tag, ...);
 
-typedef struct loader_state {
+typedef struct loader_state_callback {
     Loader_state_base base_state;
 #ifdef MULTIPLICITY
     PerlInterpreter *interp;
@@ -3511,7 +3510,13 @@ typedef struct loader_state {
     SV *cb_args[11];  /* must be large enough for the largest callback argument list */
     SV *tag_names[nytp_tag_max];
     SV *input_chunk_seqn_sv;
+} Loader_state_callback;
 
+typedef struct loader_state_profiler {
+    Loader_state_base base_state;
+#ifdef MULTIPLICITY
+    PerlInterpreter *interp;
+#endif
     unsigned int last_file_num;
     unsigned int last_line_num;
     int statement_discount;
@@ -3532,12 +3537,12 @@ typedef struct loader_state {
     NV profiler_start_time;
     NV profiler_end_time;
     NV profiler_duration;
-} Loader_state_merged;
+} Loader_state_profiler;
 
 static void
 load_discount_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
 
     if (trace_level >= 4)
         logwarn("discounting next statement after %u:%d\n",
@@ -3552,7 +3557,7 @@ load_discount_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...
 static void
 load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
     va_list args;
     char trace_note[80] = "";
@@ -3636,7 +3641,7 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 static void
 load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
     va_list args;
     AV *av;
@@ -3733,7 +3738,7 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 static void
 load_src_line_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
     va_list args;
     unsigned int file_num;
@@ -3768,7 +3773,7 @@ load_src_line_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...
 static void
 load_sub_info_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
     va_list args;
     unsigned int fid;
@@ -3833,7 +3838,7 @@ load_sub_info_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...
 static void
 load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
     va_list args;
     unsigned int fid;
@@ -3957,7 +3962,7 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
 static void
 load_pid_start_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
     va_list args;
     unsigned int pid;
@@ -3989,7 +3994,7 @@ load_pid_start_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ..
 static void
 load_pid_end_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
     va_list args;
     unsigned int pid;
@@ -4025,7 +4030,7 @@ load_pid_end_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 static void
 load_attribute_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
     va_list args;
     char *key;
@@ -4082,7 +4087,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
 static void
 load_perl_callback(Loader_state_base *cb_data, nytp_tax_index tag, ...)
 {
-    Loader_state_merged *state = (Loader_state_merged *)cb_data;
+    Loader_state_callback *state = (Loader_state_callback *)cb_data;
     dTHXa(state->interp);
     dSP;
     va_list args;
@@ -4233,46 +4238,18 @@ static loader_callback processing_callbacks[nytp_tag_max] =
  * which is an reference to an array containing the [calls,time]
  * data for each line of the string eval.
  */
-static HV*
-load_profile_data_from_stream(SV *cb)
+static void
+load_profile_data_from_stream(loader_callback *callbacks,
+                              Loader_state_base *state)
 {
     dTHX;
     int file_major, file_minor;
 
-    HV *profile_hv;
-    HV* profile_modes = newHV();
     SV *tmp_str1_sv = newSVpvn("",0);
     SV *tmp_str2_sv = newSVpvn("",0);
 
     size_t buffer_len = MAXPATHLEN * 2;
     char *buffer = (char *)safemalloc(buffer_len);
-
-    loader_callback *callbacks;
-    Loader_state_merged merged_state;
-    Loader_state_base *const state = (Loader_state_base *) &merged_state;
-
-    Zero(&merged_state, 1, Loader_state_merged);
-    merged_state.total_stmts_duration = 0.0;
-    merged_state.profiler_start_time = 0.0;
-    merged_state.profiler_start_time = 0.0;
-    merged_state.profiler_end_time = 0.0;
-    merged_state.profiler_duration = 0.0;
-#ifdef MULTIPLICITY
-    merged_state.interp = my_perl;
-#endif
-    merged_state.fid_line_time_av = newAV();
-    merged_state.fid_srclines_av = newAV();
-    merged_state.fid_fileinfo_av = newAV();
-    merged_state.sub_subinfo_hv = newHV();
-    merged_state.live_pids_hv = newHV();
-    merged_state.attr_hv = newHV();
-    merged_state.file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
-    /* These will be split out into a different state structure later.  */
-    merged_state.cb = cb;
-
-    av_extend(merged_state.fid_fileinfo_av, 64);               /* grow them up front. */
-    av_extend(merged_state.fid_srclines_av, 64);
-    av_extend(merged_state.fid_line_time_av, 64);
 
     if (1) {
         if (!NYTP_gets(in, &buffer, &buffer_len))
@@ -4288,35 +4265,8 @@ load_profile_data_from_stream(SV *cb)
                 file_major, file_minor, XS_VERSION);
     }
 
-    if (cb && SvROK(cb)) {
-        int i;
-        merged_state.input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
-        sv_setuv(merged_state.input_chunk_seqn_sv, state->input_chunk_seqn);
-
-        i = C_ARRAY_LENGTH(merged_state.tag_names);
-        while (--i) {
-            if (callback_info[i].args) {
-                merged_state.tag_names[i]
-                    = newSVpvn_flags(callback_info[i].description,
-                                     callback_info[i].len, SVs_TEMP);
-                SvREADONLY_on(merged_state.tag_names[i]);
-                /* Don't steal the string buffer.  */
-                SvTEMP_off(merged_state.tag_names[i]);
-            }
-        }
-        for (i = 0; i < C_ARRAY_LENGTH(merged_state.cb_args); i++)
-            merged_state.cb_args[i] = sv_newmortal();
-
-        callbacks = perl_callbacks;
-    }
-    else {
-        cb = Nullsv;
-        callbacks = processing_callbacks;
-    }
-
     if (callbacks[nytp_version])
         callbacks[nytp_version](state, nytp_version, file_major, file_minor);
-
 
     while (1) {
         /* Loop "forever" until EOF. We can only check the EOF flag *after* we
@@ -4524,91 +4474,149 @@ load_profile_data_from_stream(SV *cb)
         }
     }
 
-    if (HvKEYS(merged_state.live_pids_hv)) {
-        logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
-            HvKEYS(merged_state.live_pids_hv));
-        store_attrib_sv(aTHX_ merged_state.attr_hv, STR_WITH_LEN("complete"),
-                        &PL_sv_no);
-    }
-    else {
-        store_attrib_sv(aTHX_ merged_state.attr_hv, STR_WITH_LEN("complete"),
-                        &PL_sv_yes);
-    }
-
-    sv_free((SV*)merged_state.live_pids_hv);
     sv_free(tmp_str1_sv);
     sv_free(tmp_str2_sv);
     Safefree(buffer);
+}
 
-    if (cb) {
-        SvREFCNT_dec(profile_modes);
-        SvREFCNT_dec(merged_state.attr_hv);
-        SvREFCNT_dec(merged_state.fid_fileinfo_av);
-        SvREFCNT_dec(merged_state.fid_srclines_av);
-        SvREFCNT_dec(merged_state.fid_line_time_av);
-        SvREFCNT_dec(merged_state.fid_block_time_av);
-        SvREFCNT_dec(merged_state.fid_sub_time_av);
-        SvREFCNT_dec(merged_state.sub_subinfo_hv);
+static HV*
+load_profile_to_hv(pTHX)
+{
+    Loader_state_profiler state;
+    HV *profile_hv;
+    HV *profile_modes;
 
-        return newHV(); /* dummy */
+    Zero(&state, 1, Loader_state_profiler);
+    state.total_stmts_duration = 0.0;
+    state.profiler_start_time = 0.0;
+    state.profiler_start_time = 0.0;
+    state.profiler_end_time = 0.0;
+    state.profiler_duration = 0.0;
+#ifdef MULTIPLICITY
+    state.interp = my_perl;
+#endif
+    state.fid_line_time_av = newAV();
+    state.fid_srclines_av = newAV();
+    state.fid_fileinfo_av = newAV();
+    state.sub_subinfo_hv = newHV();
+    state.live_pids_hv = newHV();
+    state.attr_hv = newHV();
+    state.file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
+
+    av_extend(state.fid_fileinfo_av, 64);   /* grow them up front. */
+    av_extend(state.fid_srclines_av, 64);
+    av_extend(state.fid_line_time_av, 64);
+
+    load_profile_data_from_stream(processing_callbacks,
+                                  (Loader_state_base *)&state);
+
+
+    if (HvKEYS(state.live_pids_hv)) {
+        logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
+            HvKEYS(state.live_pids_hv));
+        store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("complete"),
+                        &PL_sv_no);
+    }
+    else {
+        store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("complete"),
+                        &PL_sv_yes);
     }
 
-    if (merged_state.statement_discount) /* discard unused statement_discount */
-        merged_state.total_stmts_discounted -= merged_state.statement_discount;
-    store_attrib_sv(aTHX_ merged_state.attr_hv, STR_WITH_LEN("total_stmts_measured"),
-                    newSVnv(merged_state.total_stmts_measured));
-    store_attrib_sv(aTHX_ merged_state.attr_hv, STR_WITH_LEN("total_stmts_discounted"),
-                    newSVnv(merged_state.total_stmts_discounted));
-    store_attrib_sv(aTHX_ merged_state.attr_hv, STR_WITH_LEN("total_stmts_duration"),
-                    newSVnv(merged_state.total_stmts_duration));
-    store_attrib_sv(aTHX_ merged_state.attr_hv, STR_WITH_LEN("total_sub_calls"),
-                    newSVnv(merged_state.total_sub_calls));
+    sv_free((SV*)state.live_pids_hv);
+
+    if (state.statement_discount) /* discard unused statement_discount */
+        state.total_stmts_discounted -= state.statement_discount;
+    store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_measured"),
+                    newSVnv(state.total_stmts_measured));
+    store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_discounted"),
+                    newSVnv(state.total_stmts_discounted));
+    store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_duration"),
+                    newSVnv(state.total_stmts_duration));
+    store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_sub_calls"),
+                    newSVnv(state.total_sub_calls));
 
     if (1) {
         int show_summary_stats = (trace_level >= 1);
 
-        if (merged_state.profiler_end_time
-            && merged_state.total_stmts_duration > merged_state.profiler_duration * 1.1) {
+        if (state.profiler_end_time
+            && state.total_stmts_duration > state.profiler_duration * 1.1) {
             logwarn("The sum of the statement timings is %.1"NVff"%% of the total time profiling."
                  " (Values slightly over 100%% can be due simply to cumulative timing errors,"
                  " whereas larger values can indicate a problem with the clock used.)\n",
-                merged_state.total_stmts_duration / merged_state.profiler_duration * 100);
+                state.total_stmts_duration / state.profiler_duration * 100);
             show_summary_stats = 1;
         }
 
         if (show_summary_stats)
             logwarn("Summary: statements profiled %d (%d-%d), sum of time %"NVff"s, profile spanned %"NVff"s\n",
-                merged_state.total_stmts_measured - merged_state.total_stmts_discounted,
-                merged_state.total_stmts_measured, merged_state.total_stmts_discounted,
-                merged_state.total_stmts_duration,
-                merged_state.profiler_end_time - merged_state.profiler_start_time);
+                state.total_stmts_measured - state.total_stmts_discounted,
+                state.total_stmts_measured, state.total_stmts_discounted,
+                state.total_stmts_duration,
+                state.profiler_end_time - state.profiler_start_time);
     }
 
     profile_hv = newHV();
+    profile_modes = newHV();
     (void)hv_stores(profile_hv, "attribute",         
-                    newRV_noinc((SV*)merged_state.attr_hv));
+                    newRV_noinc((SV*)state.attr_hv));
     (void)hv_stores(profile_hv, "fid_fileinfo",
-                    newRV_noinc((SV*)merged_state.fid_fileinfo_av));
+                    newRV_noinc((SV*)state.fid_fileinfo_av));
     (void)hv_stores(profile_hv, "fid_srclines",
-            newRV_noinc((SV*)merged_state.fid_srclines_av));
+            newRV_noinc((SV*)state.fid_srclines_av));
     (void)hv_stores(profile_hv, "fid_line_time",
-                    newRV_noinc((SV*)merged_state.fid_line_time_av));
+                    newRV_noinc((SV*)state.fid_line_time_av));
     (void)hv_stores(profile_modes, "fid_line_time", newSVpvs("line"));
-    if (merged_state.fid_block_time_av) {
+    if (state.fid_block_time_av) {
         (void)hv_stores(profile_hv, "fid_block_time",
-                        newRV_noinc((SV*)merged_state.fid_block_time_av));
+                        newRV_noinc((SV*)state.fid_block_time_av));
         (void)hv_stores(profile_modes, "fid_block_time", newSVpvs("block"));
     }
-    if (merged_state.fid_sub_time_av) {
+    if (state.fid_sub_time_av) {
         (void)hv_stores(profile_hv, "fid_sub_time",
-                        newRV_noinc((SV*)merged_state.fid_sub_time_av));
+                        newRV_noinc((SV*)state.fid_sub_time_av));
         (void)hv_stores(profile_modes, "fid_sub_time", newSVpvs("sub"));
     }
     (void)hv_stores(profile_hv, "sub_subinfo",
-                    newRV_noinc((SV*)merged_state.sub_subinfo_hv));
-    (void)hv_stores(profile_hv, "profile_modes",    newRV_noinc((SV*)profile_modes));
+                    newRV_noinc((SV*)state.sub_subinfo_hv));
+    (void)hv_stores(profile_hv, "profile_modes",
+                    newRV_noinc((SV*)profile_modes));
     return profile_hv;
 }
+
+static void
+load_profile_to_callback(pTHX_ SV *cb)
+{
+    Loader_state_callback state;
+    int i;
+
+#ifdef MULTIPLICITY
+    state.interp = my_perl;
+#endif
+
+    state.base_state.input_chunk_seqn = 0;
+    state.cb = cb;
+
+    state.input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
+    sv_setuv(state.input_chunk_seqn_sv, 0);
+
+    i = C_ARRAY_LENGTH(state.tag_names);
+    while (--i) {
+        if (callback_info[i].args) {
+            state.tag_names[i]
+                = newSVpvn_flags(callback_info[i].description,
+                                 callback_info[i].len, SVs_TEMP);
+            SvREADONLY_on(state.tag_names[i]);
+                /* Don't steal the string buffer.  */
+            SvTEMP_off(state.tag_names[i]);
+        } else
+            state.tag_names[i] = NULL;
+    }
+    for (i = 0; i < C_ARRAY_LENGTH(state.cb_args); i++)
+        state.cb_args[i] = sv_newmortal();
+
+    load_profile_data_from_stream(perl_callbacks, (Loader_state_base *)&state);
+}
+
 
 
 /***********************************
@@ -4795,7 +4803,12 @@ SV* cb;
     if (in == NULL) {
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
-    RETVAL = load_profile_data_from_stream(cb);
+    if (cb && SvROK(cb)) {
+        load_profile_to_callback(aTHX_ cb);
+        RETVAL = newHV(); /* Can we change this to PL_sv_undef?  */
+    } else
+        RETVAL = load_profile_to_hv(aTHX);
+
     if ((result = NYTP_close(in, 0)))
         logwarn("Error closing profile data file: %s\n", strerror(result));
     OUTPUT:
