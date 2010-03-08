@@ -3378,9 +3378,7 @@ write_src_of_files(pTHX)
             const char *src = (svp) ? SvPV(*svp, len) : "";
             /* outputting the tag and fid for each (non empty) line
              * is a little inefficient, but not enough to worry about */
-            output_tag_int(out, NYTP_TAG_SRC_LINE, e->id);
-            output_int(out, line);
-            output_str(out, src, (I32)len);    /* includes newline */
+            NYTP_write_src_line(out, e->id, line, src, (I32)len);    /* includes newline */
             if (trace_level >= 5) {
                 logwarn("fid %d src line %d: %s%s", e->id, line, src,
                     (len && src[len-1]=='\n') ? "" : "\n");

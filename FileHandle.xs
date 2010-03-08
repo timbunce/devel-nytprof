@@ -932,6 +932,29 @@ NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid, unsigned int line,
     return total;
 }
 
+size_t
+NYTP_write_src_line(NYTP_file ofile, unsigned int fid,
+                    unsigned int line, const char *text, I32 text_len)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_int(ofile, NYTP_TAG_SRC_LINE, fid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, line);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_str(ofile, text, text_len);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
+
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
 PROTOTYPES: DISABLE
@@ -1143,5 +1166,20 @@ SV *called_sub
                                         incl_utime, incl_stime, reci_rtime,
                                         depth, called_p,
                                         SvUTF8(called_sub) ? -(I32)called_len : (I32)called_len);
+    OUTPUT:
+        RETVAL
+
+size_t
+NYTP_write_src_line(handle, fid,  line, text)
+NYTP_file handle
+unsigned int fid
+unsigned int line
+SV *text
+    PREINIT:
+        STRLEN len;
+        const char *const p = SvPV(text, len);
+    CODE:
+        RETVAL = NYTP_write_src_line(handle, fid, line,
+                                     p, SvUTF8(text) ? -(I32)len : (I32)len);
     OUTPUT:
         RETVAL

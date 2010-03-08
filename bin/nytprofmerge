@@ -201,9 +201,7 @@ my %dispatcher =
 	 # Is this a subroutine (re)defined in an eval?
 	 my $mapped_fid = $map_range{$fid}[$line];
 	 $fid = $mapped_fid if defined $mapped_fid;
-	 $out->write('S');
-	 $out->output_int($fid, $line);
-	 $out->output_str($text);
+	 $out->write_src_line($fid, $line, $text);
      },
     );
 
