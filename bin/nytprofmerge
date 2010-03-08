@@ -118,7 +118,7 @@ my %dispatcher =
 		 }
 	     } else {
 		 $attributes{$key} = $value;
-		 $out->write(":$key=$value\n");
+		 $out->write_attribute($key, $value);
 	     }
 	 } else {
 	     push @{$attributes{$key}}, $value;
@@ -330,7 +330,7 @@ foreach my $key (sort grep {!$identical{$_}} keys %attributes) {
     my @values = @{$attributes{$key}};
     if ($key eq 'basetime') {
 	my $value = min(@values);
-	$out->write(":$key=$value\n");
+	$out->write_attribute($key, $value);
     } elsif ($key eq 'application') {
 	my %counts;
 	$counts{$_}++ foreach @values;
@@ -342,10 +342,10 @@ foreach my $key (sort grep {!$identical{$_}} keys %attributes) {
 	}
 	my $last = pop @grouped;
 	my $value = @grouped ? join (', ', @grouped) . " and $last" : $last;
-	$out->write(":$key=$value\n");
+	$out->write_attribute($key, $value);
     } else {
 	warn "Unknown attribute $key\n";
-	$out->write(":$key=$_\n") foreach @values;
+	$out->write_attribute($key, $_) foreach @values;
     }
 }
 

@@ -784,3 +784,18 @@ char *comment
         RETVAL = NYTP_write_comment(handle, "%s", comment);
     OUTPUT:
         RETVAL
+
+size_t
+NYTP_write_attribute(handle, key, value)
+NYTP_file handle
+SV *key
+SV *value
+    PREINIT:
+        STRLEN key_len;
+        const char *const key_p = SvPVbyte(key, key_len);
+        STRLEN value_len;
+        const char *const value_p = SvPVbyte(value, value_len);
+    CODE:
+        RETVAL = NYTP_write_attribute_string(handle, key_p, key_len, value_p, value_len);
+    OUTPUT:
+        RETVAL
