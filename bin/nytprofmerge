@@ -154,7 +154,7 @@ my %dispatcher =
      TIME_LINE => \&_time_block_or_line,
 
      DISCOUNT => sub {
-	 $out->write('-');
+	 $out->write_discount();
      },
      SUB_INFO => sub {
 	 my (undef, $fid, $first_line, $last_line, $name) = @_;

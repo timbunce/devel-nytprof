@@ -1381,7 +1381,6 @@ DB_leave(pTHX_ OP *op)
     int saved_errno = errno;
     unsigned int prev_last_executed_fid  = last_executed_fid;
     unsigned int prev_last_executed_line = last_executed_line;
-    const unsigned char tag = NYTP_TAG_DISCOUNT;
 
     /* Called _after_ ops that indicate we've completed a statement
      * and are returning into the middle of some outer statement.
@@ -1408,7 +1407,7 @@ DB_leave(pTHX_ OP *op)
      * increment the count (because the time is not for a new statement but simply
      * a continuation of a previously counted statement).
      */
-    NYTP_write(out, &tag, sizeof(tag));
+    NYTP_write_discount(out);
 
     /* special cases */
     if (last_executed_line == prev_last_executed_line

@@ -1035,6 +1035,13 @@ NYTP_write_src_line(NYTP_file ofile, unsigned int fid,
     return total;
 }
 
+size_t
+NYTP_write_discount(NYTP_file ofile)
+{
+    const unsigned char tag = NYTP_TAG_DISCOUNT;
+    return NYTP_write(ofile, &tag, sizeof(tag));
+}
+
 
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
@@ -1264,3 +1271,7 @@ SV *text
                                      p, SvUTF8(text) ? -(I32)len : (I32)len);
     OUTPUT:
         RETVAL
+
+size_t
+NYTP_write_discount(handle)
+NYTP_file handle
