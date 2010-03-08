@@ -3507,6 +3507,8 @@ typedef struct loader_state {
     int statement_discount;
     int total_stmts_discounted;
     AV *fid_srclines_av;
+    AV *fid_fileinfo_av;
+    HV *sub_subinfo_hv;
 } Loader_state;
 
 static void
@@ -3556,6 +3558,70 @@ load_src_line_callback(Loader_state *state, ...)
     }
 }
 
+static void
+load_sub_info_callback(Loader_state *state, ...)
+{
+    dTHXa(state->interp);
+    va_list args;
+    unsigned int fid;
+    unsigned int first_line;
+    unsigned int last_line;
+    SV *subname_sv;
+    int skip_subinfo_store = 0;
+    STRLEN subname_len;
+    char *subname_pv;
+    AV *av;
+    SV *sv;
+
+    va_start(args, state);
+
+    fid = va_arg(args, unsigned int);
+    first_line = va_arg(args, unsigned int);
+    last_line = va_arg(args, unsigned int);
+    subname_sv = va_arg(args, SV *);
+
+    va_end(args);
+
+    normalize_eval_seqn(aTHX_ subname_sv);
+
+    subname_pv = SvPV(subname_sv, subname_len);
+    if (trace_level >= 2)
+        logwarn("Sub %s fid %u lines %u..%u\n",
+                subname_pv, fid, first_line, last_line);
+
+    av = lookup_subinfo_av(aTHX_ subname_sv, state->sub_subinfo_hv);
+    if (SvOK(*av_fetch(av, NYTP_SIi_FID, 1))) {
+        /* We've already seen this subroutine name.
+         * Should only happen for anon subs in string evals so we warn
+         * for other cases.
+         */
+        if (!instr(subname_pv, "__ANON__[(eval"))
+            logwarn("Sub %s already defined!\n", subname_pv);
+
+        /* We could always discard the fid+first_line+last_line here,
+         * because we already have them stored, but for consistency
+         * (and for the stability of the tests) we'll prefer the lowest fid
+         */
+        if (fid > SvUV(*av_fetch(av, NYTP_SIi_FID, 1)))
+            skip_subinfo_store = 1;
+
+        /* Finally, note that the fileinfo NYTP_FIDi_SUBS_DEFINED hash,
+         * updated below, does get an entry for the sub *from each fid*
+         * (ie string eval) that defines the subroutine.
+         */
+    }
+    if (!skip_subinfo_store) {
+        sv_setuv(*av_fetch(av, NYTP_SIi_FID,        1), fid);
+        sv_setuv(*av_fetch(av, NYTP_SIi_FIRST_LINE, 1), first_line);
+        sv_setuv(*av_fetch(av, NYTP_SIi_LAST_LINE,  1), last_line);
+    }
+
+    /* add sub to NYTP_FIDi_SUBS_DEFINED hash */
+    sv = SvRV(*av_fetch(state->fid_fileinfo_av, fid, 1));
+    sv = SvRV(*av_fetch((AV *)sv, NYTP_FIDi_SUBS_DEFINED, 1));
+    (void)hv_store((HV *)sv, subname_pv, (I32)subname_len, newRV_inc((SV*)av), 0);
+}
+
 /**
  * Process a profile output file and return the results in a hash like
  * { fid_fileinfo  => [ [file, other...info ], ... ], # index by [fid]
@@ -3583,11 +3649,9 @@ load_profile_data_from_stream(SV *cb)
     HV* profile_modes = newHV();
     HV *live_pids_hv = newHV();
     HV *attr_hv = newHV();
-    AV* fid_fileinfo_av = newAV();
     AV* fid_line_time_av = newAV();
     AV* fid_block_time_av = NULL;
     AV* fid_sub_time_av = NULL;
-    HV* sub_subinfo_hv = newHV();
     SV *tmp_str1_sv = newSVpvn("",0);
     SV *tmp_str2_sv = newSVpvn("",0);
     HV *file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
@@ -3615,8 +3679,10 @@ load_profile_data_from_stream(SV *cb)
     state.interp = my_perl;
 #endif
     state.fid_srclines_av = newAV();
+    state.fid_fileinfo_av = newAV();
+    state.sub_subinfo_hv = newHV();
 
-    av_extend(fid_fileinfo_av, 64);               /* grow them up front. */
+    av_extend(state.fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(state.fid_srclines_av, 64);
     av_extend(fid_line_time_av, 64);
 
@@ -3742,7 +3808,7 @@ load_profile_data_from_stream(SV *cb)
 
                 seconds  = (NV)ticks / ticks_per_sec;
 
-                fid_info_rvav = *av_fetch(fid_fileinfo_av, file_num, 1);
+                fid_info_rvav = *av_fetch(state.fid_fileinfo_av, file_num, 1);
                 if (!SvROK(fid_info_rvav)) {    /* should never happen */
                     if (!SvOK(fid_info_rvav)) { /* only warn once */
                         logwarn("Fid %u used but not defined\n", file_num);
@@ -3750,7 +3816,7 @@ load_profile_data_from_stream(SV *cb)
                     }
                 }
                 else {
-                    eval_outer_fid(aTHX_ fid_fileinfo_av, file_num, 1, &eval_file_num, &eval_line_num);
+                    eval_outer_fid(aTHX_ state.fid_fileinfo_av, file_num, 1, &eval_file_num, &eval_line_num);
                 }
 
                 if (eval_file_num) {              /* fid is an eval */
@@ -3856,9 +3922,9 @@ load_profile_data_from_stream(SV *cb)
                 rv = newRV_noinc((SV*)av);
                 sv_bless(rv, file_info_stash);
 
-                svp = av_fetch(fid_fileinfo_av, file_num, 1);
+                svp = av_fetch(state.fid_fileinfo_av, file_num, 1);
                 if (SvOK(*svp)) { /* should never happen, perhaps file is corrupt */
-                    AV *old_av = (AV *)SvRV(*av_fetch(fid_fileinfo_av, file_num, 1));
+                    AV *old_av = (AV *)SvRV(*av_fetch(state.fid_fileinfo_av, file_num, 1));
                     SV *old_name = *av_fetch(old_av, 0, 1);
                     logwarn("Fid %d redefined from %s to %s\n", file_num,
                         SvPV_nolen(old_name), SvPV_nolen(filename_sv));
@@ -3869,7 +3935,7 @@ load_profile_data_from_stream(SV *cb)
                 if (eval_file_num) {
                     SV *has_evals;
                     /* this eval fid refers to the fid that contained the eval */
-                    SV *eval_fi = *av_fetch(fid_fileinfo_av, eval_file_num, 1);
+                    SV *eval_fi = *av_fetch(state.fid_fileinfo_av, eval_file_num, 1);
                     if (!SvROK(eval_fi)) { /* should never happen */
                         logwarn("Eval '%s' (fid %d) has unknown invoking fid %d\n",
                             SvPV_nolen(filename_sv), file_num, eval_file_num);
@@ -3932,15 +3998,10 @@ load_profile_data_from_stream(SV *cb)
 
             case NYTP_TAG_SUB_INFO:
             {
-                AV *av;
-                SV *sv;
                 unsigned int fid        = read_int(in);
                 SV *subname_sv = read_str(aTHX_ in, tmp_str1_sv);
                 unsigned int first_line = read_int(in);
                 unsigned int last_line  = read_int(in);
-                int skip_subinfo_store = 0;
-                STRLEN subname_len;
-                char *subname_pv;
                 int extra_items = read_int(in);
 
                 while (extra_items-- > 0)
@@ -3962,45 +4023,8 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                normalize_eval_seqn(aTHX_ subname_sv);
-
-                subname_pv = SvPV(subname_sv, subname_len);
-                if (trace_level >= 2)
-                    logwarn("Sub %s fid %u lines %u..%u\n",
-                        subname_pv, fid, first_line, last_line);
-
-                av = lookup_subinfo_av(aTHX_ subname_sv, sub_subinfo_hv);
-                if (SvOK(*av_fetch(av, NYTP_SIi_FID, 1))) {
-                    /* We've already seen this subroutine name.
-                     * Should only happen for anon subs in string evals so we warn
-                     * for other cases.
-                     */
-                    if (!instr(subname_pv, "__ANON__[(eval"))
-                        logwarn("Sub %s already defined!\n", subname_pv);
-
-                    /* We could always discard the fid+first_line+last_line here,
-                     * because we already have them stored, but for consistency
-                     * (and for the stability of the tests) we'll prefer the lowest fid
-                     */
-                    if (fid > SvUV(*av_fetch(av, NYTP_SIi_FID, 1)))
-                        skip_subinfo_store = 1;
-
-                    /* Finally, note that the fileinfo NYTP_FIDi_SUBS_DEFINED hash,
-                     * updated below, does get an entry for the sub *from each fid*
-                     * (ie string eval) that defines the subroutine.
-                     */
-                }
-                if (!skip_subinfo_store) {
-                    sv_setuv(*av_fetch(av, NYTP_SIi_FID,        1), fid);
-                    sv_setuv(*av_fetch(av, NYTP_SIi_FIRST_LINE, 1), first_line);
-                    sv_setuv(*av_fetch(av, NYTP_SIi_LAST_LINE,  1), last_line);
-                }
-
-                /* add sub to NYTP_FIDi_SUBS_DEFINED hash */
-                sv = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
-                sv = SvRV(*av_fetch((AV *)sv, NYTP_FIDi_SUBS_DEFINED, 1));
-                (void)hv_store((HV *)sv, subname_pv, (I32)subname_len, newRV_inc((SV*)av), 0);
-
+                load_sub_info_callback(&state, fid, first_line, last_line,
+                                       subname_sv);
                 break;
             }
 
@@ -4057,7 +4081,7 @@ load_profile_data_from_stream(SV *cb)
                         SvPV_nolen(called_subname_sv), SvPV_nolen(caller_subname_sv), fid, line,
                         count, incl_time, excl_time);
 
-                subinfo_av = lookup_subinfo_av(aTHX_ called_subname_sv, sub_subinfo_hv);
+                subinfo_av = lookup_subinfo_av(aTHX_ called_subname_sv, state.sub_subinfo_hv);
 
                 /* { caller_fid => { caller_line => [ count, incl_time, ... ] } } */
                 sv = *av_fetch(subinfo_av, NYTP_SIi_CALLED_BY, 1);
@@ -4108,7 +4132,7 @@ load_profile_data_from_stream(SV *cb)
 
                     /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
                     /* => { line => { subname => [ ... ] } } */
-                    fi = SvRV(*av_fetch(fid_fileinfo_av, fid, 1));
+                    fi = SvRV(*av_fetch(state.fid_fileinfo_av, fid, 1));
                     fi = *av_fetch((AV *)fi, NYTP_FIDi_SUBS_CALLED, 1);
                     fi = *hv_fetch((HV*)SvRV(fi), text, len, 1);
                     if (!SvROK(fi))               /* autoviv */
@@ -4318,12 +4342,12 @@ load_profile_data_from_stream(SV *cb)
     if (cb) {
         SvREFCNT_dec(profile_modes);
         SvREFCNT_dec(attr_hv);
-        SvREFCNT_dec(fid_fileinfo_av);
+        SvREFCNT_dec(state.fid_fileinfo_av);
         SvREFCNT_dec(state.fid_srclines_av);
         SvREFCNT_dec(fid_line_time_av);
         SvREFCNT_dec(fid_block_time_av);
         SvREFCNT_dec(fid_sub_time_av);
-        SvREFCNT_dec(sub_subinfo_hv);
+        SvREFCNT_dec(state.sub_subinfo_hv);
 
         return newHV(); /* dummy */
     }
@@ -4355,7 +4379,8 @@ load_profile_data_from_stream(SV *cb)
 
     profile_hv = newHV();
     (void)hv_stores(profile_hv, "attribute",          newRV_noinc((SV*)attr_hv));
-    (void)hv_stores(profile_hv, "fid_fileinfo",       newRV_noinc((SV*)fid_fileinfo_av));
+    (void)hv_stores(profile_hv, "fid_fileinfo",
+                    newRV_noinc((SV*)state.fid_fileinfo_av));
     (void)hv_stores(profile_hv, "fid_srclines",
             newRV_noinc((SV*)state.fid_srclines_av));
     (void)hv_stores(profile_hv, "fid_line_time",      newRV_noinc((SV*)fid_line_time_av));
@@ -4368,7 +4393,8 @@ load_profile_data_from_stream(SV *cb)
         (void)hv_stores(profile_hv, "fid_sub_time",    newRV_noinc((SV*)fid_sub_time_av));
         (void)hv_stores(profile_modes, "fid_sub_time", newSVpvs("sub"));
     }
-    (void)hv_stores(profile_hv, "sub_subinfo",      newRV_noinc((SV*)sub_subinfo_hv));
+    (void)hv_stores(profile_hv, "sub_subinfo",
+                    newRV_noinc((SV*)state.sub_subinfo_hv));
     (void)hv_stores(profile_hv, "profile_modes",    newRV_noinc((SV*)profile_modes));
     return profile_hv;
 }
