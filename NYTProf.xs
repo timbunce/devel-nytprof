@@ -209,7 +209,6 @@ static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
 
 /* defaults */
 static NYTP_file out;
-static NYTP_file in;
 
 /* options and overrides */
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
@@ -4240,7 +4239,7 @@ static loader_callback processing_callbacks[nytp_tag_max] =
  */
 static void
 load_profile_data_from_stream(loader_callback *callbacks,
-                              Loader_state_base *state)
+                              Loader_state_base *state, NYTP_file in)
 {
     dTHX;
     int file_major, file_minor;
@@ -4480,7 +4479,7 @@ load_profile_data_from_stream(loader_callback *callbacks,
 }
 
 static HV*
-load_profile_to_hv(pTHX)
+load_profile_to_hv(pTHX_ NYTP_file in)
 {
     Loader_state_profiler state;
     HV *profile_hv;
@@ -4508,7 +4507,7 @@ load_profile_to_hv(pTHX)
     av_extend(state.fid_line_time_av, 64);
 
     load_profile_data_from_stream(processing_callbacks,
-                                  (Loader_state_base *)&state);
+                                  (Loader_state_base *)&state, in);
 
 
     if (HvKEYS(state.live_pids_hv)) {
@@ -4584,7 +4583,7 @@ load_profile_to_hv(pTHX)
 }
 
 static void
-load_profile_to_callback(pTHX_ SV *cb)
+load_profile_to_callback(pTHX_ NYTP_file in, SV *cb)
 {
     Loader_state_callback state;
     int i;
@@ -4614,7 +4613,8 @@ load_profile_to_callback(pTHX_ SV *cb)
     for (i = 0; i < C_ARRAY_LENGTH(state.cb_args); i++)
         state.cb_args[i] = sv_newmortal();
 
-    load_profile_data_from_stream(perl_callbacks, (Loader_state_base *)&state);
+    load_profile_data_from_stream(perl_callbacks, (Loader_state_base *)&state,
+                                  in);
 }
 
 
@@ -4796,6 +4796,7 @@ char *file;
 SV* cb;
     PREINIT:
     int result;
+    NYTP_file in;
     CODE:
     if (trace_level)
         logwarn("reading profile data from file %s\n", file);
@@ -4804,10 +4805,10 @@ SV* cb;
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
     if (cb && SvROK(cb)) {
-        load_profile_to_callback(aTHX_ cb);
+        load_profile_to_callback(aTHX_ in, cb);
         RETVAL = newHV(); /* Can we change this to PL_sv_undef?  */
     } else
-        RETVAL = load_profile_to_hv(aTHX);
+        RETVAL = load_profile_to_hv(aTHX_ in);
 
     if ((result = NYTP_close(in, 0)))
         logwarn("Error closing profile data file: %s\n", strerror(result));
