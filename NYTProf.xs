@@ -3496,6 +3496,31 @@ eval_outer_fid(pTHX_
 }
 
 
+typedef void (loader_callback)(void *cb_data, ...);
+
+typedef struct loader_state {
+#ifdef MULTIPLICITY
+    PerlInterpreter *interp;
+#endif
+    unsigned int last_file_num;
+    unsigned int last_line_num;
+    int statement_discount;
+    int total_stmts_discounted;
+} Loader_state;
+
+static void
+load_discount_callback(Loader_state *state)
+{
+    if (trace_level >= 4)
+        logwarn("discounting next statement after %u:%d\n",
+                state->last_file_num, state->last_line_num);
+    if (state->statement_discount)
+        logwarn("multiple statement discount after %u:%d\n",
+                state->last_file_num, state->last_line_num);
+    ++state->statement_discount;
+    ++state->total_stmts_discounted;
+}
+
 /**
  * Process a profile output file and return the results in a hash like
  * { fid_fileinfo  => [ [file, other...info ], ... ], # index by [fid]
@@ -3516,12 +3541,8 @@ load_profile_data_from_stream(SV *cb)
     int file_major, file_minor;
 
     unsigned long input_chunk_seqn = 0L;
-    unsigned int last_file_num = 0;
-    unsigned int last_line_num = 0;
-    int statement_discount = 0;
     NV total_stmts_duration = 0.0;
     int total_stmts_measured = 0;
-    int total_stmts_discounted = 0;
     int total_sub_calls = 0;
     HV *profile_hv;
     HV* profile_modes = newHV();
@@ -3552,6 +3573,13 @@ load_profile_data_from_stream(SV *cb)
 
     size_t buffer_len = MAXPATHLEN * 2;
     char *buffer = (char *)safemalloc(buffer_len);
+
+    Loader_state state;
+
+    Zero(&state, 1, Loader_state);
+#ifdef MULTIPLICITY
+    state.interp = my_perl;
+#endif
 
     av_extend(fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(fid_srclines_av, 64);
@@ -3631,12 +3659,7 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                if (trace_level >= 4)
-                    logwarn("discounting next statement after %u:%d\n", last_file_num, last_line_num);
-                if (statement_discount)
-                    logwarn("multiple statement discount after %u:%d\n", last_file_num, last_line_num);
-                ++statement_discount;
-                ++total_stmts_discounted;
+                load_discount_callback(&state);
                 break;
             }
 
@@ -3702,7 +3725,7 @@ load_profile_data_from_stream(SV *cb)
                 }
                 if (trace_level >= 4) {
                     const char *new_file_name = "";
-                    if (file_num != last_file_num && SvROK(fid_info_rvav))
+                    if (file_num != state.last_file_num && SvROK(fid_info_rvav))
                         new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), NYTP_FIDi_FILENAME, 1));
                     logwarn("Read %d:%-4d %2u ticks%s %s\n",
                         file_num, line_num, ticks, trace_note, new_file_name);
@@ -3710,7 +3733,7 @@ load_profile_data_from_stream(SV *cb)
 
                 add_entry(aTHX_ fid_line_time_av, file_num, line_num,
                     seconds, eval_file_num, eval_line_num,
-                    1-statement_discount
+                    1 - state.statement_discount
                 );
 
                 if (c == NYTP_TAG_TIME_BLOCK) {
@@ -3718,14 +3741,14 @@ load_profile_data_from_stream(SV *cb)
                         fid_block_time_av = newAV();
                     add_entry(aTHX_ fid_block_time_av, file_num, block_line_num,
                         seconds, eval_file_num, eval_line_num,
-                        1-statement_discount
+                        1 - state.statement_discount
                     );
 
                     if (!fid_sub_time_av)
                         fid_sub_time_av = newAV();
                     add_entry(aTHX_ fid_sub_time_av, file_num, sub_line_num,
                         seconds, eval_file_num, eval_line_num,
-                        1-statement_discount
+                        1 - state.statement_discount
                     );
 
                     if (trace_level >= 4)
@@ -3734,9 +3757,9 @@ load_profile_data_from_stream(SV *cb)
 
                 total_stmts_measured++;
                 total_stmts_duration += seconds;
-                statement_discount = 0;
-                last_file_num = file_num;
-                last_line_num = line_num;
+                state.statement_discount = 0;
+                state.last_file_num = file_num;
+                state.last_line_num = line_num;
                 break;
             }
 
@@ -4284,10 +4307,10 @@ load_profile_data_from_stream(SV *cb)
         return newHV(); /* dummy */
     }
 
-    if (statement_discount) /* discard unused statement_discount */
-        total_stmts_discounted -= statement_discount;
+    if (state.statement_discount) /* discard unused statement_discount */
+        state.total_stmts_discounted -= state.statement_discount;
     store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_measured"),   newSVnv(total_stmts_measured));
-    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_discounted"), newSVnv(total_stmts_discounted));
+    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_discounted"), newSVnv(state.total_stmts_discounted));
     store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_duration"),   newSVnv(total_stmts_duration));
     store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_sub_calls"),        newSVnv(total_sub_calls));
 
@@ -4304,8 +4327,8 @@ load_profile_data_from_stream(SV *cb)
 
         if (show_summary_stats)
             logwarn("Summary: statements profiled %d (%d-%d), sum of time %"NVff"s, profile spanned %"NVff"s\n",
-                total_stmts_measured-total_stmts_discounted,
-                total_stmts_measured, total_stmts_discounted,
+                total_stmts_measured - state.total_stmts_discounted,
+                total_stmts_measured, state.total_stmts_discounted,
                 total_stmts_duration, profiler_end_time-profiler_start_time);
     }
 
