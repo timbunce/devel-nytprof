@@ -362,10 +362,7 @@ NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
         }
     }
 #endif
-    if (FILE_STATE(ifile) != NYTP_FILE_STDIO) {
-        compressed_io_croak(ifile, "NYTP_gets");
-        return 0;
-    }
+    CROAK_IF_NOT_STDIO(ifile, "NYTP_gets");
 
     while(fgets(buffer + prev_len, len - prev_len, ifile->file)) {
         /* We know that there are no '\0' bytes in the part we've already
