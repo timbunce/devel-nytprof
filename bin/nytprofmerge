@@ -135,9 +135,7 @@ my %dispatcher =
 
      PID_START => sub {
 	 my (undef, $pid, $parent, $time) = @_;
-	 $out->write('P');
-	 $out->output_int($pid, $parent);
-	 $out->output_nv($time);
+	 $out->write_process_start($pid, $parent, $time);
      },
      PID_END => sub {
 	 my (undef, $pid, $time) = @_;

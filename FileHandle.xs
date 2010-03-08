@@ -850,3 +850,10 @@ SV *value
         RETVAL = NYTP_write_attribute_string(handle, key_p, key_len, value_p, value_len);
     OUTPUT:
         RETVAL
+
+size_t
+NYTP_write_process_start(handle, pid, ppid, time_of_day)
+NYTP_file handle
+unsigned int pid
+unsigned int ppid
+NV time_of_day
