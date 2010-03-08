@@ -3529,7 +3529,7 @@ typedef struct loader_state {
 } Loader_state;
 
 static void
-load_discount_callback(Loader_state *state)
+load_discount_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     if (trace_level >= 4)
         logwarn("discounting next statement after %u:%d\n",
@@ -3625,7 +3625,7 @@ load_time_callback(Loader_state *state, const nytp_tax_index tag, ...)
 }
 
 static void
-load_new_fid_callback(Loader_state *state, ...)
+load_new_fid_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     va_list args;
@@ -3640,7 +3640,7 @@ load_new_fid_callback(Loader_state *state, ...)
     unsigned int file_size;
     unsigned int file_mtime;
 
-    va_start(args, state);
+    va_start(args, tag);
 
     file_num = va_arg(args, unsigned int);
     eval_file_num = va_arg(args, unsigned int);
@@ -3721,7 +3721,7 @@ load_new_fid_callback(Loader_state *state, ...)
 }
 
 static void
-load_src_line_callback(Loader_state *state, ...)
+load_src_line_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     va_list args;
@@ -3730,7 +3730,7 @@ load_src_line_callback(Loader_state *state, ...)
     SV *src;
     AV *file_av;
 
-    va_start(args, state);
+    va_start(args, tag);
 
     file_num = va_arg(args, unsigned int);
     line_num = va_arg(args, unsigned int);
@@ -3755,7 +3755,7 @@ load_src_line_callback(Loader_state *state, ...)
 }
 
 static void
-load_sub_info_callback(Loader_state *state, ...)
+load_sub_info_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     va_list args;
@@ -3769,7 +3769,7 @@ load_sub_info_callback(Loader_state *state, ...)
     AV *av;
     SV *sv;
 
-    va_start(args, state);
+    va_start(args, tag);
 
     fid = va_arg(args, unsigned int);
     first_line = va_arg(args, unsigned int);
@@ -3819,7 +3819,7 @@ load_sub_info_callback(Loader_state *state, ...)
 }
 
 static void
-load_sub_callers_callback(Loader_state *state, ...)
+load_sub_callers_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     va_list args;
@@ -3837,7 +3837,7 @@ load_sub_callers_callback(Loader_state *state, ...)
     AV *subinfo_av;
     int len;
 
-    va_start(args, state);
+    va_start(args, tag);
 
     fid = va_arg(args, unsigned int);
     line = va_arg(args, unsigned int);
@@ -3942,7 +3942,7 @@ load_sub_callers_callback(Loader_state *state, ...)
 }
 
 static void
-load_pid_start_callback(Loader_state *state, ...)
+load_pid_start_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     va_list args;
@@ -3952,7 +3952,7 @@ load_pid_start_callback(Loader_state *state, ...)
     char text[MAXPATHLEN*2];
     int len;
 
-    va_start(args, state);
+    va_start(args, tag);
 
     pid = va_arg(args, unsigned int);
     ppid = va_arg(args, unsigned int);
@@ -3973,7 +3973,7 @@ load_pid_start_callback(Loader_state *state, ...)
 }
 
 static void
-load_pid_end_callback(Loader_state *state, ...)
+load_pid_end_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     va_list args;
@@ -3982,7 +3982,7 @@ load_pid_end_callback(Loader_state *state, ...)
     char text[MAXPATHLEN*2];
     int len;
 
-    va_start(args, state);
+    va_start(args, tag);
 
     pid = va_arg(args, unsigned int);
     end_time = va_arg(args, NV);
@@ -4008,7 +4008,7 @@ load_pid_end_callback(Loader_state *state, ...)
 }
 
 static void
-load_attribute_callback(Loader_state *state, ...)
+load_attribute_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     va_list args;
@@ -4019,7 +4019,7 @@ load_attribute_callback(Loader_state *state, ...)
     unsigned long value_len;
     unsigned int value_utf8;
 
-    va_start(args, state);
+    va_start(args, tag);
 
     key = va_arg(args, char *);
     key_len = va_arg(args, unsigned long);
@@ -4284,7 +4284,7 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                load_discount_callback(&state);
+                load_discount_callback(&state, nytp_discount);
                 break;
             }
 
@@ -4338,9 +4338,9 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                load_new_fid_callback(&state, file_num, eval_file_num,
-                                      eval_line_num, fid_flags, file_size,
-                                      file_mtime, filename_sv);
+                load_new_fid_callback(&state, nytp_new_fid, file_num,
+                                      eval_file_num, eval_line_num, fid_flags,
+                                      file_size, file_mtime, filename_sv);
                 break;
             }
 
@@ -4356,7 +4356,8 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                load_src_line_callback(&state, file_num, line_num, src);
+                load_src_line_callback(&state, nytp_src_line, file_num,
+                                       line_num, src);
                 break;
             }
 
@@ -4377,8 +4378,8 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                load_sub_info_callback(&state, fid, first_line, last_line,
-                                       subname_sv);
+                load_sub_info_callback(&state, nytp_sub_info, fid, first_line,
+                                       last_line, subname_sv);
                 break;
             }
 
@@ -4407,8 +4408,9 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                load_sub_callers_callback(&state, fid, line, count, incl_time,
-                                          excl_time, reci_time, rec_depth,
+                load_sub_callers_callback(&state, nytp_sub_callers, fid, line,
+                                          count, incl_time, excl_time,
+                                          reci_time, rec_depth,
                                           called_subname_sv, caller_subname_sv);
                 break;
             }
@@ -4424,7 +4426,8 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                load_pid_start_callback(&state, pid, ppid, start_time);
+                load_pid_start_callback(&state, nytp_pid_start, pid, ppid,
+                                        start_time);
                 break;
             }
 
@@ -4438,7 +4441,7 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                load_pid_end_callback(&state, pid, end_time);
+                load_pid_end_callback(&state, nytp_pid_end, pid, end_time);
                 break;
             }
 
@@ -4461,7 +4464,7 @@ load_profile_data_from_stream(SV *cb)
                                        (unsigned long)(key_end - buffer), 0,
                                        value, (unsigned long)(end - value), 0);
                 } else {
-                    load_attribute_callback(&state, buffer,
+                    load_attribute_callback(&state, nytp_attribute, buffer,
                                             (unsigned long)(key_end - buffer),
                                             0, value,
                                             (unsigned long)(end - value), 0);
