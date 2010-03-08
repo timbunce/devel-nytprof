@@ -709,6 +709,28 @@ NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
     return NYTP_write_attribute_string(ofile, key, key_len, buffer, len);
 }
 
+size_t
+NYTP_write_process_start(NYTP_file ofile, unsigned int pid, unsigned int ppid,
+                         NV time_of_day)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_int(ofile, NYTP_TAG_PID_START, pid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, ppid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, time_of_day);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
 
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 

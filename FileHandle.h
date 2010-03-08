@@ -43,6 +43,21 @@ const char *NYTP_type_of_offset(NYTP_file file);
 #  define NYTP_type_of_offset(file) ""
 #endif
 
+#define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
+#define NYTP_TAG_COMMENT         '#'    /* till newline */
+#define NYTP_TAG_TIME_BLOCK      '*'
+#define NYTP_TAG_TIME_LINE       '+'
+#define NYTP_TAG_DISCOUNT        '-'
+#define NYTP_TAG_NEW_FID         '@'
+#define NYTP_TAG_SRC_LINE        'S'    /* fid, line, str */
+#define NYTP_TAG_SUB_INFO        's'
+#define NYTP_TAG_SUB_CALLERS     'c'
+#define NYTP_TAG_PID_START       'P'
+#define NYTP_TAG_PID_END         'p'
+#define NYTP_TAG_STRING          '\'' 
+#define NYTP_TAG_STRING_UTF8     '"' 
+#define NYTP_TAG_START_DEFLATE   'z' 
+
 void NYTProf_croak_if_not_stdio(NYTP_file file, const char *function);
 
 size_t NYTP_write_comment(NYTP_file ofile, const char *format, ...);
@@ -53,3 +68,5 @@ size_t NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
                                    size_t key_len, long value);
 size_t NYTP_write_attribute_unsigned(NYTP_file ofile, const char *key,
                                      size_t key_len, unsigned long value);
+size_t NYTP_write_process_start(NYTP_file ofile, unsigned int pid,
+                                unsigned int ppid, NV time_of_day);

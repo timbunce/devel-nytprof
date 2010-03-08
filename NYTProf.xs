@@ -130,21 +130,6 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_FIDf_IS_ALIAS       0x0040 /* fid is clone of the 'parent' fid it was autosplit from */
 #define NYTP_FIDf_IS_FAKE        0x0080 /* eg dummy caller of a string eval that doesn't have a filename */
 
-#define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
-#define NYTP_TAG_COMMENT         '#'    /* till newline */
-#define NYTP_TAG_TIME_BLOCK      '*'
-#define NYTP_TAG_TIME_LINE       '+'
-#define NYTP_TAG_DISCOUNT        '-'
-#define NYTP_TAG_NEW_FID         '@'
-#define NYTP_TAG_SRC_LINE        'S'    /* fid, line, str */
-#define NYTP_TAG_SUB_INFO        's'
-#define NYTP_TAG_SUB_CALLERS     'c'
-#define NYTP_TAG_PID_START       'P'
-#define NYTP_TAG_PID_END         'p'
-#define NYTP_TAG_STRING          '\'' 
-#define NYTP_TAG_STRING_UTF8     '"' 
-#define NYTP_TAG_START_DEFLATE   'z' 
-
 /* indices to elements of the file info array */
 #define NYTP_FIDi_FILENAME      0
 #define NYTP_FIDi_EVAL_FID      1
@@ -474,10 +459,8 @@ output_header(pTHX)
         NYTP_start_deflate(out, compression_level);
     }
 #endif
-        
-    output_tag_int(out, NYTP_TAG_PID_START, getpid());
-    output_int(out, getppid());
-    output_nv(out, gettimeofday_nv());
+
+    NYTP_write_process_start(out, getpid(), getppid(), gettimeofday_nv());
 
     write_cached_fids();                          /* empty initially, non-empty after fork */
 
