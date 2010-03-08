@@ -4053,7 +4053,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("DISCOUNT"), NULL},
     {STR_WITH_LEN("NEW_FID"), "uuuuuuS"},
     {STR_WITH_LEN("SRC_LINE"), "uuS"},
-    {STR_WITH_LEN("SUB_INFO"), NULL},
+    {STR_WITH_LEN("SUB_INFO"), "uuus"},
     {STR_WITH_LEN("SUB_CALLERS"), NULL},
     {STR_WITH_LEN("PID_START"), NULL},
     {STR_WITH_LEN("PID_END"), NULL},
@@ -4096,6 +4096,14 @@ load_perl_callback(Loader_state *state, nytp_tax_index tag, ...)
             unsigned int u = va_arg(args, unsigned int);
 
             sv_setuv(cb_args[i], u);
+            XPUSHs(cb_args[i++]);
+            break;
+        }
+        case 's':
+        {
+            SV *sv = va_arg(args, SV *);
+
+            sv_setsv(cb_args[i], sv);
             XPUSHs(cb_args[i++]);
             break;
         }
@@ -4357,18 +4365,8 @@ load_profile_data_from_stream(SV *cb)
                     (void)read_int(in);
 
                 if (cb) {
-                    PUSHMARK(SP);
-
-                    i = 0;
-                    sv_setpvs(cb_args[i], "SUB_INFO"); XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], fid);         XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], first_line);  XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], last_line);   XPUSHs(cb_args[i++]);
-                    sv_setsv(cb_args[i], subname_sv);  XPUSHs(cb_args[i++]);
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, nytp_sub_info, fid, first_line,
+                                       last_line, subname_sv);
                     break;
                 }
 
