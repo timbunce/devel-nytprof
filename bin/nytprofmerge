@@ -148,9 +148,8 @@ my %dispatcher =
 	 return unless $pending_fids[$fid];
 	 my ($new_fid, $new_eval_fid) = @{$pending_fids[$fid]};
 
-	 $out->write('@');
-	 $out->output_int($new_fid, $new_eval_fid, $eval_line, $flags, $size, $mtime);
-	 $out->output_str($name);
+	 $out->write_new_fid($new_fid, $new_eval_fid, $eval_line, $flags,
+			     $size, $mtime, $name);
      },
      TIME_BLOCK => \&_time_block_or_line,
      TIME_LINE => \&_time_block_or_line,

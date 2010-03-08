@@ -919,3 +919,23 @@ NYTP_write_process_end(handle, pid, time_of_day)
 NYTP_file handle
 unsigned int pid
 NV time_of_day
+
+size_t
+NYTP_write_new_fid(handle, id, eval_fid, eval_line_num, flags, size, mtime, name)
+NYTP_file handle
+unsigned int id
+unsigned int eval_fid
+int eval_line_num
+unsigned int flags
+unsigned int size
+unsigned int mtime
+SV *name
+    PREINIT:
+        STRLEN len;
+        const char *const p = SvPV(name, len);
+    CODE:
+        RETVAL = NYTP_write_new_fid(handle, id, eval_fid, eval_line_num,
+                                    flags, size, mtime, p,
+                                    SvUTF8(name) ? -(I32)len : (I32)len );
+    OUTPUT:
+        RETVAL
