@@ -3510,6 +3510,8 @@ typedef struct loader_state {
     SV *cb;
     SV *cb_args[11];  /* must be large enough for the largest callback argument list */
     SV *tag_names[nytp_tag_max];
+    SV *input_chunk_seqn_sv;
+
     unsigned int last_file_num;
     unsigned int last_line_num;
     int statement_discount;
@@ -4097,6 +4099,8 @@ load_perl_callback(Loader_state_base *cb_data, nytp_tax_index tag, ...)
             croak("Unknown type %d passed to perl callback", tag);
     }
 
+    sv_setuv_mg(state->input_chunk_seqn_sv, state->base_state.input_chunk_seqn);
+
     va_start(args, tag);
 
     PUSHMARK(SP);
@@ -4240,9 +4244,6 @@ load_profile_data_from_stream(SV *cb)
     SV *tmp_str1_sv = newSVpvn("",0);
     SV *tmp_str2_sv = newSVpvn("",0);
 
-    /* callback support */
-    SV *input_chunk_seqn_sv = NULL;
-
     size_t buffer_len = MAXPATHLEN * 2;
     char *buffer = (char *)safemalloc(buffer_len);
 
@@ -4289,8 +4290,8 @@ load_profile_data_from_stream(SV *cb)
 
     if (cb && SvROK(cb)) {
         int i;
-        input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
-        sv_setuv(input_chunk_seqn_sv, state->input_chunk_seqn);
+        merged_state.input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
+        sv_setuv(merged_state.input_chunk_seqn_sv, state->input_chunk_seqn);
 
         i = C_ARRAY_LENGTH(merged_state.tag_names);
         while (--i) {
@@ -4330,10 +4331,6 @@ load_profile_data_from_stream(SV *cb)
         }
 
         state->input_chunk_seqn++;
-        if (cb) {
-            sv_setuv_mg(input_chunk_seqn_sv, state->input_chunk_seqn);
-        }
-
         if (trace_level >= 6)
             logwarn("Chunk %lu token is %d ('%c') at %ld%s\n",
                     state->input_chunk_seqn, c, c, NYTP_tell(in)-1,
