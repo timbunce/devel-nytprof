@@ -3508,6 +3508,11 @@ typedef struct loader_state {
     int statement_discount;
     int total_stmts_discounted;
     int total_sub_calls;
+    int total_stmts_measured;
+    NV total_stmts_duration;
+    AV *fid_line_time_av;
+    AV *fid_block_time_av;
+    AV *fid_sub_time_av;
     AV *fid_srclines_av;
     AV *fid_fileinfo_av;
     HV *sub_subinfo_hv;
@@ -3531,6 +3536,89 @@ load_discount_callback(Loader_state *state)
                 state->last_file_num, state->last_line_num);
     ++state->statement_discount;
     ++state->total_stmts_discounted;
+}
+
+static void
+load_time_callback(Loader_state *state, const unsigned char tag, ...)
+{
+    dTHXa(state->interp);
+    va_list args;
+    char trace_note[80] = "";
+    SV *fid_info_rvav;
+    NV seconds;
+    unsigned int eval_file_num = 0;
+    unsigned int eval_line_num = 0;
+    unsigned int ticks;
+    unsigned int file_num;
+    unsigned int line_num;
+
+    va_start(args, tag);
+
+    ticks = va_arg(args, unsigned int);
+    file_num = va_arg(args, unsigned int);
+    line_num = va_arg(args, unsigned int);
+
+    seconds = (NV)ticks / ticks_per_sec;
+
+    fid_info_rvav = *av_fetch(state->fid_fileinfo_av, file_num, 1);
+    if (!SvROK(fid_info_rvav)) {    /* should never happen */
+        if (!SvOK(fid_info_rvav)) { /* only warn once */
+            logwarn("Fid %u used but not defined\n", file_num);
+            sv_setsv(fid_info_rvav, &PL_sv_no);
+        }
+    }
+    else {
+        eval_outer_fid(aTHX_ state->fid_fileinfo_av, file_num, 1,
+                       &eval_file_num, &eval_line_num);
+    }
+
+    if (eval_file_num) {              /* fid is an eval */
+        if (trace_level >= 3)
+            sprintf(trace_note," (was string eval fid %u)", file_num);
+        file_num = eval_file_num;
+    }
+    if (trace_level >= 4) {
+        const char *new_file_name = "";
+        if (file_num != state->last_file_num && SvROK(fid_info_rvav))
+            new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), NYTP_FIDi_FILENAME, 1));
+        logwarn("Read %d:%-4d %2u ticks%s %s\n",
+                file_num, line_num, ticks, trace_note, new_file_name);
+    }
+
+    add_entry(aTHX_ state->fid_line_time_av, file_num, line_num,
+              seconds, eval_file_num, eval_line_num,
+              1 - state->statement_discount
+        );
+
+    if (tag == NYTP_TAG_TIME_BLOCK) {
+        unsigned int block_line_num = va_arg(args, unsigned int);
+        unsigned int sub_line_num = va_arg(args, unsigned int);
+
+        if (!state->fid_block_time_av)
+            state->fid_block_time_av = newAV();
+        add_entry(aTHX_ state->fid_block_time_av, file_num, block_line_num,
+                  seconds, eval_file_num, eval_line_num,
+                  1 - state->statement_discount
+            );
+
+        if (!state->fid_sub_time_av)
+            state->fid_sub_time_av = newAV();
+        add_entry(aTHX_ state->fid_sub_time_av, file_num, sub_line_num,
+                  seconds, eval_file_num, eval_line_num,
+                  1 - state->statement_discount
+            );
+
+        if (trace_level >= 4)
+            logwarn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
+    }
+
+    va_end(args);
+
+    state->total_stmts_measured++;
+    state->total_stmts_duration += seconds;
+    state->statement_discount = 0;
+    state->last_file_num = file_num;
+    state->last_line_num = line_num;
 }
 
 static void
@@ -3966,13 +4054,8 @@ load_profile_data_from_stream(SV *cb)
     int file_major, file_minor;
 
     unsigned long input_chunk_seqn = 0L;
-    NV total_stmts_duration = 0.0;
-    int total_stmts_measured = 0;
     HV *profile_hv;
     HV* profile_modes = newHV();
-    AV* fid_line_time_av = newAV();
-    AV* fid_block_time_av = NULL;
-    AV* fid_sub_time_av = NULL;
     SV *tmp_str1_sv = newSVpvn("",0);
     SV *tmp_str2_sv = newSVpvn("",0);
 
@@ -3990,6 +4073,7 @@ load_profile_data_from_stream(SV *cb)
     Loader_state state;
 
     Zero(&state, 1, Loader_state);
+    state.total_stmts_duration = 0.0;
     state.profiler_start_time = 0.0;
     state.profiler_start_time = 0.0;
     state.profiler_end_time = 0.0;
@@ -3997,6 +4081,7 @@ load_profile_data_from_stream(SV *cb)
 #ifdef MULTIPLICITY
     state.interp = my_perl;
 #endif
+    state.fid_line_time_av = newAV();
     state.fid_srclines_av = newAV();
     state.fid_fileinfo_av = newAV();
     state.sub_subinfo_hv = newHV();
@@ -4006,7 +4091,7 @@ load_profile_data_from_stream(SV *cb)
 
     av_extend(state.fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(state.fid_srclines_av, 64);
-    av_extend(fid_line_time_av, 64);
+    av_extend(state.fid_line_time_av, 64);
 
     if (1) {
         if (!NYTP_gets(in, &buffer, &buffer_len))
@@ -4089,11 +4174,6 @@ load_profile_data_from_stream(SV *cb)
             case NYTP_TAG_TIME_LINE:                       /*FALLTHRU*/
             case NYTP_TAG_TIME_BLOCK:
             {
-                char trace_note[80] = "";
-                SV *fid_info_rvav;
-                NV seconds;
-                unsigned int eval_file_num = 0;
-                unsigned int eval_line_num = 0;
                 unsigned int ticks    = read_int(in);
                 unsigned int file_num = read_int(in);
                 unsigned int line_num = read_int(in);
@@ -4106,6 +4186,8 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 if (cb) {
+                    unsigned int eval_file_num = 0;
+                    unsigned int eval_line_num = 0;
                     PUSHMARK(SP);
 
                     XPUSHs(c == NYTP_TAG_TIME_BLOCK ? cb_TIME_BLOCK_tag : cb_TIME_LINE_tag);
@@ -4128,61 +4210,10 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                seconds  = (NV)ticks / ticks_per_sec;
-
-                fid_info_rvav = *av_fetch(state.fid_fileinfo_av, file_num, 1);
-                if (!SvROK(fid_info_rvav)) {    /* should never happen */
-                    if (!SvOK(fid_info_rvav)) { /* only warn once */
-                        logwarn("Fid %u used but not defined\n", file_num);
-                        sv_setsv(fid_info_rvav, &PL_sv_no);
-                    }
-                }
-                else {
-                    eval_outer_fid(aTHX_ state.fid_fileinfo_av, file_num, 1, &eval_file_num, &eval_line_num);
-                }
-
-                if (eval_file_num) {              /* fid is an eval */
-                    if (trace_level >= 3)
-                        sprintf(trace_note," (was string eval fid %u)", file_num);
-                    file_num = eval_file_num;
-                }
-                if (trace_level >= 4) {
-                    const char *new_file_name = "";
-                    if (file_num != state.last_file_num && SvROK(fid_info_rvav))
-                        new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), NYTP_FIDi_FILENAME, 1));
-                    logwarn("Read %d:%-4d %2u ticks%s %s\n",
-                        file_num, line_num, ticks, trace_note, new_file_name);
-                }
-
-                add_entry(aTHX_ fid_line_time_av, file_num, line_num,
-                    seconds, eval_file_num, eval_line_num,
-                    1 - state.statement_discount
-                );
-
-                if (c == NYTP_TAG_TIME_BLOCK) {
-                    if (!fid_block_time_av)
-                        fid_block_time_av = newAV();
-                    add_entry(aTHX_ fid_block_time_av, file_num, block_line_num,
-                        seconds, eval_file_num, eval_line_num,
-                        1 - state.statement_discount
-                    );
-
-                    if (!fid_sub_time_av)
-                        fid_sub_time_av = newAV();
-                    add_entry(aTHX_ fid_sub_time_av, file_num, sub_line_num,
-                        seconds, eval_file_num, eval_line_num,
-                        1 - state.statement_discount
-                    );
-
-                    if (trace_level >= 4)
-                        logwarn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
-                }
-
-                total_stmts_measured++;
-                total_stmts_duration += seconds;
-                state.statement_discount = 0;
-                state.last_file_num = file_num;
-                state.last_line_num = line_num;
+                /* Because it happens that the two "optional" arguments are
+                   last, a single call will work.  */
+                load_time_callback(&state, c, ticks, file_num, line_num,
+                                   block_line_num, sub_line_num);
                 break;
             }
 
@@ -4493,9 +4524,9 @@ load_profile_data_from_stream(SV *cb)
         SvREFCNT_dec(state.attr_hv);
         SvREFCNT_dec(state.fid_fileinfo_av);
         SvREFCNT_dec(state.fid_srclines_av);
-        SvREFCNT_dec(fid_line_time_av);
-        SvREFCNT_dec(fid_block_time_av);
-        SvREFCNT_dec(fid_sub_time_av);
+        SvREFCNT_dec(state.fid_line_time_av);
+        SvREFCNT_dec(state.fid_block_time_av);
+        SvREFCNT_dec(state.fid_sub_time_av);
         SvREFCNT_dec(state.sub_subinfo_hv);
 
         return newHV(); /* dummy */
@@ -4504,11 +4535,11 @@ load_profile_data_from_stream(SV *cb)
     if (state.statement_discount) /* discard unused statement_discount */
         state.total_stmts_discounted -= state.statement_discount;
     store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_measured"),
-                    newSVnv(total_stmts_measured));
+                    newSVnv(state.total_stmts_measured));
     store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_discounted"),
                     newSVnv(state.total_stmts_discounted));
     store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_duration"),
-                    newSVnv(total_stmts_duration));
+                    newSVnv(state.total_stmts_duration));
     store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_sub_calls"),
                     newSVnv(state.total_sub_calls));
 
@@ -4516,19 +4547,19 @@ load_profile_data_from_stream(SV *cb)
         int show_summary_stats = (trace_level >= 1);
 
         if (state.profiler_end_time
-            && total_stmts_duration > state.profiler_duration * 1.1) {
+            && state.total_stmts_duration > state.profiler_duration * 1.1) {
             logwarn("The sum of the statement timings is %.1"NVff"%% of the total time profiling."
                  " (Values slightly over 100%% can be due simply to cumulative timing errors,"
                  " whereas larger values can indicate a problem with the clock used.)\n",
-                total_stmts_duration / state.profiler_duration * 100);
+                state.total_stmts_duration / state.profiler_duration * 100);
             show_summary_stats = 1;
         }
 
         if (show_summary_stats)
             logwarn("Summary: statements profiled %d (%d-%d), sum of time %"NVff"s, profile spanned %"NVff"s\n",
-                total_stmts_measured - state.total_stmts_discounted,
-                total_stmts_measured, state.total_stmts_discounted,
-                total_stmts_duration,
+                state.total_stmts_measured - state.total_stmts_discounted,
+                state.total_stmts_measured, state.total_stmts_discounted,
+                state.total_stmts_duration,
                 state.profiler_end_time - state.profiler_start_time);
     }
 
@@ -4539,14 +4570,17 @@ load_profile_data_from_stream(SV *cb)
                     newRV_noinc((SV*)state.fid_fileinfo_av));
     (void)hv_stores(profile_hv, "fid_srclines",
             newRV_noinc((SV*)state.fid_srclines_av));
-    (void)hv_stores(profile_hv, "fid_line_time",      newRV_noinc((SV*)fid_line_time_av));
+    (void)hv_stores(profile_hv, "fid_line_time",
+                    newRV_noinc((SV*)state.fid_line_time_av));
     (void)hv_stores(profile_modes, "fid_line_time", newSVpvs("line"));
-    if (fid_block_time_av) {
-        (void)hv_stores(profile_hv, "fid_block_time",      newRV_noinc((SV*)fid_block_time_av));
+    if (state.fid_block_time_av) {
+        (void)hv_stores(profile_hv, "fid_block_time",
+                        newRV_noinc((SV*)state.fid_block_time_av));
         (void)hv_stores(profile_modes, "fid_block_time", newSVpvs("block"));
     }
-    if (fid_sub_time_av) {
-        (void)hv_stores(profile_hv, "fid_sub_time",    newRV_noinc((SV*)fid_sub_time_av));
+    if (state.fid_sub_time_av) {
+        (void)hv_stores(profile_hv, "fid_sub_time",
+                        newRV_noinc((SV*)state.fid_sub_time_av));
         (void)hv_stores(profile_modes, "fid_sub_time", newSVpvs("sub"));
     }
     (void)hv_stores(profile_hv, "sub_subinfo",
