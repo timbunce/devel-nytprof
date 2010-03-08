@@ -3506,6 +3506,7 @@ typedef struct loader_state {
     unsigned int last_line_num;
     int statement_discount;
     int total_stmts_discounted;
+    AV *fid_srclines_av;
 } Loader_state;
 
 static void
@@ -3519,6 +3520,40 @@ load_discount_callback(Loader_state *state)
                 state->last_file_num, state->last_line_num);
     ++state->statement_discount;
     ++state->total_stmts_discounted;
+}
+
+static void
+load_src_line_callback(Loader_state *state, ...)
+{
+    dTHXa(state->interp);
+    va_list args;
+    unsigned int file_num;
+    unsigned int line_num;
+    SV *src;
+    AV *file_av;
+
+    va_start(args, state);
+
+    file_num = va_arg(args, unsigned int);
+    line_num = va_arg(args, unsigned int);
+    src = va_arg(args, SV *);
+
+    va_end(args);
+
+    /* first line in the file seen */
+    if (!av_exists(state->fid_srclines_av, file_num)) {
+        file_av = newAV();
+        av_store(state->fid_srclines_av, file_num, newRV_noinc((SV*)file_av));
+    }
+    else {
+        file_av = (AV *)SvRV(*av_fetch(state->fid_srclines_av, file_num, 1));
+    }
+    
+    av_store(file_av, line_num, src);
+
+    if (trace_level >= 4) {
+        logwarn("Fid %2u:%u: %s\n", file_num, line_num, SvPV_nolen(src));
+    }
 }
 
 /**
@@ -3549,7 +3584,6 @@ load_profile_data_from_stream(SV *cb)
     HV *live_pids_hv = newHV();
     HV *attr_hv = newHV();
     AV* fid_fileinfo_av = newAV();
-    AV* fid_srclines_av = newAV();
     AV* fid_line_time_av = newAV();
     AV* fid_block_time_av = NULL;
     AV* fid_sub_time_av = NULL;
@@ -3580,9 +3614,10 @@ load_profile_data_from_stream(SV *cb)
 #ifdef MULTIPLICITY
     state.interp = my_perl;
 #endif
+    state.fid_srclines_av = newAV();
 
     av_extend(fid_fileinfo_av, 64);               /* grow them up front. */
-    av_extend(fid_srclines_av, 64);
+    av_extend(state.fid_srclines_av, 64);
     av_extend(fid_line_time_av, 64);
 
     if (1) {
@@ -3874,7 +3909,6 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int file_num = read_int(in);
                 unsigned int line_num = read_int(in);
                 SV *src = read_str(aTHX_ in, NULL);
-                AV *file_av;
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -3892,20 +3926,7 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                /* first line in the file seen */
-                if (!av_exists(fid_srclines_av, file_num)) {
-                    file_av = newAV();
-                    av_store(fid_srclines_av, file_num, newRV_noinc((SV*)file_av));
-                }
-                else {
-                    file_av = (AV *)SvRV(*av_fetch(fid_srclines_av, file_num, 1));
-                }
-
-                av_store(file_av, line_num, src);
-
-                if (trace_level >= 4) {
-                    logwarn("Fid %2u:%u: %s\n", file_num, line_num, SvPV_nolen(src));
-                }
+                load_src_line_callback(&state, file_num, line_num, src);
                 break;
             }
 
@@ -4298,7 +4319,7 @@ load_profile_data_from_stream(SV *cb)
         SvREFCNT_dec(profile_modes);
         SvREFCNT_dec(attr_hv);
         SvREFCNT_dec(fid_fileinfo_av);
-        SvREFCNT_dec(fid_srclines_av);
+        SvREFCNT_dec(state.fid_srclines_av);
         SvREFCNT_dec(fid_line_time_av);
         SvREFCNT_dec(fid_block_time_av);
         SvREFCNT_dec(fid_sub_time_av);
@@ -4335,7 +4356,8 @@ load_profile_data_from_stream(SV *cb)
     profile_hv = newHV();
     (void)hv_stores(profile_hv, "attribute",          newRV_noinc((SV*)attr_hv));
     (void)hv_stores(profile_hv, "fid_fileinfo",       newRV_noinc((SV*)fid_fileinfo_av));
-    (void)hv_stores(profile_hv, "fid_srclines",   newRV_noinc((SV*)fid_srclines_av));
+    (void)hv_stores(profile_hv, "fid_srclines",
+            newRV_noinc((SV*)state.fid_srclines_av));
     (void)hv_stores(profile_hv, "fid_line_time",      newRV_noinc((SV*)fid_line_time_av));
     (void)hv_stores(profile_modes, "fid_line_time", newSVpvs("line"));
     if (fid_block_time_av) {
