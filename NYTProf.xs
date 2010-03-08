@@ -3513,6 +3513,7 @@ typedef struct loader_state {
     HV *sub_subinfo_hv;
     HV *live_pids_hv;
     HV *attr_hv;
+    HV *file_info_stash;
     /* these times don't reflect profile_enable & profile_disable calls */
     NV profiler_start_time;
     NV profiler_end_time;
@@ -3530,6 +3531,102 @@ load_discount_callback(Loader_state *state)
                 state->last_file_num, state->last_line_num);
     ++state->statement_discount;
     ++state->total_stmts_discounted;
+}
+
+static void
+load_new_fid_callback(Loader_state *state, ...)
+{
+    dTHXa(state->interp);
+    va_list args;
+    AV *av;
+    SV *rv;
+    SV **svp;
+    SV *filename_sv;
+    unsigned int file_num;
+    unsigned int eval_file_num;
+    unsigned int eval_line_num;
+    unsigned int fid_flags;
+    unsigned int file_size;
+    unsigned int file_mtime;
+
+    va_start(args, state);
+
+    file_num = va_arg(args, unsigned int);
+    eval_file_num = va_arg(args, unsigned int);
+    eval_line_num = va_arg(args, unsigned int);
+    fid_flags = va_arg(args, unsigned int);
+    file_size = va_arg(args, unsigned int);
+    file_mtime = va_arg(args, unsigned int);
+    filename_sv = va_arg(args, SV *);
+
+    va_end(args);
+
+    if (eval_file_num)
+        normalize_eval_seqn(aTHX_ filename_sv);
+
+    if (trace_level >= 2) {
+        SV *fid_flags_sv = fmt_fid_flags(aTHX_ fid_flags, NULL);
+        char parent_fid[80];
+        if (eval_file_num || eval_line_num)
+            sprintf(parent_fid, " (is eval at %u:%u)", eval_file_num, eval_line_num);
+        else 
+            sprintf(parent_fid, " (file sz%d mt%d)", file_size, file_mtime);
+
+        logwarn("Fid %2u is %s%s 0x%x(%s)\n",
+                file_num, SvPV_nolen(filename_sv), parent_fid,
+                fid_flags, SvPV_nolen(fid_flags_sv));
+    }
+
+    /* [ name, eval_file_num, eval_line_num, fid, flags, size, mtime, ... ]
+     */
+    av = newAV();
+    rv = newRV_noinc((SV*)av);
+    sv_bless(rv, state->file_info_stash);
+
+    svp = av_fetch(state->fid_fileinfo_av, file_num, 1);
+    if (SvOK(*svp)) { /* should never happen, perhaps file is corrupt */
+        AV *old_av = (AV *)SvRV(*av_fetch(state->fid_fileinfo_av, file_num, 1));
+        SV *old_name = *av_fetch(old_av, 0, 1);
+        logwarn("Fid %d redefined from %s to %s\n", file_num,
+                SvPV_nolen(old_name), SvPV_nolen(filename_sv));
+    }
+    sv_setsv(*svp, rv);
+
+    av_store(av, NYTP_FIDi_FILENAME, filename_sv); /* av now owns the sv */
+    if (eval_file_num) {
+        SV *has_evals;
+        /* this eval fid refers to the fid that contained the eval */
+        SV *eval_fi = *av_fetch(state->fid_fileinfo_av, eval_file_num, 1);
+        if (!SvROK(eval_fi)) { /* should never happen */
+            logwarn("Eval '%s' (fid %d) has unknown invoking fid %d\n",
+                    SvPV_nolen(filename_sv), file_num, eval_file_num);
+            /* so make it look like a real file instead of an eval */
+            av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
+            eval_file_num = 0;
+            eval_line_num = 0;
+        }
+        else {
+            av_store(av, NYTP_FIDi_EVAL_FI, sv_rvweaken(newSVsv(eval_fi)));
+            /* the fid that contained the eval has a list of eval fids */
+            has_evals = *av_fetch((AV *)SvRV(eval_fi), NYTP_FIDi_HAS_EVALS, 1);
+            if (!SvROK(has_evals)) /* autoviv */
+                sv_setsv(has_evals, newRV_noinc((SV*)newAV()));
+            av_push((AV *)SvRV(has_evals), sv_rvweaken(newSVsv(rv)));
+        }
+    }
+    else {
+        av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
+    }
+    av_store(av, NYTP_FIDi_EVAL_FID,  (eval_file_num) ? newSVuv(eval_file_num) : &PL_sv_no);
+    av_store(av, NYTP_FIDi_EVAL_LINE, (eval_file_num) ? newSVuv(eval_line_num) : &PL_sv_no);
+    av_store(av, NYTP_FIDi_FID,       newSVuv(file_num));
+    av_store(av, NYTP_FIDi_FLAGS,     newSVuv(fid_flags));
+    av_store(av, NYTP_FIDi_FILESIZE,  newSVuv(file_size));
+    av_store(av, NYTP_FIDi_FILEMTIME, newSVuv(file_mtime));
+    av_store(av, NYTP_FIDi_PROFILE,   &PL_sv_undef);
+    av_store(av, NYTP_FIDi_HAS_EVALS, &PL_sv_undef);
+    av_store(av, NYTP_FIDi_SUBS_DEFINED, newRV_noinc((SV*)newHV()));
+    av_store(av, NYTP_FIDi_SUBS_CALLED,  newRV_noinc((SV*)newHV()));
 }
 
 static void
@@ -3878,7 +3975,6 @@ load_profile_data_from_stream(SV *cb)
     AV* fid_sub_time_av = NULL;
     SV *tmp_str1_sv = newSVpvn("",0);
     SV *tmp_str2_sv = newSVpvn("",0);
-    HV *file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
 
     /* callback support */
     int i;
@@ -3906,6 +4002,7 @@ load_profile_data_from_stream(SV *cb)
     state.sub_subinfo_hv = newHV();
     state.live_pids_hv = newHV();
     state.attr_hv = newHV();
+    state.file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
 
     av_extend(state.fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(state.fid_srclines_av, 64);
@@ -4091,9 +4188,6 @@ load_profile_data_from_stream(SV *cb)
 
             case NYTP_TAG_NEW_FID:                             /* file */
             {
-                AV *av;
-                SV *rv;
-                SV **svp;
                 SV *filename_sv;
                 unsigned int file_num      = read_int(in);
                 unsigned int eval_file_num = read_int(in);
@@ -4125,73 +4219,9 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                if (eval_file_num)
-                    normalize_eval_seqn(aTHX_ filename_sv);
-
-                if (trace_level >= 2) {
-                    SV *fid_flags_sv = fmt_fid_flags(aTHX_ fid_flags, NULL);
-                    char parent_fid[80];
-                    if (eval_file_num || eval_line_num)
-                         sprintf(parent_fid, " (is eval at %u:%u)", eval_file_num, eval_line_num);
-                    else 
-                         sprintf(parent_fid, " (file sz%d mt%d)", file_size, file_mtime);
-
-                    logwarn("Fid %2u is %s%s 0x%x(%s)\n",
-                        file_num, SvPV_nolen(filename_sv), parent_fid,
-                        fid_flags, SvPV_nolen(fid_flags_sv));
-                }
-
-                /* [ name, eval_file_num, eval_line_num, fid, flags, size, mtime, ... ]
-                 */
-                av = newAV();
-                rv = newRV_noinc((SV*)av);
-                sv_bless(rv, file_info_stash);
-
-                svp = av_fetch(state.fid_fileinfo_av, file_num, 1);
-                if (SvOK(*svp)) { /* should never happen, perhaps file is corrupt */
-                    AV *old_av = (AV *)SvRV(*av_fetch(state.fid_fileinfo_av, file_num, 1));
-                    SV *old_name = *av_fetch(old_av, 0, 1);
-                    logwarn("Fid %d redefined from %s to %s\n", file_num,
-                        SvPV_nolen(old_name), SvPV_nolen(filename_sv));
-                }
-                sv_setsv(*svp, rv);
-
-                av_store(av, NYTP_FIDi_FILENAME, filename_sv); /* av now owns the sv */
-                if (eval_file_num) {
-                    SV *has_evals;
-                    /* this eval fid refers to the fid that contained the eval */
-                    SV *eval_fi = *av_fetch(state.fid_fileinfo_av, eval_file_num, 1);
-                    if (!SvROK(eval_fi)) { /* should never happen */
-                        logwarn("Eval '%s' (fid %d) has unknown invoking fid %d\n",
-                            SvPV_nolen(filename_sv), file_num, eval_file_num);
-                        /* so make it look like a real file instead of an eval */
-                        av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
-                        eval_file_num = 0;
-                        eval_line_num = 0;
-                    }
-                    else {
-                        av_store(av, NYTP_FIDi_EVAL_FI, sv_rvweaken(newSVsv(eval_fi)));
-                        /* the fid that contained the eval has a list of eval fids */
-                        has_evals = *av_fetch((AV *)SvRV(eval_fi), NYTP_FIDi_HAS_EVALS, 1);
-                        if (!SvROK(has_evals)) /* autoviv */
-                            sv_setsv(has_evals, newRV_noinc((SV*)newAV()));
-                        av_push((AV *)SvRV(has_evals), sv_rvweaken(newSVsv(rv)));
-                    }
-                }
-                else {
-                    av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
-                }
-                av_store(av, NYTP_FIDi_EVAL_FID,  (eval_file_num) ? newSVuv(eval_file_num) : &PL_sv_no);
-                av_store(av, NYTP_FIDi_EVAL_LINE, (eval_file_num) ? newSVuv(eval_line_num) : &PL_sv_no);
-                av_store(av, NYTP_FIDi_FID,       newSVuv(file_num));
-                av_store(av, NYTP_FIDi_FLAGS,     newSVuv(fid_flags));
-                av_store(av, NYTP_FIDi_FILESIZE,  newSVuv(file_size));
-                av_store(av, NYTP_FIDi_FILEMTIME, newSVuv(file_mtime));
-                av_store(av, NYTP_FIDi_PROFILE,   &PL_sv_undef);
-                av_store(av, NYTP_FIDi_HAS_EVALS, &PL_sv_undef);
-                av_store(av, NYTP_FIDi_SUBS_DEFINED, newRV_noinc((SV*)newHV()));
-                av_store(av, NYTP_FIDi_SUBS_CALLED,  newRV_noinc((SV*)newHV()));
-
+                load_new_fid_callback(&state, file_num, eval_file_num,
+                                      eval_line_num, fid_flags, file_size,
+                                      file_mtime, filename_sv);
                 break;
             }
 
