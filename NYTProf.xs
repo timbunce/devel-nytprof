@@ -4046,7 +4046,7 @@ struct perl_callback_info_t {
 static struct perl_callback_info_t callback_info[nytp_tag_max] =
 {
     {STR_WITH_LEN("[no tag]"), NULL},
-    {STR_WITH_LEN("ATTRIBUTE"), NULL},
+    {STR_WITH_LEN("ATTRIBUTE"), "33"},
     {STR_WITH_LEN("COMMENT"), NULL},
     {STR_WITH_LEN("TIME_BLOCK"), NULL},
     {STR_WITH_LEN("TIME_LINE"), NULL},
@@ -4128,6 +4128,22 @@ load_perl_callback(Loader_state *state, nytp_tax_index tag, ...)
             XPUSHs(sv_2mortal(sv));
             break;
         }
+        case '3':
+        {
+            char *p = va_arg(args, char *);
+            unsigned long len = va_arg(args, unsigned long);
+            unsigned int utf8 = va_arg(args, unsigned int);
+            
+            sv_setpvn(cb_args[i], p, len);
+            if (utf8)
+                SvUTF8_on(cb_args[i]);
+            else
+                SvUTF8_off(cb_args[i]);
+
+            XPUSHs(cb_args[i++]);
+            break;
+        }
+
         default:
             croak("Bad type '%c' in perl callback", type);
         }
@@ -4464,16 +4480,9 @@ load_profile_data_from_stream(SV *cb)
                 key_end = value++;
 
                 if (cb) {
-                    PUSHMARK(SP);
-
-                    i = 0;
-                    sv_setpvs(cb_args[i], "ATTRIBUTE");  XPUSHs(cb_args[i++]);
-                    sv_setpvn(cb_args[i], buffer, key_end - buffer); XPUSHs(cb_args[i++]);
-                    sv_setpvn(cb_args[i], value, end - value);    XPUSHs(cb_args[i++]);
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, nytp_attribute, buffer,
+                                       (unsigned long)(key_end - buffer), 0,
+                                       value, (unsigned long)(end - value), 0);
                 } else {
                     load_attribute_callback(&state, buffer,
                                             (unsigned long)(key_end - buffer),
