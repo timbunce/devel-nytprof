@@ -70,3 +70,5 @@ size_t NYTP_write_attribute_unsigned(NYTP_file ofile, const char *key,
                                      size_t key_len, unsigned long value);
 size_t NYTP_write_process_start(NYTP_file ofile, unsigned int pid,
                                 unsigned int ppid, NV time_of_day);
+size_t NYTP_write_process_end(NYTP_file ofile, unsigned int pid,
+                              NV time_of_day);

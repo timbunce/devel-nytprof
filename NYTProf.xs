@@ -1645,8 +1645,7 @@ close_output_file(pTHX) {
     /* mark end of profile data for last_pid pid
      * which is the pid that this file relates to
      */
-    output_tag_int(out, NYTP_TAG_PID_END, last_pid);
-    output_nv(out, gettimeofday_nv());
+    NYTP_write_process_end(out, last_pid, gettimeofday_nv());
 
     if ((result = NYTP_close(out, 0)))
         logwarn("Error closing profile data file: %s\n", strerror(result));

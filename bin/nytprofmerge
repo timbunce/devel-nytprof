@@ -139,9 +139,7 @@ my %dispatcher =
      },
      PID_END => sub {
 	 my (undef, $pid, $time) = @_;
-	 $out->write('p');
-	 $out->output_int($pid);
-	 $out->output_nv($time);
+	 $out->write_process_end($pid, $time);
      },
 
      NEW_FID => sub {

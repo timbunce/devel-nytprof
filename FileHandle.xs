@@ -731,6 +731,23 @@ NYTP_write_process_start(NYTP_file ofile, unsigned int pid, unsigned int ppid,
     return total;
 }
 
+size_t
+NYTP_write_process_end(NYTP_file ofile, unsigned int pid, NV time_of_day)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_int(ofile, NYTP_TAG_PID_END, pid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, time_of_day);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
 
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
@@ -856,4 +873,10 @@ NYTP_write_process_start(handle, pid, ppid, time_of_day)
 NYTP_file handle
 unsigned int pid
 unsigned int ppid
+NV time_of_day
+
+size_t
+NYTP_write_process_end(handle, pid, time_of_day)
+NYTP_file handle
+unsigned int pid
 NV time_of_day
