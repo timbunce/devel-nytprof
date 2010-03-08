@@ -3509,6 +3509,9 @@ typedef struct loader_state {
     AV *fid_srclines_av;
     AV *fid_fileinfo_av;
     HV *sub_subinfo_hv;
+    HV *live_pids_hv;
+    HV *attr_hv;
+    NV profiler_start_time;
 } Loader_state;
 
 static void
@@ -3622,6 +3625,38 @@ load_sub_info_callback(Loader_state *state, ...)
     (void)hv_store((HV *)sv, subname_pv, (I32)subname_len, newRV_inc((SV*)av), 0);
 }
 
+static void
+load_pid_start_callback(Loader_state *state, ...)
+{
+    dTHXa(state->interp);
+    va_list args;
+    unsigned int pid;
+    unsigned int ppid;
+    NV start_time;
+    char text[MAXPATHLEN*2];
+    int len;
+
+    va_start(args, state);
+
+    pid = va_arg(args, unsigned int);
+    ppid = va_arg(args, unsigned int);
+    start_time = va_arg(args, NV);
+
+    va_end(args);
+
+    state->profiler_start_time = start_time;
+
+    len = sprintf(text, "%d", pid);
+    (void)hv_store(state->live_pids_hv, text, len, newSVuv(ppid), 0);
+    if (trace_level)
+        logwarn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live) at %"NVff"\n",
+                text, ppid, HvKEYS(state->live_pids_hv), start_time);
+
+    store_attrib_sv(aTHX_ state->attr_hv, STR_WITH_LEN("profiler_start_time"),
+                    newSVnv(start_time));
+}
+
+
 /**
  * Process a profile output file and return the results in a hash like
  * { fid_fileinfo  => [ [file, other...info ], ... ], # index by [fid]
@@ -3647,8 +3682,6 @@ load_profile_data_from_stream(SV *cb)
     int total_sub_calls = 0;
     HV *profile_hv;
     HV* profile_modes = newHV();
-    HV *live_pids_hv = newHV();
-    HV *attr_hv = newHV();
     AV* fid_line_time_av = newAV();
     AV* fid_block_time_av = NULL;
     AV* fid_sub_time_av = NULL;
@@ -3657,7 +3690,6 @@ load_profile_data_from_stream(SV *cb)
     HV *file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
 
     /* these times don't reflect profile_enable & profile_disable calls */
-    NV profiler_start_time = 0.0;
     NV profiler_end_time = 0.0;
     NV profiler_duration = 0.0;
 
@@ -3675,12 +3707,15 @@ load_profile_data_from_stream(SV *cb)
     Loader_state state;
 
     Zero(&state, 1, Loader_state);
+    state.profiler_start_time = 0.0;
 #ifdef MULTIPLICITY
     state.interp = my_perl;
 #endif
     state.fid_srclines_av = newAV();
     state.fid_fileinfo_av = newAV();
     state.sub_subinfo_hv = newHV();
+    state.live_pids_hv = newHV();
+    state.attr_hv = newHV();
 
     av_extend(state.fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(state.fid_srclines_av, 64);
@@ -4166,11 +4201,9 @@ load_profile_data_from_stream(SV *cb)
 
             case NYTP_TAG_PID_START:
             {
-                char text[MAXPATHLEN*2];
                 unsigned int pid  = read_int(in);
                 unsigned int ppid = read_int(in);
-                int len;
-                profiler_start_time = read_nv(in);
+                NV start_time = read_nv(in);
 
                 if (cb) {
                     PUSHMARK(SP);
@@ -4179,7 +4212,7 @@ load_profile_data_from_stream(SV *cb)
                     sv_setpvs(cb_args[i], "PID_START");   XPUSHs(cb_args[i++]);
                     sv_setuv(cb_args[i], pid);            XPUSHs(cb_args[i++]);
                     sv_setuv(cb_args[i], ppid);           XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], profiler_start_time); XPUSHs(cb_args[i++]);
+                    sv_setnv(cb_args[i], start_time);     XPUSHs(cb_args[i++]);
 
                     PUTBACK;
                     call_sv(cb, G_DISCARD);
@@ -4187,14 +4220,7 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                len = sprintf(text, "%d", pid);
-                (void)hv_store(live_pids_hv, text, len, newSVuv(ppid), 0);
-                if (trace_level)
-                    logwarn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live) at %"NVff"\n",
-                        text, ppid, HvKEYS(live_pids_hv), profiler_start_time);
-
-                store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("profiler_start_time"), newSVnv(profiler_start_time));
-
+                load_pid_start_callback(&state, pid, ppid, start_time);
                 break;
             }
 
@@ -4220,16 +4246,16 @@ load_profile_data_from_stream(SV *cb)
                 }
 
                 len = sprintf(text, "%d", pid);
-                if (!hv_delete(live_pids_hv, text, len, 0))
+                if (!hv_delete(state.live_pids_hv, text, len, 0))
                     logwarn("Inconsistent pids in profile data (pid %d not introduced)\n",
                         pid);
                 if (trace_level)
                     logwarn("End of profile data for pid %s (%"IVdf" remaining) at %"NVff"\n", text,
-                        HvKEYS(live_pids_hv), profiler_end_time);
+                        HvKEYS(state.live_pids_hv), profiler_end_time);
 
-                store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("profiler_end_time"), newSVnv(profiler_end_time));
-                profiler_duration += profiler_end_time - profiler_start_time;
-                store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("profiler_duration"), newSVnv(profiler_duration));
+                store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("profiler_end_time"), newSVnv(profiler_end_time));
+                profiler_duration += profiler_end_time - state.profiler_start_time;
+                store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("profiler_duration"), newSVnv(profiler_duration));
 
                 break;
             }
@@ -4260,7 +4286,7 @@ load_profile_data_from_stream(SV *cb)
                     call_sv(cb, G_DISCARD);
                     SPAGAIN;
                 } else {
-                    store_attrib_sv(aTHX_ attr_hv, buffer, key_end - buffer, newSVpvn(value, end - value));
+                    store_attrib_sv(aTHX_ state.attr_hv, buffer, key_end - buffer, newSVpvn(value, end - value));
                 }
                 if (memEQs(buffer, key_end - buffer, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)atoi(value);
@@ -4325,23 +4351,25 @@ load_profile_data_from_stream(SV *cb)
         }
     }
 
-    if (HvKEYS(live_pids_hv)) {
+    if (HvKEYS(state.live_pids_hv)) {
         logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
-            HvKEYS(live_pids_hv));
-        store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("complete"), &PL_sv_no);
+            HvKEYS(state.live_pids_hv));
+        store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("complete"),
+                        &PL_sv_no);
     }
     else {
-        store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("complete"), &PL_sv_yes);
+        store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("complete"),
+                        &PL_sv_yes);
     }
 
-    sv_free((SV*)live_pids_hv);
+    sv_free((SV*)state.live_pids_hv);
     sv_free(tmp_str1_sv);
     sv_free(tmp_str2_sv);
     Safefree(buffer);
 
     if (cb) {
         SvREFCNT_dec(profile_modes);
-        SvREFCNT_dec(attr_hv);
+        SvREFCNT_dec(state.attr_hv);
         SvREFCNT_dec(state.fid_fileinfo_av);
         SvREFCNT_dec(state.fid_srclines_av);
         SvREFCNT_dec(fid_line_time_av);
@@ -4354,10 +4382,14 @@ load_profile_data_from_stream(SV *cb)
 
     if (state.statement_discount) /* discard unused statement_discount */
         state.total_stmts_discounted -= state.statement_discount;
-    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_measured"),   newSVnv(total_stmts_measured));
-    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_discounted"), newSVnv(state.total_stmts_discounted));
-    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_stmts_duration"),   newSVnv(total_stmts_duration));
-    store_attrib_sv(aTHX_ attr_hv, STR_WITH_LEN("total_sub_calls"),        newSVnv(total_sub_calls));
+    store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_measured"),
+                    newSVnv(total_stmts_measured));
+    store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_discounted"),
+                    newSVnv(state.total_stmts_discounted));
+    store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_duration"),
+                    newSVnv(total_stmts_duration));
+    store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_sub_calls"),
+                    newSVnv(total_sub_calls));
 
     if (1) {
         int show_summary_stats = (trace_level >= 1);
@@ -4374,11 +4406,12 @@ load_profile_data_from_stream(SV *cb)
             logwarn("Summary: statements profiled %d (%d-%d), sum of time %"NVff"s, profile spanned %"NVff"s\n",
                 total_stmts_measured - state.total_stmts_discounted,
                 total_stmts_measured, state.total_stmts_discounted,
-                total_stmts_duration, profiler_end_time-profiler_start_time);
+                total_stmts_duration, profiler_end_time-state.profiler_start_time);
     }
 
     profile_hv = newHV();
-    (void)hv_stores(profile_hv, "attribute",          newRV_noinc((SV*)attr_hv));
+    (void)hv_stores(profile_hv, "attribute",         
+                    newRV_noinc((SV*)state.attr_hv));
     (void)hv_stores(profile_hv, "fid_fileinfo",
                     newRV_noinc((SV*)state.fid_fileinfo_av));
     (void)hv_stores(profile_hv, "fid_srclines",
