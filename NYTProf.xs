@@ -485,17 +485,28 @@ output_header(pTHX)
 }
 
 
-void
+size_t
 output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signifies utf8 */
     unsigned char tag = NYTP_TAG_STRING;
+    size_t retval;
+    size_t total;
+
     if (len < 0) {
         tag = NYTP_TAG_STRING_UTF8;
         len = -len;
     }
     if (trace_level >= 10)
         logwarn("output_str('%.*s', %d)\n", (int)len, str, (int)len);
-    output_tag_int(file, tag, len);
-    NYTP_write(file, str, len);
+
+    total = retval = output_tag_int(file, tag, len);
+    if (retval <= 0)
+        return retval;
+
+    total += retval = NYTP_write(file, str, len);
+    if (retval <= 0)
+        return retval;
+
+    return total;
 }
 
 
@@ -981,7 +992,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
  * "In bytes" means output the number in binary, using the least number of bytes
  * possible.  All numbers are positive. Use sign slot as a marker
  */
-void
+size_t
 output_tag_int(NYTP_file file, unsigned char tag, unsigned int i)
 {
     U8 buffer[6];
@@ -1016,7 +1027,7 @@ output_tag_int(NYTP_file file, unsigned char tag, unsigned int i)
         *p++ = (U8)(i >> 8);
         *p++ = (U8)i;
     }
-    NYTP_write(file, buffer, p - buffer);
+    return NYTP_write(file, buffer, p - buffer);
 }
 
 
@@ -1035,10 +1046,10 @@ output_uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
  * Output a double precision float via a simple binary write of the memory.
  * (Minor portbility issues are seen as less important than speed and space.)
  */
-void
+size_t
 output_nv(NYTP_file file, NV nv)
 {
-    NYTP_write(file, (unsigned char *)&nv, sizeof(NV));
+    return NYTP_write(file, (unsigned char *)&nv, sizeof(NV));
 }
 
 
