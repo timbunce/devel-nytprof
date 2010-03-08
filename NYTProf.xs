@@ -4651,7 +4651,58 @@ load_profile_to_callback(pTHX_ NYTP_file in, SV *cb)
                                   in);
 }
 
+struct int_constants_t {
+    const char *name;
+    int value;
+};
 
+static struct int_constants_t int_constants[] = {
+    /* NYTP_FIDf_* */
+    {"NYTP_FIDf_IS_PMC",       NYTP_FIDf_IS_PMC},
+    {"NYTP_FIDf_VIA_STMT",     NYTP_FIDf_VIA_STMT},
+    {"NYTP_FIDf_VIA_SUB",      NYTP_FIDf_VIA_SUB},
+    {"NYTP_FIDf_IS_AUTOSPLIT", NYTP_FIDf_IS_AUTOSPLIT},
+    {"NYTP_FIDf_HAS_SRC",      NYTP_FIDf_HAS_SRC},
+    {"NYTP_FIDf_SAVE_SRC",     NYTP_FIDf_SAVE_SRC},
+    {"NYTP_FIDf_IS_ALIAS",     NYTP_FIDf_IS_ALIAS},
+    {"NYTP_FIDf_IS_FAKE",      NYTP_FIDf_IS_FAKE},
+    /* NYTP_FIDi_* */
+    {"NYTP_FIDi_FILENAME",  NYTP_FIDi_FILENAME},
+    {"NYTP_FIDi_EVAL_FID",  NYTP_FIDi_EVAL_FID},
+    {"NYTP_FIDi_EVAL_LINE", NYTP_FIDi_EVAL_LINE},
+    {"NYTP_FIDi_FID",       NYTP_FIDi_FID},
+    {"NYTP_FIDi_FLAGS",     NYTP_FIDi_FLAGS},
+    {"NYTP_FIDi_FILESIZE",  NYTP_FIDi_FILESIZE},
+    {"NYTP_FIDi_FILEMTIME", NYTP_FIDi_FILEMTIME},
+    {"NYTP_FIDi_PROFILE",   NYTP_FIDi_PROFILE},
+    {"NYTP_FIDi_EVAL_FI",   NYTP_FIDi_EVAL_FI},
+    {"NYTP_FIDi_HAS_EVALS", NYTP_FIDi_HAS_EVALS},
+    {"NYTP_FIDi_SUBS_DEFINED", NYTP_FIDi_SUBS_DEFINED},
+    {"NYTP_FIDi_SUBS_CALLED",  NYTP_FIDi_SUBS_CALLED},
+    /* NYTP_SIi_* */
+    {"NYTP_SIi_FID",          NYTP_SIi_FID},
+    {"NYTP_SIi_FIRST_LINE",   NYTP_SIi_FIRST_LINE},
+    {"NYTP_SIi_LAST_LINE",    NYTP_SIi_LAST_LINE},
+    {"NYTP_SIi_CALL_COUNT",   NYTP_SIi_CALL_COUNT},
+    {"NYTP_SIi_INCL_RTIME",   NYTP_SIi_INCL_RTIME},
+    {"NYTP_SIi_EXCL_RTIME",   NYTP_SIi_EXCL_RTIME},
+    {"NYTP_SIi_SUB_NAME",     NYTP_SIi_SUB_NAME},
+    {"NYTP_SIi_PROFILE",      NYTP_SIi_PROFILE},
+    {"NYTP_SIi_REC_DEPTH",    NYTP_SIi_REC_DEPTH},
+    {"NYTP_SIi_RECI_RTIME",   NYTP_SIi_RECI_RTIME},
+    {"NYTP_SIi_CALLED_BY",    NYTP_SIi_CALLED_BY},
+    /* NYTP_SCi_* */
+    {"NYTP_SCi_CALL_COUNT",   NYTP_SCi_CALL_COUNT},
+    {"NYTP_SCi_INCL_RTIME",   NYTP_SCi_INCL_RTIME},
+    {"NYTP_SCi_EXCL_RTIME",   NYTP_SCi_EXCL_RTIME},
+    {"NYTP_SCi_RECI_RTIME",   NYTP_SCi_RECI_RTIME},
+    {"NYTP_SCi_REC_DEPTH",    NYTP_SCi_REC_DEPTH},
+    {"NYTP_SCi_CALLING_SUB",  NYTP_SCi_CALLING_SUB},
+    /* others */
+    {"NYTP_DEFAULT_COMPRESSION", default_compression_level},
+    {"NYTP_FILE_MAJOR_VERSION",  NYTP_FILE_MAJOR_VERSION},
+    {"NYTP_FILE_MINOR_VERSION",  NYTP_FILE_MINOR_VERSION},
+};
 
 /***********************************
  * Perl XS Code Below Here         *
@@ -4662,53 +4713,16 @@ MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Constants
 PROTOTYPES: DISABLE
 
 BOOT:
-    {
+{
     HV *stash = gv_stashpv("Devel::NYTProf::Constants", GV_ADDWARN);
-    /* NYTP_FIDf_* */
-    newCONSTSUB(stash, "NYTP_FIDf_IS_PMC",       newSViv(NYTP_FIDf_IS_PMC));
-    newCONSTSUB(stash, "NYTP_FIDf_VIA_STMT",     newSViv(NYTP_FIDf_VIA_STMT));
-    newCONSTSUB(stash, "NYTP_FIDf_VIA_SUB",      newSViv(NYTP_FIDf_VIA_SUB));
-    newCONSTSUB(stash, "NYTP_FIDf_IS_AUTOSPLIT", newSViv(NYTP_FIDf_IS_AUTOSPLIT));
-    newCONSTSUB(stash, "NYTP_FIDf_HAS_SRC",      newSViv(NYTP_FIDf_HAS_SRC));
-    newCONSTSUB(stash, "NYTP_FIDf_SAVE_SRC",     newSViv(NYTP_FIDf_SAVE_SRC));
-    newCONSTSUB(stash, "NYTP_FIDf_IS_ALIAS",     newSViv(NYTP_FIDf_IS_ALIAS));
-    newCONSTSUB(stash, "NYTP_FIDf_IS_FAKE",      newSViv(NYTP_FIDf_IS_FAKE));
-    /* NYTP_FIDi_* */
-    newCONSTSUB(stash, "NYTP_FIDi_FILENAME",  newSViv(NYTP_FIDi_FILENAME));
-    newCONSTSUB(stash, "NYTP_FIDi_EVAL_FID",  newSViv(NYTP_FIDi_EVAL_FID));
-    newCONSTSUB(stash, "NYTP_FIDi_EVAL_LINE", newSViv(NYTP_FIDi_EVAL_LINE));
-    newCONSTSUB(stash, "NYTP_FIDi_FID",       newSViv(NYTP_FIDi_FID));
-    newCONSTSUB(stash, "NYTP_FIDi_FLAGS",     newSViv(NYTP_FIDi_FLAGS));
-    newCONSTSUB(stash, "NYTP_FIDi_FILESIZE",  newSViv(NYTP_FIDi_FILESIZE));
-    newCONSTSUB(stash, "NYTP_FIDi_FILEMTIME", newSViv(NYTP_FIDi_FILEMTIME));
-    newCONSTSUB(stash, "NYTP_FIDi_PROFILE",   newSViv(NYTP_FIDi_PROFILE));
-    newCONSTSUB(stash, "NYTP_FIDi_EVAL_FI",   newSViv(NYTP_FIDi_EVAL_FI));
-    newCONSTSUB(stash, "NYTP_FIDi_HAS_EVALS", newSViv(NYTP_FIDi_HAS_EVALS));
-    newCONSTSUB(stash, "NYTP_FIDi_SUBS_DEFINED", newSViv(NYTP_FIDi_SUBS_DEFINED));
-    newCONSTSUB(stash, "NYTP_FIDi_SUBS_CALLED",  newSViv(NYTP_FIDi_SUBS_CALLED));
-    /* NYTP_SIi_* */
-    newCONSTSUB(stash, "NYTP_SIi_FID",          newSViv(NYTP_SIi_FID));
-    newCONSTSUB(stash, "NYTP_SIi_FIRST_LINE",   newSViv(NYTP_SIi_FIRST_LINE));
-    newCONSTSUB(stash, "NYTP_SIi_LAST_LINE",    newSViv(NYTP_SIi_LAST_LINE));
-    newCONSTSUB(stash, "NYTP_SIi_CALL_COUNT",   newSViv(NYTP_SIi_CALL_COUNT));
-    newCONSTSUB(stash, "NYTP_SIi_INCL_RTIME",   newSViv(NYTP_SIi_INCL_RTIME));
-    newCONSTSUB(stash, "NYTP_SIi_EXCL_RTIME",   newSViv(NYTP_SIi_EXCL_RTIME));
-    newCONSTSUB(stash, "NYTP_SIi_SUB_NAME",     newSViv(NYTP_SIi_SUB_NAME));
-    newCONSTSUB(stash, "NYTP_SIi_PROFILE",      newSViv(NYTP_SIi_PROFILE));
-    newCONSTSUB(stash, "NYTP_SIi_REC_DEPTH",    newSViv(NYTP_SIi_REC_DEPTH));
-    newCONSTSUB(stash, "NYTP_SIi_RECI_RTIME",   newSViv(NYTP_SIi_RECI_RTIME));
-    newCONSTSUB(stash, "NYTP_SIi_CALLED_BY",    newSViv(NYTP_SIi_CALLED_BY));
-    /* NYTP_SCi_* */
-    newCONSTSUB(stash, "NYTP_SCi_CALL_COUNT",   newSViv(NYTP_SCi_CALL_COUNT));
-    newCONSTSUB(stash, "NYTP_SCi_INCL_RTIME",   newSViv(NYTP_SCi_INCL_RTIME));
-    newCONSTSUB(stash, "NYTP_SCi_EXCL_RTIME",   newSViv(NYTP_SCi_EXCL_RTIME));
-    newCONSTSUB(stash, "NYTP_SCi_RECI_RTIME",   newSViv(NYTP_SCi_RECI_RTIME));
-    newCONSTSUB(stash, "NYTP_SCi_REC_DEPTH",    newSViv(NYTP_SCi_REC_DEPTH));
-    newCONSTSUB(stash, "NYTP_SCi_CALLING_SUB",  newSViv(NYTP_SCi_CALLING_SUB));
-    /* others */
-    newCONSTSUB(stash, "NYTP_DEFAULT_COMPRESSION", newSViv(default_compression_level));
-    newCONSTSUB(stash, "NYTP_FILE_MAJOR_VERSION",  newSViv(NYTP_FILE_MAJOR_VERSION));
-    newCONSTSUB(stash, "NYTP_FILE_MINOR_VERSION",  newSViv(NYTP_FILE_MINOR_VERSION));
+    struct int_constants_t *constant = int_constants;
+    const struct int_constants_t *end = constant + C_ARRAY_LENGTH(int_constants);
+
+    do {
+        /* 5.8.x and earlier don't declare newCONSTSUB() as const char *, even
+           though it is.  */
+        newCONSTSUB(stash, (char *) constant->name, newSViv(constant->value));
+    } while (++constant < end);
     newCONSTSUB(stash, "NYTP_ZLIB_VERSION",     newSVpv(ZLIB_VERSION, 0));
 }
 
