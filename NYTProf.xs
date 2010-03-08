@@ -3503,6 +3503,9 @@ typedef struct loader_state {
 #ifdef MULTIPLICITY
     PerlInterpreter *interp;
 #endif
+    SV *cb;
+    SV **cb_args;
+    size_t cb_args_len;
     unsigned int last_file_num;
     unsigned int last_line_num;
     int statement_discount;
@@ -4034,6 +4037,52 @@ load_attribute_callback(Loader_state *state, ...)
                                    value_utf8 ? SVf_UTF8 : 0));
 }
 
+static void
+load_perl_callback(Loader_state *state, ...)
+{
+    dTHXa(state->interp);
+    dSP;
+    va_list args;
+    SV **cb_args = state->cb_args;
+    int i = 0;
+    char type;
+    const char *arglist = "uuuuuuS";
+
+    va_start(args, state);
+
+    PUSHMARK(SP);
+
+    i = 0;
+    sv_setpvs(cb_args[i], "NEW_FID");    XPUSHs(cb_args[i++]);
+
+    while ((type = *arglist++)) {
+        switch(type) {
+        case 'u':
+        {
+            unsigned int u = va_arg(args, unsigned int);
+
+            sv_setuv(cb_args[i], u);
+            XPUSHs(cb_args[i++]);
+            break;
+        }
+        case 'S':
+        {
+            SV *sv = va_arg(args, SV *);
+
+            XPUSHs(sv_2mortal(sv));
+            break;
+        }
+        default:
+            croak("Bad type '%c' in perl callback", type);
+        }
+    }
+    va_end(args);
+    assert(i <= state->cb_args_len);
+
+    PUTBACK;
+    call_sv(state->cb, G_DISCARD);
+}
+
 /**
  * Process a profile output file and return the results in a hash like
  * { fid_fileinfo  => [ [file, other...info ], ... ], # index by [fid]
@@ -4088,6 +4137,10 @@ load_profile_data_from_stream(SV *cb)
     state.live_pids_hv = newHV();
     state.attr_hv = newHV();
     state.file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
+    /* These will be split out into a different state structure later.  */
+    state.cb = cb;
+    state.cb_args = cb_args;
+    state.cb_args_len = C_ARRAY_LENGTH(cb_args);
 
     av_extend(state.fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(state.fid_srclines_av, 64);
@@ -4230,23 +4283,9 @@ load_profile_data_from_stream(SV *cb)
                 filename_sv = read_str(aTHX_ in, NULL);
 
                 if (cb) {
-                    PUSHMARK(SP);
-
-                    i = 0;
-                    sv_setpvs(cb_args[i], "NEW_FID");    XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], file_num);      XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], eval_file_num); XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], eval_line_num); XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], fid_flags);     XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], file_size);     XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], file_mtime);    XPUSHs(cb_args[i++]);
-                    assert(i <= C_ARRAY_LENGTH(cb_args));
-
-                    XPUSHs(sv_2mortal(filename_sv));
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, file_num, eval_file_num,
+                                       eval_line_num, fid_flags, file_size,
+                                       file_mtime, filename_sv);
                     break;
                 }
 
