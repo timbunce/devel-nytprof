@@ -3280,17 +3280,16 @@ write_sub_callers(pTHX)
             depth = uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0);
             sc[NYTP_SCi_REC_DEPTH]  = depth * 1.0;
 
-            output_tag_int(out, NYTP_TAG_SUB_CALLERS, fid);
-            output_int(out, line);
-            output_str(out, caller_subname, caller_subname_len);
-            output_int(out, count);
-            output_nv(out, sc[NYTP_SCi_INCL_RTIME]);
-            output_nv(out, sc[NYTP_SCi_EXCL_RTIME]);
-            output_nv(out, 0.0); /* NYTP_SCi_spare_3 */
-            output_nv(out, 0.0); /* NYTP_SCi_spare_4 */
-            output_nv(out, sc[NYTP_SCi_RECI_RTIME]);
-            output_int(out, depth);
-            output_str(out, called_subname, called_subname_len);
+            NYTP_write_sub_callers(out, fid, line,
+                                   caller_subname, caller_subname_len,
+                                   count,
+                                   sc[NYTP_SCi_INCL_RTIME],
+                                   sc[NYTP_SCi_EXCL_RTIME],
+                                   0.0, /* NYTP_SCi_spare_3 */
+                                   0.0, /* NYTP_SCi_spare_4 */
+                                   sc[NYTP_SCi_RECI_RTIME],
+                                   depth,
+                                   called_subname, called_subname_len);
 
             /* sanity check - early warning */
             if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {

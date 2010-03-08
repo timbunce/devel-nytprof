@@ -874,6 +874,64 @@ NYTP_write_sub_info(NYTP_file ofile, unsigned int fid,
     return total;
 }
 
+size_t
+NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid, unsigned int line,
+                       const char *caller_name, I32 caller_name_len,
+                       unsigned int count, NV incl_rtime, NV excl_rtime,
+                       NV incl_utime, NV incl_stime, NV reci_rtime,
+                       unsigned int depth,
+                       const char *called_name, I32 called_name_len)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_int(ofile, NYTP_TAG_SUB_CALLERS, fid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, line);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_str(ofile, caller_name, caller_name_len);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, count);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, incl_rtime);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, excl_rtime);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, incl_utime);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, incl_stime);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, reci_rtime);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, depth);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_str(ofile, called_name, called_name_len);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
 PROTOTYPES: DISABLE

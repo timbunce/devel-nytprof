@@ -85,3 +85,10 @@ size_t NYTP_write_time_line(NYTP_file ofile, unsigned int elapsed,
 size_t NYTP_write_sub_info(NYTP_file ofile, unsigned int fid,
                            const char *name, I32 len,
                            unsigned int first_line, unsigned int last_line);
+size_t NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid,
+                              unsigned int line,
+                              const char *caller_name, I32 caller_name_len,
+                              unsigned int count, NV incl_rtime, NV excl_rtime,
+                              NV incl_utime, NV incl_stime, NV reci_rtime,
+                              unsigned int depth,
+                              const char *called_name, I32 called_name_len);
