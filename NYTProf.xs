@@ -3542,7 +3542,7 @@ load_discount_callback(Loader_state *state)
 }
 
 static void
-load_time_callback(Loader_state *state, const unsigned char tag, ...)
+load_time_callback(Loader_state *state, const nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     va_list args;
@@ -3593,7 +3593,7 @@ load_time_callback(Loader_state *state, const unsigned char tag, ...)
               1 - state->statement_discount
         );
 
-    if (tag == NYTP_TAG_TIME_BLOCK) {
+    if (tag == nytp_time_block) {
         unsigned int block_line_num = va_arg(args, unsigned int);
         unsigned int sub_line_num = va_arg(args, unsigned int);
 
@@ -4312,8 +4312,10 @@ load_profile_data_from_stream(SV *cb)
 
                 /* Because it happens that the two "optional" arguments are
                    last, a single call will work.  */
-                load_time_callback(&state, c, ticks, file_num, line_num,
-                                   block_line_num, sub_line_num);
+                load_time_callback(&state, c == NYTP_TAG_TIME_BLOCK
+                                   ? nytp_time_block : nytp_time_line, ticks,
+                                   file_num, line_num, block_line_num,
+                                   sub_line_num);
                 break;
             }
 
