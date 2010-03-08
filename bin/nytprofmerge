@@ -88,6 +88,9 @@ my $deflating;
 
 my %dispatcher =
     (
+     '' => sub {
+	 die "Unknown tag '$_[0]' in $input\n";
+     },
      VERSION => sub {
 	 my (undef, $major, $minor) = @_;
 	 my $this_version = "$major $minor";
@@ -209,10 +212,9 @@ foreach $input (@ARGV) {
     @pending_fids = ();
     %pending_subs = ();
 
-    Devel::NYTProf::Data->new({filename => $input, callback => sub {
-	my $tag = shift;
-	if($tag eq 'NEW_FID') {
-	    my ($fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
+    Devel::NYTProf::Data->new({filename => $input, callback => {
+	NEW_FID => sub {
+	    my (undef, $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
 	    my ($new_fid, $new_eval_fid);
 	    if($eval_fid) {
 		# Generally, treat every eval as distinct, even at the same location
@@ -249,8 +251,9 @@ foreach $input (@ARGV) {
 	    }
 	    $fid_to_file{$new_fid} = $name;
 	    $pending_fids[$fid] = [$new_fid, $new_eval_fid];
-	} elsif ($tag eq 'SUB_INFO') {
-	    my ($fid, $first_line, $last_line, $name) = @_;
+	},
+	SUB_INFO => sub {
+	    my (undef, $fid, $first_line, $last_line, $name) = @_;
 	    my $output_fid;
 	    if ($name =~ $sub_is_anon_in_eval) {
 		confess("No mapping for $fid") unless defined $fids{$fid};
@@ -289,11 +292,7 @@ foreach $input (@ARGV) {
     }});
 
     print "Re-reading $input...\n" if $opt_verbose;
-    Devel::NYTProf::Data->new({filename => $input, callback => sub {
-	my $sub = $dispatcher{$_[0]}
-            or die "Unknown tag '$_[0]' in $input\n";
-	&$sub(@_);
-    }});
+    Devel::NYTProf::Data->new({filename => $input, callback => \%dispatcher});
 }
 
 print "Finalizing...\n" if $opt_verbose;

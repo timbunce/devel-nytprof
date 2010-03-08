@@ -3505,7 +3505,7 @@ typedef struct loader_state_callback {
 #ifdef MULTIPLICITY
     PerlInterpreter *interp;
 #endif
-    CV *cb;
+    CV *cb[nytp_tag_max];
     SV *cb_args[11];  /* must be large enough for the largest callback argument list */
     SV *tag_names[nytp_tag_max];
     SV *input_chunk_seqn_sv;
@@ -4103,6 +4103,9 @@ load_perl_callback(Loader_state_base *cb_data, nytp_tax_index tag, ...)
             croak("Unknown type %d passed to perl callback", tag);
     }
 
+    if (!state->cb[tag])
+        return;
+
     sv_setuv_mg(state->input_chunk_seqn_sv, state->base_state.input_chunk_seqn);
 
     va_start(args, tag);
@@ -4182,7 +4185,7 @@ load_perl_callback(Loader_state_base *cb_data, nytp_tax_index tag, ...)
     assert(i <= C_ARRAY_LENGTH(state->cb_args));
 
     PUTBACK;
-    call_sv((SV *)state->cb, G_DISCARD);
+    call_sv((SV *)state->cb[tag], G_DISCARD);
 }
 
 
@@ -4583,20 +4586,35 @@ load_profile_to_hv(pTHX_ NYTP_file in)
 }
 
 static void
-load_profile_to_callback(pTHX_ NYTP_file in, CV *cb)
+load_profile_to_callback(pTHX_ NYTP_file in, SV *cb)
 {
     Loader_state_callback state;
     int i;
+    HV *cb_hv = NULL;
+    CV *default_cb = NULL;
 
-    if (SvTYPE(cb) != SVt_PVCV)
-        croak("Not a CODE reference");
+    if (SvTYPE(cb) == SVt_PVHV) {
+        /* A default callback is stored with an empty key.  */
+        SV **svp;
+
+        cb_hv = (HV *)cb;
+        svp = hv_fetch(cb_hv, "", 0, 0);
+
+        if (svp) {
+            if (!SvROK(*svp) && SvTYPE(SvRV(*svp)) != SVt_PVCV)
+                croak("Default callback is not a CODE reference");
+            default_cb = (CV *)SvRV(*svp);
+        }
+    } else if (SvTYPE(cb) == SVt_PVCV) {
+        default_cb = (CV *) cb;
+    } else
+        croak("Not a CODE or HASH reference");
 
 #ifdef MULTIPLICITY
     state.interp = my_perl;
 #endif
 
     state.base_state.input_chunk_seqn = 0;
-    state.cb = cb;
 
     state.input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
     sv_setuv(state.input_chunk_seqn_sv, 0);
@@ -4612,6 +4630,20 @@ load_profile_to_callback(pTHX_ NYTP_file in, CV *cb)
             SvTEMP_off(state.tag_names[i]);
         } else
             state.tag_names[i] = NULL;
+
+        if (cb_hv) {
+            SV **svp = hv_fetch(cb_hv, callback_info[i].description,
+                                callback_info[i].len, 0);
+
+            if (svp) {
+                if (!SvROK(*svp) && SvTYPE(SvRV(*svp)) != SVt_PVCV)
+                    croak("Callback for %s is not a CODE reference",
+                          callback_info[i].description);
+                state.cb[i] = (CV *)SvRV(*svp);
+            } else
+                state.cb[i] = default_cb;
+        } else
+            state.cb[i] = default_cb;
     }
     for (i = 0; i < C_ARRAY_LENGTH(state.cb_args); i++)
         state.cb_args[i] = sv_newmortal();
@@ -4808,7 +4840,7 @@ SV* cb;
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
     if (cb && SvROK(cb)) {
-        load_profile_to_callback(aTHX_ in, (CV *)SvRV(cb));
+        load_profile_to_callback(aTHX_ in, SvRV(cb));
         RETVAL = newHV(); /* Can we change this to PL_sv_undef?  */
     } else
         RETVAL = load_profile_to_hv(aTHX_ in);
