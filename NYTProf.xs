@@ -4047,7 +4047,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
 {
     {STR_WITH_LEN("[no tag]"), NULL},
     {STR_WITH_LEN("ATTRIBUTE"), "33"},
-    {STR_WITH_LEN("COMMENT"), NULL},
+    {STR_WITH_LEN("COMMENT"), "3"},
     {STR_WITH_LEN("TIME_BLOCK"), NULL},
     {STR_WITH_LEN("TIME_LINE"), NULL},
     {STR_WITH_LEN("DISCOUNT"), NULL},
@@ -4509,15 +4509,8 @@ load_profile_data_from_stream(SV *cb)
                     croak("Profile format error reading comment");
 
                 if (cb) {
-                    PUSHMARK(SP);
-
-                    i = 0;
-                    sv_setpvs(cb_args[i], "COMMENT"); XPUSHs(cb_args[i++]);
-                    sv_setpvn(cb_args[i], buffer, end - buffer); XPUSHs(cb_args[i++]);
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, nytp_comment, buffer,
+                                       (unsigned long)(end - buffer), 0);
                     break;
                 }
 
