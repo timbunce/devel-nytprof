@@ -430,7 +430,7 @@ output_header(pTHX)
 
     assert(out != NULL);
     /* File header with "magic" string, with file major and minor version */
-    NYTP_printf(out, "NYTProf %d %d\n", NYTP_FILE_MAJOR_VERSION, NYTP_FILE_MINOR_VERSION);
+    NYTP_write_header(out, NYTP_FILE_MAJOR_VERSION, NYTP_FILE_MINOR_VERSION);
     /* Human readable comments and attributes follow
      * comments start with '#', end with '\n', and are discarded
      * attributes start with ':', a word, '=', then the value, then '\n'

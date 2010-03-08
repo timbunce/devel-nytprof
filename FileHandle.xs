@@ -704,6 +704,12 @@ output_nv(NYTP_file file, NV nv)
 }
 
 size_t
+NYTP_write_header(NYTP_file ofile, unsigned int major, unsigned int minor)
+{
+    return NYTP_printf(ofile, "NYTProf %u %u\n", major, minor);
+}
+
+size_t
 NYTP_write_comment(NYTP_file ofile, const char *format, ...) {
     size_t retval;
     size_t retval2;
@@ -1275,3 +1281,9 @@ SV *text
 size_t
 NYTP_write_discount(handle)
 NYTP_file handle
+
+size_t
+NYTP_write_header(handle, major, minor)
+NYTP_file handle
+unsigned int major
+unsigned int minor

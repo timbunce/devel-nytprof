@@ -96,7 +96,7 @@ my %dispatcher =
 		 unless $this_version eq $version;
 	 } else {
 	     $version = $this_version;
-	     $out->write("NYTProf $version\n");
+	     $out->write_header($major, $minor);
 	 }
      },
      COMMENT => sub {
