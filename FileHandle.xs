@@ -796,6 +796,8 @@ NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
     return NYTP_write_attribute_string(ofile, key, key_len, buffer, len);
 }
 
+#ifdef HAS_ZLIB
+
 size_t
 NYTP_start_deflate_write_tag_comment(NYTP_file ofile, int compression_level) {
     const unsigned char tag = NYTP_TAG_START_DEFLATE;
@@ -816,6 +818,8 @@ NYTP_start_deflate_write_tag_comment(NYTP_file ofile, int compression_level) {
 
     return total;
 }
+
+#endif
 
 size_t
 NYTP_write_process_start(NYTP_file ofile, unsigned int pid, unsigned int ppid,
