@@ -3500,7 +3500,7 @@ typedef struct loader_state_base {
     unsigned long input_chunk_seqn;
 } Loader_state_base;
 
-typedef void (loader_callback)(Loader_state_base *cb_data, ...);
+typedef void (*loader_callback)(Loader_state_base *cb_data, const nytp_tax_index tag, ...);
 
 typedef struct loader_state {
     Loader_state_base base_state;
@@ -4177,6 +4177,46 @@ load_perl_callback(Loader_state_base *cb_data, nytp_tax_index tag, ...)
     call_sv(state->cb, G_DISCARD);
 }
 
+
+static loader_callback perl_callbacks[nytp_tag_max] =
+{
+    0,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
+    load_perl_callback
+};
+static loader_callback processing_callbacks[nytp_tag_max] =
+{
+    0,
+    0, /* version */
+    load_attribute_callback,
+    0, /* comment */
+    load_time_callback,
+    load_time_callback,
+    load_discount_callback,
+    load_new_fid_callback,
+    load_src_line_callback,
+    load_sub_info_callback,
+    load_sub_callers_callback,
+    load_pid_start_callback,
+    load_pid_end_callback,
+    0, /* string */
+    0, /* string utf8 */
+    0  /* start deflate */
+};
+
 /**
  * Process a profile output file and return the results in a hash like
  * { fid_fileinfo  => [ [file, other...info ], ... ], # index by [fid]
@@ -4206,6 +4246,7 @@ load_profile_data_from_stream(SV *cb)
     size_t buffer_len = MAXPATHLEN * 2;
     char *buffer = (char *)safemalloc(buffer_len);
 
+    loader_callback *callbacks;
     Loader_state_merged merged_state;
     Loader_state_base *const state = (Loader_state_base *) &merged_state;
 
@@ -4265,11 +4306,16 @@ load_profile_data_from_stream(SV *cb)
         for (i = 0; i < C_ARRAY_LENGTH(merged_state.cb_args); i++)
             merged_state.cb_args[i] = sv_newmortal();
 
-        load_perl_callback(state, nytp_version, file_major, file_minor);
+        callbacks = perl_callbacks;
     }
     else {
         cb = Nullsv;
+        callbacks = processing_callbacks;
     }
+
+    if (callbacks[nytp_version])
+        callbacks[nytp_version](state, nytp_version, file_major, file_minor);
+
 
     while (1) {
         /* Loop "forever" until EOF. We can only check the EOF flag *after* we
@@ -4296,12 +4342,7 @@ load_profile_data_from_stream(SV *cb)
         switch (c) {
             case NYTP_TAG_DISCOUNT:
             {
-                if (cb) {
-                    load_perl_callback(state, nytp_discount);
-                    break;
-                }
-
-                load_discount_callback(state, nytp_discount);
+                callbacks[nytp_discount](state, nytp_discount);
                 break;
             }
 
@@ -4313,26 +4354,18 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int line_num = read_int(in);
                 unsigned int block_line_num = 0;
                 unsigned int sub_line_num = 0;
+                nytp_tax_index tag = nytp_time_line;
 
                 if (c == NYTP_TAG_TIME_BLOCK) {
                     block_line_num = read_int(in);
                     sub_line_num = read_int(in);
-                }
-
-                if (cb) {
-                    load_perl_callback(state, c == NYTP_TAG_TIME_BLOCK
-                                       ? nytp_time_block : nytp_time_line,
-                                       ticks, file_num, line_num,
-                                       block_line_num, sub_line_num);
-                    break;
+                    tag = nytp_time_block;
                 }
 
                 /* Because it happens that the two "optional" arguments are
                    last, a single call will work.  */
-                load_time_callback(state, c == NYTP_TAG_TIME_BLOCK
-                                   ? nytp_time_block : nytp_time_line, ticks,
-                                   file_num, line_num, block_line_num,
-                                   sub_line_num);
+                callbacks[tag](state, tag, ticks, file_num, line_num,
+                               block_line_num, sub_line_num);
                 break;
             }
 
@@ -4348,16 +4381,10 @@ load_profile_data_from_stream(SV *cb)
 
                 filename_sv = read_str(aTHX_ in, NULL);
 
-                if (cb) {
-                    load_perl_callback(state, nytp_new_fid, file_num,
-                                       eval_file_num, eval_line_num, fid_flags,
-                                       file_size, file_mtime, filename_sv);
-                    break;
-                }
-
-                load_new_fid_callback(state, nytp_new_fid, file_num,
-                                      eval_file_num, eval_line_num, fid_flags,
-                                      file_size, file_mtime, filename_sv);
+                callbacks[nytp_new_fid](state, nytp_new_fid, file_num,
+                                        eval_file_num, eval_line_num,
+                                        fid_flags, file_size, file_mtime,
+                                        filename_sv);
                 break;
             }
 
@@ -4367,14 +4394,8 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int line_num = read_int(in);
                 SV *src = read_str(aTHX_ in, NULL);
 
-                if (cb) {
-                    load_perl_callback(state, nytp_src_line, file_num,
-                                       line_num, src);
-                    break;
-                }
-
-                load_src_line_callback(state, nytp_src_line, file_num,
-                                       line_num, src);
+                callbacks[nytp_src_line](state, nytp_src_line, file_num,
+                                         line_num, src);
                 break;
             }
 
@@ -4389,14 +4410,8 @@ load_profile_data_from_stream(SV *cb)
                 while (extra_items-- > 0)
                     (void)read_int(in);
 
-                if (cb) {
-                    load_perl_callback(state, nytp_sub_info, fid, first_line,
-                                       last_line, subname_sv);
-                    break;
-                }
-
-                load_sub_info_callback(state, nytp_sub_info, fid, first_line,
-                                       last_line, subname_sv);
+                callbacks[nytp_sub_info](state, nytp_sub_info, fid,
+                                         first_line, last_line, subname_sv);
                 break;
             }
 
@@ -4417,18 +4432,11 @@ load_profile_data_from_stream(SV *cb)
                 PERL_UNUSED_VAR(spare_3);
                 PERL_UNUSED_VAR(spare_4);
 
-                if (cb) {
-                    load_perl_callback(state, nytp_sub_callers, fid, line,
-                                       count, incl_time, excl_time, reci_time,
-                                       rec_depth, called_subname_sv,
-                                       caller_subname_sv);
-                    break;
-                }
-
-                load_sub_callers_callback(state, nytp_sub_callers, fid, line,
-                                          count, incl_time, excl_time,
-                                          reci_time, rec_depth,
-                                          called_subname_sv, caller_subname_sv);
+                callbacks[nytp_sub_callers](state, nytp_sub_callers, fid,
+                                            line, count, incl_time, excl_time,
+                                            reci_time, rec_depth,
+                                            called_subname_sv,
+                                            caller_subname_sv);
                 break;
             }
 
@@ -4438,13 +4446,8 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int ppid = read_int(in);
                 NV start_time = read_nv(in);
 
-                if (cb) {
-                    load_perl_callback(state, nytp_pid_start, pid, ppid, start_time);
-                    break;
-                }
-
-                load_pid_start_callback(state, nytp_pid_start, pid, ppid,
-                                        start_time);
+                callbacks[nytp_pid_start](state, nytp_pid_start, pid, ppid,
+                                          start_time);
                 break;
             }
 
@@ -4453,12 +4456,7 @@ load_profile_data_from_stream(SV *cb)
                 unsigned int pid = read_int(in);
                 NV end_time = read_nv(in);
 
-                if (cb) {
-                    load_perl_callback(state, nytp_pid_end, pid, end_time);
-                    break;
-                }
-
-                load_pid_end_callback(state, nytp_pid_end, pid, end_time);
+                callbacks[nytp_pid_end](state, nytp_pid_end, pid, end_time);
                 break;
             }
 
@@ -4476,16 +4474,11 @@ load_profile_data_from_stream(SV *cb)
                 }
                 key_end = value++;
 
-                if (cb) {
-                    load_perl_callback(state, nytp_attribute, buffer,
-                                       (unsigned long)(key_end - buffer), 0,
-                                       value, (unsigned long)(end - value), 0);
-                } else {
-                    load_attribute_callback(state, nytp_attribute, buffer,
-                                            (unsigned long)(key_end - buffer),
-                                            0, value,
-                                            (unsigned long)(end - value), 0);
-                }
+                callbacks[nytp_attribute](state, nytp_attribute, buffer,
+                                          (unsigned long)(key_end - buffer),
+                                          0, value,
+                                          (unsigned long)(end - value), 0);
+
                 if (memEQs(buffer, key_end - buffer, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)atoi(value);
                 }
@@ -4505,11 +4498,9 @@ load_profile_data_from_stream(SV *cb)
                     /* probably EOF */
                     croak("Profile format error reading comment");
 
-                if (cb) {
-                    load_perl_callback(state, nytp_comment, buffer,
-                                       (unsigned long)(end - buffer), 0);
-                    break;
-                }
+                if (callbacks[nytp_comment])
+                    callbacks[nytp_comment](state, nytp_comment, buffer,
+                                            (unsigned long)(end - buffer), 0);
 
                 if (trace_level >= 1)
                     logwarn("# %s", buffer); /* includes \n */
@@ -4519,8 +4510,8 @@ load_profile_data_from_stream(SV *cb)
             case NYTP_TAG_START_DEFLATE:
             {
 #ifdef HAS_ZLIB
-                if (cb) {
-                    load_perl_callback(state, nytp_start_deflate);
+                if (callbacks[nytp_start_deflate]) {
+                    callbacks[nytp_start_deflate](state, nytp_start_deflate);
                 }
                 NYTP_start_inflate(in);
 #else
