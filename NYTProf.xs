@@ -4054,7 +4054,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("NEW_FID"), "uuuuuuS"},
     {STR_WITH_LEN("SRC_LINE"), "uuS"},
     {STR_WITH_LEN("SUB_INFO"), "uuus"},
-    {STR_WITH_LEN("SUB_CALLERS"), NULL},
+    {STR_WITH_LEN("SUB_CALLERS"), "uuunn..nuss"},
     {STR_WITH_LEN("PID_START"), NULL},
     {STR_WITH_LEN("PID_END"), NULL},
     {STR_WITH_LEN("[string]"), NULL},
@@ -4096,6 +4096,20 @@ load_perl_callback(Loader_state *state, nytp_tax_index tag, ...)
             unsigned int u = va_arg(args, unsigned int);
 
             sv_setuv(cb_args[i], u);
+            XPUSHs(cb_args[i++]);
+            break;
+        }
+        case '.':
+        {
+            sv_setnv(cb_args[i], 0.0);
+            XPUSHs(cb_args[i++]);
+            break;
+        }
+        case 'n':
+        {
+            NV n = va_arg(args, NV);
+
+            sv_setnv(cb_args[i], n);
             XPUSHs(cb_args[i++]);
             break;
         }
@@ -4393,26 +4407,10 @@ load_profile_data_from_stream(SV *cb)
                 PERL_UNUSED_VAR(spare_4);
 
                 if (cb) {
-                    PUSHMARK(SP);
-
-                    i = 0;
-                    sv_setpvs(cb_args[i], "SUB_CALLERS"); XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], fid);            XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], line);           XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], count);          XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], incl_time);      XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], excl_time);      XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], 0.0);            XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], 0.0);            XPUSHs(cb_args[i++]);
-                    sv_setnv(cb_args[i], reci_time);      XPUSHs(cb_args[i++]);
-                    sv_setiv(cb_args[i], rec_depth);      XPUSHs(cb_args[i++]);
-                    sv_setsv(cb_args[i], called_subname_sv);     XPUSHs(cb_args[i++]);
-                    sv_setsv(cb_args[i], caller_subname_sv);     XPUSHs(cb_args[i++]);
-                    assert(i <= C_ARRAY_LENGTH(cb_args));
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, nytp_sub_callers, fid, line,
+                                       count, incl_time, excl_time, reci_time,
+                                       rec_depth, called_subname_sv,
+                                       caller_subname_sv);
                     break;
                 }
 
