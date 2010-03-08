@@ -4046,6 +4046,7 @@ struct perl_callback_info_t {
 static struct perl_callback_info_t callback_info[nytp_tag_max] =
 {
     {STR_WITH_LEN("[no tag]"), NULL},
+    {STR_WITH_LEN("VERSION"), "uu"},
     {STR_WITH_LEN("ATTRIBUTE"), "33"},
     {STR_WITH_LEN("COMMENT"), "3"},
     {STR_WITH_LEN("TIME_BLOCK"), "00uuuuu"},
@@ -4179,7 +4180,6 @@ static HV*
 load_profile_data_from_stream(SV *cb)
 {
     dTHX;
-    dSP;
     int file_major, file_minor;
 
     unsigned long input_chunk_seqn = 0L;
@@ -4255,14 +4255,7 @@ load_profile_data_from_stream(SV *cb)
         for (i = 0; i < C_ARRAY_LENGTH(cb_args); i++)
             cb_args[i] = sv_newmortal();
 
-        PUSHMARK(SP);
-        i = 0;
-        sv_setpvs(cb_args[i], "VERSION");  XPUSHs(cb_args[i++]);
-        sv_setiv(cb_args[i], file_major);  XPUSHs(cb_args[i++]);
-        sv_setiv(cb_args[i], file_minor);  XPUSHs(cb_args[i++]);
-        PUTBACK;
-        call_sv(cb, G_DISCARD);
-        SPAGAIN;
+        load_perl_callback(&state, nytp_version, file_major, file_minor);
     }
     else {
         cb = Nullsv;

@@ -61,6 +61,7 @@ const char *NYTP_type_of_offset(NYTP_file file);
 
 typedef enum {
     nytp_no_tag,
+    nytp_version,   /* Not actually a tag, but needed by the perl callback */
     nytp_attribute,
     nytp_comment,
     nytp_time_block,
