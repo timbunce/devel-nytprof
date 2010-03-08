@@ -3507,6 +3507,7 @@ typedef struct loader_state {
     unsigned int last_line_num;
     int statement_discount;
     int total_stmts_discounted;
+    int total_sub_calls;
     AV *fid_srclines_av;
     AV *fid_fileinfo_av;
     HV *sub_subinfo_hv;
@@ -3630,6 +3631,129 @@ load_sub_info_callback(Loader_state *state, ...)
 }
 
 static void
+load_sub_callers_callback(Loader_state *state, ...)
+{
+    dTHXa(state->interp);
+    va_list args;
+    unsigned int fid;
+    unsigned int line;
+    SV *caller_subname_sv;
+    unsigned int count;
+    NV incl_time;
+    NV excl_time;
+    NV reci_time;
+    UV rec_depth;
+    SV *called_subname_sv;
+    char text[MAXPATHLEN*2];
+    SV *sv;
+    AV *subinfo_av;
+    int len;
+
+    va_start(args, state);
+
+    fid = va_arg(args, unsigned int);
+    line = va_arg(args, unsigned int);
+    count = va_arg(args, unsigned int);
+    incl_time = va_arg(args, NV);
+    excl_time = va_arg(args, NV);
+    reci_time = va_arg(args, NV);
+    rec_depth = va_arg(args, UV);
+    called_subname_sv = va_arg(args, SV *);
+    caller_subname_sv = va_arg(args, SV *);
+
+    va_end(args);
+
+    normalize_eval_seqn(aTHX_ caller_subname_sv);
+    normalize_eval_seqn(aTHX_ called_subname_sv);
+
+    if (trace_level >= 3)
+        logwarn("Sub %s called by %s %u:%u: count %d, incl %"NVff", excl %"NVff"\n",
+                SvPV_nolen(called_subname_sv), SvPV_nolen(caller_subname_sv),
+                fid, line, count, incl_time, excl_time);
+
+    subinfo_av = lookup_subinfo_av(aTHX_ called_subname_sv, state->sub_subinfo_hv);
+
+    /* { caller_fid => { caller_line => [ count, incl_time, ... ] } } */
+    sv = *av_fetch(subinfo_av, NYTP_SIi_CALLED_BY, 1);
+    if (!SvROK(sv))                   /* autoviv */
+        sv_setsv(sv, newRV_noinc((SV*)newHV()));
+
+    len = sprintf(text, "%u", fid);
+    sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
+    if (!SvROK(sv))                   /* autoviv */
+        sv_setsv(sv, newRV_noinc((SV*)newHV()));
+
+    if (fid) {
+        SV *fi;
+        AV *av;
+        len = sprintf(text, "%u", line);
+
+        sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
+        if (!SvROK(sv))               /* autoviv */
+            sv_setsv(sv, newRV_noinc((SV*)newAV()));
+        else if (trace_level)
+            /* calls to sub1 from the same fid:line could have different caller
+             * subs due to evals or if profile_findcaller is off.
+             */
+            logwarn("Merging extra sub caller info for %s called at %d:%d\n",
+                    SvPV_nolen(called_subname_sv), fid, line);
+        av = (AV *)SvRV(sv);
+        sv = *av_fetch(av, NYTP_SCi_CALL_COUNT, 1);
+        sv_setuv(sv, (SvOK(sv)) ? SvUV(sv) + count : count);
+        sv = *av_fetch(av, NYTP_SCi_INCL_RTIME, 1);
+        sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + incl_time : incl_time);
+        sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
+        sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + excl_time : excl_time);
+        sv = *av_fetch(av, NYTP_SCi_spare_3, 1);
+        sv_setnv(sv, 0.0);
+        sv = *av_fetch(av, NYTP_SCi_spare_4, 1);
+        sv_setnv(sv, 0.0);
+        sv = *av_fetch(av, NYTP_SCi_RECI_RTIME, 1);
+        sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + reci_time : reci_time);
+        sv = *av_fetch(av, NYTP_SCi_REC_DEPTH,  1);
+        if (!SvOK(sv) || SvUV(sv) < rec_depth) /* max() */
+            sv_setuv(sv, rec_depth);
+
+        /* XXX temp hack way to store calling subname */
+        sv = *av_fetch(av, NYTP_SCi_CALLING_SUB, 1);
+        if (!SvROK(sv))               /* autoviv */
+            sv_setsv(sv, newRV_noinc((SV*)newHV()));
+        (void)hv_fetch_ent((HV *)SvRV(sv), caller_subname_sv, 1, 0);
+
+        /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
+        /* => { line => { subname => [ ... ] } } */
+        fi = SvRV(*av_fetch(state->fid_fileinfo_av, fid, 1));
+        fi = *av_fetch((AV *)fi, NYTP_FIDi_SUBS_CALLED, 1);
+        fi = *hv_fetch((HV*)SvRV(fi), text, len, 1);
+        if (!SvROK(fi))               /* autoviv */
+            sv_setsv(fi, newRV_noinc((SV*)newHV()));
+        fi = HeVAL(hv_fetch_ent((HV *)SvRV(fi), called_subname_sv, 1, 0));
+        sv_setsv(fi, newRV_inc((SV *)av));
+    }
+    else {                            /* is meta-data about sub */
+        /* line == 0: is_xs - set line range to 0,0 as marker */
+        sv_setiv(*av_fetch(subinfo_av, NYTP_SIi_FIRST_LINE, 1), 0);
+        sv_setiv(*av_fetch(subinfo_av, NYTP_SIi_LAST_LINE,  1), 0);
+    }
+
+    /* accumulate per-sub totals into subinfo */
+    sv = *av_fetch(subinfo_av, NYTP_SIi_CALL_COUNT, 1);
+    sv_setuv(sv, count     + (SvOK(sv) ? SvUV(sv) : 0));
+    sv = *av_fetch(subinfo_av, NYTP_SIi_INCL_RTIME, 1);
+    sv_setnv(sv, incl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
+    sv = *av_fetch(subinfo_av, NYTP_SIi_EXCL_RTIME, 1);
+    sv_setnv(sv, excl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
+    /* sub rec_depth - record the maximum */
+    sv = *av_fetch(subinfo_av, NYTP_SIi_REC_DEPTH, 1);
+    if (!SvOK(sv) || rec_depth > SvUV(sv))
+        sv_setuv(sv, rec_depth);
+    sv = *av_fetch(subinfo_av, NYTP_SIi_RECI_RTIME, 1);
+    sv_setnv(sv, reci_time + (SvOK(sv) ? SvNV(sv) : 0.0));
+
+    state->total_sub_calls += count;
+}
+
+static void
 load_pid_start_callback(Loader_state *state, ...)
 {
     dTHXa(state->interp);
@@ -3747,7 +3871,6 @@ load_profile_data_from_stream(SV *cb)
     unsigned long input_chunk_seqn = 0L;
     NV total_stmts_duration = 0.0;
     int total_stmts_measured = 0;
-    int total_sub_calls = 0;
     HV *profile_hv;
     HV* profile_modes = newHV();
     AV* fid_line_time_av = newAV();
@@ -4132,10 +4255,6 @@ load_profile_data_from_stream(SV *cb)
 
             case NYTP_TAG_SUB_CALLERS:
             {
-                char text[MAXPATHLEN*2];
-                SV *sv;
-                AV *subinfo_av;
-                int len;
                 unsigned int fid   = read_int(in);
                 unsigned int line  = read_int(in);
                 SV *caller_subname_sv = read_str(aTHX_ in, tmp_str2_sv);
@@ -4175,94 +4294,9 @@ load_profile_data_from_stream(SV *cb)
                     break;
                 }
 
-                normalize_eval_seqn(aTHX_ caller_subname_sv);
-                normalize_eval_seqn(aTHX_ called_subname_sv);
-
-                if (trace_level >= 3)
-                    logwarn("Sub %s called by %s %u:%u: count %d, incl %"NVff", excl %"NVff"\n",
-                        SvPV_nolen(called_subname_sv), SvPV_nolen(caller_subname_sv), fid, line,
-                        count, incl_time, excl_time);
-
-                subinfo_av = lookup_subinfo_av(aTHX_ called_subname_sv, state.sub_subinfo_hv);
-
-                /* { caller_fid => { caller_line => [ count, incl_time, ... ] } } */
-                sv = *av_fetch(subinfo_av, NYTP_SIi_CALLED_BY, 1);
-                if (!SvROK(sv))                   /* autoviv */
-                    sv_setsv(sv, newRV_noinc((SV*)newHV()));
-
-                len = sprintf(text, "%u", fid);
-                sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
-                if (!SvROK(sv))                   /* autoviv */
-                    sv_setsv(sv, newRV_noinc((SV*)newHV()));
-
-                if (fid) {
-                    SV *fi;
-                    AV *av;
-                    len = sprintf(text, "%u", line);
-
-                    sv = *hv_fetch((HV*)SvRV(sv), text, len, 1);
-                    if (!SvROK(sv))               /* autoviv */
-                        sv_setsv(sv, newRV_noinc((SV*)newAV()));
-                    else if (trace_level)
-                        /* calls to sub1 from the same fid:line could have different caller subs
-                         * due to evals or if profile_findcaller is off.
-                         */
-                        logwarn("Merging extra sub caller info for %s called at %d:%d\n",
-                            SvPV_nolen(called_subname_sv), fid, line);
-                    av = (AV *)SvRV(sv);
-                    sv = *av_fetch(av, NYTP_SCi_CALL_COUNT, 1);
-                    sv_setuv(sv, (SvOK(sv)) ? SvUV(sv) + count : count);
-                    sv = *av_fetch(av, NYTP_SCi_INCL_RTIME, 1);
-                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + incl_time : incl_time);
-                    sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
-                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + excl_time : excl_time);
-                    sv = *av_fetch(av, NYTP_SCi_spare_3, 1);
-                    sv_setnv(sv, 0.0);
-                    sv = *av_fetch(av, NYTP_SCi_spare_4, 1);
-                    sv_setnv(sv, 0.0);
-                    sv = *av_fetch(av, NYTP_SCi_RECI_RTIME, 1);
-                    sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + reci_time : reci_time);
-                    sv = *av_fetch(av, NYTP_SCi_REC_DEPTH,  1);
-                    if (!SvOK(sv) || SvUV(sv) < rec_depth) /* max() */
-                        sv_setuv(sv, rec_depth);
-
-                    /* XXX temp hack way to store calling subname */
-                    sv = *av_fetch(av, NYTP_SCi_CALLING_SUB, 1);
-                    if (!SvROK(sv))               /* autoviv */
-                        sv_setsv(sv, newRV_noinc((SV*)newHV()));
-                    (void)hv_fetch_ent((HV *)SvRV(sv), caller_subname_sv, 1, 0);
-
-                    /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
-                    /* => { line => { subname => [ ... ] } } */
-                    fi = SvRV(*av_fetch(state.fid_fileinfo_av, fid, 1));
-                    fi = *av_fetch((AV *)fi, NYTP_FIDi_SUBS_CALLED, 1);
-                    fi = *hv_fetch((HV*)SvRV(fi), text, len, 1);
-                    if (!SvROK(fi))               /* autoviv */
-                        sv_setsv(fi, newRV_noinc((SV*)newHV()));
-                    fi = HeVAL(hv_fetch_ent((HV *)SvRV(fi), called_subname_sv, 1, 0));
-                    sv_setsv(fi, newRV_inc((SV *)av));
-                }
-                else {                            /* is meta-data about sub */
-                    /* line == 0: is_xs - set line range to 0,0 as marker */
-                    sv_setiv(*av_fetch(subinfo_av, NYTP_SIi_FIRST_LINE, 1), 0);
-                    sv_setiv(*av_fetch(subinfo_av, NYTP_SIi_LAST_LINE,  1), 0);
-                }
-
-                /* accumulate per-sub totals into subinfo */
-                sv = *av_fetch(subinfo_av, NYTP_SIi_CALL_COUNT, 1);
-                sv_setuv(sv, count     + (SvOK(sv) ? SvUV(sv) : 0));
-                sv = *av_fetch(subinfo_av, NYTP_SIi_INCL_RTIME, 1);
-                sv_setnv(sv, incl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
-                sv = *av_fetch(subinfo_av, NYTP_SIi_EXCL_RTIME, 1);
-                sv_setnv(sv, excl_time + (SvOK(sv) ? SvNV(sv) : 0.0));
-                /* sub rec_depth - record the maximum */
-                sv = *av_fetch(subinfo_av, NYTP_SIi_REC_DEPTH, 1);
-                if (!SvOK(sv) || rec_depth > SvUV(sv))
-                    sv_setuv(sv, rec_depth);
-                sv = *av_fetch(subinfo_av, NYTP_SIi_RECI_RTIME, 1);
-                sv_setnv(sv, reci_time + (SvOK(sv) ? SvNV(sv) : 0.0));
-
-                total_sub_calls += count;
+                load_sub_callers_callback(&state, fid, line, count, incl_time,
+                                          excl_time, reci_time, rec_depth,
+                                          called_subname_sv, caller_subname_sv);
                 break;
             }
 
@@ -4446,7 +4480,7 @@ load_profile_data_from_stream(SV *cb)
     store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_stmts_duration"),
                     newSVnv(total_stmts_duration));
     store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("total_sub_calls"),
-                    newSVnv(total_sub_calls));
+                    newSVnv(state.total_sub_calls));
 
     if (1) {
         int show_summary_stats = (trace_level >= 1);
