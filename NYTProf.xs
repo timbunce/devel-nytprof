@@ -3505,7 +3505,7 @@ typedef struct loader_state_callback {
 #ifdef MULTIPLICITY
     PerlInterpreter *interp;
 #endif
-    SV *cb;
+    CV *cb;
     SV *cb_args[11];  /* must be large enough for the largest callback argument list */
     SV *tag_names[nytp_tag_max];
     SV *input_chunk_seqn_sv;
@@ -4182,7 +4182,7 @@ load_perl_callback(Loader_state_base *cb_data, nytp_tax_index tag, ...)
     assert(i <= C_ARRAY_LENGTH(state->cb_args));
 
     PUTBACK;
-    call_sv(state->cb, G_DISCARD);
+    call_sv((SV *)state->cb, G_DISCARD);
 }
 
 
@@ -4583,7 +4583,7 @@ load_profile_to_hv(pTHX_ NYTP_file in)
 }
 
 static void
-load_profile_to_callback(pTHX_ NYTP_file in, SV *cb)
+load_profile_to_callback(pTHX_ NYTP_file in, CV *cb)
 {
     Loader_state_callback state;
     int i;
@@ -4805,7 +4805,9 @@ SV* cb;
         croak("Failed to open input '%s': %s", file, strerror(errno));
     }
     if (cb && SvROK(cb)) {
-        load_profile_to_callback(aTHX_ in, cb);
+        if (SvTYPE(SvRV(cb)) != SVt_PVCV)
+            croak("Not a CODE reference");
+        load_profile_to_callback(aTHX_ in, (CV *)SvRV(cb));
         RETVAL = newHV(); /* Can we change this to PL_sv_undef?  */
     } else
         RETVAL = load_profile_to_hv(aTHX_ in);
