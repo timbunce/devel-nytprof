@@ -1015,11 +1015,10 @@ output_tag_int(NYTP_file file, unsigned char tag, unsigned int i)
 
 
 static UV
-output_uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
+uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
 {
     SV **svp = av_fetch(av, idx, 0);
     UV uv = (!svp || !SvOK(*svp)) ? default_uv : SvUV(*svp);
-    output_int( out, uv );
     return uv;
 }
         
@@ -1037,11 +1036,10 @@ output_nv(NYTP_file file, NV nv)
 
 
 static NV
-output_nv_from_av(pTHX_ AV *av, int idx, NV default_nv)
+nv_from_av(pTHX_ AV *av, int idx, NV default_nv)
 {
     SV **svp = av_fetch(av, idx, 0);
     NV nv = (!svp || !SvOK(*svp)) ? default_nv : SvNV(*svp);
-    output_nv( out, nv );
     return nv;
 }
 
@@ -3255,6 +3253,8 @@ write_sub_callers(pTHX)
             NV sc[NYTP_SCi_elements];
             AV *av = (AV *)SvRV(sv);
             int trace = (trace_level >= 3);
+            UV count;
+            UV depth;
 
             unsigned int fid = 0, line = 0;
             const char *fid_line_delim = "[";
@@ -3270,16 +3270,24 @@ write_sub_callers(pTHX)
             /* trim length to effectively hide the [fid:line] suffix */
             caller_subname_len = fid_line_start-caller_subname;
 
+            count = uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0);
+            sc[NYTP_SCi_CALL_COUNT] = count * 1.0;
+            sc[NYTP_SCi_INCL_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
+            sc[NYTP_SCi_EXCL_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
+            sc[NYTP_SCi_RECI_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
+            depth = uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0);
+            sc[NYTP_SCi_REC_DEPTH]  = depth * 1.0;
+
             output_tag_int(out, NYTP_TAG_SUB_CALLERS, fid);
             output_int(out, line);
             output_str(out, caller_subname, caller_subname_len);
-            sc[NYTP_SCi_CALL_COUNT] = output_uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0) * 1.0;
-            sc[NYTP_SCi_INCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
-            sc[NYTP_SCi_EXCL_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
+            output_int(out, count);
+            output_nv(out, sc[NYTP_SCi_INCL_RTIME]);
+            output_nv(out, sc[NYTP_SCi_EXCL_RTIME]);
             output_nv(out, 0.0); /* NYTP_SCi_spare_3 */
             output_nv(out, 0.0); /* NYTP_SCi_spare_4 */
-            sc[NYTP_SCi_RECI_RTIME] = output_nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
-            sc[NYTP_SCi_REC_DEPTH]  = output_uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0) * 1.0;
+            output_nv(out, sc[NYTP_SCi_RECI_RTIME]);
+            output_int(out, depth);
             output_str(out, called_subname, called_subname_len);
 
             /* sanity check - early warning */
