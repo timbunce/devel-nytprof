@@ -4617,7 +4617,6 @@ load_profile_to_callback(pTHX_ NYTP_file in, SV *cb)
     state.base_state.input_chunk_seqn = 0;
 
     state.input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
-    sv_setuv(state.input_chunk_seqn_sv, 0);
 
     i = C_ARRAY_LENGTH(state.tag_names);
     while (--i) {
