@@ -69,11 +69,10 @@ sub _time_block_or_line {
     my $mapped_fid = $map_range{$fid}[$line];
     $fid = $mapped_fid if defined $mapped_fid;
 
-    $out->write($is_line ? '+' : '*');
-    $out->output_int($ticks, $fid, $line);
-    if (!$is_line) {
-	$out->output_int($block_line);
-	$out->output_int($sub_line);
+    if ($is_line) {
+	$out->write_time_line($ticks, $fid, $line);
+    } else {
+	$out->write_time_block($ticks, $fid, $line, $block_line, $sub_line);
     }
 }
 

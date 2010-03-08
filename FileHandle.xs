@@ -992,3 +992,19 @@ SV *name
                                     SvUTF8(name) ? -(I32)len : (I32)len );
     OUTPUT:
         RETVAL
+
+size_t
+NYTP_write_time_block(handle, elapsed, fid, line, last_block_line, last_sub_line)
+NYTP_file handle
+unsigned int elapsed
+unsigned int fid
+unsigned int line
+unsigned int last_block_line
+unsigned int last_sub_line
+
+size_t
+NYTP_write_time_line(handle, elapsed, fid, line)
+NYTP_file handle
+unsigned int elapsed
+unsigned int fid
+unsigned int line
