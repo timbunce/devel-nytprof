@@ -621,6 +621,35 @@ NYTP_close(NYTP_file file, int discard) {
     return fclose(raw_file) == 0 ? 0 : errno;
 }
 
+size_t
+NYTP_write_comment(NYTP_file ofile, const char *format, ...) {
+    size_t retval;
+    size_t retval2;
+    va_list args;
+
+    retval = NYTP_write(ofile, "#", 1);
+    if (retval != 1)
+        return retval;
+
+    va_start(args, format);
+
+    if(strEQ(format, "%s")) {
+        const char * const s = va_arg(args, char*);
+        STRLEN len = strlen(s);
+        retval = NYTP_write(ofile, s, len);
+    } else {
+        CROAK_IF_NOT_STDIO(ofile, "NYTP_printf");
+        retval = vfprintf(ofile->file, format, args);
+    }
+    va_end(args);
+
+    retval2 = NYTP_write(ofile, "\n", 1);
+    if (retval2 != 1)
+        return retval2;
+
+    return retval + 2;
+}
+
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
 PROTOTYPES: DISABLE

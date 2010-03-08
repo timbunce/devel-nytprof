@@ -44,3 +44,5 @@ const char *NYTP_type_of_offset(NYTP_file file);
 #endif
 
 void NYTProf_croak_if_not_stdio(NYTP_file file, const char *function);
+
+size_t NYTP_write_comment(NYTP_file ofile, const char *format, ...);
