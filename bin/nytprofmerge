@@ -15,7 +15,7 @@ use strict;
 
 use Devel::NYTProf::Core;
 require Devel::NYTProf::FileHandle;
-use Devel::NYTProf::ReadStream qw(for_chunks);
+require Devel::NYTProf::Data;
 use List::Util qw(min);
 
 our $VERSION = '3.02';
@@ -209,7 +209,7 @@ foreach $input (@ARGV) {
     @pending_fids = ();
     %pending_subs = ();
 
-    for_chunks {
+    Devel::NYTProf::Data->new({filename => $input, callback => sub {
 	my $tag = shift;
 	if($tag eq 'NEW_FID') {
 	    my ($fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
@@ -286,14 +286,14 @@ foreach $input (@ARGV) {
 	    }
 	    $pending_subs{"$fid,$first_line,$last_line,$name"} = $output_fid;
 	}
-    } filename => $input;
+    }});
 
     print "Re-reading $input...\n" if $opt_verbose;
-    for_chunks {
+    Devel::NYTProf::Data->new({filename => $input, callback => sub {
 	my $sub = $dispatcher{$_[0]}
             or die "Unknown tag '$_[0]' in $input\n";
 	&$sub(@_);
-    } filename => $input;
+    }});
 }
 
 print "Finalizing...\n" if $opt_verbose;
