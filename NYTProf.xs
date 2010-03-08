@@ -4037,8 +4037,33 @@ load_attribute_callback(Loader_state *state, ...)
                                    value_utf8 ? SVf_UTF8 : 0));
 }
 
+struct perl_callback_info_t {
+    const char *description;
+    STRLEN len;
+    const char *args;
+};
+
+static struct perl_callback_info_t callback_info[nytp_tag_max] =
+{
+    {STR_WITH_LEN("[no tag]"), NULL},
+    {STR_WITH_LEN("ATTRIBUTE"), NULL},
+    {STR_WITH_LEN("COMMENT"), NULL},
+    {STR_WITH_LEN("TIME_BLOCK"), NULL},
+    {STR_WITH_LEN("TIME_LINE"), NULL},
+    {STR_WITH_LEN("DISCOUNT"), NULL},
+    {STR_WITH_LEN("NEW_FID"), "uuuuuuS"},
+    {STR_WITH_LEN("SRC_LINE"), "uuS"},
+    {STR_WITH_LEN("SUB_INFO"), NULL},
+    {STR_WITH_LEN("SUB_CALLERS"), NULL},
+    {STR_WITH_LEN("PID_START"), NULL},
+    {STR_WITH_LEN("PID_END"), NULL},
+    {STR_WITH_LEN("[string]"), NULL},
+    {STR_WITH_LEN("[string utf8]"), NULL},
+    {STR_WITH_LEN("START_DEFLATE"), NULL}
+};
+
 static void
-load_perl_callback(Loader_state *state, ...)
+load_perl_callback(Loader_state *state, nytp_tax_index tag, ...)
 {
     dTHXa(state->interp);
     dSP;
@@ -4046,14 +4071,23 @@ load_perl_callback(Loader_state *state, ...)
     SV **cb_args = state->cb_args;
     int i = 0;
     char type;
-    const char *arglist = "uuuuuuS";
+    const char *arglist = callback_info[tag].args;
+    const char *const description = callback_info[tag].description;
 
-    va_start(args, state);
+    if (!arglist) {
+        if (description)
+            croak("Type '%s' passed to perl callback incorrectly", description);
+        else
+            croak("Unknown type %d passed to perl callback", tag);
+    }
+
+    va_start(args, tag);
 
     PUSHMARK(SP);
 
     i = 0;
-    sv_setpvs(cb_args[i], "NEW_FID");    XPUSHs(cb_args[i++]);
+    sv_setpvn(cb_args[i], description, callback_info[tag].len);
+    XPUSHs(cb_args[i++]);
 
     while ((type = *arglist++)) {
         switch(type) {
@@ -4283,9 +4317,9 @@ load_profile_data_from_stream(SV *cb)
                 filename_sv = read_str(aTHX_ in, NULL);
 
                 if (cb) {
-                    load_perl_callback(&state, file_num, eval_file_num,
-                                       eval_line_num, fid_flags, file_size,
-                                       file_mtime, filename_sv);
+                    load_perl_callback(&state, nytp_new_fid, file_num,
+                                       eval_file_num, eval_line_num, fid_flags,
+                                       file_size, file_mtime, filename_sv);
                     break;
                 }
 
@@ -4302,18 +4336,8 @@ load_profile_data_from_stream(SV *cb)
                 SV *src = read_str(aTHX_ in, NULL);
 
                 if (cb) {
-                    PUSHMARK(SP);
-
-                    i = 0;
-                    sv_setpvs(cb_args[i], "SRC_LINE");  XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], file_num);     XPUSHs(cb_args[i++]);
-                    sv_setuv(cb_args[i], line_num);     XPUSHs(cb_args[i++]);
-
-                    XPUSHs(sv_2mortal(src));
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, nytp_src_line, file_num,
+                                       line_num, src);
                     break;
                 }
 

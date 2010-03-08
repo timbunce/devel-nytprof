@@ -59,6 +59,25 @@ const char *NYTP_type_of_offset(NYTP_file file);
 #define NYTP_TAG_STRING_UTF8     '"' 
 #define NYTP_TAG_START_DEFLATE   'z' 
 
+typedef enum {
+    nytp_no_tag,
+    nytp_attribute,
+    nytp_comment,
+    nytp_time_block,
+    nytp_time_line,
+    nytp_discount,
+    nytp_new_fid,
+    nytp_src_line,
+    nytp_sub_info,
+    nytp_sub_callers,
+    nytp_pid_start,
+    nytp_pid_end,
+    nytp_string,
+    nytp_string_utf8,
+    nytp_start_deflate,
+    nytp_tag_max
+} nytp_tax_index;
+
 void NYTProf_croak_if_not_stdio(NYTP_file file, const char *function);
 
 size_t NYTP_write_header(NYTP_file ofile, unsigned int major, unsigned int minor);
