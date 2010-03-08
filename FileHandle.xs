@@ -622,6 +622,87 @@ NYTP_close(NYTP_file file, int discard) {
     return fclose(raw_file) == 0 ? 0 : errno;
 }
 
+/**
+ * Output an integer in bytes, optionally preceded by a tag. Use the special tag
+ * NYTP_TAG_NO_TAG to suppress the tag output. A wrapper macro output_int(fh, i)
+ * does this for you.
+ * "In bytes" means output the number in binary, using the least number of bytes
+ * possible.  All numbers are positive. Use sign slot as a marker
+ */
+static size_t
+output_tag_int(NYTP_file file, unsigned char tag, unsigned int i)
+{
+    U8 buffer[6];
+    U8 *p = buffer;
+
+    if (tag != NYTP_TAG_NO_TAG)
+        *p++ = tag;
+
+    /* general case. handles all integers */
+    if (i < 0x80) {                               /* < 8 bits */
+        *p++ = (U8)i;
+    }
+    else if (i < 0x4000) {                        /* < 15 bits */
+        *p++ = (U8)((i >> 8) | 0x80);
+        *p++ = (U8)i;
+    }
+    else if (i < 0x200000) {                      /* < 22 bits */
+        *p++ = (U8)((i >> 16) | 0xC0);
+        *p++ = (U8)(i >> 8);
+        *p++ = (U8)i;
+    }
+    else if (i < 0x10000000) {                    /* 32 bits */
+        *p++ = (U8)((i >> 24) | 0xE0);
+        *p++ = (U8)(i >> 16);
+        *p++ = (U8)(i >> 8);
+        *p++ = (U8)i;
+    }
+    else {                                        /* need all the bytes. */
+        *p++ = 0xFF;
+        *p++ = (U8)(i >> 24);
+        *p++ = (U8)(i >> 16);
+        *p++ = (U8)(i >> 8);
+        *p++ = (U8)i;
+    }
+    return NYTP_write(file, buffer, p - buffer);
+}
+
+#define     output_int(fh, i)   output_tag_int((fh), NYTP_TAG_NO_TAG, (unsigned int)(i))
+
+static size_t
+output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signifies utf8 */
+    unsigned char tag = NYTP_TAG_STRING;
+    size_t retval;
+    size_t total;
+
+    if (len < 0) {
+        tag = NYTP_TAG_STRING_UTF8;
+        len = -len;
+    }
+
+    total = retval = output_tag_int(file, tag, len);
+    if (retval <= 0)
+        return retval;
+
+    if (len) {
+        total += retval = NYTP_write(file, str, len);
+        if (retval <= 0)
+            return retval;
+    }
+
+    return total;
+}
+
+/**
+ * Output a double precision float via a simple binary write of the memory.
+ * (Minor portbility issues are seen as less important than speed and space.)
+ */
+size_t
+output_nv(NYTP_file file, NV nv)
+{
+    return NYTP_write(file, (unsigned char *)&nv, sizeof(NV));
+}
+
 size_t
 NYTP_write_comment(NYTP_file ofile, const char *format, ...) {
     size_t retval;

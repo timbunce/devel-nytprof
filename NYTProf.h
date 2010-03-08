@@ -16,13 +16,3 @@
  * ************************************************************************
  */
 
-/* FIXME - The callers of these functions should be refactored into their own
-   library file, with a public API, the XS interface adapted to use that API,
-   and these 3 return to being static functions, within that library.  */
-
-size_t output_tag_int(NYTP_file file, unsigned char tag, unsigned int);
-size_t output_str(NYTP_file file, const char *str, I32 len);
-size_t output_nv(NYTP_file file, NV nv);
-
-#define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
-#define     output_int(fh, i)   output_tag_int((fh), NYTP_TAG_NO_TAG, (unsigned int)(i))

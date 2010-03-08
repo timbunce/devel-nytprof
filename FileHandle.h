@@ -43,6 +43,7 @@ const char *NYTP_type_of_offset(NYTP_file file);
 #  define NYTP_type_of_offset(file) ""
 #endif
 
+#define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
 #define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
 #define NYTP_TAG_COMMENT         '#'    /* till newline */
 #define NYTP_TAG_TIME_BLOCK      '*'
