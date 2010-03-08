@@ -485,9 +485,11 @@ output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signif
     if (retval <= 0)
         return retval;
 
-    total += retval = NYTP_write(file, str, len);
-    if (retval <= 0)
-        return retval;
+    if (len) {
+        total += retval = NYTP_write(file, str, len);
+        if (retval <= 0)
+            return retval;
+    }
 
     return total;
 }
