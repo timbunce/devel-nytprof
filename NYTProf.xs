@@ -34,6 +34,7 @@
 #define NEED_newCONSTSUB
 #define NEED_newRV_noinc
 #define NEED_sv_2pv_flags
+#define NEED_newSVpvn_flags
 #   include "ppport.h"
 #endif
 
@@ -3458,7 +3459,7 @@ lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
 
 
 static void
-store_attrib_sv(pTHX_ HV *attr_hv, const char *text, STRLEN text_len, SV *value_sv)
+store_attrib_sv(pTHX_ HV *attr_hv, const char *text, I32 text_len, SV *value_sv)
 {
     (void)hv_store(attr_hv, text, text_len, value_sv, 0);
     if (trace_level >= 1)
@@ -3692,6 +3693,36 @@ load_pid_end_callback(Loader_state *state, ...)
     store_attrib_sv(aTHX_ state->attr_hv, STR_WITH_LEN("profiler_duration"),
                     newSVnv(state->profiler_duration));
 
+}
+
+static void
+load_attribute_callback(Loader_state *state, ...)
+{
+    dTHXa(state->interp);
+    va_list args;
+    char *key;
+    unsigned long key_len;
+    unsigned int key_utf8;
+    char *value;
+    unsigned long value_len;
+    unsigned int value_utf8;
+
+    va_start(args, state);
+
+    key = va_arg(args, char *);
+    key_len = va_arg(args, unsigned long);
+    key_utf8 = va_arg(args, unsigned int);
+
+    value = va_arg(args, char *);
+    value_len = va_arg(args, unsigned long);
+    value_utf8 = va_arg(args, unsigned int);
+
+    va_end(args);
+
+    store_attrib_sv(aTHX_ state->attr_hv, key,
+                    key_utf8 ? -(I32)key_len : key_len,
+                    newSVpvn_flags(value, value_len,
+                                   value_utf8 ? SVf_UTF8 : 0));
 }
 
 /**
@@ -4309,7 +4340,10 @@ load_profile_data_from_stream(SV *cb)
                     call_sv(cb, G_DISCARD);
                     SPAGAIN;
                 } else {
-                    store_attrib_sv(aTHX_ state.attr_hv, buffer, key_end - buffer, newSVpvn(value, end - value));
+                    load_attribute_callback(&state, buffer,
+                                            (unsigned long)(key_end - buffer),
+                                            0, value,
+                                            (unsigned long)(end - value), 0);
                 }
                 if (memEQs(buffer, key_end - buffer, "ticks_per_sec")) {
                     ticks_per_sec = (unsigned int)atoi(value);
