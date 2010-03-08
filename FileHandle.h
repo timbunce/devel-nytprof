@@ -70,6 +70,7 @@ size_t NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
                                    size_t key_len, long value);
 size_t NYTP_write_attribute_unsigned(NYTP_file ofile, const char *key,
                                      size_t key_len, unsigned long value);
+size_t NYTP_start_deflate_write_tag_comment(NYTP_file ofile, int compression_level);
 size_t NYTP_write_process_start(NYTP_file ofile, unsigned int pid,
                                 unsigned int ppid, NV time_of_day);
 size_t NYTP_write_process_end(NYTP_file ofile, unsigned int pid,

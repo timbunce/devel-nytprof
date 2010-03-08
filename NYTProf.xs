@@ -452,11 +452,7 @@ output_header(pTHX)
 
 #ifdef HAS_ZLIB
     if (compression_level) {
-        const unsigned char tag = NYTP_TAG_START_DEFLATE;
-        NYTP_write_comment(out, "Compressed at level %d with zlib %s",
-                           compression_level, zlibVersion());
-        NYTP_write(out, &tag, sizeof(tag));
-        NYTP_start_deflate(out, compression_level);
+        NYTP_start_deflate_write_tag_comment(out, compression_level);
     }
 #endif
 

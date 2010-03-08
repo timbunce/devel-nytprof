@@ -125,9 +125,8 @@ my %dispatcher =
      },
 
      START_DEFLATE => sub {
-	 if (!$deflating && $out->can('start_deflate')) {
-	     $out->write('z');
-	     $out->start_deflate;
+	 if (!$deflating && $out->can('start_deflate_write_tag_comment')) {
+	     $out->start_deflate_write_tag_comment;
 	     ++$deflating;
 	 }
      },

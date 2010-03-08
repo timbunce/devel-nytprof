@@ -797,6 +797,27 @@ NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
 }
 
 size_t
+NYTP_start_deflate_write_tag_comment(NYTP_file ofile, int compression_level) {
+    const unsigned char tag = NYTP_TAG_START_DEFLATE;
+    size_t total;
+    size_t retval;
+
+    total = retval = NYTP_write_comment(ofile, "Compressed at level %d with zlib %s",
+                                        compression_level, zlibVersion());
+
+    if (retval < 1)
+        return retval;
+
+    total += retval = NYTP_write(ofile, &tag, sizeof(tag));
+    if (retval < 1)
+        return retval;
+
+    NYTP_start_deflate(ofile, compression_level);
+
+    return total;
+}
+
+size_t
 NYTP_write_process_start(NYTP_file ofile, unsigned int pid, unsigned int ppid,
                          NV time_of_day)
 {
@@ -1139,6 +1160,11 @@ SV *value
 
 void
 NYTP_start_deflate(handle, compression_level = 6)
+NYTP_file handle
+int compression_level
+
+void
+NYTP_start_deflate_write_tag_comment(handle, compression_level = 6)
 NYTP_file handle
 int compression_level
 
