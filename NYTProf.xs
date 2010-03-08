@@ -3504,8 +3504,8 @@ typedef struct loader_state {
     PerlInterpreter *interp;
 #endif
     SV *cb;
-    SV **cb_args;
-    size_t cb_args_len;
+    SV *cb_args[11];  /* must be large enough for the largest callback argument list */
+    SV *tag_names[nytp_tag_max];
     unsigned int last_file_num;
     unsigned int last_line_num;
     int statement_discount;
@@ -4086,9 +4086,7 @@ load_perl_callback(Loader_state *state, nytp_tax_index tag, ...)
 
     PUSHMARK(SP);
 
-    i = 0;
-    sv_setpvn(cb_args[i], description, callback_info[tag].len);
-    XPUSHs(cb_args[i++]);
+    XPUSHs(state->tag_names[tag]);
 
     while ((type = *arglist++)) {
         switch(type) {
@@ -4158,7 +4156,7 @@ load_perl_callback(Loader_state *state, nytp_tax_index tag, ...)
         }
     }
     va_end(args);
-    assert(i <= state->cb_args_len);
+    assert(i <= C_ARRAY_LENGTH(state->cb_args));
 
     PUTBACK;
     call_sv(state->cb, G_DISCARD);
@@ -4189,12 +4187,7 @@ load_profile_data_from_stream(SV *cb)
     SV *tmp_str2_sv = newSVpvn("",0);
 
     /* callback support */
-    int i;
     SV *input_chunk_seqn_sv = NULL;
-    SV *cb_DISCOUNT_tag = NULL;
-    SV *cb_TIME_BLOCK_tag = NULL;
-    SV *cb_TIME_LINE_tag = NULL;
-    SV *cb_args[12];  /* must be large enough for the largest callback argument list */
 
     size_t buffer_len = MAXPATHLEN * 2;
     char *buffer = (char *)safemalloc(buffer_len);
@@ -4219,8 +4212,6 @@ load_profile_data_from_stream(SV *cb)
     state.file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
     /* These will be split out into a different state structure later.  */
     state.cb = cb;
-    state.cb_args = cb_args;
-    state.cb_args_len = C_ARRAY_LENGTH(cb_args);
 
     av_extend(state.fid_fileinfo_av, 64);               /* grow them up front. */
     av_extend(state.fid_srclines_av, 64);
@@ -4241,19 +4232,23 @@ load_profile_data_from_stream(SV *cb)
     }
 
     if (cb && SvROK(cb)) {
+        int i;
         input_chunk_seqn_sv = save_scalar(gv_fetchpv(".", GV_ADD, SVt_IV));
         sv_setuv(input_chunk_seqn_sv, input_chunk_seqn);
 
-        /* these tags are frequent enough that we reuse the same SV in all calls */
-        cb_DISCOUNT_tag = sv_2mortal(newSVpvs("DISCOUNT"));
-        cb_TIME_BLOCK_tag = sv_2mortal(newSVpvs("TIME_BLOCK"));
-        cb_TIME_LINE_tag = sv_2mortal(newSVpvs("TIME_LINE"));
-        SvREADONLY_on(cb_DISCOUNT_tag);
-        SvREADONLY_on(cb_TIME_BLOCK_tag);
-        SvREADONLY_on(cb_TIME_LINE_tag);
-
-        for (i = 0; i < C_ARRAY_LENGTH(cb_args); i++)
-            cb_args[i] = sv_newmortal();
+        i = C_ARRAY_LENGTH(state.tag_names);
+        while (--i) {
+            if (callback_info[i].args) {
+                state.tag_names[i]
+                    = newSVpvn_flags(callback_info[i].description,
+                                     callback_info[i].len, SVs_TEMP);
+                SvREADONLY_on(state.tag_names[i]);
+                /* Don't steal the string buffer.  */
+                SvTEMP_off(state.tag_names[i]);
+            }
+        }
+        for (i = 0; i < C_ARRAY_LENGTH(state.cb_args); i++)
+            state.cb_args[i] = sv_newmortal();
 
         load_perl_callback(&state, nytp_version, file_major, file_minor);
     }
