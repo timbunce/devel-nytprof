@@ -1116,3 +1116,32 @@ unsigned int last_line
                                      first_line, last_line);
     OUTPUT:
         RETVAL
+
+size_t
+NYTP_write_sub_callers(handle, fid, line, caller, count, incl_rtime, excl_rtime, incl_utime, incl_stime, reci_rtime, depth, called_sub)
+NYTP_file handle
+unsigned int fid
+unsigned int line
+SV *caller
+unsigned int count
+NV incl_rtime
+NV excl_rtime
+NV incl_utime
+NV incl_stime
+NV reci_rtime
+unsigned int depth
+SV *called_sub
+    PREINIT:
+        STRLEN caller_len;
+        const char *const caller_p = SvPV(caller, caller_len);
+        STRLEN called_len;
+        const char *const called_p = SvPV(called_sub, called_len);
+    CODE:
+        RETVAL = NYTP_write_sub_callers(handle, fid, line, caller_p,
+                                        SvUTF8(caller) ? -(I32)caller_len : (I32)caller_len,
+                                        count, incl_rtime, excl_rtime,
+                                        incl_utime, incl_stime, reci_rtime,
+                                        depth, called_p,
+                                        SvUTF8(called_sub) ? -(I32)called_len : (I32)called_len);
+    OUTPUT:
+        RETVAL

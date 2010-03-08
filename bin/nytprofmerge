@@ -306,13 +306,9 @@ foreach my $fid_line (sort keys %callers) {
     foreach my $called (sort keys %{$callers{$fid_line}}) {
 	foreach my $caller (sort keys %{$callers{$fid_line}{$called}}) {
 	    my $sum = $callers{$fid_line}{$called}{$caller};
-	    $out->write('c');
-	    $out->output_int($fid, $line);
-	    $out->output_str($caller);
-	    $out->output_int($sum->{count});
-	    $out->output_nv(@{$sum}{qw(incl excl ucpu scpu reci)});
-	    $out->output_int($sum->{depth});
-	    $out->output_str($called);
+	    $out->write_sub_callers($fid, $line, $caller, $sum->{count},
+				    @{$sum}{qw(incl excl ucpu scpu reci)},
+				    $sum->{depth}, $called);
 	}
     }
 }
