@@ -459,7 +459,7 @@ output_header(pTHX)
     NYTP_printf(out, ":%s=%lu\n",      "basetime",      (unsigned long)PL_basetime);
     NYTP_write_attribute_string(out, STR_WITH_LEN("xs_version"), STR_WITH_LEN(XS_VERSION));
     NYTP_write_attribute_string(out, STR_WITH_LEN("perl_version"), version, sizeof(version) - 1);
-    NYTP_printf(out, ":%s=%d\n",       "clock_id",      profile_clock);
+    NYTP_write_attribute_signed(out, STR_WITH_LEN("clock_id"), profile_clock);
     NYTP_printf(out, ":%s=%u\n",       "ticks_per_sec", ticks_per_sec);
     NYTP_printf(out, ":%s=%d\n",       "nv_size",       (int)sizeof(NV));
     NYTP_printf(out, ":%s=%lu\n",      "PL_perldb",     (long unsigned int)PL_perldb);

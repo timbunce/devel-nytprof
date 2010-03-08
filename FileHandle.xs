@@ -16,6 +16,7 @@
 
 #define NEED_newRV_noinc
 #define NEED_sv_2pvbyte
+#define NEED_my_snprintf
 #include "ppport.h"
 
 #ifdef HAS_ZLIB
@@ -680,6 +681,23 @@ NYTP_write_attribute_string(NYTP_file ofile,
 
     return total;
 }
+
+#ifndef CHAR_BIT
+#  define CHAR_BIT          8
+#endif
+#define LOG_2_OVER_LOG_10   0.30103
+
+size_t
+NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
+                            size_t key_len, long value)
+{
+    /* 3: 1 for rounding errors, 1 for the sign, 1 for the '\0'  */
+    char buffer[(int)(sizeof (long) * CHAR_BIT * LOG_2_OVER_LOG_10 + 3)];
+    const size_t len = my_snprintf(buffer, sizeof(buffer), "%ld", value);
+
+    return NYTP_write_attribute_string(ofile, key, key_len, buffer, len);
+}
+
 
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
