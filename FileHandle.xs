@@ -748,6 +748,45 @@ NYTP_write_process_end(NYTP_file ofile, unsigned int pid, NV time_of_day)
     return total;
 }
 
+size_t
+NYTP_write_new_fid(NYTP_file ofile, unsigned int id, unsigned int eval_fid,
+                   unsigned int eval_line_num, unsigned int flags,
+                   unsigned int size, unsigned int mtime,
+                   const char *name, I32 len)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_int(ofile, NYTP_TAG_NEW_FID, id);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, eval_fid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, eval_line_num);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, flags);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, size);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_int(ofile, mtime);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_str(ofile, name, len);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
 
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 

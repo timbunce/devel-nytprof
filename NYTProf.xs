@@ -629,12 +629,6 @@ emit_fid (Hash_entry *fid_info)
         file_name = fid_info->key_abs;
         file_name_len = strlen(file_name);
     }
-    output_tag_int(out, NYTP_TAG_NEW_FID, fid_info->id);
-    output_int(out, fid_info->eval_fid);
-    output_int(out, fid_info->eval_line_num);
-    output_int(out, fid_info->fid_flags);
-    output_int(out, fid_info->file_size);
-    output_int(out, fid_info->file_mtime);
 
 #ifdef WIN32
     /* Make sure we only use forward slashes in filenames */
@@ -645,13 +639,19 @@ emit_fid (Hash_entry *fid_info)
             char ch = file_name[i];
             file_name_copy[i] = ch == '\\' ? '/' : ch;
         }
-        output_str(out, file_name_copy, (I32)file_name_len);
+        NYTP_write_new_fid(out, fid_info->id, fid_info->eval_fid,
+                           fid_info->eval_line_num, fid_info->fid_flags,
+                           fid_info->file_size, fid_info->file_mtime,
+                           file_name_copy, file_name_len);
         Safefree(file_name_copy);
         return;
     }
 #endif
 
-    output_str(out, file_name, (I32)file_name_len);
+    NYTP_write_new_fid(out, fid_info->id, fid_info->eval_fid,
+                       fid_info->eval_line_num, fid_info->fid_flags,
+                       fid_info->file_size, fid_info->file_mtime,
+                       file_name, file_name_len);
 }
 
 
