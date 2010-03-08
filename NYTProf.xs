@@ -4050,7 +4050,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("COMMENT"), "3"},
     {STR_WITH_LEN("TIME_BLOCK"), NULL},
     {STR_WITH_LEN("TIME_LINE"), NULL},
-    {STR_WITH_LEN("DISCOUNT"), NULL},
+    {STR_WITH_LEN("DISCOUNT"), ""},
     {STR_WITH_LEN("NEW_FID"), "uuuuuuS"},
     {STR_WITH_LEN("SRC_LINE"), "uuS"},
     {STR_WITH_LEN("SUB_INFO"), "uuus"},
@@ -4059,7 +4059,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("PID_END"), "un"},
     {STR_WITH_LEN("[string]"), NULL},
     {STR_WITH_LEN("[string utf8]"), NULL},
-    {STR_WITH_LEN("START_DEFLATE"), NULL}
+    {STR_WITH_LEN("START_DEFLATE"), ""}
 };
 
 static void
@@ -4284,11 +4284,7 @@ load_profile_data_from_stream(SV *cb)
             case NYTP_TAG_DISCOUNT:
             {
                 if (cb) {
-                    PUSHMARK(SP);
-                    XPUSHs(cb_DISCOUNT_tag);
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, nytp_discount);
                     break;
                 }
 
@@ -4523,14 +4519,7 @@ load_profile_data_from_stream(SV *cb)
             {
 #ifdef HAS_ZLIB
                 if (cb) {
-                    PUSHMARK(SP);
-
-                    i = 0;
-                    sv_setpvs(cb_args[i], "START_DEFLATE"); XPUSHs(cb_args[i++]);
-
-                    PUTBACK;
-                    call_sv(cb, G_DISCARD);
-                    SPAGAIN;
+                    load_perl_callback(&state, nytp_start_deflate);
                 }
                 NYTP_start_inflate(in);
 #else
