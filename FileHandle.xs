@@ -650,6 +650,37 @@ NYTP_write_comment(NYTP_file ofile, const char *format, ...) {
     return retval + 2;
 }
 
+size_t
+NYTP_write_attribute_string(NYTP_file ofile,
+                            const char *key, size_t key_len,
+                            const char *value, size_t value_len)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = NYTP_write(ofile, ":", 1);
+    if (retval != 1)
+        return retval;
+
+    total += retval = NYTP_write(ofile, key, key_len);
+    if (retval != key_len)
+        return retval;
+
+    total += retval = NYTP_write(ofile, "=", 1);
+    if (retval != 1)
+        return retval;
+
+    total += retval = NYTP_write(ofile, value, value_len);
+    if (retval != value_len)
+        return retval;
+
+    total += retval = NYTP_write(ofile, "\n", 1);
+    if (retval != 1)
+        return retval;
+
+    return total;
+}
+
 MODULE = Devel::NYTProf::FileHandle     PACKAGE = Devel::NYTProf::FileHandle    PREFIX = NYTP_
 
 PROTOTYPES: DISABLE

@@ -432,11 +432,16 @@ gettimeofday_nv(void)
 static void
 output_header(pTHX)
 {
-    SV *sv;
+    /* $0 - application name */
+    SV *const sv = get_sv("0",GV_ADDWARN);
     time_t basetime = PL_basetime;
     /* This comes back with a terminating \n, and we don't want that.  */
     const char *const basetime_str = ctime(&basetime);
     const STRLEN basetime_str_len = strlen(basetime_str);
+    const char version[] = STRINGIFY(PERL_REVISION) "."
+        STRINGIFY(PERL_VERSION) "." STRINGIFY(PERL_SUBVERSION);
+    STRLEN len;
+    const char *argv0 = SvPV(sv, len);
 
     assert(out != NULL);
     /* File header with "magic" string, with file major and minor version */
@@ -452,15 +457,13 @@ output_header(pTHX)
     /* XXX would be good to adopt a proper charset & escaping for these */
     /* $^T */
     NYTP_printf(out, ":%s=%lu\n",      "basetime",      (unsigned long)PL_basetime);
-    NYTP_printf(out, ":%s=%s\n",       "xs_version",    XS_VERSION);
-    NYTP_printf(out, ":%s=%d.%d.%d\n", "perl_version",  PERL_REVISION, PERL_VERSION, PERL_SUBVERSION);
+    NYTP_write_attribute_string(out, STR_WITH_LEN("xs_version"), STR_WITH_LEN(XS_VERSION));
+    NYTP_write_attribute_string(out, STR_WITH_LEN("perl_version"), version, sizeof(version) - 1);
     NYTP_printf(out, ":%s=%d\n",       "clock_id",      profile_clock);
     NYTP_printf(out, ":%s=%u\n",       "ticks_per_sec", ticks_per_sec);
     NYTP_printf(out, ":%s=%d\n",       "nv_size",       (int)sizeof(NV));
     NYTP_printf(out, ":%s=%lu\n",      "PL_perldb",     (long unsigned int)PL_perldb);
-    /* $0 - application name */
-    sv = get_sv("0",GV_ADDWARN);
-    NYTP_printf(out, ":%s=%s\n",       "application", SvPV_nolen(sv));
+    NYTP_write_attribute_string(out, STR_WITH_LEN("application"), argv0, len);
 
 #ifdef HAS_ZLIB
     if (compression_level) {
