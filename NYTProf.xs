@@ -172,7 +172,7 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 
 #define MAX_HASH_SIZE 512
 
-static int next_fid = 1;         /* 0 is reserved */
+static unsigned int next_fid = 1;         /* 0 is reserved */
 
 /* we're not thread-safe (or even multiplicity safe) yet, so detect and bail */
 #ifdef MULTIPLICITY
@@ -4084,7 +4084,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
 };
 
 static void
-load_perl_callback(Loader_state_base *cb_data, nytp_tax_index tag, ...)
+load_perl_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
     Loader_state_callback *state = (Loader_state_callback *)cb_data;
     dTHXa(state->interp);

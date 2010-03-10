@@ -898,7 +898,7 @@ NYTP_write_new_fid(NYTP_file ofile, unsigned int id, unsigned int eval_fid,
 }
 
 static size_t
-write_time_common(NYTP_file ofile, int tag, unsigned int elapsed,
+write_time_common(NYTP_file ofile, unsigned char tag, unsigned int elapsed,
                   unsigned int fid, unsigned int line)
 {
     size_t total;
