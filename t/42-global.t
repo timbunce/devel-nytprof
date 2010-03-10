@@ -5,6 +5,7 @@ use Test::More;
 
 use lib qw(t/lib);
 use NYTProfTest;
+use Config qw(%Config);
 use Data::Dumper;
 
 use Devel::NYTProf::Run qw(profile_this);
@@ -28,7 +29,20 @@ run_test_group( {
         my $subs = $profile->subname_subinfo_map;
 
         my $begin = ($pre589) ? 'main::BEGIN' : 'main::BEGIN@3';
-        is scalar keys %$subs, 3, "should be 3 subs (got @{[ keys %$subs ]})";
+
+	my $sub_count = 3;
+	# perl executes something like the following BEGIN block early during
+	# initialization when it is compiled with -DUSE_SITECUSTOMIZE:
+	#
+	# BEGIN { -f '$Config{sitelibexp}/sitecustomize.pl'} && do '$Config{sitelibexp}/sitecustomize.pl' }
+	#
+	# This will define an additional symbol 'main::BEGIN@0' on Perl 5.8.9 and later.
+	# Unfortunately we cannot test $Config{usesitecustomize}
+	# because it is not set correctly on Unix.
+	# See also https://rt.cpan.org/Public/Bug/Display.html?id=53288
+	++$sub_count if $Config{ccflags} =~ /(?<!\w)-DUSE_SITECUSTOMIZE\b/ && !$pre589;
+
+        is scalar keys %$subs, $sub_count, "should be $sub_count subs (got @{[ keys %$subs ]})";
         ok $subs->{$begin};
         ok $subs->{'main::RUNTIME'};
         ok $subs->{'main::foo'};
@@ -47,7 +61,7 @@ run_test_group( {
 
         $subs = $profile->subs_defined_in_file($fid);
         my $sub;
-        is scalar keys %$subs, 3, 'should be 3 subs';
+        is scalar keys %$subs, $sub_count, 'should be $sub_count subs';
         ok $sub = $subs->{$begin};
         SKIP: {
             skip "needs perl >= 5.8.9 or >= 5.10.1", 1 if $pre589;
