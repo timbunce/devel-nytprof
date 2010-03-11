@@ -611,7 +611,7 @@ emit_fid (Hash_entry *fid_info)
         NYTP_write_new_fid(out, fid_info->id, fid_info->eval_fid,
                            fid_info->eval_line_num, fid_info->fid_flags,
                            fid_info->file_size, fid_info->file_mtime,
-                           file_name_copy, file_name_len);
+                           file_name_copy, (I32)file_name_len);
         Safefree(file_name_copy);
         return;
     }
@@ -620,7 +620,7 @@ emit_fid (Hash_entry *fid_info)
     NYTP_write_new_fid(out, fid_info->id, fid_info->eval_fid,
                        fid_info->eval_line_num, fid_info->fid_flags,
                        fid_info->file_size, fid_info->file_mtime,
-                       file_name, file_name_len);
+                       file_name, (I32)file_name_len);
 }
 
 
@@ -1678,7 +1678,7 @@ append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
     memcpy(SvPVX(fullnamesv) + pkg_len, "::BEGIN", 7 + 1); /* + 1 for '\0' */
     SvCUR_set(fullnamesv, total_len);
     SvPOK_on(fullnamesv);
-    DBsv = hv_delete(GvHV(PL_DBsub), SvPVX(fullnamesv), total_len, 1);
+    DBsv = hv_delete(GvHV(PL_DBsub), SvPVX(fullnamesv), (I32)total_len, 1);
 
     if (DBsv && parse_DBsub_value(aTHX_ DBsv, NULL, &line, NULL)) {
         SvREFCNT_inc(DBsv); /* was made mortal by hv_delete */
@@ -1689,7 +1689,7 @@ append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
            a *printf function.  */
         sv_catpvn(subr_entry->called_subnam_sv, SvPVX(fullnamesv) + total_len,
                   SvCUR(fullnamesv) - total_len);
-        (void) hv_store(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), SvCUR(fullnamesv), DBsv, 0);
+        (void) hv_store(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), (I32)SvCUR(fullnamesv), DBsv, 0);
     }
     SvREFCNT_dec(fullnamesv);
 }
@@ -1833,7 +1833,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     } STMT_END;
 
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */
-    sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, called_subname_pv_end - called_subname_pv, 1);
+    sv_tmp = *hv_fetch(sub_callers_hv, called_subname_pv, (I32)(called_subname_pv_end - called_subname_pv), 1);
 
     if (!SvROK(sv_tmp)) { /* autoviv hash ref - is first call of this called subname from anywhere */
         HV *hv = newHV();
@@ -1854,7 +1854,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
                     * The reader can try to associate the xsubs with the
                     * corresonding .pm file using the package part of the subname.
                     */
-                SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, called_subname_pv_end - called_subname_pv, 1);
+                SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, (I32)(called_subname_pv_end - called_subname_pv), 1);
                 if (!SvOK(sv))
                     sv_setpvs(sv, ":0-0"); /* empty file name */
                 if (trace_level >= 2)
@@ -2078,7 +2078,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
         get_time_of_day(subr_entry->initial_call_timeofday);
     subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
     subr_entry->initial_subr_secs      = cumulative_subr_secs;
-    subr_entry->subr_call_seqn         = ++cumulative_subr_seqn;
+    subr_entry->subr_call_seqn         = (unsigned long)(++cumulative_subr_seqn);
 
     /* try to work out what sub's being called in advance
      * mainly for xsubs because otherwise they're transparent
@@ -3117,8 +3117,8 @@ write_sub_line_ranges(pTHX)
             logwarn("Sub %s fid %u lines %lu..%lu\n",
                 sub_name, fid, (unsigned long)first_line, (unsigned long)last_line);
 
-        NYTP_write_sub_info(out, fid, sub_name, sub_name_len, first_line,
-                            last_line);
+        NYTP_write_sub_info(out, fid, sub_name, sub_name_len, (unsigned long)first_line,
+                            (unsigned long)last_line);
     }
 }
 
@@ -3176,7 +3176,7 @@ write_sub_callers(pTHX)
                 continue;
             }
             /* trim length to effectively hide the [fid:line] suffix */
-            caller_subname_len = fid_line_start-caller_subname;
+            caller_subname_len = (I32)(fid_line_start-caller_subname);
 
             count = uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0);
             sc[NYTP_SCi_CALL_COUNT] = count * 1.0;
@@ -3188,13 +3188,13 @@ write_sub_callers(pTHX)
 
             NYTP_write_sub_callers(out, fid, line,
                                    caller_subname, caller_subname_len,
-                                   count,
+                                   (unsigned int)count,
                                    sc[NYTP_SCi_INCL_RTIME],
                                    sc[NYTP_SCi_EXCL_RTIME],
                                    0.0, /* NYTP_SCi_spare_3 */
                                    0.0, /* NYTP_SCi_spare_4 */
                                    sc[NYTP_SCi_RECI_RTIME],
-                                   depth,
+                                   (unsigned int)depth,
                                    called_subname, called_subname_len);
 
             /* sanity check - early warning */
@@ -4632,7 +4632,7 @@ load_profile_to_callback(pTHX_ NYTP_file in, SV *cb)
 
         if (cb_hv) {
             SV **svp = hv_fetch(cb_hv, callback_info[i].description,
-                                callback_info[i].len, 0);
+                                (I32)(callback_info[i].len), 0);
 
             if (svp) {
                 if (!SvROK(*svp) && SvTYPE(SvRV(*svp)) != SVt_PVCV)

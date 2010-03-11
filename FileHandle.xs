@@ -364,7 +364,7 @@ NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
 #endif
     CROAK_IF_NOT_STDIO(ifile, "NYTP_gets");
 
-    while(fgets(buffer + prev_len, len - prev_len, ifile->file)) {
+    while(fgets(buffer + prev_len, (int)(len - prev_len), ifile->file)) {
         /* We know that there are no '\0' bytes in the part we've already
            read, so don't bother running strlen() over that part.  */
         char *end = buffer + prev_len + strlen(buffer + prev_len);
