@@ -27,6 +27,13 @@
 #define NYTP_FILE_DEFLATE       1
 #define NYTP_FILE_INFLATE       2
 
+/* to help find places in NYTProf.xs where we don't save/restore errno */
+#if 0
+#define ERRNO_PROBE errno=__LINE__
+#else
+#define ERRNO_PROBE (void)0
+#endif
+
 /* During profiling the large buffer collects the raw data until full.
  * Then flush_output zips it into the small buffer and writes it to disk.
  * A scale factor of ~90 makes the large buffer usually almost fill the small
@@ -60,6 +67,8 @@ struct NYTP_file_t {
 /* XXX The proper return value would be Off_t */
 long
 NYTP_tell(NYTP_file file) {
+    ERRNO_PROBE;
+
 #ifdef HAS_ZLIB
     /* This has to work with compressed files as it's used in the croaking
        routine.  */
@@ -130,6 +139,7 @@ compressed_io_croak(NYTP_file file, const char *function) {
 void
 NYTP_start_deflate(NYTP_file file, int compression_level) {
     int status;
+    ERRNO_PROBE;
 
     CROAK_IF_NOT_STDIO(file, "NYTP_start_deflate");
     FILE_STATE(file) = NYTP_FILE_DEFLATE;
@@ -152,6 +162,8 @@ NYTP_start_deflate(NYTP_file file, int compression_level) {
 void
 NYTP_start_inflate(NYTP_file file) {
     int status;
+    ERRNO_PROBE;
+
     CROAK_IF_NOT_STDIO(file, "NYTP_start_inflate");
     FILE_STATE(file) = NYTP_FILE_INFLATE;
 
@@ -174,6 +186,7 @@ NYTP_file
 NYTP_open(const char *name, const char *mode) {
     FILE *raw_file = fopen(name, mode);
     NYTP_file file;
+    ERRNO_PROBE;
 
     if (!raw_file)
         return NULL;
@@ -197,6 +210,8 @@ NYTP_open(const char *name, const char *mode) {
 
 static void
 grab_input(NYTP_file ifile) {
+    ERRNO_PROBE;
+
     ifile->count = 0;
     ifile->zs.next_out = (Bytef *) ifile->large_buffer;
     ifile->zs.avail_out = NYTP_FILE_LARGE_BUFFER_SIZE;
@@ -267,6 +282,7 @@ NYTP_read_unchecked(NYTP_file ifile, void *buffer, size_t len) {
 #ifdef HAS_ZLIB
     size_t result = 0;
 #endif
+    ERRNO_PROBE;
     if (FILE_STATE(ifile) == NYTP_FILE_STDIO) {
         return fread(buffer, 1, len, ifile->file);
     }
@@ -318,6 +334,7 @@ NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
     char *buffer = *buffer_p;
     size_t len = *len_p;
     size_t prev_len = 0;
+    ERRNO_PROBE;
 
 #ifdef HAS_ZLIB
     if (FILE_STATE(ifile) == NYTP_FILE_INFLATE) {
@@ -392,6 +409,7 @@ static void
 sync_avail_out_to_ftell(NYTP_file ofile) {
     const long result = ftell(ofile->file);
     const unsigned long where = result < 0 ? 0 : result;
+    ERRNO_PROBE;
     ofile->zs.avail_out =
         NYTP_FILE_SMALL_BUFFER_SIZE - where % NYTP_FILE_SMALL_BUFFER_SIZE;
 #ifdef DEBUG_DEFLATE
@@ -403,6 +421,8 @@ sync_avail_out_to_ftell(NYTP_file ofile) {
 /* flush has values as described for "allowed flush values" in zlib.h  */
 static void
 flush_output(NYTP_file ofile, int flush) {
+    ERRNO_PROBE;
+
     ofile->zs.next_in = (Bytef *) ofile->large_buffer;
 
 #ifdef DEBUG_DEFLATE
@@ -476,6 +496,8 @@ NYTP_write(NYTP_file ofile, const void *buffer, size_t len) {
 #ifdef HAS_ZLIB
     size_t result = 0;
 #endif
+    ERRNO_PROBE;
+
     if (FILE_STATE(ofile) == NYTP_FILE_STDIO) {
         /* fwrite with len==0 is problematic */
         /* http://www.opengroup.org/platform/resolutions/bwg98-007.html */
@@ -521,6 +543,7 @@ int
 NYTP_printf(NYTP_file ofile, const char *format, ...) {
     int retval;
     va_list args;
+    ERRNO_PROBE;
 
     CROAK_IF_NOT_STDIO(ofile, "NYTP_printf");
 
@@ -533,6 +556,7 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
 
 int
 NYTP_flush(NYTP_file file) {
+    ERRNO_PROBE;
 #ifdef HAS_ZLIB
     if (FILE_STATE(file) == NYTP_FILE_DEFLATE) {
         flush_output(file, Z_SYNC_FLUSH);
@@ -543,6 +567,7 @@ NYTP_flush(NYTP_file file) {
 
 int
 NYTP_eof(NYTP_file ifile) {
+    ERRNO_PROBE;
 #ifdef HAS_ZLIB
     if (FILE_STATE(ifile) == NYTP_FILE_INFLATE) {
         return ifile->zlib_at_eof;
@@ -566,6 +591,7 @@ int
 NYTP_close(NYTP_file file, int discard) {
     FILE *raw_file = file->file;
     int result;
+    ERRNO_PROBE;
 
 #ifdef HAS_ZLIB
     if (!discard && FILE_STATE(file) == NYTP_FILE_DEFLATE) {
@@ -711,6 +737,7 @@ NYTP_write_comment(NYTP_file ofile, const char *format, ...) {
     size_t retval;
     size_t retval2;
     va_list args;
+    ERRNO_PROBE;
 
     retval = NYTP_write(ofile, "#", 1);
     if (retval != 1)
