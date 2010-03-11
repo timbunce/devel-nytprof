@@ -1174,12 +1174,12 @@ _check_context(pTHX_ PERL_CONTEXT *cx, UV *cx_type_mask_ptr)
                 last_block_line = last_sub_line;
         }
 
-        if (trace_level >= 6) {
+        if (trace_level >= 8) {
             GV *sv = CvGV(cx->blk_sub.cv);
             logwarn("\tat %d: block %d sub %d for %s %s\n",
                 last_executed_line, last_block_line, last_sub_line,
                 cx_block_type(cx), (sv) ? GvNAME(sv) : "");
-            if (trace_level >= 9)
+            if (trace_level >= 99)
                 sv_dump((SV*)cx->blk_sub.cv);
         }
 
