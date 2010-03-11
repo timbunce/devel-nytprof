@@ -21,6 +21,7 @@ run_test_group( {
         $profile = profile_this(
             src_code => $src_code,
             out_file => $env->{file},
+            skip_sitecustomize => 1,
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
 

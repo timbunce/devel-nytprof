@@ -51,6 +51,12 @@ sub profile_this {
     my $out_file = $opt{out_file} || 'nytprof.out';
 
     my @perl = ($this_perl, '-d:NYTProf');
+    
+    # (sadly, testing $Config{usesitecustomize} isn't reliable)
+    if ($Config{ccflags} =~ /(?<!\w)-DUSE_SITECUSTOMIZE\b/) {
+        push @perl, '-f' if $opt{skip_sitecustomize};
+    }
+
     warn sprintf "profile_this() using %s with NYTPROF=%s\n",
             join(" ", @perl), $ENV{NYTPROF} || ''
         if $opt{verbose};

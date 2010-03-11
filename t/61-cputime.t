@@ -28,6 +28,7 @@ run_test_group( {
             out_file => $env->{file},
             #htmlopen => 1,
             verbose => $trace,
+            skip_sitecustomize => 1,
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
         warn "ticks_per_sec ".$profile->attributes->{ticks_per_sec}."\n"
