@@ -51,7 +51,7 @@ BEGIN { eval { require Time::HiRes } and Time::HiRes->import('time') }
 
 alarm(20); # watchdog timer
 
-my $trace = ($^O eq 'freebsd') ? 2 : 1; # XXX temp
+my $trace = 0;
 my $cpu1;
 my $cpu2;
 

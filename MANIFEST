@@ -62,6 +62,7 @@ t/44-model.t
 t/50-errno.t
 t/60-forkdepth.t
 t/61-cputime.t
+t/70-subname.t
 t/80-version.t
 t/90-pod.t
 t/91-pod_coverage.t
