@@ -15,6 +15,9 @@ string eval merging - must allow at least viewing of source for called subs defi
 
 =head2 Changes in Devel::NYTProf 3.11 (svn 1157) 9th March 2010
 
+  Fixed assorted issues on Windows thanks to Jan Dubois.
+  Fixed assorted issues 64bit systems thanks to Jan Dubois.
+
   Refactored I/O to create an API that encapsulates the data
     file format, thanks to Nicholas Clark.
   Updated and optimized nytprofmerge to use the new API
