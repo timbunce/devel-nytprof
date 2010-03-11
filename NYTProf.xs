@@ -440,7 +440,7 @@ output_header(pTHX)
     /* XXX add options, $0, etc, but beware of embedded newlines */
     /* XXX would be good to adopt a proper charset & escaping for these */
     /* $^T */
-    NYTP_write_attribute_unsigned(out, STR_WITH_LEN("basetime"), PL_basetime);
+    NYTP_write_attribute_unsigned(out, STR_WITH_LEN("basetime"), (unsigned long)PL_basetime);
     NYTP_write_attribute_string(out, STR_WITH_LEN("xs_version"), STR_WITH_LEN(XS_VERSION));
     NYTP_write_attribute_string(out, STR_WITH_LEN("perl_version"), version, sizeof(version) - 1);
     NYTP_write_attribute_signed(out, STR_WITH_LEN("clock_id"), profile_clock);

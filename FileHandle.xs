@@ -1135,7 +1135,7 @@ int compression_level
 
 #endif
 
-int
+size_t
 NYTP_write_comment(handle, comment)
 NYTP_file handle
 char *comment
