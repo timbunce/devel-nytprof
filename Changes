@@ -13,7 +13,7 @@ add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
 string eval merging - must allow at least viewing of source for called subs defined in a nested eval
 
-=head2 Changes in Devel::NYTProf 3.11 (svn 1157) 9th March 2010
+=head2 Changes in Devel::NYTProf 3.11 (svn 1171) 12th March 2010
 
   Fixed assorted issues on Windows thanks to Jan Dubois.
   Fixed assorted issues 64bit systems thanks to Jan Dubois.
@@ -21,7 +21,7 @@ string eval merging - must allow at least viewing of source for called subs defi
   Refactored I/O to create an API that encapsulates the data
     file format, thanks to Nicholas Clark.
   Updated and optimized nytprofmerge to use the new API
-    thanks to Nicholas Clark.
+    yielding a significant speed boost, thanks to Nicholas Clark.
 
 =head2 Changes in Devel::NYTProf 3.02 (svn 1094) 5th March 2010
 
