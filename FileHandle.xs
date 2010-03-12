@@ -10,6 +10,11 @@
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
+#if defined(PERL_IMPLICIT_SYS)
+#  ifndef fgets
+#    define fgets PerlSIO_fgets
+#  endif
+#endif
 
 #include "FileHandle.h"
 #include "NYTProf.h"
