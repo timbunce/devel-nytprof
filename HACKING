@@ -399,3 +399,11 @@ http://www.informit.com/guides/content.aspx?g=cplusplus&seqNum=332
 Currently lvalue subs aren't profiled when use_db_sub is in effect.
 http://www.xray.mpe.mpg.de/mailing-lists/perl5-porters/2010-02/msg00824.html
 
+Idle conjecture: perhaps loading the profile data into an SQLite database
+would be a better approach to reporting.
+(An nytprofimport utility could read an nytprof.out and write an nytprof.db)
+Then, rather than hand-crafting inflexible data structures we could use SQL
+(or, say, DBIx::Class) to return relevant data. Would also provide another
+route for other data sources (languages/tools) to be included in a report.
+Could also simplify: comparing profiles, merging profiles, ...
+Any volunteers to explore writing an nytprofimport for SQLite?
