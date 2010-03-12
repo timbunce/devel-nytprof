@@ -211,12 +211,6 @@ percentages and also be able to spot 'leaks' in the data processing (e.g. if
 the sum of the statement times don't match the time spent with the profiler
 enabled, due to nested string evals for example).
 
-Could save 'current subname' in sub profiler so we can say A was called by B
-and not just A was called by line X of file Y. (Will need to SAVE* a link to
-previous current subname and restore it on return from sub.)
-This would free us from the perils of trying to guess the calling sub from the
-line numbers (which is risky normally but is pure FAIL for Moose/Class::MOP).
-
 *** For reports only
 
 ::Reader and its data structures need to be refactored to death.
@@ -229,16 +223,10 @@ Then rework bin/ntyprof* to use the new subclasses
 Ideally end up with a single nytprof command that just sets up the appropriate
 classes to do the work.
 
-Add way to merge profile data. Merging could be done in perl.
-
 Trim leading @INC portion from filename in __ANON__[/very/long/path/...]
 in report output. (Keep full path in link/tooltip/title as it may be ambiguous when shortened).
 
 Add help link in reports. Could go to docs page on search.cpan.org.
-
-Add % of total time to file table on index page.
-To do these we need accurate total time - based on sum of times between enable_profile()
-and disable_profile().
 
 Add a 'permalink' icon (eg infinity symbol) to the right of lines that define
 subs to make it easer to email/IM links to particular places in the code.
@@ -250,7 +238,7 @@ They could them be included in a separate 'miscellaneous' page.
 This is a more general way to view the problem of xsubs in packages
 for which we don't have any perl source code.
 
-*** Other, less important random, unsorted, and possibly daft ideas
+*** Other - mostly unsorted - stuff ***
 
 Intercept all opcodes that may fork and run perl code in the child
   ie fork, open, entersub (ie xs), others?
@@ -279,12 +267,7 @@ Add resolution of __ANON__ sub names (eg imported 'constants') where possible.
 has been imported, if the refcnt is 1 then use the imported name instead of the
 __ANON__ name.]
 
-Currently the line of only the last BEGIN (or 'use') in the file are recorded.
-Rename Foo::BEGIN subs to Foo::BEGIN[file:line]
-(which matches the style used for Foo::__AUTO__[file:line])
-(perl ought to do this anyway but it seemed nontrivial when I looked)
-Probably need to record or output the line range when the BEGIN 'sub' is
-entered because it gets destroyed early.  Same for END subs.
+The appending of an @line to BEGIN subs should also be applied to END subs.
 
 Record $AUTOLOAD when AUTOLOAD() called. Perhaps as ...::AUTOLOAD[$AUTOLOAD]
 Or perhaps just use the original name if the 'resolved' one is AUTOLOAD.
@@ -313,12 +296,6 @@ could be used to highlight the corresponding rollup line when hovering over a
 source line, and/or the opposite. Needs lots of thought, but it's an interesting idea.
 
 Profile and optimize report generation
-
-Currently goto isn't explicitly noticed by the sub profiler. Need to intercept pp_goto.
-But that may be non-trivial. Could make it look like the statement that called
-the sub that called goto also called the sub that goto went to, or make it look
-like the goto &$sub made the call (but we'd then get the wrong inclusive time,
-probably).
 
 Bug or limitation?: sub calls in a continue { ... } block of a while () get
 associated with the 'next;' within the loop. Fixed by perl change 33710?
@@ -407,3 +384,7 @@ Then, rather than hand-crafting inflexible data structures we could use SQL
 route for other data sources (languages/tools) to be included in a report.
 Could also simplify: comparing profiles, merging profiles, ...
 Any volunteers to explore writing an nytprofimport for SQLite?
+
+Option to add sub call and return events into the data file as they happen.
+Would enable a dprofpp -T like output. See https://rt.cpan.org/Ticket/Display.html?id=50766
+
