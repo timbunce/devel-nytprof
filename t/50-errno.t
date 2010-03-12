@@ -7,8 +7,16 @@ BEGIN {
     unlink $nytprof_out;
 }
 
+use Devel::NYTProf::Test qw(example_xsub example_sub set_errno);
+
+BEGIN {                 # https://rt.cpan.org/Ticket/Display.html?id=55049
+    $! = 1;             # set errno via perl
+    set_errno(2);       # set errno via C-code in NYTProf.xs
+    return if $! == 2;  # all is well
+    plan skip_all => "Can't control errno in this perl build (linked with different CRT than perl?)";
+}
+
 use Devel::NYTProf;
-use Devel::NYTProf::Test qw(example_xsub example_sub);
 
 # We set errno to some particular non-zero value to see if NYTProf changes it
 # (on many unix-like systems 3 is ESRCH 'No such process')
@@ -19,7 +27,8 @@ $! = $dflterrno;
 is 0+$!, $dflterrno, '$! should not be altered by NYTProf';
 
 my $size1 = -s $nytprof_out;
-cmp_ok $size1, '>=', 0, "$nytprof_out should exist";
+ok defined $size1, "$nytprof_out should at least exist"
+    or die "Can't continue: $!";
 
 SKIP: {
     skip 'On VMS buffer is not flushed', 1 if ($^O eq 'VMS'); 

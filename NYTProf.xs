@@ -4759,6 +4759,11 @@ example_xsub_eval(...)
      */
     eval_pv("Devel::NYTProf::Test::example_xsub()", 1);
 
+void
+set_errno(int e)
+    CODE:
+    SETERRNO(e, 0);
+
 
 MODULE = Devel::NYTProf     PACKAGE = DB
 
