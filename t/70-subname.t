@@ -6,7 +6,7 @@ use Test::More;
 use lib qw(t/lib);
 use NYTProfTest;
 
-eval { use Sub::Name 0.04; 1 }
+eval "use Sub::Name 0.04; 1"
 	or plan skip_all => "Sub::Name required";
 
 
