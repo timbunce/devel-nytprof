@@ -1,4 +1,4 @@
-use Test::More tests => 8;
+use Test::More;
 
 my $nytprof_out;
 BEGIN {
@@ -15,6 +15,8 @@ BEGIN {                 # https://rt.cpan.org/Ticket/Display.html?id=55049
     return if $! == 2;  # all is well
     plan skip_all => "Can't control errno in this perl build (linked with different CRT than perl?)";
 }
+
+plan tests => 8;
 
 use Devel::NYTProf;
 
