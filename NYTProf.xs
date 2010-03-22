@@ -212,7 +212,7 @@ static NYTP_file out;
 
 /* options and overrides */
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
-static unsigned int profile_opts = NYTP_OPTf_OPTIMIZE;
+static unsigned int profile_opts = NYTP_OPTf_OPTIMIZE | NYTP_OPTf_SAVESRC;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
 
 struct NYTP_int_options_t {
@@ -491,9 +491,16 @@ read_str(pTHX_ NYTP_file ifile, SV *sv) {
     if (NYTP_TAG_STRING_UTF8 == tag)
         SvUTF8_on(sv);
 
-    if (trace_level >= 5)
-        logwarn("  read string '%.*s'%s\n", (int)len, SvPV_nolen(sv),
-            (SvUTF8(sv)) ? " (utf8)" : "");
+    if (trace_level >= 19) {
+        STRLEN len2 = len;
+        char *newline = "";
+        if (buf[len2-1] == '\n') {
+            --len2;
+            newline = "\\n";
+        }
+        logwarn("  read string '%.*s%s'%s\n", (int)len2, SvPV_nolen(sv),
+            newline, (SvUTF8(sv)) ? " (utf8)" : "");
+    }
 
     return sv;
 }
@@ -3613,16 +3620,16 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
         if (!state->fid_block_time_av)
             state->fid_block_time_av = newAV();
         add_entry(aTHX_ state->fid_block_time_av, file_num, block_line_num,
-                  seconds, eval_file_num, eval_line_num,
-                  1 - state->statement_discount
-            );
+                seconds, eval_file_num, eval_line_num,
+                1 - state->statement_discount
+        );
 
         if (!state->fid_sub_time_av)
             state->fid_sub_time_av = newAV();
         add_entry(aTHX_ state->fid_sub_time_av, file_num, sub_line_num,
-                  seconds, eval_file_num, eval_line_num,
-                  1 - state->statement_discount
-            );
+                seconds, eval_file_num, eval_line_num,
+                1 - state->statement_discount
+        );
 
         if (trace_level >= 4)
             logwarn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
