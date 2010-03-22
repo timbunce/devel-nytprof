@@ -3292,7 +3292,7 @@ write_src_of_files(pTHX)
             /* outputting the tag and fid for each (non empty) line
              * is a little inefficient, but not enough to worry about */
             NYTP_write_src_line(out, e->id, line, src, (I32)len);    /* includes newline */
-            if (trace_level >= 5) {
+            if (trace_level >= 8) {
                 logwarn("fid %d src line %d: %s%s", e->id, line, src,
                     (len && src[len-1]=='\n') ? "" : "\n");
             }
@@ -3411,8 +3411,8 @@ normalize_eval_seqn(pTHX_ SV *sv) {
         if (*close != ')')
             continue;
 
-        if (trace_level >= 5)
-            logwarn("found eval at '%s' in %s\n", first_digit, start);
+        if (trace_level >= 15)
+            logwarn("recognized eval in name at '%s' in %s\n", first_digit, start);
 
         *first_digit++ = '0';
 
@@ -3428,7 +3428,7 @@ normalize_eval_seqn(pTHX_ SV *sv) {
             SvCUR_set(sv, SvCUR(sv) - (close - first_digit));
         }
 
-        if (trace_level >= 5)
+        if (trace_level >= 15)
             logwarn("edited it to: %s\n", start);
     }
 }
@@ -3771,8 +3771,8 @@ load_src_line_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...
     
     av_store(file_av, line_num, src);
 
-    if (trace_level >= 4) {
-        logwarn("Fid %2u:%u: %s\n", file_num, line_num, SvPV_nolen(src));
+    if (trace_level >= 8) {
+        logwarn("Fid %2u:%u src: %s\n", file_num, line_num, SvPV_nolen(src));
     }
 }
 
@@ -4290,7 +4290,7 @@ load_profile_data_from_stream(loader_callback *callbacks,
         }
 
         state->input_chunk_seqn++;
-        if (trace_level >= 6)
+        if (trace_level >= 9)
             logwarn("Chunk %lu token is %d ('%c') at %ld%s\n",
                     state->input_chunk_seqn, c, c, NYTP_tell(in)-1,
                     NYTP_type_of_offset(in));
