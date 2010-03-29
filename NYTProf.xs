@@ -132,43 +132,44 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_FIDf_IS_FAKE        0x0080 /* eg dummy caller of a string eval that doesn't have a filename */
 
 /* indices to elements of the file info array */
-#define NYTP_FIDi_FILENAME      0
-#define NYTP_FIDi_EVAL_FID      1
-#define NYTP_FIDi_EVAL_LINE     2
-#define NYTP_FIDi_FID           3
-#define NYTP_FIDi_FLAGS         4
-#define NYTP_FIDi_FILESIZE      5
-#define NYTP_FIDi_FILEMTIME     6
-#define NYTP_FIDi_PROFILE       7
-#define NYTP_FIDi_EVAL_FI       8
-#define NYTP_FIDi_HAS_EVALS     9
+#define NYTP_FIDi_FILENAME       0
+#define NYTP_FIDi_EVAL_FID       1
+#define NYTP_FIDi_EVAL_LINE      2
+#define NYTP_FIDi_FID            3
+#define NYTP_FIDi_FLAGS          4
+#define NYTP_FIDi_FILESIZE       5
+#define NYTP_FIDi_FILEMTIME      6
+#define NYTP_FIDi_PROFILE        7
+#define NYTP_FIDi_EVAL_FI        8
+#define NYTP_FIDi_HAS_EVALS      9
 #define NYTP_FIDi_SUBS_DEFINED  10
 #define NYTP_FIDi_SUBS_CALLED   11
+#define NYTP_FIDi_elements      12   /* highest index, plus 1 */
 
 /* indices to elements of the sub call info array */
-#define NYTP_SIi_FID         0   /* fid of file sub was defined in */
-#define NYTP_SIi_FIRST_LINE  1   /* line number of first line of sub */    
-#define NYTP_SIi_LAST_LINE   2   /* line number of last line of sub */    
-#define NYTP_SIi_CALL_COUNT  3   /* number of times sub was called */
-#define NYTP_SIi_INCL_RTIME  4   /* incl real time in sub */
-#define NYTP_SIi_EXCL_RTIME  5   /* excl real time in sub */
-#define NYTP_SIi_SUB_NAME    6   /* sub name */
-#define NYTP_SIi_PROFILE     7   /* ref to profile object */
-#define NYTP_SIi_REC_DEPTH   8   /* max recursion call depth */
-#define NYTP_SIi_RECI_RTIME  9   /* recursive incl real time in sub */
-#define NYTP_SIi_CALLED_BY  10   /* { fid => { line => [...] } } */
-#define NYTP_SIi_elements   11   /* highest index, plus 1 */
+#define NYTP_SIi_FID             0   /* fid of file sub was defined in */
+#define NYTP_SIi_FIRST_LINE      1   /* line number of first line of sub */    
+#define NYTP_SIi_LAST_LINE       2   /* line number of last line of sub */    
+#define NYTP_SIi_CALL_COUNT      3   /* number of times sub was called */
+#define NYTP_SIi_INCL_RTIME      4   /* incl real time in sub */
+#define NYTP_SIi_EXCL_RTIME      5   /* excl real time in sub */
+#define NYTP_SIi_SUB_NAME        6   /* sub name */
+#define NYTP_SIi_PROFILE         7   /* ref to profile object */
+#define NYTP_SIi_REC_DEPTH       8   /* max recursion call depth */
+#define NYTP_SIi_RECI_RTIME      9   /* recursive incl real time in sub */
+#define NYTP_SIi_CALLED_BY      10   /* { fid => { line => [...] } } */
+#define NYTP_SIi_elements       11   /* highest index, plus 1 */
 
 /* indices to elements of the sub call info array */
-#define NYTP_SCi_CALL_COUNT  0   /* count of calls to sub */    
-#define NYTP_SCi_INCL_RTIME  1   /* inclusive real time in sub */    
-#define NYTP_SCi_EXCL_RTIME  2   /* exclusive real time in sub */    
-#define NYTP_SCi_spare_3     3   /* */
-#define NYTP_SCi_spare_4     4   /* */
-#define NYTP_SCi_RECI_RTIME  5   /* recursive incl real time in sub */
-#define NYTP_SCi_REC_DEPTH   6   /* max recursion call depth */
-#define NYTP_SCi_CALLING_SUB 7   /* name of calling sub */
-#define NYTP_SCi_elements    8   /* highest index, plus 1 */
+#define NYTP_SCi_CALL_COUNT      0   /* count of calls to sub */    
+#define NYTP_SCi_INCL_RTIME      1    /* inclusive real time in sub */    
+#define NYTP_SCi_EXCL_RTIME      2   /* exclusive real time in sub */    
+#define NYTP_SCi_spare_3         3   /* */
+#define NYTP_SCi_spare_4         4   /* */
+#define NYTP_SCi_RECI_RTIME      5   /* recursive incl real time in sub */
+#define NYTP_SCi_REC_DEPTH       6   /* max recursion call depth */
+#define NYTP_SCi_CALLING_SUB     7   /* name of calling sub */
+#define NYTP_SCi_elements        8   /* highest index, plus 1 */
 
 #define MAX_HASH_SIZE 512
 
@@ -253,7 +254,9 @@ static struct NYTP_int_options_t options[] = {
 #define opt_nameevals options[14].option_value
     { "nameevals", 1 },                          /* change $^P 0x100 bit */
 #define opt_nameanonsubs options[15].option_value
-    { "nameanonsubs", 1 }                        /* change $^P 0x200 bit */
+    { "nameanonsubs", 1 },                       /* change $^P 0x200 bit */
+#define opt_evals options[16].option_value
+    { "evals", 1 }                               /* handling of string evals - TBD XXX */
 };
 
 /* time tracking */
@@ -3591,11 +3594,12 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
         }
     }
     else {
-        eval_outer_fid(aTHX_ state->fid_fileinfo_av, file_num, 1,
+        if (!opt_evals)
+            eval_outer_fid(aTHX_ state->fid_fileinfo_av, file_num, 1,
                        &eval_file_num, &eval_line_num);
     }
 
-    if (eval_file_num) {              /* fid is an eval */
+    if (!opt_evals && eval_file_num) {              /* fid is an eval */
         if (trace_level >= 3)
             sprintf(trace_note," (was string eval fid %u)", file_num);
         file_num = eval_file_num;
@@ -4686,6 +4690,7 @@ static struct int_constants_t int_constants[] = {
     {"NYTP_FIDi_HAS_EVALS", NYTP_FIDi_HAS_EVALS},
     {"NYTP_FIDi_SUBS_DEFINED", NYTP_FIDi_SUBS_DEFINED},
     {"NYTP_FIDi_SUBS_CALLED",  NYTP_FIDi_SUBS_CALLED},
+    {"NYTP_FIDi_elements",     NYTP_FIDi_elements},
     /* NYTP_SIi_* */
     {"NYTP_SIi_FID",          NYTP_SIi_FID},
     {"NYTP_SIi_FIRST_LINE",   NYTP_SIi_FIRST_LINE},
@@ -4698,6 +4703,7 @@ static struct int_constants_t int_constants[] = {
     {"NYTP_SIi_REC_DEPTH",    NYTP_SIi_REC_DEPTH},
     {"NYTP_SIi_RECI_RTIME",   NYTP_SIi_RECI_RTIME},
     {"NYTP_SIi_CALLED_BY",    NYTP_SIi_CALLED_BY},
+    {"NYTP_SIi_elements",     NYTP_SIi_elements},
     /* NYTP_SCi_* */
     {"NYTP_SCi_CALL_COUNT",   NYTP_SCi_CALL_COUNT},
     {"NYTP_SCi_INCL_RTIME",   NYTP_SCi_INCL_RTIME},
@@ -4705,6 +4711,7 @@ static struct int_constants_t int_constants[] = {
     {"NYTP_SCi_RECI_RTIME",   NYTP_SCi_RECI_RTIME},
     {"NYTP_SCi_REC_DEPTH",    NYTP_SCi_REC_DEPTH},
     {"NYTP_SCi_CALLING_SUB",  NYTP_SCi_CALLING_SUB},
+    {"NYTP_SCi_elements",     NYTP_SCi_elements},
     /* others */
     {"NYTP_DEFAULT_COMPRESSION", default_compression_level},
     {"NYTP_FILE_MAJOR_VERSION",  NYTP_FILE_MAJOR_VERSION},
