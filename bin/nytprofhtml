@@ -1732,11 +1732,11 @@ Options synopsis:
 Devel::NYTProf is a powerful feature-rich perl source code profiler.
 See L<Devel::NYTProf> for details.
 
-C<nytprofhtml> generates html a set of html reports from the data collected by
+C<nytprofhtml> generates a set of html reports from the data collected by
 L<Devel::NYTProf>.
 
 The reports include dynamic runtime analysis wherein each line and each file
-is analyzed based on the preformance of the other lines and files.  As a
+is analyzed based on the performance of the other lines and files.  As a
 result, you can quickly find the slowest module and the slowest line in a 
 module.  Slowness is measured in three ways: total calls, total time and
 average time per call.

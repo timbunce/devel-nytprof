@@ -15,7 +15,12 @@ string eval merging - must allow at least viewing of source for called subs defi
 
 =head2 Changes in Devel::NYTProf 3.12 (svn XXXX)
 
+XXX TODO
+Refine and document handing of string evals
+
   Enabled savesrc=1 by default.
+
+  Corrected typos in nytprofhtml docs thanks to chocolate@cpan.org
 
 =head2 Changes in Devel::NYTProf 3.11 (svn 1171) 12th March 2010
 
