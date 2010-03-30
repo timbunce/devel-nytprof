@@ -129,7 +129,7 @@ sub _map_new_to_old {    # convert into old-style data structure
     for my $fid (1 .. @$fid_fileinfo - 1) {
 
         # skip synthetic fids for evals
-        next if $fid_fileinfo->[$fid][1];
+        #next if $fid_fileinfo->[$fid][1];
 
         my $filename = $fid_fileinfo->[$fid][0]
             or warn "No filename for fid $fid";
@@ -287,8 +287,13 @@ sub _generate_report {
         # (should equal sum of $stats_accum)
         my $runningTotalCalls = 0; # holds the running total number of calls.
 
+        my $fi = $profile->fileinfo_of($filestr);
+
         # { linenumber => { subname => [ count, time ] } }
-        my $subcalls_at_line = $profile->line_calls_for_file($filestr, 1);
+        my $subcalls_at_line = { %{ $fi->sub_call_lines } };
+
+        # { linenumber => { fid => $fileinfo } }
+        my $evals_at_line = { %{ $fi->evals_by_line } };
 
         # note that a file may have no source lines executed, so no keys here
         # (but is included because some xsubs in the package were executed)
@@ -392,9 +397,8 @@ sub _generate_report {
         print OUT $datastart;
 
         my $LINE = 1;    # actual line number. PATTERN variable, DO NOT CHANGE
-        my $fileinfo = $profile->fileinfo_of($filestr);
-        my $src_lines = $fileinfo->srclines_array;
-        if (!$src_lines) {
+        my $src_lines = $fi->srclines_array;
+        if (!$src_lines) { # no savesrc, and no file available
 
             # ignore synthetic file names that perl assigns when reading
             # code returned by a CODE ref in @INC
@@ -416,13 +420,14 @@ sub _generate_report {
         
         # if we don't have source code, still pad out the lines to match the data we have
         # so the report page isn't completely useless
-        if (@$src_lines <= 1) {
+        if (!@$src_lines or !$LINE) {
             my @interesting_lines = grep { m/^\d+$/ } (
                 keys %$subcalls_at_line,
                 keys %$subs_defined_hash,
                 keys %stats_by_line
             );
-            $src_lines->[$_] ||= '' for 0..max(@interesting_lines)-1; # grow array
+            my $interesting_lines = max(@interesting_lines)||1;
+            $src_lines->[$_] ||= '' for 0..$interesting_lines-1; # grow array
         }
 
         my $line_sub = $self->{mk_report_source_line}
@@ -438,11 +443,15 @@ sub _generate_report {
                     unless our $line_directive_warn->{$filestr}++; # once per file
             }
 
-            my $makes_calls_to = $subcalls_at_line->{$LINE}   || {};
-            my $subs_defined   = $subs_defined_hash->{$LINE} || [];
-            my $stats_for_line = $stats_by_line{$LINE} || {};
-
-            print OUT $line_sub->($LINE, $line, $stats_for_line, \%stats_for_file, $subs_defined, $makes_calls_to, $profile, $filestr);
+            print OUT $line_sub->($LINE, $line,
+                $stats_by_line{$LINE} || {},
+                \%stats_for_file,
+                $subs_defined_hash->{$LINE} || [],
+                $subcalls_at_line->{$LINE},
+                $profile,
+                $filestr,
+                $evals_at_line->{$LINE},
+            );
         }
         continue {
             # Increment line number counters
@@ -466,6 +475,16 @@ sub _generate_report {
         print OUT $self->get_param('footer', [$profile, $filestr]);
         close OUT;
     }
+}
+
+
+sub href_for_file {
+    my ($self, $file, $level) = @_;
+    $level ||= 'line';
+    my $fi = $self->{profile}->fileinfo_of($file);
+    my $href = $self->{filestats}->{$fi->filename}->{$level}->{html_safe};
+    $href &&= $href.'.html';
+    return $href;
 }
 
 

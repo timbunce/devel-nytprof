@@ -256,7 +256,7 @@ static struct NYTP_int_options_t options[] = {
 #define opt_nameanonsubs options[15].option_value
     { "nameanonsubs", 1 },                       /* change $^P 0x200 bit */
 #define opt_evals options[16].option_value
-    { "evals", 1 }                               /* handling of string evals - TBD XXX */
+    { "evals", 0 }                               /* handling of string evals - TBD XXX */
 };
 
 /* time tracking */

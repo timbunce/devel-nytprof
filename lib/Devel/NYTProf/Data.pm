@@ -751,9 +751,10 @@ sub resolve_fid {
 }
 
 
-=head2 line_calls_for_file
 
-  $line_calls_hash = $profile->line_calls_for_file( $file );
+=head2 evals_by_line_for_file
+
+  $line_calls_hash = $profile->evals_by_line_for_file( $file );
 
 Returns a reference to a hash containing information about subroutine calls
 made at individual lines within a source file. The $file
@@ -771,7 +772,7 @@ For example, if the following was line 42 of a file C<foo.pl>:
   ++$wiggle if foo(24) == bar(42);
 
 that line was executed once, and foo and bar were imported from pkg1, then
-$profile->line_calls_for_file( 'foo.pl' ) would return something like:
+$profile->evals_by_line_for_file( 'foo.pl' ) would return something like:
 
   {
       42 => {
@@ -782,7 +783,7 @@ $profile->line_calls_for_file( 'foo.pl' ) would return something like:
 
 =cut
 
-sub line_calls_for_file {
+sub evals_by_line_for_file {
     my ($self, $fid, $include_evals) = @_;
     my $orig_fi = $self->fileinfo_of($fid);
 
@@ -790,7 +791,7 @@ sub line_calls_for_file {
     my $line_calls = { %{ $orig_fi->sub_call_lines } };
     return $line_calls unless $include_evals;
 
-    for my $fi (@{ $orig_fi->has_evals(1) || [] }) {
+    for my $fi ($orig_fi->has_evals(1)) {
         # { line => { subname => [...] }, ... }
         my $sub_call_lines = $fi->sub_call_lines;
 

@@ -287,28 +287,36 @@ $reporter->set_param(
 
         my $sub_table = subroutine_table($profile, $filestr, undef, undef);
 
-        my $dot_file = html_safe_filename($filestr) . ".dot";
-        our %dot_file_generated;
-        if ($dot_file_generated{$dot_file}++) { # just once for line/block/sub
-            my $subs_in_file = $profile->subs_defined_in_file($filestr, 0);
-            # include subs defined in this file
-            # and/or called from subs defined in this file
-            #warn "$dot_file: @{[ keys %$subs_in_file ]}\n";
-            my $sub_filter = sub {
-                my ($si, $calledby) = @_;
-                return 1 if not defined $calledby;
-                my $subname = $si->subname;
-                my $include = ($subs_in_file->{$subname}
-                            || $subs_in_file->{$calledby});
-                #warn "Call graph $subname<-$calledby: ".($include ? "SHOW" : "skip")."\n";
-                return $include;
+        if ($sub_table) {
+            my $dot_file = html_safe_filename($filestr) . ".dot";
+
+            $sub_table .= qq{
+                Call graph for these subroutines as a
+                <a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a>
+                <a href="$dot_file">dot language file</a>.
             };
-            output_subs_callgraph_dot_file($reporter, $dot_file, $sub_filter, 0);
+
+            our %dot_file_generated;
+            if ($dot_file_generated{$dot_file}++) { # just once for line/block/sub
+                my $subs_in_file = $profile->subs_defined_in_file($filestr, 0);
+                # include subs defined in this file
+                # and/or called from subs defined in this file
+                #warn "$dot_file: @{[ keys %$subs_in_file ]}\n";
+                my $sub_filter = sub {
+                    my ($si, $calledby) = @_;
+                    return 1 if not defined $calledby;
+                    my $subname = $si->subname;
+                    my $include = ($subs_in_file->{$subname}
+                                || $subs_in_file->{$calledby});
+                    #warn "Call graph $subname<-$calledby: ".($include ? "SHOW" : "skip")."\n";
+                    return $include;
+                };
+                output_subs_callgraph_dot_file($reporter, $dot_file, $sub_filter, 0);
+            }
         }
 
         return qq{
         $sub_table
-        Call graph for these subroutines as a <a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> <a href="$dot_file">dot language file</a>.
       <table border="1" cellpadding="0">
       <thead>
       <tr><th>Line</th>
@@ -316,7 +324,7 @@ $reporter->set_param(
       <th><span title="Time spend executing statements on the line,
         excluding time spent executing statements in any called subroutines">Time<br />on line</span></th>
       <th><span title="Number of subroutines calls">Calls</span></th>
-      <th><span title="Time spent in subroutines called">Time<br />in subs</span></th>
+      <th><span title="Time spent in subroutines called (inclusive)">Time<br />in subs</span></th>
       <th class="left_indent_header">Code</th>
       </tr>\n
       </thead>
@@ -335,10 +343,10 @@ $reporter->set_param(mk_report_source_line => \&mk_report_source_line);
 $reporter->set_param(mk_report_xsub_line   => \&mk_report_xsub_line  );
 
 sub mk_report_source_line {
-    my ($linenum, $line, $stats_for_line, $stats_for_file, $subs_defined, $makes_calls_to, $profile, $filestr) = @_;
+    my ($linenum, $line, $stats_for_line, $stats_for_file, $subs_defined, $subs_called, $profile, $filestr, $evals_called) = @_;
 
     my $l = sprintf(qq{<td class="h"><a name="%s"></a>%s</td>}, $linenum, $linenum);
-    my $s = report_src_line(undef, $linenum, $line, $profile, $subs_defined, $makes_calls_to, $filestr);
+    my $s = report_src_line(undef, $linenum, $line, $profile, $subs_defined, $subs_called, $filestr, $evals_called);
 
     return "<tr>$l<td></td><td></td><td></td><td></td>$s</tr>\n"
         if not %$stats_for_line;
@@ -354,12 +362,12 @@ sub mk_report_source_line {
 }
 
 sub mk_report_xsub_line {
-    my ($subname, $line, $stats_for_line, $stats_for_file, $subs_defined, $makes_calls_to, $profile, $filestr) = @_;
+    my ($subname, $line, $stats_for_line, $stats_for_file, $subs_defined, $subs_called, $profile, $filestr) = @_;
     (my $anchor = $subname) =~ s/\W/_/g;
     return join "",
         sprintf(qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, ''),
         "<td></td><td></td><td></td><td></td>",
-        report_src_line(undef, undef, $line, $profile, $subs_defined, $makes_calls_to, $filestr),
+        report_src_line(undef, undef, $line, $profile, $subs_defined, $subs_called, $filestr, undef),
         "</tr>\n";
 }
 
@@ -377,7 +385,7 @@ sub _escape_html {
 
 
 sub report_src_line {
-    my ($value, undef, $linesrc, $profile, $subs, $calls, $thisfile) = @_;
+    my ($value, undef, $linesrc, $profile, $subs, $subs_called, $thisfile, $evals_called) = @_;
 
     $linesrc = _escape_html($linesrc);
 
@@ -431,14 +439,14 @@ sub report_src_line {
                 $fi = $outer_fileinfo;
             }
 
-            my $href = $reporter->get_file_stats()->{$filename}{html_safe} || "unknown";
+            my $href = $reporter->href_for_file($fi) || 'unknown';
             $line_desc =~ s/ of \Q$filename\E$//g if $filename eq $thisfile;
             # remove @INC prefix from paths
             $line_desc =~ s/$inc_path_regex//g;
 
             push @prologue,
                 sprintf q{# %*s times%s%s at <a href="%s#%d">%s</a>%s},
-                length($max_calls), $count, $times, $subname, "$href.html", $line,
+                length($max_calls), $count, $times, $subname, $href, $line,
                 $line_desc, $avg_time;
             $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English
         }
@@ -447,20 +455,22 @@ sub report_src_line {
     $prologue = sprintf qq{<div class="calls"><div class="calls_in">%s</div></div>}, join("\n", @prologue)
         if @prologue;
 
-    # give details of each of the subs called by this line
     my $epilogue = '';
-    if (%$calls) {
+    my $ws;
+
+    # give details of each of the subs called by this line
+    if ($subs_called && %$subs_called) {
 
         my @calls_to = sort {
-            $calls->{$b}[1] <=> $calls->{$a}[1] or    # incl_time
+            $subs_called->{$b}[1] <=> $subs_called->{$a}[1] or    # incl_time
                 $a cmp $b
-        } keys %$calls;
-        my $max_calls_to = max(map { $_->[0] } values %$calls);
-        my $ws = ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
+        } keys %$subs_called;
+        my $max_calls_to = max(map { $_->[0] } values %$subs_called);
+        $ws ||= ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
 
-        $epilogue = join "\n", map {
+        my $subs_called_html = join "\n", map {
             my $subname = $_;
-            my ($count, $incl_time, $reci_time, $rec_depth) = (@{$calls->{$subname}})[0,1,5,6];
+            my ($count, $incl_time, $reci_time, $rec_depth) = (@{$subs_called->{$subname}})[0,1,5,6];
             my $html = sprintf qq{%s# spent %s making %*d call%s to }, $ws,
                 fmt_time($incl_time+$reci_time, 5), length($max_calls_to),
                 $count, $count == 1 ? "" : "s";
@@ -474,7 +484,44 @@ sub report_src_line {
             }
             $html;
         } @calls_to;
-        $epilogue = sprintf qq{<div class="calls"><div class="calls_out">%s</div></div>}, $epilogue;
+        $epilogue .= sprintf qq{<div class="calls"><div class="calls_out">%s</div></div>}, $subs_called_html;
+    }
+
+    # give details of each of the string evals executed on this line
+    if ($evals_called && %$evals_called) {
+        $ws ||= ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
+
+        my @eval_fis = sort {
+            $b->sum_of_stmts_time <=> $a->sum_of_stmts_time or
+            $a->filename cmp $b->filename
+        } values %$evals_called;
+
+        my $evals_called_html = join "\n", map {
+            my $eval_fi = $_;
+            my $sum_of_stmts_time = $eval_fi->sum_of_stmts_time;
+
+            my @nested_evals = $eval_fi->has_evals(1);
+            my ($nest_eval_time, $extra) = (0, '');
+            if (@nested_evals) {
+                $nest_eval_time = sum map { $_->sum_of_stmts_time } @nested_evals;
+
+                $extra = sprintf " (%s in this eval and %s in nested evals)",
+                        fmt_time($sum_of_stmts_time), fmt_time($nest_eval_time)
+                    if $nest_eval_time;
+            }
+
+            my $href = $reporter->href_for_file($eval_fi);
+            my $link = ($href)
+                ? sprintf(q{<a href="%s">%s</a>}, $href, "string eval")
+                : "string eval";
+            my $html = sprintf qq{%s# spent %s compiling and executing %s%s},
+                $ws, fmt_time($sum_of_stmts_time+$nest_eval_time, 5),
+                $link, $extra;
+
+            $html;
+        } @eval_fis;
+
+        $epilogue .= sprintf qq{<div class="calls"><div class="calls_out">%s</div></div>}, $evals_called_html;
     }
 
     return qq{<td class="s">$prologue$linesrc$epilogue</td>};
@@ -1117,41 +1164,52 @@ sub output_file_table {
     my $allCalls = $profile->{attribute}{total_stmts_measured}
                  - $profile->{attribute}{total_stmts_discounted};
 
-    my ($t_stmt_exec, $t_stmt_time) = (0,0);
+    my (@t_stmt_exec, @t_stmt_time);
     foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
         my $fi = $profile->fileinfo_of($filestats->{filename})
             or die "Can't find fileinfo for $filestats->{filename}";
         my @extra;
 
-        my $has_evals = $fi->has_evals(1) || [];
-        #my $eval_stmts = 0;
-        if (@$has_evals) {
-            my $n_evals = scalar @$has_evals;
-            my $msg = sprintf "executed %d string eval%s", $n_evals, ($n_evals>1) ? "s" : "";
-            if (my @nested = grep { $_->eval_fid != $fi->fid } @$has_evals) {
+        # Don't show eval fids in the file table
+        # (they're not files and there may be very many of them).
+        # The report for each source file that has string evals will contain
+        # links to the reports for the evals.
+        next if $fi->is_eval;
+
+        # The stats in this table include rolled up sums of nested evals.
+
+        my @has_evals = $fi->has_evals(1);
+        my ($eval_stmts, $eval_time) = (0,0);
+        if (@has_evals) {
+            my $n_evals = scalar @has_evals;
+            my $msg = sprintf "including %d string eval%s", $n_evals, ($n_evals>1) ? "s" : "";
+            if (my @nested = grep { $_->eval_fid != $fi->fid } @has_evals) {
                 $msg .= sprintf ": %d direct plus %d nested",
                     $n_evals-@nested, scalar @nested;
             }
             push @extra, $msg;
-            #$eval_stmts += sum(map { $_->number_of_statements_executed } @$has_evals);
+            $eval_stmts = sum(map { $_->sum_of_stmts_count } @has_evals);
+            $eval_time  = sum(map { $_->sum_of_stmts_time  } @has_evals);
         }
 
         print $fh qq{<tr class="index">};
 
-        print $fh determine_severity($filestats->{'calls'},     undef, 0,
-            ($allCalls) ? sprintf("%.1f%%", $filestats->{'calls'}/$allCalls*100) : ''
+        my $stmts = $filestats->{'calls'} + $eval_stmts;
+        print $fh determine_severity($stmts,     undef, 0,
+            ($allCalls) ? sprintf("%.1f%%", $stmts/$allCalls*100) : ''
         );
-        $t_stmt_exec += $filestats->{'calls'};
+        push @t_stmt_exec, $stmts;
 
-        print $fh determine_severity($filestats->{'time'},      $dev_time, 1,
-            ($allTimes) ? sprintf("%.1f%%", $filestats->{'time'}/$allTimes*100) : ''
+        my $time = $filestats->{'time'} + $eval_time;
+        print $fh determine_severity($time,      $dev_time, 1,
+            ($allTimes) ? sprintf("%.1f%%", $time/$allTimes*100) : ''
         );
-        $t_stmt_time += $filestats->{'time'};
+        push @t_stmt_time, $time;
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
-            my $level_html_safe = $filestats->{$_}->{html_safe};
+            my $level_html_safe = $reporter->href_for_file($fi, $_);
             ($level_html_safe)
-                ? sprintf(qq{<a href="%s.html">%s</a>}, $level_html_safe, $_)
+                ? sprintf(qq{<a href="%s">%s</a>}, $level_html_safe, $_)
                 : ()
         } qw(line block sub);
         print $fh "<td>$rep_links</td>";
@@ -1168,30 +1226,34 @@ sub output_file_table {
         my $stats_fmt =
             qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
         my $t_notes = "";
-        my $stmt_time_diff = $allTimes - $t_stmt_time;
-        if ($t_stmt_exec != $allCalls or $stmt_time_diff > 0.000_010) {
+        my $stmt_time_diff = $allTimes - sum(@t_stmt_time);
+        if (sum(@t_stmt_exec) != $allCalls or $stmt_time_diff > 0.000_010) {
             my $eval_fileinfos = grep { $_->eval_line } $profile->all_fileinfos;
             $stmt_time_diff = ($stmt_time_diff > 0.000_010)
                 ? sprintf(" and %s", fmt_time($stmt_time_diff)) : "";
             $t_notes = sprintf "(%d string evals account for a further %d statements%s)",
-                $eval_fileinfos, $allCalls - $t_stmt_exec, $stmt_time_diff;
+                $eval_fileinfos, $allCalls - sum(@t_stmt_exec), $stmt_time_diff;
         }
-        print $fh sprintf $stats_fmt, fmt_float($t_stmt_exec), fmt_time($t_stmt_time),
-            "Total $t_notes";
+        print $fh sprintf $stats_fmt, fmt_float(sum(@t_stmt_exec)), fmt_time(sum(@t_stmt_time)),
+                "Total $t_notes"
+            if @t_stmt_exec > 1 or $t_notes;
 
-        print $fh sprintf $stats_fmt, int(fmt_float($t_stmt_exec / keys %$stats)),
-            fmt_time($t_stmt_time / keys %$stats), "Average"
-            if %$stats;    # avoid divide by zero
+        if (@t_stmt_exec > 1) {
+            print $fh sprintf $stats_fmt,
+                int(fmt_float(sum(@t_stmt_exec) / @t_stmt_exec)),
+                    fmt_time( sum(@t_stmt_time) / @t_stmt_time), "Average";
+            print $fh sprintf $stats_fmt, '', fmt_time( $dev_time->[1]), "Median";
+            print $fh sprintf $stats_fmt, '', fmt_float($dev_time->[0]), "Deviation"
+                if $dev_time->[0];
+        }
 
-        print $fh sprintf $stats_fmt, '', fmt_time($dev_time->[1]), "Median";
-        print $fh sprintf $stats_fmt, '', fmt_float($dev_time->[0]), "Deviation"
-            if $dev_time->[0];
         print $fh "</tfoot>\n";
     }
+
     print $fh '</table>';
     push @on_ready_js, q{
         $("#filestable").tablesorter({
-            sortList: [[1,1]],
+            sortList: [[1,1],[3,1]],
             headers: {
                 1: { sorter: 'fmt_time' },
                 2: { sorter: false      }

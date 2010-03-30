@@ -388,3 +388,11 @@ Any volunteers to explore writing an nytprofimport for SQLite?
 Option to add sub call and return events into the data file as they happen.
 Would enable a dprofpp -T like output. See https://rt.cpan.org/Ticket/Display.html?id=50766
 
+For eval fid reports:
+- Add header with link to location of the invoking string eval
+- fix sub caller info to not rollup over evals
+- merge string evals which have identical src and invoking location
+
+Make generation of call graph .dot files optional and/or optimize to make faster
+
+The 'tainted' test should be renamed to 'modified' and be skipped if the report is using saved src.
