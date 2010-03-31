@@ -69,25 +69,6 @@ sub new {
         taintmsg => "# WARNING!\n"
             . "# The source file used in generating this report has been modified\n"
             . "# since generating the profiler database.  It might be out of sync\n",
-
-        # -- OTHER STUFF --
-        replacements => [
-            {   pattern => '!~FILENAME~!',
-                replace => "\$FILE"
-            },
-            {   pattern => '!~LEVEL~!',
-                replace => "\$LEVEL"
-            },
-            {   pattern => '!~TOTAL_CALLS~!',
-                replace => "\$fi->meta->{'calls'}"
-            },
-            {   pattern => '!~TOTAL_TIME~!',
-                replace => "fmt_time(\$fi->meta->{'time'})"
-            },
-        ],
-        callsfunc         => undef,
-        timefunc          => undef,
-        'time/callsfunc'  => undef,
     };
 
     bless($self, $class);
@@ -234,11 +215,6 @@ sub _generate_report {
         my $meta = $fi->meta;
         my $filestr = $meta->{filename};
 
-        # test file modification date. Files that have been touched after the
-        # profiling was done may very well produce useless output since the source
-        # file might differ from what it looked like before.
-        my $tainted = $self->file_has_been_modified($filestr);
-
         my %stats_accum;         # holds all line times. used to find median
         my %stats_by_line;        # holds individual line stats
         my $runningTotalTime = 0;  # holds the running total
@@ -323,26 +299,11 @@ sub _generate_report {
         my $fname = $meta->{html_safe} . $self->{suffix};
 
         # localize header and footer for variable replacement
-        my $header    = $self->get_param('header',    [$profile, $filestr, $fname, $LEVEL]);
-        my $taintmsg  = $self->get_param('taintmsg',  [$profile, $filestr]);
-        my $datastart = $self->get_param('datastart', [$profile, $filestr]);
-        my $dataend   = $self->get_param('dataend',   [$profile, $filestr]);
+        my $header    = $self->get_param('header',    [$profile, $fi, $fname, $LEVEL]);
+        my $taintmsg  = $self->get_param('taintmsg',  [$profile, $fi]);
+        my $datastart = $self->get_param('datastart', [$profile, $fi]);
+        my $dataend   = $self->get_param('dataend',   [$profile, $fi]);
         my $FILE      = $filestr;
-
-        foreach my $transform (@{$self->{replacements}}) {
-            my $pattern = $transform->{pattern};
-            my $replace = $transform->{replace};
-
-            if ($pattern =~ m/^!~\w+~!$/) {
-
-                # replace variable content
-                $replace = eval $replace;
-                $header    =~ s/$pattern/$replace/g;
-                $taintmsg  =~ s/$pattern/$replace/g;
-                $datastart =~ s/$pattern/$replace/g;
-                $dataend   =~ s/$pattern/$replace/g;
-            }
-        }
 
         # open output file
         #warn "$self->{output_dir}/$fname";
@@ -351,10 +312,15 @@ sub _generate_report {
 
         # begin output
         print OUT $header;
-        print OUT $taintmsg if $tainted;
+
+        # If we don't have savesrc for the file then we'll be reading the current
+        # file contents which may have changed since the profile was run.
+        # In this case we need to warn the user as the report would be garbled.
+        print OUT $taintmsg if !$fi->has_savesrc and $self->file_has_been_modified($filestr);
+
         print OUT $datastart;
 
-        my $LINE = 1;    # actual line number. PATTERN variable, DO NOT CHANGE
+        my $LINE = 1;    # line number in source code
         my $src_lines = $fi->srclines_array;
         if (!$src_lines) { # no savesrc, and no file available
 
@@ -391,17 +357,24 @@ sub _generate_report {
         my $line_sub = $self->{mk_report_source_line}
             or die "mk_report_source_line not set";
 
+        my $prev_line = '-';
         while ( @$src_lines ) {
             my $line = shift @$src_lines;
             chomp $line;
 
+            # detect a series of blank lines, e.g. a chunk of pod savesrc didn't store
+            my $skip_blanks = ($prev_line eq '' && $line eq '' && $src_lines->[0] =~ /^\s*$/);
+
             if ($line =~ m/^\# \s* line \s+ (\d+) \b/x) {
                 # XXX we should be smarter about this - patches welcome!
+                # We should at least ignore the common AutoSplit case
+                # which we detect and workaround elsewhere.
                 warn "Ignoring '$line' directive at line $LINE - profile data for $filestr will be out of sync with source!\n"
                     unless our $line_directive_warn->{$filestr}++; # once per file
             }
 
-            print OUT $line_sub->($LINE, $line,
+            print OUT $line_sub->(
+                ($skip_blanks) ? "- -" : $LINE, $line,
                 $stats_by_line{$LINE} || {},
                 \%stats_for_file,
                 $subs_defined_hash->{$LINE} || [],
@@ -410,9 +383,15 @@ sub _generate_report {
                 $filestr,
                 $evals_at_line->{$LINE},
             );
+            
+            if ($skip_blanks) {
+                while ($src_lines->[0] =~ /^\s*$/) {
+                    shift @$src_lines;
+                    $LINE++;
+                }
+            }   
         }
         continue {
-            # Increment line number counters
             $LINE++;
         }
 

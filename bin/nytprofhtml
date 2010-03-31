@@ -105,7 +105,7 @@ $reporter->output_dir($opt{out});
 $reporter->set_param(
     'header',
     sub {
-        my ($profile, $filestr, $output_filestr, $level) = @_;
+        my ($profile, $fi, $output_filestr, $level) = @_;
 
         my $profile_level_buttons =
             get_level_buttons($profile->get_profile_levels, $output_filestr, $level);
@@ -114,30 +114,20 @@ $reporter->set_param(
             For ${ \($profile->{attribute}{application}) }
         };
 
-        get_html_header("Profile of !~FILENAME~!")
-            . get_page_header(
+        my $html_header = get_html_header("Profile of !~FILENAME~!");
+        my $page_header = get_page_header(
             profile  => $profile,
             title    => "NYTProf Performance Profile",
             subtitle => $subhead,
-            )
-            . qq{
-<div class="body_content">
-<br />
-<table>
-<tr>
-<td class="h" align="right">File</td>
-<td align="left">!~FILENAME~!</td>
-</tr>
-<tr>
-<td class="h" align="right">Statements Executed</td>
-<td align="left">!~TOTAL_CALLS~!</td>
-</tr>
-<tr>
-<td class="h" align="right">Statement Execution Time</td>
-<td align="left">!~TOTAL_TIME~!</td>
-</tr>
-</table>
-};
+        );
+        my $intro = sprintf qq{<table class="file_summary">%s</table>},
+            join "\n", map { sprintf q{<tr><td class="h">%s</td><td align="left">%s</td></tr>}, @$_ }
+                [ "Filename", sprintf q{<a href="file://%s">%s</a>},
+                    $fi->filename, _escape_html($fi->filename) ],
+                [ "Statements Executed", sprintf "%d executed in %s",
+                    $fi->sum_of_stmts_count, fmt_time($fi->sum_of_stmts_time) ];
+
+        return join "\n", $html_header, $page_header, q{<div class="body_content"><br />}, $intro;
     }
 );
 
@@ -188,7 +178,7 @@ sub subroutine_table {
     my $sortby_desc = ($sortby eq 'excl_time') ? "exclusive time" : "inclusive time";
     $sub_links .= qq{
         <table id="subs_table" border="1" cellpadding="0" class="tablesorter">
-        <caption>${qualifier}Subroutines &mdash; ordered by $sortby_desc</caption>
+        <caption>${qualifier}Subroutines</caption>
         <thead>
         <tr>
         <th>Calls</th>
@@ -254,10 +244,8 @@ sub subroutine_table {
 
         $sub_links .= "</tr>\n";
     }
-    $sub_links .= q{
-        </tbody>
-        </table>
-    };
+    $sub_links .= q{</tbody>};
+    $sub_links .= q{</table>};
 
     # make table sortable if it contains all the subs
     push @on_ready_js, q{
@@ -277,7 +265,8 @@ sub subroutine_table {
 $reporter->set_param(
     'datastart',
     sub {
-        my ($profile, $filestr) = @_;
+        my ($profile, $fi) = @_;
+        my $filestr = $fi->filename;
 
         my $sub_table = subroutine_table($profile, $filestr, undef, undef);
 
@@ -328,7 +317,7 @@ $reporter->set_param(
 );
 
 $reporter->set_param( footer => sub {
-    my ($profile, $filestr) = @_;
+    my ($profile, $fi) = @_;
     my $footer = get_footer($profile);
     return "</tbody></table></div>$footer</body></html>";
 } );

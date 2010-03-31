@@ -241,13 +241,16 @@ sub abs_filename {
     return $filename;
 }
 
+# has source code stored within the profile data file
+sub has_savesrc {
+    my $self = shift;
+    return $self->profile->{fid_srclines}[ $self->fid ];
+}
+
 sub srclines_array {
     my $self = shift;
-    my $profile = $self->profile;
-    #warn Dumper($profile->{fid_srclines});
 
-    my $fid = $self->fid;
-    if (my $srclines = $profile->{fid_srclines}[ $fid ]) {
+    if (my $srclines = $self->has_savesrc) {
         my $copy = [ @$srclines ]; # shallow clone
         shift @$copy; # line 0 not used
         return $copy;
@@ -259,6 +262,7 @@ sub srclines_array {
     }
 
     if ($self->flags & NYTP_FIDf_IS_FAKE) {
+        my $fid = $self->fid;
         return [ "# fid$fid: NYTP_FIDf_IS_FAKE - e.g., unknown caller of an eval.\n" ];
     }
 

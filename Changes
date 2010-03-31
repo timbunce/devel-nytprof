@@ -22,6 +22,9 @@ Refine and document handing of string evals
 
   Corrected typos in nytprofhtml docs thanks to chocolate@cpan.org
 
+  Sequences are blank lines are skipped in generated reports.
+    Applies to savesrc mode in which perl doesn't store pod.
+
 =head2 Changes in Devel::NYTProf 3.11 (svn 1171) 12th March 2010
 
   Fixed assorted issues on Windows thanks to Jan Dubois.
