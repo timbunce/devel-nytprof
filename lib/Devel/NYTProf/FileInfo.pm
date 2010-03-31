@@ -18,8 +18,9 @@ use Devel::NYTProf::Constants qw(
 
 # extra constants for private elements
 use constant {
-    NYTP_FIDi_sum_stmts_times => NYTP_FIDi_elements + 1,
+    NYTP_FIDi_meta            => NYTP_FIDi_elements + 1,
     NYTP_FIDi_sum_stmts_count => NYTP_FIDi_elements + 2,
+    NYTP_FIDi_sum_stmts_times => NYTP_FIDi_elements + 3,
 };
 
 sub filename  { shift->[NYTP_FIDi_FILENAME()] }
@@ -34,6 +35,9 @@ sub profile   { shift->[NYTP_FIDi_PROFILE()] }
 # if an eval then return fileinfo obj for the fid that executed the eval
 sub eval_fi   { shift->[NYTP_FIDi_EVAL_FI()] }
 sub is_eval   { shift->[NYTP_FIDi_EVAL_FI()] ? 1 : 0 }
+
+# general purpose hash - mainly a hack to help kill of Reader.pm
+sub meta      { shift->[NYTP_FIDi_meta()] ||= {} }
 
 # ref to array of fileinfo's for each string eval in the file, else undef
 sub has_evals {

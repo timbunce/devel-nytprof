@@ -238,6 +238,14 @@ sub all_fileinfos {
     return @all;
 }
 
+sub eval_fileinfos {
+    return grep {  $_->eval_line } shift->all_fileinfos;
+}
+
+sub noneval_fileinfos {
+    return grep { !$_->eval_line } shift->all_fileinfos;
+}
+
 
 sub fileinfo_of {
     my $self = shift;

@@ -151,13 +151,7 @@ after the profiler database was generated. The database might be out of sync, yo
 
 sub calc_mad_from_objects {
     my ($ary, $meth, $ignore_zeros) = @_;
-    return calculate_median_absolute_deviation([map { scalar $_->$meth } @$ary], $ignore_zeros,);
-}
-
-sub calc_mad_from_hashes {
-    my ($ary, $meth, $ignore_zeros) = @_;
-    return calculate_median_absolute_deviation([map { scalar $_->{$meth} } @$ary], $ignore_zeros,
-    );
+    return calculate_median_absolute_deviation([map { scalar $_->$meth } @$ary], $ignore_zeros);
 }
 
 sub subroutine_table {
@@ -576,7 +570,6 @@ sub output_subs_index_page {
 sub output_index_page {
     my ($r, $filename) = @_;
     my $profile = $reporter->{profile};
-    my $stats   = $r->get_file_stats();
 
     ###
     open my $fh, '>', "$opt{out}/$filename"
@@ -590,7 +583,7 @@ sub output_index_page {
 
     # overall description
     my @all_fileinfos = $profile->all_fileinfos;
-    my $eval_fileinfos = grep { $_->eval_line } @all_fileinfos;
+    my $eval_fileinfos = $profile->eval_fileinfos;
     my $summary = sprintf "Profile of %s for %s,",
         $profile->{attribute}{application},
         fmt_time($profile->{attribute}{profiler_duration});
@@ -606,13 +599,12 @@ sub output_index_page {
     printf $fh qq{<div class="index_summary">%s.</div>}, _escape_html($summary);
 
     # generate name-sorted select options for files, if there are many
-    if (keys %$stats > 30) {
+    if ($profile->noneval_fileinfos > 30) {
         print $fh qq{<div class="jump_to_file"><form name="jump">};
         print $fh qq{<select name="file" onChange="location.href=document.jump.file.value;">\n};
         printf $fh qq{<option disabled="disabled">%s</option>\n}, "Jump to file...";
-        foreach (sort keys %$stats) {
-            my $fid = $profile->resolve_fid($_) or warn "Can't find fid for $_";
-            printf $fh qq{<option value="#f%s">%s</option>\n}, $fid, $_;
+        foreach my $fi ($profile->noneval_fileinfos) {
+            printf $fh qq{<option value="#f%s">%s</option>\n}, $fi->fid, $fi->filename;
         }
         print $fh "</select></form></div>\n";
     }
@@ -647,7 +639,7 @@ sub output_index_page {
         if $all_subs > 200; # arbitrary
     print $fh q{.<br/>};
     
-    output_file_table($fh, $profile, $stats, 1);
+    output_file_table($fh, $profile, 1);
 
     my $footer = get_footer($profile);
     print $fh "</div>$footer</body></html>";
@@ -1136,14 +1128,7 @@ sub have_prog {
 
 
 sub output_file_table {
-    my ($fh, $profile, $stats, $add_totals) = @_;
-
-    for (values %$stats) {
-        next if not $_;
-        $_->{'time/call'} = ($_->{calls}) ? $_->{'time'} / $_->{calls} : 0;
-    }
-
-    my $dev_time = calc_mad_from_hashes([values %$stats], 'time',      0);
+    my ($fh, $profile, $add_totals) = @_;
 
     # generate time-sorted sections for files
     print $fh qq{
@@ -1165,16 +1150,14 @@ sub output_file_table {
                  - $profile->{attribute}{total_stmts_discounted};
 
     my (@t_stmt_exec, @t_stmt_time);
-    foreach my $filestats (sort { $b->{'time'} <=> $a->{'time'} } values %$stats) {
-        my $fi = $profile->fileinfo_of($filestats->{filename})
-            or die "Can't find fileinfo for $filestats->{filename}";
-        my @extra;
+    my @fis = $profile->noneval_fileinfos;
+    @fis = sort { $b->meta->{'time'} <=> $a->meta->{'time'} } @fis;
 
-        # Don't show eval fids in the file table
-        # (they're not files and there may be very many of them).
-        # The report for each source file that has string evals will contain
-        # links to the reports for the evals.
-        next if $fi->is_eval;
+    my $dev_time = calculate_median_absolute_deviation([map { scalar $_->meta->{'time'} } @fis], 0);
+    
+    foreach my $fi (@fis) {
+        my $meta = $fi->meta;
+        my @extra;
 
         # The stats in this table include rolled up sums of nested evals.
 
@@ -1194,13 +1177,13 @@ sub output_file_table {
 
         print $fh qq{<tr class="index">};
 
-        my $stmts = $filestats->{'calls'} + $eval_stmts;
+        my $stmts = $meta->{'calls'} + $eval_stmts;
         print $fh determine_severity($stmts,     undef, 0,
             ($allCalls) ? sprintf("%.1f%%", $stmts/$allCalls*100) : ''
         );
         push @t_stmt_exec, $stmts;
 
-        my $time = $filestats->{'time'} + $eval_time;
+        my $time = $meta->{'time'} + $eval_time;
         print $fh determine_severity($time,      $dev_time, 1,
             ($allTimes) ? sprintf("%.1f%%", $time/$allTimes*100) : ''
         );

@@ -78,29 +78,11 @@ sub new {
             {   pattern => '!~LEVEL~!',
                 replace => "\$LEVEL"
             },
-            {   pattern => '!~DEV_CALLS~!',
-                replace => "\$stats_for_file{calls}->[0]"
-            },
-            {   pattern => '!~DEV_TIME~!',
-                replace => "\$stats_for_file{time}->[0]"
-            },
-            {   pattern => '!~DEV_TIME/CALL~!',
-                replace => "\$stats_for_file{'time/calls'}"
-            },
-            {   pattern => '!~MEAN_CALLS~!',
-                replace => "\$stats_for_file{calls}->[1]"
-            },
-            {   pattern => '!~MEAN_TIME~!',
-                replace => "\$stats_for_file{time}->[1]"
-            },
-            {   pattern => '!~MEAN_TIME/CALLS~!',
-                replace => "\$stats_for_file{'time/calls'}->[1]"
-            },
             {   pattern => '!~TOTAL_CALLS~!',
-                replace => "\$self->{filestats}->{\$filestr}->{'calls'}"
+                replace => "\$fi->meta->{'calls'}"
             },
             {   pattern => '!~TOTAL_TIME~!',
-                replace => "fmt_time(\$self->{filestats}->{\$filestr}->{'time'})"
+                replace => "fmt_time(\$fi->meta->{'time'})"
             },
         ],
         callsfunc         => undef,
@@ -117,36 +99,25 @@ sub new {
 
 sub _map_new_to_old {    # convert into old-style data structure
     my ($profile, $level) = @_;
-    my $fid_line_data = $profile->get_fid_line_data($level ||= 'line');
+    $level ||= 'line';
 
     my $dump = 0;
     require Data::Dumper if $dump;
     $profile->dump_profile_data({filehandle => \*STDERR, separator => "\t"}) if $dump;
     warn Data::Dumper::Dumper($profile) if $dump;
 
-    my $fid_fileinfo = $profile->{fid_fileinfo};
     my $oldstyle     = {};
-    for my $fid (1 .. @$fid_fileinfo - 1) {
+    for my $fi ($profile->all_fileinfos) {
 
-        # skip synthetic fids for evals
-        #next if $fid_fileinfo->[$fid][1];
-
-        my $filename = $fid_fileinfo->[$fid][0]
-            or warn "No filename for fid $fid";
-
-        # if it's a .pmc then assume that's the file we want to look at
-        # (because the main use for .pmc's are related to perl6)
-        $filename .= "c" if $fid_fileinfo->[$fid]->is_pmc;
-
-        my $lines_array = $fid_line_data->[$fid] || [];
-
+        my $lines_array = $fi->line_time_data([$level]) || [];
         # convert any embedded eval line time arrays to hashes
         for (@$lines_array) {
             $_->[2] = _line_array_to_line_hash($_->[2]) if $_ && $_->[2];
         }
-
         my $lines_hash = _line_array_to_line_hash($lines_array);
-        $oldstyle->{$filename} = $lines_hash;
+
+        $oldstyle->{$fi->filename} = $lines_hash;
+        $fi->meta->{lines_hash} = $lines_hash;
     }
     warn Data::Dumper::Dumper($oldstyle) if $dump;
     return $oldstyle;
@@ -207,11 +178,6 @@ sub _output_additional {
 }
 
 ##
-sub get_file_stats {
-    return shift->{filestats};
-}
-
-##
 sub output_dir {
     my ($self, $dir) = @_;
     return $self->{output_dir} unless defined($dir);
@@ -252,28 +218,21 @@ sub _generate_report {
     #$profile->dump_profile_data({ filehandle => \*STDERR, separator=>"\t", });
 
     # pre-calculate some data so it can be cross-referenced
-    foreach my $filestr (keys %$data) {
+    foreach my $fi ($profile->all_fileinfos) {
 
         # discover file path
-        my $fileinfo = $profile->fileinfo_of($filestr);
-        if (not $fileinfo) {
-            warn "Oops. I got confused about '$filestr' so I'll skip it\n";
-            delete $data->{$filestr};
-            next;
-        }
-        my $fname = html_safe_filename($fileinfo->filename_without_inc);
+        my $fname = html_safe_filename($fi->filename_without_inc);
         $fname .= "-$LEVEL" if $LEVEL;
 
-        $self->{filestats}->{$filestr}->{html_safe} = $fname;
-
-        # save per-level html_safe name
-        $self->{filestats}->{$filestr}->{$LEVEL}->{html_safe} = $fname;
-
-        # store original filename in value as well as key
-        $self->{filestats}->{$filestr}->{filename} = $filestr;
+        my $meta = $fi->meta;
+        $meta->{html_safe} = $fname;
+        $meta->{$LEVEL}->{html_safe} = $fname;
+        $meta->{filename} = $fi->filename;
     }
 
-    foreach my $filestr (keys %$data) {
+    foreach my $fi ($profile->all_fileinfos) {
+        my $meta = $fi->meta;
+        my $filestr = $meta->{filename};
 
         # test file modification date. Files that have been touched after the
         # profiling was done may very well produce useless output since the source
@@ -287,8 +246,6 @@ sub _generate_report {
         # (should equal sum of $stats_accum)
         my $runningTotalCalls = 0; # holds the running total number of calls.
 
-        my $fi = $profile->fileinfo_of($filestr);
-
         # { linenumber => { subname => [ count, time ] } }
         my $subcalls_at_line = { %{ $fi->sub_call_lines } };
 
@@ -297,8 +254,9 @@ sub _generate_report {
 
         # note that a file may have no source lines executed, so no keys here
         # (but is included because some xsubs in the package were executed)
-        foreach my $linenum (keys %{$data->{$filestr}}) {
-            my $a = $data->{$filestr}->{$linenum};
+        my $lines_hash = $meta->{lines_hash};
+        foreach my $linenum (keys %$lines_hash) {
+            my $a = $lines_hash->{$linenum};
             my $line_stats = $stats_by_line{$linenum} ||= {};
 
             if (0 == $a->[1]) {
@@ -343,9 +301,9 @@ sub _generate_report {
             $runningTotalCalls += $a->[1];
         }
 
-        $self->{filestats}->{$filestr}->{'time'}      = $runningTotalTime;
-        $self->{filestats}->{$filestr}->{'calls'}     = $runningTotalCalls;
-        $self->{filestats}->{$filestr}->{'time/call'} =
+        $meta->{'time'}      = $runningTotalTime;
+        $meta->{'calls'}     = $runningTotalCalls;
+        $meta->{'time/call'} =
             ($runningTotalCalls) ? $runningTotalTime / $runningTotalCalls: 0;
 
         # Use Median Absolute Deviation Formula to get file deviations for each of
@@ -362,7 +320,7 @@ sub _generate_report {
 
         # the output file name that will be open later.  Not including directory at this time.
         # keep here so that the variable replacement subs can get at it.
-        my $fname = $self->{filestats}->{$filestr}->{html_safe} . $self->{suffix};
+        my $fname = $meta->{html_safe} . $self->{suffix};
 
         # localize header and footer for variable replacement
         my $header    = $self->get_param('header',    [$profile, $filestr, $fname, $LEVEL]);
@@ -482,7 +440,7 @@ sub href_for_file {
     my ($self, $file, $level) = @_;
     $level ||= 'line';
     my $fi = $self->{profile}->fileinfo_of($file);
-    my $href = $self->{filestats}->{$fi->filename}->{$level}->{html_safe};
+    my $href = $fi->meta->{$level}->{html_safe};
     $href &&= $href.'.html';
     return $href;
 }
@@ -490,8 +448,9 @@ sub href_for_file {
 
 sub href_for_sub {
     my ($self, $sub, %opts) = @_;
+    my $profile = $self->{profile};
 
-    my ($file, $fid, $first, $last) = $self->{profile}->file_line_range_of_sub($sub);
+    my ($file, $fid, $first, $last) = $profile->file_line_range_of_sub($sub);
     if (!$first) {
         if (not defined $first) {
             warn("No file line range data for sub '$sub' (perhaps an xsub)\n")
@@ -505,13 +464,8 @@ sub href_for_sub {
         ($first = $sub) =~ s/\W/_/g;
     }
 
-    my $stats      = $self->get_file_stats(); # may be undef
-    my $file_stats = $stats->{$file};
-    if (!$file_stats) {
-        warn("Sub '$sub' file '$file' (fid $fid) not in stats!\n");
-        return "";
-    }
-    my $html_safe = $file_stats->{html_safe} ||= do {
+    my $fi = $profile->fileinfo_of($file);
+    my $html_safe = $fi->meta->{html_safe} ||= do {
         # warn, just once, and use a default value
         warn "Sub '$sub' file '$file' (fid $fid) has no html_safe value\n";
         "unknown";
@@ -522,251 +476,3 @@ sub href_for_sub {
 
 
 1;
-__END__
-
-=head1 NAME
-
-Devel::NYTProf::Reader - Tranforms L<Devel::NYTProf> output into comprehensive, easy to read reports in (nearly) arbitrary format.
-
-=head1 SYNOPSIS
-
-  # This module comes with two scripts that implement it:
-  #
-  # nytprofhtml - create an html report with statistics highlighting
-  # nytprofcsv - create a basic comma delimited report
-  #
-  # They are in the bin directory of your perl path, so add that to your PATH.
-  #
-  # The csv script is simple, and really only provided as a starting point
-  # for creating other custom reports. You should refer to the html script
-  # for advanced usage and statistics.
-
-  # First run some code through the profiler to generate the nytprof database.
-  perl -d:NYTProf some_perl.pl
-
-  # To create an HTML report in ./nytprof 
-  nytprofhtml
-
-  # To create a csv report in ./nytprof 
-  nytprofcsv
-
-  # Or to generate a simple comma delimited report manually
-  use Devel::NYTProf::Reader;
-  my $reporter = new Devel::NYTProf::Reader('nytprof.out');
-
-  # place to store the output
-  $reporter->output_dir($file);
-
-  # set other options and parameters
-  $reporter->add_regexp('^\s*', ''); # trim leading spaces
-
-  # generate the report
-  $reporter->report();
-
-  # many configuration options exist.  See nytprofhtml, advanced example.
-
-=head1 DESCRIPTION
-
-L<Devel::NYTProf> is a speedy line-by-line code profiler for Perl, written in C.
-This module is a complex framework that processes the output file generated by 
-L<Devel::NYTProf>
-
-It is capable of producing reports of arbitrary format and varying complexity.
-
-B<Note:> This module may be deprecated in future as the L<Devel::NYTProf::Data>
-and L<Devel::NYTProf::Util> modules evolve and offer higher levels of
-abstraction. It should then be easy to write reports directly without needing
-to fit into the model assumed by this module.
-
-Basically, for each line of code that was executed and reported, this module 
-will provide the following statistics:
-
-=over
-
-=item *
-
-Total calls
-
-=item *
-
-Total time
-
-=item *
-
-Average time per call
-
-=item *
-
-Deviation of all of the above
-
-=item *
-
-Line number
-
-=item *
-
-Source code
-
-=back
-
-C<Devel::NYTProf::Reader> will process each source file that it can find in 
-your C<@INC> one-by-one.  For each line it processes, it will preform 
-transformation and output based instructions that you can optionally provide.  
-The configuration is very robust, supporting variations in field ordering, 
-pattern substitutions (like converting ascii spaces to html spaces), and user 
-callback functions to give you total control.
-
-=head1 CONSTRUCTOR
-
-=over 4
-
-=item $reporter = Devel::NYTProf::Reader->new( );
-
-=item $reporter = Devel::NYTProf::Reader->new( $FILE );
-
-This method constructs a new C<Devel::NYTProf::Reader> object, parses $FILE
-and return the new object.  By default $FILE will evaluate to './nytprof.out'.
-
-See: L<Devel::NYTProf> for how the profiler works.
-
-=back
-
-=head1 PARAMETERS
-
-Numerous parameters can be set to modify the behavior of 
-C<Devel::NYTProf::Reader>.  The following methods are provided:
-
-=over 4
-
-=item $reporter->output_dir( $output_directory );
-
-Set the directory that generated files should be placed in. [Default: .]
-
-=item $reporter->add_regexp( $pattern, $replace );
-
-Add a regular expression to the top of the pattern stack.  Ever line of output 
-will be run through each entry in the pattern stack.  
-
-For example, to replace spaces, < and > with html entities, you might do:
-
-  $reporter->add_regexp(' ', '&nbsp;');
-  $reporter->add_regexp('<', '&lt;');
-  $reporter->add_regexp('>', '&gt;');
-
-=item $reporter->set_param( $parameter, $value );
-
-Changes the internal value of $parameter to $value.  If $value is omitted, 
-returns the current value of parameter.
-
-Basic Parameters:
-
-  Parameter       Description
-  ------------   --------------
-  suffix         The file suffix for the output file
-  header         Text printed at the start of the output file
-  taintmsg       Text printed ONLY IF source file modification date is 
-                   later than the profile database modification date.
-                   Printed just after header
-  datastart      Text printed just before report output and after
-                   taintmsg
-  dataend        Text printed just after report output
-  footer         Text printed at the very end of report output
-  callsfunc      Reference to a function which must accept a scalar
-                   representing the total calls for a line and returns the
-                   output string for that field
-  timesfunc      Reference to a function which must accept a scalar
-                   representing the total time for a line and returns the
-                   output string for that field
-  time/callsfunc Reference to a function which must accept a scalar
-                   representing the average time per call for a line and 
-                   returns the output string for that field
-
-Basic Parameters Defaults:
-
-  Parameter         Default
-  --------------   --------------
-  suffix           '.csv'
-  header           "# Profile data generated by Devel::NYTProf::Reader
-                    # Version: v$Devel::NYTProf::Core::VERSION
-                    # More information at http://search.cpan.org/dist/Devel-NYTProf/
-                    # Format: time,calls,time/call,code"
-  taintmsg         "# WARNING!\n# The source file used in generating this 
-                   report has been modified\n# since generating the profiler 
-                   database.  It might be out of sync\n"
-  datastart        ''
-  dataend          ''
-  footer           ''
-  callsfunc        undef
-  timefunc         undef
-  time/callsfunc   undef
-
-=back
-
-=head1 METHODS
-
-=over
-
-=item $reporter->report( );
-
-Trigger data processing and report generation. This method will die with 
-a message if it fails.  The return value is not defined.  This is where all of
-the work is done.
-
-=item $reporter->get_file_stats( );
-
-When called after calling C<$reporter-E<gt>report()>, will return a hash containing the cumulative totals for each file.
-
-  my $stats = $reporter->getStats();
-  $stats->{FILENAME}->{time}; # might hold 0.25, the total runtime of this file>>
-
-Fields are time, calls, time/call, html-safe.
-
-=item Devel::NYTProf::Reader::calculate_standard_deviation( @stats );
-
-Calculates the standard deviation and mean of the values in @stats, returns 
-them as a list.
-
-=item Devel::NYTProf::Reader::calculate_median_absolute_deviation( @stats );
-
-Calculates the absolute median deviation and mean of the values in @stats, 
-returns them as a list.
-
-=item $reporter->_output_additional( $file, @data );
-
-If you need to create a static file in the output directory, you can use this
-subroutine.  It is currently used to dump the CSS file into the html output.
-
-=back
-
-=head1 EXPORT
-
-None by default. Object Oriented.
-
-=head1 SEE ALSO
-
-See also L<Devel::NYTProf>.
-
-Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
-
-Public SVN Repository and hacking instructions at L<http://code.google.com/p/perl-devel-nytprof/>
-
-Take a look at the scripts which use this module, L<nytprofhtml> and
-L<nytprofcsv>.  They are probably all that you will need and provide an
-excellent jumping point into writing your own custom reports.
-
-=head1 AUTHOR
-
-B<Adam Kaplan>, C<< <akaplan at nytimes.com> >>
-B<Tim Bunce>, L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>
-B<Steve Peters>, C<< <steve at fisharerojo.org> >>
-
-=head1 COPYRIGHT AND LICENSE
-
-  Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
-  Copyright (C) 2008 by Tim Bunce, Ireland.
-
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.8.8 or,
-at your option, any later version of Perl 5 you may have available.
-
-=cut
