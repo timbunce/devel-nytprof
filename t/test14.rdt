@@ -18,10 +18,9 @@ fid_block_time	1	18	[ 0 1 ]
 fid_block_time	1	19	[ 0 1 ]
 fid_block_time	2	8	[ 0 1 ]
 fid_block_time	2	13	[ 0 1 ]
-fid_block_time	2	17	0	0
-fid_block_time	2	17	1	2
-fid_block_time	2	17	2	1	[ 0 1 ]
+fid_block_time	2	17	[ 0 2 ]
 fid_block_time	2	20	[ 0 1 ]
+fid_block_time	4	1	[ 0 1 ]
 fid_fileinfo	1	[ test14.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	16-16
 fid_fileinfo	1	sub	main::RUNTIME	1-1
@@ -41,19 +40,17 @@ fid_line_time	1	18	[ 0 1 ]
 fid_line_time	1	19	[ 0 1 ]
 fid_line_time	2	8	[ 0 1 ]
 fid_line_time	2	13	[ 0 1 ]
-fid_line_time	2	17	0	0
-fid_line_time	2	17	1	2
-fid_line_time	2	17	2	1	[ 0 1 ]
+fid_line_time	2	17	[ 0 2 ]
 fid_line_time	2	20	[ 0 1 ]
+fid_line_time	4	1	[ 0 1 ]
 fid_sub_time	1	17	[ 0 1 ]
 fid_sub_time	1	18	[ 0 1 ]
 fid_sub_time	1	19	[ 0 1 ]
 fid_sub_time	2	8	[ 0 1 ]
 fid_sub_time	2	13	[ 0 1 ]
-fid_sub_time	2	17	0	0
-fid_sub_time	2	17	1	2
-fid_sub_time	2	17	2	1	[ 0 1 ]
+fid_sub_time	2	17	[ 0 2 ]
 fid_sub_time	2	20	[ 0 1 ]
+fid_sub_time	4	1	[ 0 1 ]
 profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
@@ -61,6 +58,8 @@ sub_subinfo	main::BEGIN	[ 1 16 16 0 0 0 0 0 ]
 sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
 sub_subinfo	test14::BEGIN	[ 2 2 2 0 0 0 0 0 ]
 sub_subinfo	test14::bar	[ 2 16 18 1 0 0 0 0 ]
+sub_subinfo	test14::bar	called_by	3	51	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	test14::foo	[ 2 12 14 1 0 0 0 0 ]
+sub_subinfo	test14::foo	called_by	3	51	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 sub_subinfo	test14::pre	[ 2 8 8 1 0 0 0 0 ]
 sub_subinfo	test14::pre	called_by	1	17	[ 1 0 0 0 0 0 0 main::RUNTIME ]

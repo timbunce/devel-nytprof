@@ -27,7 +27,6 @@ sub filename  { shift->[NYTP_FIDi_FILENAME()] }
 sub eval_fid  { shift->[NYTP_FIDi_EVAL_FID()] }
 sub eval_line { shift->[NYTP_FIDi_EVAL_LINE()] }
 sub fid       { shift->[NYTP_FIDi_FID()] }
-sub flags     { shift->[NYTP_FIDi_FLAGS()] }
 sub size      { shift->[NYTP_FIDi_FILESIZE()] }
 sub mtime     { shift->[NYTP_FIDi_FILEMTIME()] }
 sub profile   { shift->[NYTP_FIDi_PROFILE()] }
@@ -36,10 +35,17 @@ sub profile   { shift->[NYTP_FIDi_PROFILE()] }
 sub eval_fi   { shift->[NYTP_FIDi_EVAL_FI()] }
 sub is_eval   { shift->[NYTP_FIDi_EVAL_FI()] ? 1 : 0 }
 
+sub flags     { shift->[NYTP_FIDi_FLAGS()] }
+sub is_fake   { shift->flags & NYTP_FIDf_IS_FAKE }
+sub is_file   {
+	my $self = shift;
+	return not ($self->is_fake or $self->is_eval);
+}
+
 # general purpose hash - mainly a hack to help kill of Reader.pm
 sub meta      { shift->[NYTP_FIDi_meta()] ||= {} }
 
-# ref to array of fileinfo's for each string eval in the file, else undef
+# array of fileinfo's for each string eval in the file, else undef
 sub has_evals {
     my ($self, $include_nested) = @_;
 
@@ -110,17 +116,17 @@ hashes with file id integers as keys and FileInfo objects as values.
 sub evals_by_line {
     my ($self) = @_;
 
-	# find all fids that have have this fid as an eval_fid
-	# { line => { fid_of_eval_at_line => $fi, ... } }
+    # find all fids that have have this fid as an eval_fid
+    # { line => { fid_of_eval_at_line => $fi, ... } }
 
-	my %evals_by_line;
-	my $fid = $self->fid;
+    my %evals_by_line;
+    my $fid = $self->fid;
     for my $fi ($self->profile->all_fileinfos) {
         next unless (($fi->eval_fid || 0) == $fid);
-		$evals_by_line{ $fi->eval_line }->{ $fi->fid } = $fi;
+        $evals_by_line{ $fi->eval_line }->{ $fi->fid } = $fi;
     }
 
-	return \%evals_by_line;
+    return \%evals_by_line;
 }
 
 
@@ -289,9 +295,9 @@ sub normalize_for_test {
 
 
 sub summary {
-	my ($fi) = @_;
+    my ($fi) = @_;
     return sprintf "fid%d: %s",
-		$fi->fid, $fi->filename_without_inc;
+            $fi->fid, $fi->filename_without_inc;
 }
 
 sub dump {      

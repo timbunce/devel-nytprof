@@ -921,10 +921,10 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
      * then we'd like to save the src (NYTP_FIDf_HAS_SRC) if it's available
      */
     if (found->eval_fid
+    || (profile_opts & NYTP_OPTf_SAVESRC)
     || (found->key_len > 10 && found->key[9] == 'x' && strnEQ(found->key, "/loader/0x", 10))
     || (found->key[0] == '-' && (found->key_len == 1 ||
-                                 (found->key[1] == 'e' && found->key_len == 2)))
-    || (profile_opts & NYTP_OPTf_SAVESRC)
+                                (found->key[1] == 'e' && found->key_len == 2)))
     ) {
         found->fid_flags |= NYTP_FIDf_SAVE_SRC;
     }
@@ -2874,23 +2874,7 @@ NV time, unsigned int eval_file_num, unsigned int eval_line_num, int count)
     if (!SvROK(line_time_rvav))                   /* autoviv */
         sv_setsv(line_time_rvav, newRV_noinc((SV*)newAV()));
 
-    if (!eval_line_num) {
-        store_profile_line_entry(aTHX_ line_time_rvav, line_num, time, count, fid);
-    }
-    else {
-        /* times for statements executed *within* a string eval are accumulated
-         * embedded nested within the line the eval is on but without increasing
-         * the time or count of the eval itself. Instead the time and count is
-         * accumulated for each line within the eval on an embedded array reference.
-         */
-        AV *av = store_profile_line_entry(aTHX_ line_time_rvav, eval_line_num, 0, 0, fid);
-
-        SV *eval_line_time_rvav = *av_fetch(av, 2, 1);
-        if (!SvROK(eval_line_time_rvav))          /* autoviv */
-            sv_setsv(eval_line_time_rvav, newRV_noinc((SV*)newAV()));
-
-        store_profile_line_entry(aTHX_ eval_line_time_rvav, line_num, time, count, fid);
-    }
+    store_profile_line_entry(aTHX_ line_time_rvav, line_num, time, count, fid);
 }
 
 
@@ -3593,17 +3577,7 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
             sv_setsv(fid_info_rvav, &PL_sv_no);
         }
     }
-    else {
-        if (!opt_evals)
-            eval_outer_fid(aTHX_ state->fid_fileinfo_av, file_num, 1,
-                       &eval_file_num, &eval_line_num);
-    }
 
-    if (!opt_evals && eval_file_num) {              /* fid is an eval */
-        if (trace_level >= 3)
-            sprintf(trace_note," (was string eval fid %u)", file_num);
-        file_num = eval_file_num;
-    }
     if (trace_level >= 4) {
         const char *new_file_name = "";
         if (file_num != state->last_file_num && SvROK(fid_info_rvav))
@@ -3899,6 +3873,9 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
     if (!SvROK(sv))                   /* autoviv */
         sv_setsv(sv, newRV_noinc((SV*)newHV()));
 
+    /* XXX gets called with fid=0 to indicate is_xsub
+     * That's a hack that should be removed once we have per-sub flags
+     */
     if (fid) {
         SV *fi;
         AV *av;

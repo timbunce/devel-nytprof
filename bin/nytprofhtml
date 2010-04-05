@@ -120,11 +120,13 @@ $reporter->set_param(
             title    => "NYTProf Performance Profile",
             subtitle => $subhead,
         );
+        my $filename_escaped = _escape_html($fi->filename);
         my $intro = sprintf qq{<table class="file_summary">%s</table>},
             join "\n", map { sprintf q{<tr><td class="h">%s</td><td align="left">%s</td></tr>}, @$_ }
-                [ "Filename", sprintf q{<a href="file://%s">%s</a>},
-                    $fi->filename, _escape_html($fi->filename) ],
-                [ "Statements Executed", sprintf "%d executed in %s",
+                [ "Filename", $fi->is_file
+                    ? sprintf(q{<a href="file://%s">%s</a>}, $fi->filename, $filename_escaped)
+                    : $filename_escaped ],
+                [ "Statements", sprintf "Executed %d statements in %s",
                     $fi->sum_of_stmts_count, fmt_time($fi->sum_of_stmts_time) ];
 
         return join "\n", $html_header, $page_header, q{<div class="body_content"><br />}, $intro;
@@ -326,10 +328,10 @@ $reporter->set_param(mk_report_source_line => \&mk_report_source_line);
 $reporter->set_param(mk_report_xsub_line   => \&mk_report_xsub_line  );
 
 sub mk_report_source_line {
-    my ($linenum, $line, $stats_for_line, $stats_for_file, $subs_defined, $subs_called, $profile, $filestr, $evals_called) = @_;
+    my ($linenum, $line, $stats_for_line, $stats_for_file, $profile, $fi) = @_;
 
     my $l = sprintf(qq{<td class="h"><a name="%s"></a>%s</td>}, $linenum, $linenum);
-    my $s = report_src_line(undef, $linenum, $line, $profile, $subs_defined, $subs_called, $filestr, $evals_called);
+    my $s = report_src_line(undef, $linenum, $line, $profile, $fi, $stats_for_line);
 
     return "<tr>$l<td></td><td></td><td></td><td></td>$s</tr>\n"
         if not %$stats_for_line;
@@ -345,12 +347,12 @@ sub mk_report_source_line {
 }
 
 sub mk_report_xsub_line {
-    my ($subname, $line, $stats_for_line, $stats_for_file, $subs_defined, $subs_called, $profile, $filestr) = @_;
+    my ($subname, $line, $stats_for_line, $stats_for_file, $profile, $fi) = @_;
     (my $anchor = $subname) =~ s/\W/_/g;
     return join "",
         sprintf(qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, ''),
         "<td></td><td></td><td></td><td></td>",
-        report_src_line(undef, undef, $line, $profile, $subs_defined, $subs_called, $filestr, undef),
+        report_src_line(undef, undef, $line, $profile, $fi, $stats_for_line),
         "</tr>\n";
 }
 
@@ -368,7 +370,7 @@ sub _escape_html {
 
 
 sub report_src_line {
-    my ($value, undef, $linesrc, $profile, $subs, $subs_called, $thisfile, $evals_called) = @_;
+    my ($value, undef, $linesrc, $profile, $fi, $stats_for_line) = @_;
 
     $linesrc = _escape_html($linesrc);
 
@@ -377,7 +379,8 @@ sub report_src_line {
     my @prologue;
 
     # for each of the subs defined on this line, who called them
-    for my $sub_info (@$subs) {
+    my $subdef_info = $stats_for_line->{subdef_info} || [];
+    for my $sub_info (@$subdef_info) {
         my $callers = $sub_info->caller_fid_line_places;
         next unless $callers && %$callers;
 
@@ -395,8 +398,9 @@ sub report_src_line {
             ? ""
             : " $total_calls times, avg ${avg_per_call}/call:";
 
-        # order by most frequent caller first
+        # order by most frequent caller first, then by time
         @callers = sort { $b->[2] <=> $a->[2] || $b->[3] <=> $a->[3] } @callers;
+
         for my $caller (@callers) {
             my ($fid, $line, $count, $incl_time, $excl_time, undef, undef,
                 undef, undef, $calling_subs) = @$caller;
@@ -416,20 +420,20 @@ sub report_src_line {
             my $filename = $fi->filename($fid);
             my $line_desc = "line $line of $filename";
             # chase string eval chain back to a real file
-            while ( my ($outer_fileinfo, $outer_line) = $fi->outer ) {
+            while (0 and my ($outer_fileinfo, $outer_line) = $fi->outer ) {
                 ($filename, $line) = ($outer_fileinfo->filename, $outer_line);
                 $line_desc .= sprintf " at line %s of %s", $line, $filename;
                 $fi = $outer_fileinfo;
             }
 
-            my $href = $reporter->href_for_file($fi) || 'unknown';
-            $line_desc =~ s/ of \Q$filename\E$//g if $filename eq $thisfile;
+            my $href = $reporter->href_for_file($fi, $line) || 'unknown';
+            $line_desc =~ s/ of \Q$filename\E$//g if $filename eq $fi->filename;
             # remove @INC prefix from paths
             $line_desc =~ s/$inc_path_regex//g;
 
             push @prologue,
-                sprintf q{# %*s times%s%s at <a href="%s#%d">%s</a>%s},
-                length($max_calls), $count, $times, $subname, $href, $line,
+                sprintf q{# %*s times%s%s at <a href="%s">%s</a>%s},
+                length($max_calls), $count, $times, $subname, $href,
                 $line_desc, $avg_time;
             $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English
         }
@@ -442,18 +446,19 @@ sub report_src_line {
     my $ws;
 
     # give details of each of the subs called by this line
-    if ($subs_called && %$subs_called) {
+    my $subcall_info = $stats_for_line->{subcall_info};
+    if ($subcall_info && %$subcall_info) {
 
         my @calls_to = sort {
-            $subs_called->{$b}[1] <=> $subs_called->{$a}[1] or    # incl_time
+            $subcall_info->{$b}[1] <=> $subcall_info->{$a}[1] or    # incl_time
                 $a cmp $b
-        } keys %$subs_called;
-        my $max_calls_to = max(map { $_->[0] } values %$subs_called);
+        } keys %$subcall_info;
+        my $max_calls_to = max(map { $_->[0] } values %$subcall_info);
         $ws ||= ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
 
         my $subs_called_html = join "\n", map {
             my $subname = $_;
-            my ($count, $incl_time, $reci_time, $rec_depth) = (@{$subs_called->{$subname}})[0,1,5,6];
+            my ($count, $incl_time, $reci_time, $rec_depth) = (@{$subcall_info->{$subname}})[0,1,5,6];
             my $html = sprintf qq{%s# spent %s making %*d call%s to }, $ws,
                 fmt_time($incl_time+$reci_time, 5), length($max_calls_to),
                 $count, $count == 1 ? "" : "s";
@@ -471,6 +476,7 @@ sub report_src_line {
     }
 
     # give details of each of the string evals executed on this line
+    my $evals_called = $stats_for_line->{evalcall_info};
     if ($evals_called && %$evals_called) {
         $ws ||= ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
 
@@ -488,12 +494,13 @@ sub report_src_line {
             if (@nested_evals) {
                 $nest_eval_time = sum map { $_->sum_of_stmts_time } @nested_evals;
 
-                $extra = sprintf " (%s in this eval and %s in nested evals)",
-                        fmt_time($sum_of_stmts_time), fmt_time($nest_eval_time)
+                $extra = sprintf " (%s in this eval plus %s in %d nested evals)",
+                        fmt_time($sum_of_stmts_time), fmt_time($nest_eval_time),
+                        scalar @nested_evals
                     if $nest_eval_time;
             }
 
-            my $href = $reporter->href_for_file($eval_fi);
+            my $href = $reporter->href_for_file($eval_fi, undef);
             my $link = ($href)
                 ? sprintf(q{<a href="%s">%s</a>}, $href, "string eval")
                 : "string eval";
@@ -1179,9 +1186,9 @@ sub output_file_table {
         push @t_stmt_time, $time;
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
-            my $level_html_safe = $reporter->href_for_file($fi, $_);
-            ($level_html_safe)
-                ? sprintf(qq{<a href="%s">%s</a>}, $level_html_safe, $_)
+            my $href = $reporter->href_for_file($fi, undef, $_);
+            ($href)
+                ? sprintf(qq{<a href="%s">%s</a>}, $href, $_)
                 : ()
         } qw(line block sub);
         print $fh "<td>$rep_links</td>";

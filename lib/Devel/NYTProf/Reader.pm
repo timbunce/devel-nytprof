@@ -19,6 +19,7 @@ use Carp;
 use Config;
 
 use List::Util qw(sum max);
+use Data::Dumper;
 
 use Devel::NYTProf::Data;
 use Devel::NYTProf::Util qw(
@@ -34,6 +35,8 @@ use Devel::NYTProf::Util qw(
 use constant SEVERITY_SEVERE => 2.0;    # above this deviation, a bottleneck
 use constant SEVERITY_BAD    => 1.0;
 use constant SEVERITY_GOOD   => 0.5;    # within this deviation, okay
+
+my $trace = 0;
 
 # Static class variables
 our $FLOAT_FORMAT = $Config{nvfformat};
@@ -77,42 +80,6 @@ sub new {
     return $self;
 }
 
-
-sub _map_new_to_old {    # convert into old-style data structure
-    my ($profile, $level) = @_;
-    $level ||= 'line';
-
-    my $dump = 0;
-    require Data::Dumper if $dump;
-    $profile->dump_profile_data({filehandle => \*STDERR, separator => "\t"}) if $dump;
-    warn Data::Dumper::Dumper($profile) if $dump;
-
-    my $oldstyle     = {};
-    for my $fi ($profile->all_fileinfos) {
-
-        my $lines_array = $fi->line_time_data([$level]) || [];
-        # convert any embedded eval line time arrays to hashes
-        for (@$lines_array) {
-            $_->[2] = _line_array_to_line_hash($_->[2]) if $_ && $_->[2];
-        }
-        my $lines_hash = _line_array_to_line_hash($lines_array);
-
-        $oldstyle->{$fi->filename} = $lines_hash;
-        $fi->meta->{lines_hash} = $lines_hash;
-    }
-    warn Data::Dumper::Dumper($oldstyle) if $dump;
-    return $oldstyle;
-}
-
-sub _line_array_to_line_hash {
-    my ($array) = @_;
-    my $hash = {};
-    for my $line (0 .. @$array) {
-        $hash->{$line} = $array->[$line]
-            if defined $array->[$line];
-    }
-    return $hash;
-}
 
 
 ##
@@ -186,34 +153,41 @@ sub report {
     }
 }
 
+sub current_level {
+    my $self = shift;
+    $self->{current_level} = shift if @_;
+    return $self->{current_level} || 'line';
+}
+
 ##
 sub _generate_report {
     my $self = shift;
     my ($profile, $LEVEL) = @_;
 
-    my $data = _map_new_to_old($profile, $LEVEL);
+    $self->current_level($LEVEL);
 
-    carp "Profile report data contains no files"
-        unless keys %$data;
+    my @all_fileinfos = $profile->all_fileinfos
+        or carp "Profile report data contains no files";
 
     #$profile->dump_profile_data({ filehandle => \*STDERR, separator=>"\t", });
 
     # pre-calculate some data so it can be cross-referenced
-    foreach my $fi ($profile->all_fileinfos) {
+    foreach my $fi (@all_fileinfos) {
 
         # discover file path
         my $fname = html_safe_filename($fi->filename_without_inc);
+        $fname .= "-".$fi->fid;
         $fname .= "-$LEVEL" if $LEVEL;
 
         my $meta = $fi->meta;
         $meta->{html_safe} = $fname;
         $meta->{$LEVEL}->{html_safe} = $fname;
-        $meta->{filename} = $fi->filename;
     }
 
-    foreach my $fi ($profile->all_fileinfos) {
+    foreach my $fi (@all_fileinfos) {
         my $meta = $fi->meta;
-        my $filestr = $meta->{filename};
+        my $filestr = $fi->filename;
+        warn "$filestr $LEVEL\n" if $trace;
 
         my %stats_accum;         # holds all line times. used to find median
         my %stats_by_line;        # holds individual line stats
@@ -228,15 +202,23 @@ sub _generate_report {
         # { linenumber => { fid => $fileinfo } }
         my $evals_at_line = { %{ $fi->evals_by_line } };
 
+        my $subs_defined_hash = $profile->subs_defined_in_file($filestr, 1);
+
         # note that a file may have no source lines executed, so no keys here
         # (but is included because some xsubs in the package were executed)
-        my $lines_hash = $meta->{lines_hash};
-        foreach my $linenum (keys %$lines_hash) {
-            my $a = $lines_hash->{$linenum};
+
+        my $lines_array = $fi->line_time_data([$LEVEL]) || [];
+
+        foreach my $linenum (1..@$lines_array) {
+
+            my $a = $lines_array->[$linenum];
+            next if !$a   # no info for line
+                 or !@$a; # XXX happens for evals
+
+            warn "$linenum: [@$a]\n" if $trace >= 2;
             my $line_stats = $stats_by_line{$linenum} ||= {};
 
             if (0 == $a->[1]) {
-
                 # The debugger cannot stop on BEGIN{...} lines.  A line in a begin
                 # may set a scalar reference to something that needs to be eval'd later.
                 # as a result, if the variable is expanded outside of the BEGIN, we'll
@@ -246,14 +228,6 @@ sub _generate_report {
             }
 
             my $time = $a->[0];
-            if (my $eval_lines = $a->[2]) {
-                # line contains a string eval
-                # $eval_lines is a hash of profile data for the lines in the eval
-                # sum up the times and add to $time
-                # but we don't increment the statement count of the eval
-                # as that would be inappropriate and misleading
-                $time += $_->[0] for values %$eval_lines;
-            }
             push(@{$stats_accum{'time'}},      $time);
             push(@{$stats_accum{'calls'}},     $a->[1]);
             push(@{$stats_accum{'time/call'}}, $time / $a->[1]);
@@ -263,14 +237,32 @@ sub _generate_report {
             $line_stats->{'time/call'} =
                 $line_stats->{'time'} / $line_stats->{'calls'};
 
+            if (my $subdefs = $subs_defined_hash->{$linenum}) {
+                $line_stats->{'subdef_info'}  = $subdefs;
+            }
+
             if (my $subcalls = $subcalls_at_line->{$linenum}) {
+                $line_stats->{'subcall_info'}  = $subcalls;
+
                 my $subcall_count = sum(map { $_->[0] } values %$subcalls);
                 my $subcall_time  = sum(map { $_->[1] } values %$subcalls);
                 $line_stats->{'subcall_count'} = $subcall_count;
                 $line_stats->{'subcall_time'}  = $subcall_time;
-                $line_stats->{'subcall_info'}  = $subcalls;
                 push @{$stats_accum{'subcall_count'}}, $subcall_count;
                 push @{$stats_accum{'subcall_time'}},  $subcall_time;
+            }
+
+            if (my $evalcalls = $evals_at_line->{$linenum}) {
+                # %$evals => { fid => $fileinfo } }
+                $line_stats->{'evalcall_info'}  = $evalcalls;
+                $line_stats->{'evalcall_count'} = values %$evalcalls;
+
+                # get list of evals, including nested evals
+                my @eval_fis = map { ($_, $_->has_evals(1)) } values %$evalcalls;
+                $line_stats->{'evalcall_count_nested'} = @eval_fis;
+
+                $line_stats->{'evalcall_stmts_time_nested'} = sum(
+                    map { $_->sum_of_stmts_time } @eval_fis);
             }
 
             $runningTotalTime  += $time;
@@ -292,8 +284,6 @@ sub _generate_report {
             subcall_time  => calculate_median_absolute_deviation($stats_accum{subcall_time}||[]),
         );
 
-        my $subs_defined_hash = $profile->subs_defined_in_file($filestr, 1);
-
         # the output file name that will be open later.  Not including directory at this time.
         # keep here so that the variable replacement subs can get at it.
         my $fname = $meta->{html_safe} . $self->{suffix};
@@ -304,7 +294,7 @@ sub _generate_report {
         my $datastart = $self->get_param('datastart', [$profile, $fi]);
         my $dataend   = $self->get_param('dataend',   [$profile, $fi]);
         my $FILE      = $filestr;
-
+#warn Dumper(\%stats_by_line);
         # open output file
         #warn "$self->{output_dir}/$fname";
         open(OUT, ">", "$self->{output_dir}/$fname")
@@ -324,20 +314,35 @@ sub _generate_report {
         my $src_lines = $fi->srclines_array;
         if (!$src_lines) { # no savesrc, and no file available
 
-            # ignore synthetic file names that perl assigns when reading
-            # code returned by a CODE ref in @INC
-            next if $filestr =~ m{^/loader/0x[0-9a-zA-Z]+/};
+            my $msg;
+            if ($fi->is_eval) {
+                $msg = "No source code available for string eval $filestr.\nSee savesrc option in documentation.",
+            }
+            elsif ($fi->is_fake) {
+                # eg the "/unknown-eval-invoker"
+                $msg = "No source code available for 'fake' file $filestr.",
+            }
+            elsif ($filestr =~ m{^/loader/0x[0-9a-zA-Z]+/}) {
+                # a synthetic file name that perl assigns when reading
+                # code returned by a CODE ref in @INC
+                $msg = "No source code available for 'file' loaded via CODE reference in \@INC.\nSee savesrc option in documentation.",
+            }
+            else {
 
-            # the report will not be complete, but this doesn't need to be fatal
-            my $hint = '';
-            $hint =
-                  " Try running $0 in the same directory as you ran Devel::NYTProf, "
-                . "or ensure \@INC is correct."
-                unless $filestr eq '-e'
-                or our $_generate_report_inc_hint++;
-            my $msg = "Unable to open '$filestr' for reading: $!.$hint\n";
-            warn $msg
-                unless our $_generate_report_filestr_warn->{$filestr}++;    # only once
+                # the report will not be complete, but this doesn't need to be fatal
+                my $hint = '';
+                $hint = " Try running $0 in the same directory as you ran Devel::NYTProf, "
+                      . "or ensure \@INC is correct."
+                    if $filestr ne '-e'
+                    and $filestr !~ m:^/:
+                    and not our $_generate_report_inc_hint++;                # only once
+
+                $msg = "Unable to open '$filestr' for reading: $!.$hint\n";
+                warn $msg
+                    unless our $_generate_report_filestr_warn->{$filestr}++; # only once per filestr
+
+            }
+
             $src_lines = [ $msg ];
             $LINE = 0;
         }
@@ -363,7 +368,9 @@ sub _generate_report {
             chomp $line;
 
             # detect a series of blank lines, e.g. a chunk of pod savesrc didn't store
-            my $skip_blanks = ($prev_line eq '' && $line eq '' && $src_lines->[0] =~ /^\s*$/);
+            my $skip_blanks = ($prev_line eq '' && $line eq '' && @$src_lines && $src_lines->[0] =~ /^\s*$/);
+
+            #warn "$LINE: ".join(" ", $prev_line eq '', $line eq '', $src_lines->[0] =~ /^\s*$/)."\n";
 
             if ($line =~ m/^\# \s* line \s+ (\d+) \b/x) {
                 # XXX we should be smarter about this - patches welcome!
@@ -377,19 +384,17 @@ sub _generate_report {
                 ($skip_blanks) ? "- -" : $LINE, $line,
                 $stats_by_line{$LINE} || {},
                 \%stats_for_file,
-                $subs_defined_hash->{$LINE} || [],
-                $subcalls_at_line->{$LINE},
                 $profile,
-                $filestr,
-                $evals_at_line->{$LINE},
+                $fi,
             );
             
             if ($skip_blanks) {
-                while ($src_lines->[0] =~ /^\s*$/) {
+                while (@$src_lines and $src_lines->[0] =~ /^\s*$/) {
                     shift @$src_lines;
                     $LINE++;
                 }
-            }   
+            }
+            $prev_line = $line;
         }
         continue {
             $LINE++;
@@ -416,11 +421,17 @@ sub _generate_report {
 
 
 sub href_for_file {
-    my ($self, $file, $level) = @_;
-    $level ||= 'line';
+    my ($self, $file, $anchor, $level) = @_;
+    $level ||= $self->current_level;
+
     my $fi = $self->{profile}->fileinfo_of($file);
+    #return undef if $fi->is_eval;
+    return undef if $fi->is_fake;
+
     my $href = $fi->meta->{$level}->{html_safe};
     $href &&= $href.'.html';
+    $href .= "#$anchor" if defined $anchor;
+
     return $href;
 }
 

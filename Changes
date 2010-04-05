@@ -17,13 +17,16 @@ string eval merging - must allow at least viewing of source for called subs defi
 
 XXX TODO
 Refine and document handing of string evals
+Consider eval_pv from outside perl, e.g. plperl
+
+  Fixed off-by-1 error in number of Files an xsub/opcode was called from.
 
   Enabled savesrc=1 by default.
 
   Corrected typos in nytprofhtml docs thanks to chocolate@cpan.org
 
-  Sequences are blank lines are skipped in generated reports.
-    Applies to savesrc mode in which perl doesn't store pod.
+  Sequences of blank lines are skipped in generated reports.
+    Relevant for savesrc mode in which perl doesn't store pod sections.
 
 =head2 Changes in Devel::NYTProf 3.11 (svn 1171) 12th March 2010
 

@@ -56,7 +56,10 @@ sub recur_incl_time { shift->[NYTP_SIi_RECI_RTIME] }
 sub caller_fid_line_places {
     my ($self, $merge_evals) = @_;
     carp "caller_fid_line_places doesn't merge evals yet" if $merge_evals;
-    return $self->[NYTP_SIi_CALLED_BY];
+    # shallow clone to remove fid 0 is_sub hack
+    my %tmp = %{ $self->[NYTP_SIi_CALLED_BY] || {} };
+    delete $tmp{0};
+    return \%tmp;
 }
 
 sub called_by_subnames {

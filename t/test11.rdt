@@ -13,11 +13,9 @@ attribute	total_stmts_duration	0
 attribute	total_stmts_measured	0
 attribute	total_sub_calls	0
 attribute	xs_version	0
-fid_block_time	1	3	0	0
-fid_block_time	1	3	1	0
-fid_block_time	1	3	2	1	[ 0 2 ]
 fid_block_time	1	5	[ 0 1 ]
 fid_block_time	1	6	[ 0 1 ]
+fid_block_time	2	1	[ 0 2 ]
 fid_fileinfo	1	[ test11.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	2-4
 fid_fileinfo	1	sub	main::RUNTIME	1-1
@@ -26,16 +24,12 @@ fid_fileinfo	1	call	6	main::__ANON__[(eval 0)[test11.p:3]:1]	[ 1 0 0 0 0 0 0 mai
 fid_fileinfo	1	eval	3	[ 1 0 ]
 fid_fileinfo	2	[ (eval 0)[test11.p:3] 1 3 2 2 0 0 ]
 fid_fileinfo	2	sub	main::__ANON__[(eval 0)[test11.p:3]:1]	1-1
-fid_line_time	1	3	0	0
-fid_line_time	1	3	1	0
-fid_line_time	1	3	2	1	[ 0 2 ]
 fid_line_time	1	5	[ 0 1 ]
 fid_line_time	1	6	[ 0 1 ]
-fid_sub_time	1	3	0	0
-fid_sub_time	1	3	1	0
-fid_sub_time	1	3	2	1	[ 0 2 ]
+fid_line_time	2	1	[ 0 2 ]
 fid_sub_time	1	5	[ 0 1 ]
 fid_sub_time	1	6	[ 0 1 ]
+fid_sub_time	2	1	[ 0 2 ]
 profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub

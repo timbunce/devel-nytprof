@@ -434,7 +434,7 @@ sub verify_csv_report {
     $csvfile =~ s/\.x//;
     $csvfile .= ".p" unless $csvfile =~ /\.p/;
     $csvfile = html_safe_filename($csvfile);
-    $csvfile = "$outdir/${csvfile}-line.csv";
+    $csvfile = "$outdir/${csvfile}-1-line.csv";
     unlink $csvfile;
 
     my $cmd = "$perl $nytprofcsv --file=$profile_datafile --out=$outdir";

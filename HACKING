@@ -392,7 +392,7 @@ For eval fid reports:
 - Add header with link to location of the invoking string eval
 - fix sub caller info to not rollup over evals
 - merge string evals which have identical src and invoking location
+- fix inconsistency in results of href_for_*() subs
+- Add eval information (evals and time) to file summary header
 
 Make generation of call graph .dot files optional and/or optimize to make faster
-
-The 'tainted' test should be renamed to 'modified' and be skipped if the report is using saved src.

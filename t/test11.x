@@ -3,7 +3,7 @@
 # Format: time,calls,time/call,code
 0,0,0,use vars qw/$b/;
 0,0,0,BEGIN {
-0,1,0,$b = eval "sub {1}";
+0,0,0,$b = eval "sub {1}";
 0,0,0,}
 0,1,0,&$b;
 0,1,0,&$b;

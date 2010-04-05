@@ -5,22 +5,54 @@ use lib qw(t/lib);
 use NYTProfTest;
 
 # test run_test_group() with extra_test_code and profile_this()
-# also regression test for deflate bug
-# https://rt.cpan.org/Ticket/Display.html?id=50851
 
 use Devel::NYTProf::Run qw(profile_this);
 
+my @src = (
+    "1+1;\n",
+    "2+2;\n",
+);
+
 run_test_group( {
-    extra_options => { stmts => 0 }, # RT#50851
-    extra_test_count => 1,
+    extra_options => {
+    },
+    extra_test_count => 18,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
         $profile = profile_this(
-            src_code => "1+1",
+            # tiny amount of source code to exercise RT#50851
+            src_code => join('', @src),
             out_file => $env->{file},
             skip_sitecustomize => 1,
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
+
+        my ($fi, @others) = $profile->all_fileinfos;
+        is @others, 0, 'should be one fileinfo';
+
+        is $fi->fid, 1;
+        is $fi->filename, '-'; # profile_this() does "| perl -"
+        is $fi->abs_filename, '-';
+        is $fi->filename_without_inc, '-';
+
+        is $fi->eval_fi, undef;
+        is $fi->eval_fid,  ''; # PL_sv_no
+        is $fi->eval_line, ''; # PL_sv_no
+        is_deeply $fi->evals_by_line, {};
+
+        is $fi->profile, $profile;
+        ok not $fi->is_eval;
+        ok not $fi->is_fake;
+        ok not $fi->is_pmc;
+
+        my $line_time_data = $fi->line_time_data;
+        is ref $line_time_data, 'ARRAY';
+
+        is $fi->sum_of_stmts_count, 2;
+
+        # XXX these timings will probably cause test failures
+        cmp_ok $fi->sum_of_stmts_time, '>', 0;
+        cmp_ok $fi->sum_of_stmts_time, '<', 0.001; # should be tiny
     },
 });
