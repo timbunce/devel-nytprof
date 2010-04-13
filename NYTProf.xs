@@ -4502,8 +4502,9 @@ load_profile_to_hv(pTHX_ NYTP_file in)
 
 
     if (HvKEYS(state.live_pids_hv)) {
-        logwarn("profile data possibly truncated, no terminator for %"IVdf" pids\n",
-            HvKEYS(state.live_pids_hv));
+        logwarn("Profile data incomplete, no terminator for %"IVdf" pids %s\n",
+            HvKEYS(state.live_pids_hv),
+            "(refer to TROUBLESHOOTING in the documentation)");
         store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("complete"),
                         &PL_sv_no);
     }

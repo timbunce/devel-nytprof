@@ -263,8 +263,9 @@ grab_input(NYTP_file ifile) {
 
         if (!(status == Z_OK || status == Z_STREAM_END)) {
             if (ifile->stdio_at_eof)
-                croak("Error reading file: inflate failed, error %d (%s) at end of input file, "
-                    " perhaps the process didn't exit cleanly or the file has been truncated",
+                croak("Profile data incomplete, inflate error %d (%s) at end of input file,"
+                    " perhaps the process didn't exit cleanly or the file has been truncated "
+                    " (refer to TROUBLESHOOTING in the documentation)\n",
                     status, ifile->zs.msg);
             croak("Error reading file: inflate failed, error %d (%s) at offset %ld in input file",
                   status, ifile->zs.msg, (long)ftell(ifile->file));

@@ -544,7 +544,9 @@ closed.  Calling DB::disable_profile() doesn't do that.  To make a profile file
 usable before the profiled application has completed you can call
 DB::finish_profile(). Alternatively you could call DB::enable_profile($newfile).
 
-=head2 DB::disable_profile()
+=head2 disable_profile
+
+  DB::disable_profile()
 
 Stops collection of profile data.
 
@@ -552,17 +554,23 @@ Subroutine calls which were made while profiling was enabled and are still on
 the call stack (have not yet exited) will still have their profile data
 collected when they exit.
 
-=head2 DB::enable_profile($newfile)
+=head2 enable_profile
+
+  DB::enable_profile($newfile)
 
 Enables collection of profile data. If $newfile is true the profile data will be
 written to $newfile (after completing and closing the previous file, if any).
 If $newfile already exists it will be deleted first.
 
-=head2 DB::finish_profile()
+=head2 finish_profile
+
+  DB::finish_profile()
 
 Calls DB::disable_profile(), then completes the profile data file by writing
 subroutine profile data, and then closes the file. The in memory subroutine
 profile data is then discarded.
+
+Normally NYTProf arranges to call finish_profile() for you via an END block.
 
 =head1 DATA COLLECTION AND INTERPRETATION
 
@@ -901,7 +909,7 @@ but only at a very low 1/100th of a second resolution.
 
 =head1 BUGS
 
-Possibly.
+Possibly. All complex software has bugs. Let me know if you find one.
 
 =head1 SEE ALSO
 
@@ -929,6 +937,24 @@ it's very likely to be deprecated in a future release).
 L<Devel::NYTProf::ReadStream> is the module that lets you read a profile data
 file as a stream of chunks of data.
 
+=head1 TROUBLESHOOTING
+
+=head2 Profile data incomplete, ...
+
+This error message means the file doesn't contain all the expected data.
+That may be because it was truncated (perhaps the filesystem was full) or,
+more commonly, because the all the expected data hasn't been written.
+
+NYTProf writes some important data to the data file when I<finishing> profiling.
+If you read the file before the profiling has finished you'll get this error.
+
+If the process being profiled is still running you'll need to wait until it
+exits cleanly (or L</finish_profile> is called explicitly).
+
+If the process being profiled has exited then it's likely that it met with a
+sudden and unnatural death that didn't give NYTProf a chance to finish the profile.
+If the sudden death was due to a signal then L</sigexit=1> may help.
+
 =head1 AUTHORS AND CONTRIBUTORS
 
 B<Tim Bunce> (L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>)
@@ -950,7 +976,7 @@ For more details see L</HISTORY> below.
 =head1 COPYRIGHT AND LICENSE
 
   Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
-  Copyright (C) 2008, 2009 by Tim Bunce, Ireland.
+  Copyright (C) 2008-2010 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
@@ -1009,7 +1035,8 @@ cross-linked reports.
 
 Steve Peters came on board along the way with patches for portability and to
 keep NYTProf working with the latest development perl versions. Nicholas Clark
-added zip compression. Jan Dubois contributed Windows support.
+added zip compression, many optimizations, and C<nytprofmerge>.
+Jan Dubois contributed Windows support.
 
 Adam's work is sponsored by The New York Times Co. L<http://open.nytimes.com>.
 Tim's work was partly sponsored by Shopzilla L<http://www.shopzilla.com> during 2008.
