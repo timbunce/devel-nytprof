@@ -18,6 +18,7 @@ string eval merging - must allow at least viewing of source for called subs defi
 XXX TODO
 Refine and document handing of string evals
 Consider eval_pv from outside perl, e.g. plperl
+Add option to intercept POSIX::_exit().
 
   Fixed off-by-1 error in number of Files an xsub/opcode was called from.
 

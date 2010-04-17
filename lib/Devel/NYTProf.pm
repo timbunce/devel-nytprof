@@ -949,11 +949,13 @@ NYTProf writes some important data to the data file when I<finishing> profiling.
 If you read the file before the profiling has finished you'll get this error.
 
 If the process being profiled is still running you'll need to wait until it
-exits cleanly (or L</finish_profile> is called explicitly).
+exits cleanly (runs C<END> blocks or L</finish_profile> is called explicitly).
 
 If the process being profiled has exited then it's likely that it met with a
 sudden and unnatural death that didn't give NYTProf a chance to finish the profile.
 If the sudden death was due to a signal then L</sigexit=1> may help.
+If the sudden death was due to calling C<POSIX::_exit($status)> then you'll
+need to call L</finish_profile> before calling C<POSIX::_exit>.
 
 =head1 AUTHORS AND CONTRIBUTORS
 
