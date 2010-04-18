@@ -218,16 +218,21 @@ sub normalize_for_test {
     $self->[NYTP_SIi_EXCL_RTIME] = 0;
     $self->[NYTP_SIi_RECI_RTIME] = 0;
 
-    # { fid => { line => [ count, incl, excl, ucpu, scpu, reci, recdepth ] } }
-    my $callers = $self->caller_fid_line_places || {};
+    # { fid => { line => [ count, incl, excl, spare3, spare4, reci, recdepth ] } }
+    my $callers = $self->[NYTP_SIi_CALLED_BY] || {};
 
-    # delete calls from modules shipped with perl that some tests use
-    # (because the line numbers vary between perl versions)
+    # calls from modules shipped with perl cause problems for tests
+    # because the line numbers vary between perl versions, so here we
+    # edit the line number of calls from these modules
     for my $fid (keys %$callers) {
         next if not $fid;
         my $fileinfo = $profile->fileinfo_of($fid) or next;
         next if $fileinfo->filename !~ /(AutoLoader|Exporter)\.pm$/;
-        delete $callers->{$fid};
+
+        # normalize the lines X,Y,Z to 1,2,3
+        my %lines = %{ delete $callers->{$fid} };
+        my @lines = @lines{sort { $a <=> $b } keys %lines};
+        $callers->{$fid} = { map { $_ => shift @lines } 1..@lines };
     }
 
     # zero per-call-location subroutine inclusive time

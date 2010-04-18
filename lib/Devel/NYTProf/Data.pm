@@ -83,6 +83,9 @@ sub new {
         $file,
         $args->{callback},
     );
+
+    return undef if $args->{callback};
+
     bless $profile => $class;
 
     my $fid_fileinfo = $profile->{fid_fileinfo};
@@ -98,6 +101,40 @@ sub new {
     # bless sub_subinfo data
     (my $sub_class = $class) =~ s/\w+$/SubInfo/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
+
+    $profile->_clear_caches;
+
+    # Where a given eval() has been invoked more than once
+    # rollup the corresponding fids if they're "uninteresting".
+    # Currently uninteresting means:
+    #   - defines no subs, and
+    #   - has no evals
+    my %eval_places;
+    for my $fi ($profile->eval_fileinfos) {
+        push @{ $eval_places{$fi->eval_fid}->{$fi->eval_line} }, $fi;
+    }
+    while ( my ($fid, $line2fis) = each %eval_places) {
+        while ( my ($line, $siblings) = each %$line2fis) {
+
+            next if @$siblings == 1;
+next;
+            my @subs  = map { values %{ $_->subs } } @$siblings;
+            my @calls = map { keys %{ $_->sub_call_lines } } @$siblings;
+            my @evals = map { $_->has_evals(0) } @$siblings;
+            my $msg = sprintf "%d:%d: multiple evals (subs %d, calls %d, evals %d, fids: %s)",
+                    $fid, $line, scalar @subs, scalar @calls, scalar @evals,
+                    join(", ", map { $_->fid } @$siblings);
+            warn "$msg\n" if $trace >= 3;
+
+            next if @subs;  # ignore if the eval defines subs
+            next if @calls; # ignore if the eval calls subs
+            next if @evals; # ignore if the eval has nested evals
+
+            warn "$msg COLLAPSING\n" if $trace >= 0;
+            my $parent = $siblings->[0]->eval_fi;
+            $parent->collapse_and_discard_evals(@$siblings);
+        }
+    }
 
     $profile->_clear_caches;
 
@@ -235,7 +272,8 @@ sub packages_at_depth_subinfo {
 sub all_fileinfos {
     my @all = @{shift->{fid_fileinfo}};
     shift @all;    # drop fid 0
-    return @all;
+    # return all non-nullified fileinfos
+    return grep { $_->fid } @all;
 }
 
 sub eval_fileinfos {
@@ -264,34 +302,9 @@ sub fileinfo_of {
         return undef;
     }
 
-    return $self->{fid_fileinfo}[$fid];
-}
-
-
-# map of { eval_fid => base_fid, ... }
-sub eval_fid_2_base_fid_map {
-    my ($self, $flatten_evals) = @_;
-    $flatten_evals ||= 0;
-
-    my $caches = $self->_caches;
-    my $cache_key = "eval_fid_2_base_fid_map:$flatten_evals";
-    return $caches->{$cache_key} if $caches->{$cache_key};
-
-    my $fid_fileinfo = $self->{fid_fileinfo} || [];
-    my $eval_fid_map = {};
-
-    for my $fi (@$fid_fileinfo) {
-        my $base_fi = $fi && $fi->eval_fi
-            or next;
-
-        while ($flatten_evals and my $b_eval_fi = $base_fi->eval_fi) {
-            $base_fi = $b_eval_fi;
-        }
-        $eval_fid_map->{ $fi->fid } = $base_fi->fid;
-    }
-
-    $caches->{$cache_key} = $eval_fid_map;
-    return $eval_fid_map;
+    my $fi = $self->{fid_fileinfo}[$fid];
+    return undef unless defined $fi->fid; # nullified?
+    return $fi;
 }
 
 
@@ -346,22 +359,27 @@ sub dump_profile_data {
 
         if (my $hook = $args->{skip_fileinfo_hook}) {
 
-            # for fid_fileinfo don't dump internal details of lib modules
+            # for fid_fileinfo elements...
             if ($path->[0] eq 'fid_fileinfo' && @$path==2) {
-                my $fi = $self->fileinfo_of($value->[0]);
+                my $fi = $value;
+
+                # skip nullified fileinfo
+                return undef unless $fi->fid;
+
+                # don't dump internal details of lib modules
                 return ({ skip_internal_details => scalar $hook->($fi, $path, $value) }, $value);
             }
 
             # skip sub_subinfo data for 'library modules'
             if ($path->[0] eq 'sub_subinfo' && @$path==2 && $value->[0]) {
                 my $fi = $self->fileinfo_of($value->[0]);
-                return undef if $hook->($fi, $path, $value);
+                return undef if !$fi or $hook->($fi, $path, $value);
             }
 
             # skip fid_*_time data for 'library modules'
             if ($path->[0] =~ /^fid_\w+_time$/ && @$path==2) {
                 my $fi = $self->fileinfo_of($path->[1]);
-                return undef if $hook->($fi, $path, $value)
+                return undef if !$fi or $hook->($fi, $path, $value);
             }
         }
         return ({}, $value);
@@ -400,7 +418,9 @@ sub _dump_elements {
         my $value = ($is_hash) ? $r->{$key} : $r->[$key];
 
         # skip undef elements in array
-        next if !defined($value) && !$is_hash;
+        next if !$is_hash && !defined($value);
+        # skip refs to empty arrays in array
+        next if !$is_hash && ref $value eq 'ARRAY' && !@$value;
 
         my $dump_opts = {};
         if ($callback) {
@@ -545,12 +565,8 @@ sub _filename_to_fid {
     my $self = shift;
     my $caches = $self->_caches;
     return $caches->{_filename_to_fid_cache} ||= do {
-        my $fid_fileinfo = $self->{fid_fileinfo} || [];
         my $filename_to_fid = {};
-        for my $fid (1 .. @$fid_fileinfo - 1) {
-            my $filename = $fid_fileinfo->[$fid][0];
-            $filename_to_fid->{$filename} = $fid;
-        }
+        $filename_to_fid->{$_->filename} = $_->fid for $self->all_fileinfos;
         $filename_to_fid;
     };
 }
@@ -643,7 +659,7 @@ sub fid_filename {
         or return undef;
 
     while ($fileinfo->[1]) {    # is an eval
-
+carp "using fid_filename($fid) on eval"; # XXX
         # eg string eval
         # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
         warn sprintf "fid_filename: fid %d -> %d for %s\n", $fid, $fileinfo->[1], $fileinfo->[0]
@@ -690,10 +706,10 @@ sub file_line_range_of_sub {
 
     return if not $fid; # sub has no known file
 
-    my $fileinfo = $fid && $self->{fid_fileinfo}->[$fid]
+    my $fileinfo = $fid && $self->fileinfo_of($fid)
         or die "No fid_fileinfo for sub $sub fid '$fid'\n";
     while ($fileinfo->eval_fid) {
-
+carp "file_line_range_of_sub($sub) called for sub defined in eval"; # XXX
         # eg string eval
         # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
         warn sprintf "file_line_range_of_sub: %s: fid %d -> %d for %s\n",

@@ -343,6 +343,7 @@ sub run_command {
 
 sub run_perl_command {
     my ($cmd, $show_stdout) = @_;
+    local $ENV{PERL5LIB} = $perl5lib;
     run_command("$this_perl $cmd", $show_stdout);
 }
 

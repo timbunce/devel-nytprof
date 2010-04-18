@@ -2,6 +2,8 @@ package Devel::NYTProf::FileInfo;    # fid_fileinfo
 
 use strict;
 
+use List::Util qw(sum);
+
 use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 
 use Devel::NYTProf::Constants qw(
@@ -45,7 +47,7 @@ sub is_file   {
 # general purpose hash - mainly a hack to help kill of Reader.pm
 sub meta      { shift->[NYTP_FIDi_meta()] ||= {} }
 
-# array of fileinfo's for each string eval in the file, else undef
+# array of fileinfo's for each string eval in the file
 sub has_evals {
     my ($self, $include_nested) = @_;
 
@@ -60,6 +62,28 @@ sub has_evals {
     }
 
     return @eval_fis;
+}
+
+
+sub _nullify {
+    my $self = shift;
+    @$self = (); # Zap!
+}
+
+
+sub _delete_eval {
+    my ($self, $eval_fi) = @_;
+
+    my $eval_fis = $self->[NYTP_FIDi_HAS_EVALS()]
+        or return;
+    my $count = @$eval_fis;
+    @$eval_fis = grep { $_ != $eval_fi } @$eval_fis;
+    warn "_delete_eval missed" if @$eval_fis == $count;
+
+    # XXX needs to update NYTP_FIDi_SUBS_DEFINED NYTP_FIDi_SUBS_CALLED
+    # by moving relevant data up the the parent
+
+    return;
 }
 
 
@@ -151,18 +175,16 @@ sub excl_time { # total exclusive time for fid
     for (@$line_data) {
         next unless $_;
         $excl_time += $_->[0];
-        # XXX this old mechanism should be deprecated soon
-        if (my $eval_lines = $_->[2]) {
-            # line contains a string eval
-            $excl_time += $_->[0] for values %$eval_lines;
-        }
     }
     return $excl_time;
 }
 
 
 sub sum_of_stmts_count {
-    my ($self) = @_;
+    my ($self, $incl_nested_evals) = @_;
+
+    return sum(map { $_->sum_of_stmts_count(0) } $self, $self->has_evals(1))
+        if $incl_nested_evals;
 
     my $ref = \$self->[NYTP_FIDi_sum_stmts_count()];
     $$ref = $self->_sum_of_line_time_data(1)
@@ -172,7 +194,10 @@ sub sum_of_stmts_count {
 }
 
 sub sum_of_stmts_time {
-    my ($self) = @_;
+    my ($self, $incl_nested_evals) = @_;
+
+    return sum(map { $_->sum_of_stmts_time(0) } $self, $self->has_evals(1))
+        if $incl_nested_evals;
 
     my $ref = \$self->[NYTP_FIDi_sum_stmts_times()];
     $$ref = $self->_sum_of_line_time_data(0)
@@ -207,6 +232,27 @@ sub outer {
 
 sub is_pmc {
     return (shift->flags & NYTP_FIDf_IS_PMC());
+}
+
+
+sub collapse_and_discard_evals {
+    my $self = shift;
+
+    for my $eval_fi (@_) {
+        die "Can't rollup_and_discard_evals into non-parent"
+            if $eval_fi->eval_fi != $self;
+        # XXX check if parent has already been collapsed
+
+        # XXX doesn't update model to edit details for
+        # subs defines, subs called, or evals etc.
+
+        my $line_time_data = $self->line_time_data; # XXX line only
+        my $tld = $line_time_data->[$eval_fi->eval_line] ||= [];
+        $tld->[0] += $eval_fi->sum_of_stmts_time(1);
+
+        $self->_delete_eval($eval_fi);
+        $eval_fi->_nullify;
+    }
 }
 
 

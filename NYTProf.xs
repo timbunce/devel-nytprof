@@ -4851,11 +4851,14 @@ SV* cb;
     }
     if (cb && SvROK(cb)) {
         load_profile_to_callback(aTHX_ in, SvRV(cb));
-        RETVAL = newHV(); /* Can we change this to PL_sv_undef?  */
-    } else
+        RETVAL = &PL_sv_undef;
+    }
+    else {
         RETVAL = load_profile_to_hv(aTHX_ in);
+    }
 
     if ((result = NYTP_close(in, 0)))
         logwarn("Error closing profile data file: %s\n", strerror(result));
+
     OUTPUT:
     RETVAL
