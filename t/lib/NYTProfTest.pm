@@ -282,7 +282,7 @@ sub run_test {
             or die "Profiling $test failed\n";
 
         if ($opts{html}) {
-            my $cmd = "$perl $nytprofhtml --file=$profile_datafile --out=$outdir";
+            my $cmd = "$perl $nytprofhtml --file=$profile_datafile --out=/tmp/$outdir";
             $cmd .= " --open" if $opts{open};
             run_command($cmd);
         }

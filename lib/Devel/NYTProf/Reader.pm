@@ -211,48 +211,24 @@ sub _generate_report {
 
         foreach my $linenum (1..@$lines_array) {
 
-            my $a = $lines_array->[$linenum];
-            next if !$a   # no info for line
-                 or !@$a; # XXX happens for evals
-
-            warn "$linenum: [@$a]\n" if $trace >= 2;
-            my $line_stats = $stats_by_line{$linenum} ||= {};
-
-            if (0 == $a->[1]) {
-                # The debugger cannot stop on BEGIN{...} lines.  A line in a begin
-                # may set a scalar reference to something that needs to be eval'd later.
-                # as a result, if the variable is expanded outside of the BEGIN, we'll
-                # see the original BEGIN line, but it won't have any calls or times
-                # associated. This will cause a divide by zero error.
-                $a->[1] = 1;
-            }
-
-            my $time = $a->[0];
-            push(@{$stats_accum{'time'}},      $time);
-            push(@{$stats_accum{'calls'}},     $a->[1]);
-            push(@{$stats_accum{'time/call'}}, $time / $a->[1]);
-
-            $line_stats->{'time'}  += $time;
-            $line_stats->{'calls'} += $a->[1];
-            $line_stats->{'time/call'} =
-                $line_stats->{'time'} / $line_stats->{'calls'};
-
             if (my $subdefs = $subs_defined_hash->{$linenum}) {
-                $line_stats->{'subdef_info'}  = $subdefs;
+                $stats_by_line{$linenum}->{'subdef_info'}  = $subdefs;
             }
 
             if (my $subcalls = $subcalls_at_line->{$linenum}) {
-                $line_stats->{'subcall_info'}  = $subcalls;
+                my $line_stats = $stats_by_line{$linenum} ||= {};
 
-                my $subcall_count = sum(map { $_->[0] } values %$subcalls);
-                my $subcall_time  = sum(map { $_->[1] } values %$subcalls);
-                $line_stats->{'subcall_count'} = $subcall_count;
-                $line_stats->{'subcall_time'}  = $subcall_time;
-                push @{$stats_accum{'subcall_count'}}, $subcall_count;
-                push @{$stats_accum{'subcall_time'}},  $subcall_time;
+                $line_stats->{'subcall_info'}  = $subcalls;
+                $line_stats->{'subcall_count'} = sum(map { $_->[0] } values %$subcalls);
+                $line_stats->{'subcall_time'}  = sum(map { $_->[1] } values %$subcalls);
+
+                push @{$stats_accum{$_}}, $line_stats->{$_}
+                    for (qw(subcall_count subcall_time));
             }
 
             if (my $evalcalls = $evals_at_line->{$linenum}) {
+                my $line_stats = $stats_by_line{$linenum} ||= {};
+
                 # %$evals => { fid => $fileinfo } }
                 $line_stats->{'evalcall_info'}  = $evalcalls;
                 $line_stats->{'evalcall_count'} = values %$evalcalls;
@@ -260,13 +236,36 @@ sub _generate_report {
                 # get list of evals, including nested evals
                 my @eval_fis = map { ($_, $_->has_evals(1)) } values %$evalcalls;
                 $line_stats->{'evalcall_count_nested'} = @eval_fis;
-
                 $line_stats->{'evalcall_stmts_time_nested'} = sum(
                     map { $_->sum_of_stmts_time } @eval_fis);
             }
 
-            $runningTotalTime  += $time;
-            $runningTotalCalls += $a->[1];
+            if (my $stmts = $lines_array->[$linenum]) {
+                next if !@$stmts; # XXX happens for evals, investigate
+
+                my ($stmt_time, $stmt_count) = @$stmts;
+                my $line_stats = $stats_by_line{$linenum} ||= {};
+
+                # The debugger cannot stop on BEGIN{...} lines.  A line in a begin
+                # may set a scalar reference to something that needs to be eval'd later.
+                # as a result, if the variable is expanded outside of the BEGIN, we'll
+                # see the original BEGIN line, but it won't have any calls or times
+                # associated. This will cause a divide by zero error.
+                $stmt_count ||= 1;
+
+                $line_stats->{'time'}  = $stmt_time;
+                $line_stats->{'calls'} = $stmt_count;
+                $line_stats->{'time/call'} = $stmt_time/$stmt_count;
+
+                push @{$stats_accum{$_}}, $line_stats->{$_}
+                    for (qw(time calls time/call));
+
+                $runningTotalTime  += $stmt_time;
+                $runningTotalCalls += $stmt_count;
+            }
+
+            warn "$linenum: @{[ %{ $stats_by_line{$linenum} } ]}\n"
+                if $trace >= 3 && $stats_by_line{$linenum};
         }
 
         $meta->{'time'}      = $runningTotalTime;
