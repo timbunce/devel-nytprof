@@ -5,7 +5,7 @@ sub foo {
 }
 
 sub bar {
-    eval "1 while (1..10_000)";
+    eval 'for ($a=0; $a < 10_000; ++$a) { ++$b }';
 }
 
 foo();

@@ -21,8 +21,7 @@ use Devel::NYTProf::Constants qw(
 # extra constants for private elements
 use constant {
     NYTP_FIDi_meta            => NYTP_FIDi_elements + 1,
-    NYTP_FIDi_sum_stmts_count => NYTP_FIDi_elements + 2,
-    NYTP_FIDi_sum_stmts_times => NYTP_FIDi_elements + 3,
+    NYTP_FIDi_cache           => NYTP_FIDi_elements + 2,
 };
 
 sub filename  { shift->[NYTP_FIDi_FILENAME()] }
@@ -46,6 +45,8 @@ sub is_file   {
 
 # general purpose hash - mainly a hack to help kill off Reader.pm
 sub meta      { shift->[NYTP_FIDi_meta()] ||= {} }
+# general purpose cache
+sub cache     { shift->[NYTP_FIDi_cache()] ||= {} }
 
 # array of fileinfo's for each string eval in the file
 sub has_evals {
@@ -195,7 +196,7 @@ sub sum_of_stmts_count {
     return sum(map { $_->sum_of_stmts_count(0) } $self, $self->has_evals(1))
         if $incl_nested_evals;
 
-    my $ref = \$self->[NYTP_FIDi_sum_stmts_count()];
+    my $ref = \$self->cache->{NYTP_FIDi_sum_stmts_count};
     $$ref = $self->_sum_of_line_time_data(1)
         if not defined $$ref;
 
@@ -208,7 +209,7 @@ sub sum_of_stmts_time {
     return sum(map { $_->sum_of_stmts_time(0) } $self, $self->has_evals(1))
         if $incl_nested_evals;
 
-    my $ref = \$self->[NYTP_FIDi_sum_stmts_times()];
+    my $ref = \$self->cache->{NYTP_FIDi_sum_stmts_times};
     $$ref = $self->_sum_of_line_time_data(0)
         if not defined $$ref;
 
@@ -217,7 +218,7 @@ sub sum_of_stmts_time {
 
 sub _sum_of_line_time_data {
     my ($self, $idx) = @_;
-    my $line_time_data = $self->line_time_data([qw(sub block line)]);
+    my $line_time_data = $self->line_time_data;
     my $sum = 0;
     $sum += $_->[$idx]||0 for @$line_time_data;
     return $sum;
@@ -253,13 +254,9 @@ sub collapse_sibling_evals {
 				} @donors;
 
 	my $s_ltd = $survivor->line_time_data; # XXX line only
-	my $s_fid = $survivor->line_time_data; # XXX line only
 
     for my $donor_fi (@donors) {
 		# copy data from donor to survivor then delete donor
-
-        # XXX doesn't update model to edit details for
-        # subs defines, subs called, or evals etc.
 
 		# XXX nested evals not handled yet
 		warn "collapse_sibling_evals: nested evals not handled"
@@ -270,7 +267,7 @@ sub collapse_sibling_evals {
 			if $donor_fi->subs_defined;
 
 		if (my $sub_call_lines = $donor_fi->sub_call_lines) {
-
+			warn "collapse_sibling_evals: subs called not handled yet"
 		}
 
 		# copy line time data

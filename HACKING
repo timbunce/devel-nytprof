@@ -396,3 +396,11 @@ For eval fid reports:
 - Add eval information (evals and time) to file summary header
 
 Make generation of call graph .dot files optional and/or optimize to make faster
+
+String evals could/should be tied into the subroutine profiler.
+That would give inclusive timings which we don't have at the moment.
+The evals appear in the html report as if they're calls but the timings are
+statement timings of the eval fid that don't include time spent in subs defined
+elsewhere but called from the string eval. The inconsistency is confusing.
+
+Modify csv output to optionally include extra metadata lines. Use for testing.

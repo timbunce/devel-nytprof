@@ -236,7 +236,7 @@ sub _generate_report {
             if (my $evalcalls = $evals_at_line->{$linenum}) {
                 my $line_stats = $stats_by_line{$linenum} ||= {};
 
-                # %$evals => { fid => $fileinfo } }
+                # %$evals => { fid => $fileinfo }
                 $line_stats->{'evalcall_info'}  = $evalcalls;
                 $line_stats->{'evalcall_count'} = values %$evalcalls;
 
@@ -434,8 +434,9 @@ sub href_for_file {
     $level ||= $self->current_level;
 
     my $fi = $self->{profile}->fileinfo_of($file);
-    #return undef if $fi->is_eval;
     return undef if $fi->is_fake;
+
+    $level = 'line' if $fi->is_eval;
 
     my $href = $fi->meta->{$level}->{html_safe};
     $href &&= $href.'.html';

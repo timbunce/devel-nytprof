@@ -107,8 +107,8 @@ $reporter->set_param(
     sub {
         my ($profile, $fi, $output_filestr, $level) = @_;
 
-        my $profile_level_buttons =
-            get_level_buttons($profile->get_profile_levels, $output_filestr, $level);
+        my $profile_level_buttons = ($fi->is_eval)
+            ? '' : get_level_buttons($profile->get_profile_levels, $output_filestr, $level);
 
         my $subhead = qq{&emsp;&emsp;$profile_level_buttons<br />
             For ${ \($profile->{attribute}{application}) }
@@ -510,24 +510,30 @@ sub report_src_line {
         my $evals_called_html = join "\n", map {
             my $eval_fi = $_;
             my $sum_of_stmts_time = $eval_fi->sum_of_stmts_time;
+            my $what = "string eval";
 
             my @nested_evals = $eval_fi->has_evals(1);
             my ($nest_eval_time, $extra) = (0, '');
             if (@nested_evals) {
                 $nest_eval_time = sum map { $_->sum_of_stmts_time } @nested_evals;
 
-                $extra = sprintf " (%s in this eval plus %s in %d nested evals)",
+                $extra .= sprintf " (%s in this eval plus %s in %d nested evals)",
                         fmt_time($sum_of_stmts_time), fmt_time($nest_eval_time),
                         scalar @nested_evals
                     if $nest_eval_time;
             }
 
+            my $merged_fids = $eval_fi->meta->{merged_fids};
+            if ($merged_fids) {
+                $extra .= sprintf " (data for these has been merged)";
+                $what .= "s";
+            }
+
             my $href = $reporter->href_for_file($eval_fi, undef);
-            my $link = ($href)
-                ? sprintf(q{<a href="%s">%s</a>}, $href, "string eval")
-                : "string eval";
-            my $html = sprintf qq{%s# spent %s compiling and executing %s%s},
+            my $link = ($href) ? sprintf(q{<a href="%s">%s</a>}, $href, $what) : $what;
+            my $html = sprintf qq{%s# spent %s executing statements in %s%s%s},
                 $ws, fmt_time($sum_of_stmts_time+$nest_eval_time, 5),
+                ($merged_fids) ? sprintf("%d ",1+scalar @$merged_fids) : '',
                 $link, $extra;
 
             $html;
@@ -648,7 +654,7 @@ sub output_index_page {
     }
 
     output_subs_callgraph_dot_file($reporter, "packages-callgraph.dot", undef, 1);
-    print $fh q{<br/>NYTProf also generates call-graph files in }
+    print $fh q{NYTProf also generates call-graph files in }
         .q{<a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> format: }
         .q{<a href="packages-callgraph.dot">inter-package calls</a>};
     output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot", undef, 0);
@@ -657,6 +663,10 @@ sub output_index_page {
         if $all_subs > 200; # arbitrary
     print $fh q{.<br/>};
     
+    print $fh q{<br/>You can hover over some table cells and headings to view extra information.};
+    print $fh q{<br/>Some table column headings can be clicked on to sort the table by that column.};
+    print $fh q{<br/>};
+
     output_file_table($fh, $profile, 1);
 
     my $footer = get_footer($profile);
