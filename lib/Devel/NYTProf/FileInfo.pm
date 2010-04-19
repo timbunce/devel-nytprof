@@ -44,7 +44,7 @@ sub is_file   {
 	return not ($self->is_fake or $self->is_eval);
 }
 
-# general purpose hash - mainly a hack to help kill of Reader.pm
+# general purpose hash - mainly a hack to help kill off Reader.pm
 sub meta      { shift->[NYTP_FIDi_meta()] ||= {} }
 
 # array of fileinfo's for each string eval in the file
@@ -81,14 +81,23 @@ sub _delete_eval {
     warn "_delete_eval missed" if @$eval_fis == $count;
 
     # XXX needs to update NYTP_FIDi_SUBS_DEFINED NYTP_FIDi_SUBS_CALLED
-    # by moving relevant data up the the parent
+    # by moving relevant data up to the parent
 
     return;
 }
 
 
 # return a ref to a hash of { subname => subinfo, ... }
-sub subs      { shift->[NYTP_FIDi_SUBS_DEFINED()] }
+sub subs      { shift->[NYTP_FIDi_SUBS_DEFINED()] } # deprecated
+
+# return subs defined as list of SubInfo objects
+# XXX add $include_evals arg?
+sub subs_defined {
+	return values %{ shift->[NYTP_FIDi_SUBS_DEFINED()] };
+}
+sub subs_defined_sorted {
+	return sort { $a->subname cmp $b->subname } shift->subs_defined;
+}
 
 
 =head2 sub_call_lines
@@ -235,23 +244,48 @@ sub is_pmc {
 }
 
 
-sub collapse_and_discard_evals {
-    my $self = shift;
+sub collapse_sibling_evals {
+	my ($self, $survivor, @donors) = @_;
 
-    for my $eval_fi (@_) {
-        die "Can't rollup_and_discard_evals into non-parent"
-            if $eval_fi->eval_fi != $self;
-        # XXX check if parent has already been collapsed
+	die "Can't collapse_sibling_evals of non-sibling evals"
+		if grep { $_->eval_fid  != $survivor->eval_fid or
+				  $_->eval_line != $survivor->eval_line
+				} @donors;
+
+	my $s_ltd = $survivor->line_time_data; # XXX line only
+	my $s_fid = $survivor->line_time_data; # XXX line only
+
+    for my $donor_fi (@donors) {
+		# copy data from donor to survivor then delete donor
 
         # XXX doesn't update model to edit details for
         # subs defines, subs called, or evals etc.
 
-        my $line_time_data = $self->line_time_data; # XXX line only
-        my $tld = $line_time_data->[$eval_fi->eval_line] ||= [];
-        $tld->[0] += $eval_fi->sum_of_stmts_time(1);
+		# XXX nested evals not handled yet
+		warn "collapse_sibling_evals: nested evals not handled"
+			if $donor_fi->has_evals;
 
-        $self->_delete_eval($eval_fi);
-        $eval_fi->_nullify;
+		# XXX subs defined not handled yet
+		warn "collapse_sibling_evals: subs defined not handled"
+			if $donor_fi->subs_defined;
+
+		if (my $sub_call_lines = $donor_fi->sub_call_lines) {
+
+		}
+
+		# copy line time data
+		my $d_ltd = $donor_fi->line_time_data; # XXX line only
+		for my $line (0..@$d_ltd-1) {
+			my $d_tld_l = $d_ltd->[$line] or next;
+			my $s_tld_l = $s_ltd->[$line] ||= [];
+			$s_tld_l->[$_] += $d_tld_l->[$_] for (0..@$d_tld_l-1);
+			warn sprintf "%d:%d: @$s_tld_l from @$d_tld_l fid:%d\n",
+				$survivor->fid, $line, $donor_fi->fid if 0;
+		}
+
+		push @{ $survivor->meta->{merged_fids} }, $donor_fi->fid;
+        $self->_delete_eval($donor_fi);
+        $donor_fi->_nullify;
     }
 }
 
@@ -358,10 +392,8 @@ sub dump {
     printf $fh "%s[ %s ]\n", $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
 
     if (not $opts->{skip_internal_details}) {
-        my $subs = $self->subs;
-        for my $subname (sort keys %$subs) {
-            my $si = $subs->{$subname};
 
+        for my $si ($self->subs_defined_sorted) {
             printf $fh "%s%s%s%s%s%s-%s\n", 
                 $prefix, 'sub', $separator,
                 $si->subname(' and '),  $separator,

@@ -69,6 +69,7 @@ sub new {
         ],
         dataend  => '',
         footer   => '',
+        merged_fids => '',
         taintmsg => "# WARNING!\n"
             . "# The source file used in generating this report has been modified\n"
             . "# since generating the profiler database.  It might be out of sync\n",
@@ -185,6 +186,12 @@ sub _generate_report {
     }
 
     foreach my $fi (@all_fileinfos) {
+
+        # we only generate line-level reports for evals
+        # for efficiency and because some data model editing only
+        # is only implemented for line-level data
+        next if $fi->is_eval and $LEVEL ne 'line';
+
         my $meta = $fi->meta;
         my $filestr = $fi->filename;
         warn "$filestr $LEVEL\n" if $trace;
@@ -289,7 +296,6 @@ sub _generate_report {
 
         # localize header and footer for variable replacement
         my $header    = $self->get_param('header',    [$profile, $fi, $fname, $LEVEL]);
-        my $taintmsg  = $self->get_param('taintmsg',  [$profile, $fi]);
         my $datastart = $self->get_param('datastart', [$profile, $fi]);
         my $dataend   = $self->get_param('dataend',   [$profile, $fi]);
         my $FILE      = $filestr;
@@ -305,7 +311,11 @@ sub _generate_report {
         # If we don't have savesrc for the file then we'll be reading the current
         # file contents which may have changed since the profile was run.
         # In this case we need to warn the user as the report would be garbled.
-        print OUT $taintmsg if !$fi->has_savesrc and $self->file_has_been_modified($filestr);
+        print OUT $self->get_param('taintmsg', [$profile, $fi])
+            if !$fi->has_savesrc and $self->file_has_been_modified($filestr);
+
+        print OUT $self->get_param('merged_fids', [$profile, $fi])
+            if $fi->meta->{merged_fids};
 
         print OUT $datastart;
 

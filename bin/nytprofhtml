@@ -121,15 +121,22 @@ $reporter->set_param(
             subtitle => $subhead,
         );
         my $filename_escaped = _escape_html($fi->filename);
-        my $intro = sprintf qq{<table class="file_summary">%s</table>},
-            join "\n", map { sprintf q{<tr><td class="h">%s</td><td align="left">%s</td></tr>}, @$_ }
-                [ "Filename", $fi->is_file
-                    ? sprintf(q{<a href="file://%s">%s</a>}, $fi->filename, $filename_escaped)
-                    : $filename_escaped ],
-                [ "Statements", sprintf "Executed %d statements in %s",
-                    $fi->sum_of_stmts_count, fmt_time($fi->sum_of_stmts_time) ];
+        my @intro_rows = (
+            [ "Filename", $fi->is_file
+                ? sprintf(q{<a href="file://%s">%s</a>}, $fi->filename, $filename_escaped)
+                : $filename_escaped ],
+            [ "Statements", sprintf "Executed %d statements in %s",
+                $fi->sum_of_stmts_count, fmt_time($fi->sum_of_stmts_time) ],
+        );
+        # XXX if string eval then add link to calling location
 
-        return join "\n", $html_header, $page_header, q{<div class="body_content"><br />}, $intro;
+        my $intro_table = join "\n", map {
+            sprintf q{<tr><td class="h">%s</td><td align="left">%s</td></tr>}, @$_
+        } @intro_rows;
+
+        return join "\n", $html_header, $page_header,
+            q{<div class="body_content"><br />},
+            qq{<table class="file_summary">$intro_table</table>},
     }
 );
 
@@ -137,7 +144,22 @@ $reporter->set_param(
     'taintmsg',
     qq{<div class="warn_title">WARNING!</div>\n
 <div class="warn">The source file used to generate this report was modified
-after the profiler database was generated. The database might be out of sync, you should regenerate it.  This page might not make any sense!</div><br />\n}
+after the profiler data was generated.
+The data might be out of sync with the modified source code so you should regenerate it.
+Meanwhile, the data on this page might not make much sense!</div><br />\n}
+);
+
+$reporter->set_param(
+    'merged_fids',
+    sub {
+        my ($profile, $fi) = @_;
+        my $merged_fids = $fi->meta->{merged_fids};
+        return sprintf qq{<div class="warn_title">NOTE!</div>\n
+            <div class="warn">The data used to generate this report page was merged from %d executions<br />
+            of the string eval on line %d of %s.<br />
+            If the text of those evals varied then this page might not make much sense.</div><br />\n
+        }, 1+scalar @$merged_fids, $fi->eval_line, $fi->eval_fi->filename;
+    },
 );
 
 

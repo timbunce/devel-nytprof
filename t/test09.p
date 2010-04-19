@@ -5,7 +5,7 @@ sub foo {
 }
 
 sub bar {
-    eval "3;";
+    eval "1 while (1..10_000)";
 }
 
 foo();

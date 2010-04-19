@@ -117,7 +117,7 @@ sub new {
         while ( my ($line, $siblings) = each %$line2fis) {
 
             next if @$siblings == 1;
-next;
+
             my @subs  = map { values %{ $_->subs } } @$siblings;
             my @calls = map { keys %{ $_->sub_call_lines } } @$siblings;
             my @evals = map { $_->has_evals(0) } @$siblings;
@@ -127,12 +127,12 @@ next;
             warn "$msg\n" if $trace >= 3;
 
             next if @subs;  # ignore if the eval defines subs
-            next if @calls; # ignore if the eval calls subs
             next if @evals; # ignore if the eval has nested evals
+            next if @calls; # ignore if the eval calls subs XXX temp due to opcodes
 
             warn "$msg COLLAPSING\n" if $trace >= 0;
             my $parent = $siblings->[0]->eval_fi;
-            $parent->collapse_and_discard_evals(@$siblings);
+            $parent->collapse_sibling_evals(@$siblings);
         }
     }
 
