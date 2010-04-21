@@ -390,6 +390,7 @@ Would enable a dprofpp -T like output. See https://rt.cpan.org/Ticket/Display.ht
 
 For eval fid reports:
 - Add header with link to location of the invoking string eval
+- Add links to 'sibling' evals
 - fix sub caller info to not rollup over evals
 - merge string evals which have identical src and invoking location
 - fix inconsistency in results of href_for_*() subs

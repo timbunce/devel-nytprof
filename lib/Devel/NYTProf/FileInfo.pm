@@ -315,6 +315,7 @@ sub collapse_sibling_evals {
         $self->_delete_eval($donor_fi);
         $donor_fi->_nullify;
     }
+    return $survivor;
 }
 
 

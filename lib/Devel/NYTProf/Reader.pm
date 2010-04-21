@@ -59,6 +59,7 @@ sub new {
         datastart => '',
         mk_report_source_line => undef,
         mk_report_xsub_line   => undef,
+        mk_report_separator_line => undef,
         line      => [
             {},
             {value => 'time',      end => ',', default => '0'},
@@ -377,9 +378,11 @@ sub _generate_report {
             chomp $line;
 
             # detect a series of blank lines, e.g. a chunk of pod savesrc didn't store
-            my $skip_blanks = ($prev_line eq '' && $line eq '' && @$src_lines && $src_lines->[0] =~ /^\s*$/);
-
-            #warn "$LINE: ".join(" ", $prev_line eq '', $line eq '', $src_lines->[0] =~ /^\s*$/)."\n";
+            my $skip_blanks = (
+                $prev_line eq '' && $line eq '' &&            # blank behind and here
+                @$src_lines && $src_lines->[0] =~ /^\s*$/ &&  # blank ahead
+                !$stats_by_line{$LINE}                        # nothing to report
+            );
 
             if ($line =~ m/^\# \s* line \s+ (\d+) \b/x) {
                 # XXX we should be smarter about this - patches welcome!
@@ -396,9 +399,12 @@ sub _generate_report {
                 $profile,
                 $fi,
             );
-            
+
             if ($skip_blanks) {
-                while (@$src_lines and $src_lines->[0] =~ /^\s*$/) {
+                while (
+                    @$src_lines && $src_lines->[0] =~ /^\s*$/ &&
+                    !$stats_by_line{$LINE+1}
+                ) {
                     shift @$src_lines;
                     $LINE++;
                 }
@@ -409,17 +415,28 @@ sub _generate_report {
             $LINE++;
         }
 
+        if (my $line_sub = $self->{mk_report_separator_line}) {
+            print OUT $line_sub->($profile, $fi);
+        }
+
         # iterate over xsubs 
         $line_sub = $self->{mk_report_xsub_line}
             or die "mk_report_xsub_line not set";
         my $subs_defined_in_file = $profile->subs_defined_in_file($filestr, 0);
         foreach my $subname (sort keys %$subs_defined_in_file) {
             my $subinfo = $subs_defined_in_file->{$subname};
-            next unless $subinfo->is_xsub;
+            my $kind = $subinfo->kind;
 
-            my $src = "sub $subname; # xsub\n\t";
+            next if $kind eq 'perl';
+            next if $subinfo->calls == 0;
 
-            print OUT $line_sub->($subname, $src, undef, undef, [ $subinfo ], {}, $profile, '');
+            print OUT $line_sub->(
+                $subname,
+                "sub $subname; # $kind\n\t",
+                { subdef_info => [ $subinfo ], },  #stats_for_line
+                undef, # stats_for_file
+                $profile, $fi
+            );
         }
 
         print OUT $dataend;

@@ -79,10 +79,25 @@ sub is_xsub {
     my $self = shift;
 
     # XXX should test == 0 but some xsubs still have undef first_line etc
+    # XXX shouldn't include opcode
     my $first = $self->first_line;
     return undef if not defined $first;
     return 1     if $first == 0 && $self->last_line == 0;
     return 0;
+}
+
+sub is_opcode {
+    my $self = shift;
+    return 0 if $self->first_line or $self->last_line;
+    return 1 if $self->subname =~ m/(?:^CORE::|::CORE:)\w+$/;
+    return 0;
+}
+
+sub kind {
+    my $self = shift;
+    return 'opcode' if $self->is_opcode;
+    return 'xsub'   if $self->is_xsub;
+    return 'perl';
 }
 
 sub fileinfo {

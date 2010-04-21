@@ -123,31 +123,58 @@ sub new {
 
 sub collapse_evals_in {
     my ($profile, $parent_fi) = @_;
+    my $parent_fid = $parent_fi->fid;
 
-    my %eval_places;
+    my %evals_on_line;
     for my $fi ($parent_fi->has_evals) {
         $profile->collapse_evals_in($fi); # recurse first
-        push @{ $eval_places{$fi->eval_fid}->{$fi->eval_line} }, $fi;
+        push @{ $evals_on_line{$fi->eval_line} }, $fi;
     }
-    while ( my ($fid, $line2fis) = each %eval_places) {
-        while ( my ($line, $siblings) = each %$line2fis) {
+    while ( my ($line, $siblings) = each %evals_on_line) {
 
-            next if @$siblings == 1;
+        next if @$siblings == 1;
 
-            my @subs  = map { values %{ $_->subs } } @$siblings;
-            my @calls = map { keys %{ $_->sub_call_lines } } @$siblings;
-            my @evals = map { $_->has_evals(0) } @$siblings;
-            my $msg = sprintf "%d:%d: multiple evals (subs %d, calls %d, evals %d, fids: %s)",
-                    $fid, $line, scalar @subs, scalar @calls, scalar @evals,
-                    join(", ", map { $_->fid } @$siblings);
-            warn "$msg\n" if $trace >= 3;
+        my @subs  = map { values %{ $_->subs } } @$siblings;
+        my @calls = map { keys %{ $_->sub_call_lines } } @$siblings;
+        my @evals = map { $_->has_evals(0) } @$siblings;
+        my $msg = sprintf "%d:%d: multiple evals (subs %d, calls %d, evals %d, fids: %s)",
+                $parent_fid, $line, scalar @subs, scalar @calls, scalar @evals,
+                join(", ", map { $_->fid } @$siblings);
+        warn "$msg\n" if $trace >= 3;
 
-            next if @subs;  # ignore if the eval defines subs
-            next if @evals; # ignore if the eval has nested evals
+        next if @subs;  # ignore if the eval defines subs
+        next if @evals; # ignore if the eval has nested evals
 
-            warn "$msg COLLAPSING\n" if $trace >= 0;
-            my $parent = $siblings->[0]->eval_fi;
-            $parent->collapse_sibling_evals(@$siblings);
+        # compare src code of evals and collapse identical ones
+        my %src_same;
+        for my $fi (@$siblings) {
+            my $srclines_array = $fi->srclines_array || [];
+            my $src = join "\n", @$srclines_array;
+            my $key = join ",", # XXX just a basic key
+                scalar @$srclines_array, # number of lines
+                length $src,             # total length
+                unpack("%32C*",$src);    # 32-bit checksum
+            push @{$src_same{$key}}, $fi;
+        }
+
+        warn sprintf "%s COLLAPSING (%d distinct src)\n",
+                $msg, scalar keys %src_same
+            if $trace >= 0;
+
+        # if not 'too many' distinct eval source strings then collapse
+        # the evals for each distinct source string
+        if (values %src_same < 100) {
+
+            for my $src_same_fis (values %src_same) {
+                next if @$src_same_fis == 1; # unique src code
+                warn "Collapsing identical evals: @{[ map { $_->fid } @$src_same_fis ]}\n"
+                    if $trace >= 0;
+                my $fi = $parent_fi->collapse_sibling_evals(@$src_same_fis);
+                @$src_same_fis = ( $fi ); # update list in-place
+            }
+        }
+        else {
+            $parent_fi->collapse_sibling_evals(@$siblings);
         }
     }
 }
@@ -729,7 +756,8 @@ sub file_line_range_of_sub {
     my $fileinfo = $fid && $self->fileinfo_of($fid)
         or die "No fid_fileinfo for sub $sub fid '$fid'\n";
     while ($fileinfo->eval_fid) {
-carp "file_line_range_of_sub($sub) called for sub defined in eval"; # XXX
+warn "file_line_range_of_sub($sub) called for sub defined in eval\n"; # XXX
+last;
         # eg string eval
         # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
         warn sprintf "file_line_range_of_sub: %s: fid %d -> %d for %s\n",

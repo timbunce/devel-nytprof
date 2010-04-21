@@ -114,7 +114,7 @@ $reporter->set_param(
             For ${ \($profile->{attribute}{application}) }
         };
 
-        my $html_header = get_html_header("Profile of !~FILENAME~!");
+        my $html_header = get_html_header("Profile of ".$fi->filename_without_inc);
         my $page_header = get_page_header(
             profile  => $profile,
             title    => "NYTProf Performance Profile",
@@ -157,7 +157,8 @@ $reporter->set_param(
         return sprintf qq{<div class="warn_title">NOTE!</div>\n
             <div class="warn">The data used to generate this report page was merged from %d executions<br />
             of the string eval on line %d of %s.<br />
-            If the text of those evals varied then this page might not make much sense.</div><br />\n
+            The source code shown below is the text of just one of the calls to the eval.<br />\n
+            If the argument source code of those eval calls varied then this page might not make much sense.</div><br />\n
         }, 1+scalar @$merged_fids, $fi->eval_line, $fi->eval_fi->filename;
     },
 );
@@ -348,6 +349,7 @@ $reporter->set_param( footer => sub {
 
 $reporter->set_param(mk_report_source_line => \&mk_report_source_line);
 $reporter->set_param(mk_report_xsub_line   => \&mk_report_xsub_line  );
+$reporter->set_param(mk_report_separator_line => \&mk_report_separator_line  );
 
 sub mk_report_source_line {
     my ($linenum, $line, $stats_for_line, $stats_for_file, $profile, $fi) = @_;
@@ -375,6 +377,15 @@ sub mk_report_xsub_line {
         sprintf(qq{<tr><td class="h"><a name="%s"></a>%s</td>}, $anchor, ''),
         "<td></td><td></td><td></td><td></td>",
         report_src_line(undef, undef, $line, $profile, $fi, $stats_for_line),
+        "</tr>\n";
+}
+
+sub mk_report_separator_line {
+    my ($profile, $fi) = @_;
+    return join "",
+        sprintf(qq{<tr><td class="s"><a name="%s"></a>%s</td>}, '', '&nbsp;'),
+        "<td></td><td></td><td></td><td></td>",
+        '<td class="s"></td>',
         "</tr>\n";
 }
 
@@ -1401,6 +1412,8 @@ sub get_footer {
 sub get_html_header {
     my $title = shift || "Profile Index - NYTProf";
     my $opts = shift || {};
+
+    $title = _escape_html($title);
 
     my $html = <<EOD;
     <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
