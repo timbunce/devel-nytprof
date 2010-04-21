@@ -2,7 +2,7 @@ package Devel::NYTProf::FileInfo;    # fid_fileinfo
 
 use strict;
 
-use List::Util qw(sum);
+use List::Util qw(sum max);
 
 use Devel::NYTProf::Util qw(strip_prefix_from_paths);
 
@@ -15,7 +15,7 @@ use Devel::NYTProf::Constants qw(
     NYTP_FIDi_elements
 
     NYTP_SCi_CALL_COUNT NYTP_SCi_INCL_RTIME NYTP_SCi_EXCL_RTIME NYTP_SCi_RECI_RTIME
-    NYTP_SCi_CALLING_SUB
+    NYTP_SCi_REC_DEPTH NYTP_SCi_CALLING_SUB
 );
 
 # extra constants for private elements
@@ -39,8 +39,8 @@ sub is_eval   { shift->[NYTP_FIDi_EVAL_FI()] ? 1 : 0 }
 sub flags     { shift->[NYTP_FIDi_FLAGS()] }
 sub is_fake   { shift->flags & NYTP_FIDf_IS_FAKE }
 sub is_file   {
-	my $self = shift;
-	return not ($self->is_fake or $self->is_eval);
+    my $self = shift;
+    return not ($self->is_fake or $self->is_eval);
 }
 
 # general purpose hash - mainly a hack to help kill off Reader.pm
@@ -94,10 +94,10 @@ sub subs      { shift->[NYTP_FIDi_SUBS_DEFINED()] } # deprecated
 # return subs defined as list of SubInfo objects
 # XXX add $include_evals arg?
 sub subs_defined {
-	return values %{ shift->[NYTP_FIDi_SUBS_DEFINED()] };
+    return values %{ shift->[NYTP_FIDi_SUBS_DEFINED()] };
 }
 sub subs_defined_sorted {
-	return sort { $a->subname cmp $b->subname } shift->subs_defined;
+    return sort { $a->subname cmp $b->subname } shift->subs_defined;
 }
 
 
@@ -124,8 +124,8 @@ sub_call_lines() would return something like:
 
   {
       42 => {
-	  'pkg1::foo' => [ 1, 0.02093 ],
-	  'pkg1::bar' => [ 1, 0.00154 ],
+      'pkg1::foo' => [ 1, 0.02093 ],
+      'pkg1::bar' => [ 1, 0.00154 ],
       },
   }
 
@@ -246,41 +246,72 @@ sub is_pmc {
 
 
 sub collapse_sibling_evals {
-	my ($self, $survivor, @donors) = @_;
+    my ($self, $survivor, @donors) = @_;
+    my $profile = $self->profile;
 
-	die "Can't collapse_sibling_evals of non-sibling evals"
-		if grep { $_->eval_fid  != $survivor->eval_fid or
-				  $_->eval_line != $survivor->eval_line
-				} @donors;
+    die "Can't collapse_sibling_evals of non-sibling evals"
+        if grep { $_->eval_fid  != $survivor->eval_fid or
+                  $_->eval_line != $survivor->eval_line
+                } @donors;
 
-	my $s_ltd = $survivor->line_time_data; # XXX line only
+    my $s_ltd = $survivor->line_time_data; # XXX line only
+    my $s_scl = $survivor->sub_call_lines;
 
     for my $donor_fi (@donors) {
-		# copy data from donor to survivor then delete donor
+        # copy data from donor to survivor then delete donor
 
-		# XXX nested evals not handled yet
-		warn "collapse_sibling_evals: nested evals not handled"
-			if $donor_fi->has_evals;
+        # XXX nested evals not handled yet
+        warn "collapse_sibling_evals: nested evals not handled"
+            if $donor_fi->has_evals;
 
-		# XXX subs defined not handled yet
-		warn "collapse_sibling_evals: subs defined not handled"
-			if $donor_fi->subs_defined;
+        # XXX subs defined not handled yet
+        warn "collapse_sibling_evals: subs defined not handled"
+            if $donor_fi->subs_defined;
 
-		if (my $sub_call_lines = $donor_fi->sub_call_lines) {
-			warn "collapse_sibling_evals: subs called not handled yet"
-		}
+        # '1' => { 'main::foo' => [ 1, '1.38e-05', '1.24e-05', ..., { 'main::RUNTIME' => undef } ] }
+        if (my $sub_call_lines = $donor_fi->sub_call_lines) {
 
-		# copy line time data
-		my $d_ltd = $donor_fi->line_time_data; # XXX line only
-		for my $line (0..@$d_ltd-1) {
-			my $d_tld_l = $d_ltd->[$line] or next;
-			my $s_tld_l = $s_ltd->[$line] ||= [];
-			$s_tld_l->[$_] += $d_tld_l->[$_] for (0..@$d_tld_l-1);
-			warn sprintf "%d:%d: @$s_tld_l from @$d_tld_l fid:%d\n",
-				$survivor->fid, $line, $donor_fi->fid if 0;
-		}
+            my %subnames_called;
 
-		push @{ $survivor->meta->{merged_fids} }, $donor_fi->fid;
+            # merge details of subs called from $donor_fi
+            while ( my ($line, $sc_hash) = each %$sub_call_lines ) {
+                my $s_sc_hash = $s_scl->{$line} ||= {};
+                while ( my ($subname, $sc_info) = each %$sc_hash ) {
+                    my $s_sc_info = $s_sc_hash->{$subname} ||= [];
+                    $subnames_called{$subname}++;
+
+                    if (@$s_sc_info) { # need to merge
+                        $s_sc_info->[$_] += $sc_info->[$_]
+                            for 0..5; # XXX
+                        $s_sc_info->[$_] = max($s_sc_info->[$_], $sc_info->[$_])
+                            for (NYTP_SCi_REC_DEPTH);
+                        $s_sc_info->[NYTP_SCi_CALLING_SUB]->{$_} = undef
+                            for keys %{ $sc_info->[NYTP_SCi_CALLING_SUB] };
+                    }
+                    else {
+                        @$s_sc_info = @$sc_info;
+                    }
+                }
+            }
+            %$sub_call_lines = (); # zap
+
+            # update subinfo
+            $profile->subinfo_of($_)->alter_fileinfo($donor_fi, $survivor)
+                for keys %subnames_called;
+
+        }
+
+        # copy line time data
+        my $d_ltd = $donor_fi->line_time_data; # XXX line only
+        for my $line (0..@$d_ltd-1) {
+            my $d_tld_l = $d_ltd->[$line] or next;
+            my $s_tld_l = $s_ltd->[$line] ||= [];
+            $s_tld_l->[$_] += $d_tld_l->[$_] for (0..@$d_tld_l-1);
+            warn sprintf "%d:%d: @$s_tld_l from @$d_tld_l fid:%d\n",
+                $survivor->fid, $line, $donor_fi->fid if 0;
+        }
+
+        push @{ $survivor->meta->{merged_fids} }, $donor_fi->fid;
         $self->_delete_eval($donor_fi);
         $donor_fi->_nullify;
     }
@@ -422,16 +453,20 @@ sub dump {
             my $eval_fis = $eval_lines{$line};
 
             my @has_evals = map { $_->has_evals(1) } @$eval_fis;
+            my @merged_fids = map { @{ $_->meta->{merged_fids}||[]} } @$eval_fis;
 
+            #printf $fh "%s%s%s%d%s[ count %d nested %d merged %d ]\n", 
             printf $fh "%s%s%s%d%s[ %s %s ]\n", 
                 $prefix, 'eval', $separator,
                 $eval_fis->[0]->eval_line, $separator,
                 scalar @$eval_fis, # count of evals executed on this line
                 scalar @has_evals, # count of nested evals they executed
+                #scalar @merged_fids, # count of evals merged (collapsed) away
         }
 
     }
 
 }   
 
+# vim: ts=8:sw=4:et
 1;

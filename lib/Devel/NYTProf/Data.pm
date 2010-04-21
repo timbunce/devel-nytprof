@@ -102,15 +102,31 @@ sub new {
     (my $sub_class = $class) =~ s/\w+$/SubInfo/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
-    $profile->_clear_caches;
-
     # Where a given eval() has been invoked more than once
     # rollup the corresponding fids if they're "uninteresting".
-    # Currently uninteresting means:
-    #   - defines no subs, and
-    #   - has no evals
+    for my $fi ($profile->noneval_fileinfos) {
+        $profile->collapse_evals_in($fi);
+    }
+
+    $profile->_clear_caches;
+
+    # a hack for testing/debugging
+    if (my $env = $ENV{NYTPROF_ONLOAD}) {
+        my %onload = map { split /=/, $_, 2 } split /:/, $env, -1;
+        warn _dumper($profile) if $onload{dump};
+        exit $onload{exit}     if defined $onload{exit};
+    }
+
+    return $profile;
+}
+
+
+sub collapse_evals_in {
+    my ($profile, $parent_fi) = @_;
+
     my %eval_places;
-    for my $fi ($profile->eval_fileinfos) {
+    for my $fi ($parent_fi->has_evals) {
+        $profile->collapse_evals_in($fi); # recurse first
         push @{ $eval_places{$fi->eval_fid}->{$fi->eval_line} }, $fi;
     }
     while ( my ($fid, $line2fis) = each %eval_places) {
@@ -128,24 +144,12 @@ sub new {
 
             next if @subs;  # ignore if the eval defines subs
             next if @evals; # ignore if the eval has nested evals
-            next if @calls; # ignore if the eval calls subs XXX temp due to opcodes
 
             warn "$msg COLLAPSING\n" if $trace >= 0;
             my $parent = $siblings->[0]->eval_fi;
             $parent->collapse_sibling_evals(@$siblings);
         }
     }
-
-    $profile->_clear_caches;
-
-    # a hack for testing/debugging
-    if (my $env = $ENV{NYTPROF_ONLOAD}) {
-        my %onload = map { split /=/, $_, 2 } split /:/, $env, -1;
-        warn _dumper($profile) if $onload{dump};
-        exit $onload{exit}     if defined $onload{exit};
-    }
-
-    return $profile;
 }
 
 sub _caches       { return shift->{caches} ||= {} }
@@ -308,6 +312,21 @@ sub fileinfo_of {
 }
 
 
+sub subinfo_of {
+    my ($self, $subname) = @_;
+
+    if (not defined $subname) {
+        carp "Can't resolve subinfo of undef value";
+        return undef;
+    }
+
+    my $si = $self->{sub_subinfo}{$subname}
+        or warn carp "Can't resolve subinfo of '$subname'";
+
+    return $si;
+}
+
+
 sub inc {
 
     # XXX should return inc from profile data, when it's there
@@ -387,6 +406,7 @@ sub dump_profile_data {
 
     _dump_elements($startnode, $separator, $filehandle, [], $callback);
 }
+
 
 sub _dump_elements {
     my ($r, $separator, $fh, $path, $callback) = @_;

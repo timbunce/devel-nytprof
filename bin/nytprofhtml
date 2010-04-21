@@ -426,7 +426,7 @@ sub report_src_line {
         for my $caller (@callers) {
             my ($fid, $line, $count, $incl_time, $excl_time, undef, undef,
                 undef, undef, $calling_subs) = @$caller;
-            my $fi = $profile->fileinfo_of($fid);
+            my $caller_fi = $profile->fileinfo_of($fid);
 
             my @subnames = sort keys %$calling_subs;
             ref $_ and $_ = sprintf "%s (merge of %d subs)", $_->[0], scalar @$_
@@ -439,20 +439,13 @@ sub report_src_line {
             my $times = sprintf " (%s+%s)", fmt_time($excl_time),
                 fmt_time($incl_time - $excl_time);
 
-            my $filename = $fi->filename($fid);
+            my $filename = $caller_fi->filename($fid);
             my $line_desc = "line $line of $filename";
-            # chase string eval chain back to a real file
-            while (0 and my ($outer_fileinfo, $outer_line) = $fi->outer ) {
-                ($filename, $line) = ($outer_fileinfo->filename, $outer_line);
-                $line_desc .= sprintf " at line %s of %s", $line, $filename;
-                $fi = $outer_fileinfo;
-            }
-
-            my $href = $reporter->href_for_file($fi, $line) || 'unknown';
             $line_desc =~ s/ of \Q$filename\E$//g if $filename eq $fi->filename;
             # remove @INC prefix from paths
             $line_desc =~ s/$inc_path_regex//g;
 
+            my $href = $reporter->href_for_file($caller_fi, $line) || 'unknown';
             push @prologue,
                 sprintf q{# %*s times%s%s at <a href="%s">%s</a>%s},
                 length($max_calls), $count, $times, $subname, $href,

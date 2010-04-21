@@ -2,8 +2,8 @@
 # More information at http://search.cpan.org/dist/Devel-NYTProf/
 # Format: time,calls,time/call,code
 0,0,0,# test nested string evals
-0,0,0,# inner time should propagate to outermost eval
-0,0,0,# statement counts currently don't - debatable value
+0,0,0,
+0,0,0,
 0,3,0,sub foo { 1 }
 0,1,0,my $code = q{
 0,0,0,select(undef,undef,undef,0.2);
@@ -17,4 +17,4 @@
 0,0,0,}
 0,0,0,}
 0,0,0,};
-~0.6,1,0,eval $code;
+0,1,0,eval $code;
