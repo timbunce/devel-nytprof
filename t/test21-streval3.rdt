@@ -29,15 +29,15 @@ fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	sub	main::CORE:sselect	0-0
 fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::foo	4-4
-fid_fileinfo	1	eval	17	[ 1 2 ]
+fid_fileinfo	1	eval	17	[ count 1 nested 2 merged 0 ]
 fid_fileinfo	2	[ (eval 0)[test21-streval3.p:17] 1 17 2 2 0 0 ]
 fid_fileinfo	2	call	2	main::CORE:sselect	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	2	call	3	main::foo	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-fid_fileinfo	2	eval	4	[ 1 1 ]
+fid_fileinfo	2	eval	4	[ count 1 nested 1 merged 0 ]
 fid_fileinfo	3	[ (eval 0)[(eval 0)[test21-streval3.p:17]:4] 2 4 3 2 0 0 ]
 fid_fileinfo	3	call	2	main::CORE:sselect	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	3	call	3	main::foo	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-fid_fileinfo	3	eval	4	[ 1 0 ]
+fid_fileinfo	3	eval	4	[ count 1 nested 0 merged 0 ]
 fid_fileinfo	4	[ (eval 0)[(eval 0)[(eval 0)[test21-streval3.p:17]:4]:4] 3 4 4 2 0 0 ]
 fid_fileinfo	4	call	2	main::CORE:sselect	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	4	call	3	main::foo	[ 1 0 0 0 0 0 0 main::RUNTIME ]

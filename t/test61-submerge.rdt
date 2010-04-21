@@ -29,7 +29,7 @@ fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::foo	4-4
 fid_fileinfo	1	call	4	main::CORE:print	[ 3 0 0 0 0 0 0 main::foo ]
 fid_fileinfo	1	call	8	main::__ANON__[(eval 0)[test61-submerge.p:8]:1]	[ 3 0 0 0 0 0 0 main::RUNTIME ]
-fid_fileinfo	1	eval	8	[ 3 0 ]
+fid_fileinfo	1	eval	8	[ count 3 nested 0 merged 0 ]
 fid_fileinfo	2	[ (eval 0)[test61-submerge.p:8] 1 8 2 2 0 0 ]
 fid_fileinfo	2	sub	main::__ANON__[(eval 0)[test61-submerge.p:8]:1]	1-1
 fid_fileinfo	2	call	1	main::foo	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test61-submerge.p:8]:1] ]

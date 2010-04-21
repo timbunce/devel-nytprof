@@ -26,7 +26,7 @@ fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	call	5	main::CORE:unlink	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	9	main::sub1	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	1	call	11	DB::disable_profile	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-fid_fileinfo	1	eval	7	[ 1 0 ]
+fid_fileinfo	1	eval	7	[ count 1 nested 0 merged 0 ]
 fid_fileinfo	2	[ (eval 0)[test51-enable.p:7] 1 7 2 2 0 0 ]
 fid_fileinfo	2	sub	main::sub1	1-1
 fid_line_time	1	3	[ 0 1 ]

@@ -455,13 +455,12 @@ sub dump {
             my @has_evals = map { $_->has_evals(1) } @$eval_fis;
             my @merged_fids = map { @{ $_->meta->{merged_fids}||[]} } @$eval_fis;
 
-            #printf $fh "%s%s%s%d%s[ count %d nested %d merged %d ]\n", 
-            printf $fh "%s%s%s%d%s[ %s %s ]\n", 
+            printf $fh "%s%s%s%d%s[ count %d nested %d merged %d ]\n", 
                 $prefix, 'eval', $separator,
                 $eval_fis->[0]->eval_line, $separator,
                 scalar @$eval_fis, # count of evals executed on this line
                 scalar @has_evals, # count of nested evals they executed
-                #scalar @merged_fids, # count of evals merged (collapsed) away
+                scalar @merged_fids, # count of evals merged (collapsed) away
         }
 
     }

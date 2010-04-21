@@ -22,7 +22,7 @@ fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	sub	main::CORE:sleep	0-0
 fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	call	2	main::__ANON__[(eval 0)[test10.p:1]:1]	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-fid_fileinfo	1	eval	1	[ 1 0 ]
+fid_fileinfo	1	eval	1	[ count 1 nested 0 merged 0 ]
 fid_fileinfo	2	[ (eval 0)[test10.p:1] 1 1 2 2 0 0 ]
 fid_fileinfo	2	sub	main::__ANON__[(eval 0)[test10.p:1]:1]	1-1
 fid_fileinfo	2	call	1	main::CORE:sleep	[ 1 0 0 0 0 0 0 main::__ANON__[(eval 0)[test10.p:1]:1] ]

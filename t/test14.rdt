@@ -32,7 +32,7 @@ fid_fileinfo	2	sub	test14::BEGIN	2-2
 fid_fileinfo	2	sub	test14::bar	16-18
 fid_fileinfo	2	sub	test14::foo	12-14
 fid_fileinfo	2	sub	test14::pre	8-8
-fid_fileinfo	2	eval	17	[ 1 0 ]
+fid_fileinfo	2	eval	17	[ count 1 nested 0 merged 0 ]
 fid_fileinfo	3	[ AutoLoader.pm   3 2 0 0 ]
 fid_fileinfo	4	[ (eval 0)[test14.pm (autosplit into auto/test14/bar.al):17] 2 17 4 2 0 0 ]
 fid_line_time	1	17	[ 0 1 ]
