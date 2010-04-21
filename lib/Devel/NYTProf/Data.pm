@@ -157,9 +157,9 @@ sub collapse_evals_in {
             push @{$src_same{$key}}, $fi;
         }
 
-        warn sprintf "%s COLLAPSING (%d distinct src)\n",
-                $msg, scalar keys %src_same
-            if $trace >= 0;
+        warn sprintf "%s COLLAPSING (%d evals with %d distinct srcs)\n",
+                $msg, scalar @$siblings, scalar keys %src_same
+            if $trace >= 1;
 
         # if not 'too many' distinct eval source strings then collapse
         # the evals for each distinct source string
@@ -168,7 +168,7 @@ sub collapse_evals_in {
             for my $src_same_fis (values %src_same) {
                 next if @$src_same_fis == 1; # unique src code
                 warn "Collapsing identical evals: @{[ map { $_->fid } @$src_same_fis ]}\n"
-                    if $trace >= 0;
+                    if $trace >= 3;
                 my $fi = $parent_fi->collapse_sibling_evals(@$src_same_fis);
                 @$src_same_fis = ( $fi ); # update list in-place
             }
@@ -699,29 +699,7 @@ sub subname_at_file_line {
 }
 
 
-sub fid_filename {
-    my ($self, $fid) = @_;
-
-    my $fileinfo = $self->{fid_fileinfo}->[$fid]
-        or return undef;
-
-    while ($fileinfo->[1]) {    # is an eval
-carp "using fid_filename($fid) on eval"; # XXX
-        # eg string eval
-        # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
-        warn sprintf "fid_filename: fid %d -> %d for %s\n", $fid, $fileinfo->[1], $fileinfo->[0]
-            if $trace;
-
-        # follow next link in chain
-        my $outer_fid = $fileinfo->[1];
-        $fileinfo = $self->{fid_fileinfo}->[$outer_fid];
-    }
-
-    return $fileinfo->[0];
-}
-
-
-=head2 file_line_range_of_sub
+=head2 file_line_range_of_subme
 
   ($file, $fid, $first, $last) = $profile->file_line_range_of_sub("main::foo");
 
@@ -747,7 +725,7 @@ don't have an associated file.
 sub file_line_range_of_sub {
     my ($self, $sub) = @_;
 
-    my $sub_subinfo = $self->{sub_subinfo}{$sub}
+    my $sub_subinfo = $self->subinfo_of($sub)
         or return;    # no such sub
     my ($fid, $first, $last) = @$sub_subinfo;
 
@@ -755,22 +733,8 @@ sub file_line_range_of_sub {
 
     my $fileinfo = $fid && $self->fileinfo_of($fid)
         or die "No fid_fileinfo for sub $sub fid '$fid'\n";
-    while ($fileinfo->eval_fid) {
-warn "file_line_range_of_sub($sub) called for sub defined in eval\n"; # XXX
-last;
-        # eg string eval
-        # eg [ "(eval 6)[/usr/local/perl58-i/lib/5.8.6/Benchmark.pm:634]", 2, 634 ]
-        warn sprintf "file_line_range_of_sub: %s: fid %d -> %d for %s\n",
-                $sub, $fid, $fileinfo->eval_fid, $fileinfo->filename
-            if $trace;
-        $first = $last = $fileinfo->eval_line if 1;    # XXX control via param?
 
-        # follow next link in chain
-        my $outer_fid = $fileinfo->eval_fid;
-        $fileinfo = $self->{fid_fileinfo}->[$outer_fid];
-    }
-
-    return ($fileinfo->filename, $fid, $first, $last);
+    return ($fileinfo->filename, $fid, $first, $last, $fileinfo);
 }
 
 
@@ -820,78 +784,6 @@ sub resolve_fid {
         if @matches >= 2;
 
     return undef;
-}
-
-
-
-=head2 evals_by_line_for_file
-
-  $line_calls_hash = $profile->evals_by_line_for_file( $file );
-
-Returns a reference to a hash containing information about subroutine calls
-made at individual lines within a source file. The $file
-argument can be an integer file id (fid) or a file path. Returns undef if
-no subroutine calling information is available.
-
-The keys of the returned hash are line numbers. The values are references to
-hashes with fully qualified subroutine names as keys. Each hash value is an
-reference to an array containing an integer call count (how many times the sub
-was called from that line of that file) and an inclusive time (how much time
-was spent inside the sub when it was called from that line of that file).
-
-For example, if the following was line 42 of a file C<foo.pl>:
-
-  ++$wiggle if foo(24) == bar(42);
-
-that line was executed once, and foo and bar were imported from pkg1, then
-$profile->evals_by_line_for_file( 'foo.pl' ) would return something like:
-
-  {
-      42 => {
-	  'pkg1::foo' => [ 1, 0.02093 ],
-	  'pkg1::bar' => [ 1, 0.00154 ],
-      },
-  }
-
-=cut
-
-sub evals_by_line_for_file {
-    my ($self, $fid, $include_evals) = @_;
-    my $orig_fi = $self->fileinfo_of($fid);
-
-    # shallow copy
-    my $line_calls = { %{ $orig_fi->sub_call_lines } };
-    return $line_calls unless $include_evals;
-
-    for my $fi ($orig_fi->has_evals(1)) {
-        # { line => { subname => [...] }, ... }
-        my $sub_call_lines = $fi->sub_call_lines;
-
-        # $outer_line is the line of the eval
-        # XXX outer(1) is a little inefficient, could refactor the loop to
-        # separate top-level evals from nested evals and use the outer_line
-        # from the top level evals
-        my (undef, $outer_line) = $fi->outer(1); # outermost
-
-        while (my ($line, $sub_calls_hash) = each %$sub_call_lines) {
-
-            my $ci_for_subs = $line_calls->{$outer_line || $line} ||= {};
-
-            while (my ($subname, $callinfo) = each %$sub_calls_hash) {
-
-                my $ci = $ci_for_subs->{$subname} ||= [];
-                if (!@$ci) {    # typical case
-                    @$ci = @$callinfo;
-                }
-                else {          # e.g., multiple calls inside the same string eval
-                    #warn "merging calls to $subname from fid $caller_fid line $caller_line ($outer_line || $line)";
-                    $ci->[$_] += $callinfo->[$_] for 0..5;
-                    $ci->[6]   = $callinfo->[6] if $callinfo->[6] > $ci->[6]; # NYTP_SCi_REC_DEPTH
-                }
-            }
-        }
-    }
-    return $line_calls;
 }
 
 

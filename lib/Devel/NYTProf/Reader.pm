@@ -467,7 +467,7 @@ sub href_for_sub {
     my ($self, $sub, %opts) = @_;
     my $profile = $self->{profile};
 
-    my ($file, $fid, $first, $last) = $profile->file_line_range_of_sub($sub);
+    my ($file, $fid, $first, $last, $fi) = $profile->file_line_range_of_sub($sub);
     if (!$first) {
         if (not defined $first) {
             warn("No file line range data for sub '$sub' (perhaps an xsub)\n")
@@ -481,7 +481,6 @@ sub href_for_sub {
         ($first = $sub) =~ s/\W/_/g;
     }
 
-    my $fi = $profile->fileinfo_of($file);
     my $html_safe = $fi->meta->{html_safe} ||= do {
         # warn, just once, and use a default value
         warn "Sub '$sub' file '$file' (fid $fid) has no html_safe value\n";
