@@ -13,16 +13,19 @@ add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
 string eval merging - must allow at least viewing of source for called subs defined in a nested eval
 
-=head2 Changes in Devel::NYTProf 3.12 (svn XXXX)
+=head2 Changes in Devel::NYTProf 3.12 (svn 1194) 22nd April 2010
 
 XXX TODO
 Refine and document handing of string evals
 Consider eval_pv from outside perl, e.g. plperl
-Add option to intercept POSIX::_exit().
 
   Fixed off-by-1 error in number of Files an xsub/opcode was called from.
 
   Enabled savesrc=1 by default.
+
+  Added profile reporting of code executed in string evals.
+    Each string eval gets it's own report page.  String evals that don't define
+    subs or use string eval themselves may be collapsed/merged in some cases.
 
   Added automatic detection of calls to POSIX::_exit() by the sub profiler
     so finish_profile() gets called and a usable profile is produced.
