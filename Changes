@@ -24,7 +24,7 @@ Consider eval_pv from outside perl, e.g. plperl
   Enabled savesrc=1 by default.
 
   Added profile reporting of code executed in string evals.
-    Each string eval gets it's own report page.  String evals that don't define
+    Each string eval gets its own report page.  String evals that don't define
     subs or use string eval themselves may be collapsed/merged in some cases.
 
   Added automatic detection of calls to POSIX::_exit() by the sub profiler
