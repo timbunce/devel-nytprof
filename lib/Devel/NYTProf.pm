@@ -488,6 +488,16 @@ separated by commas, as the value of the option (case is not significant):
 
     sigexit=int,hup
 
+=head2 posix_exit=1
+
+The NYTProf subroutine profiler normally detects calls to C<POSIX::_exit()>
+(which exits the process without running END blocks) and automatically calls
+C<DB::finish_profile()> for you, so NYTProf 'just works'.
+
+When using the C<subs=0> option to disable the subroutine profiler the
+C<posix_exit> option can be used to tell NYTProf to take other steps to arrange
+for C<DB::finish_profile()> to be called before C<POSIX::_exit()>.
+
 =head2 forkdepth=N
 
 When a perl process that is being profiled executes a fork() the child process

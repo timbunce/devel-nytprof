@@ -24,6 +24,11 @@ Add option to intercept POSIX::_exit().
 
   Enabled savesrc=1 by default.
 
+  Added automatic detection of calls to POSIX::_exit() by the sub profiler
+    so finish_profile() gets called and a usable profile is produced.
+  Added posix_exit=1 option to do the same thing (in a different way)
+    when the sub profiler is not beeing used (i.e., subs=0).
+
   Corrected typos in nytprofhtml docs thanks to chocolate@cpan.org
 
   Sequences of blank lines are skipped in generated reports.

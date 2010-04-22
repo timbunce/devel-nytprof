@@ -774,8 +774,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     entry.key = file_name;
     entry.key_len = (unsigned int)file_name_len;
 
-    /* inserted new entry */
     if (1 != hash_op(entry, &found, (bool)(created_via ? 1 : 0))) {
+        /* found existing entry or else didn't but didn't create new one either */
         if (trace_level >= 7) {
             if (found)
                  logwarn("fid %d: %.*s\n",  found->id, found->key_len, found->key);
@@ -783,6 +783,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         }
         return (found) ? found->id : 0;
     }
+    /* inserted new entry */
 
     /* if this is a synthetic filename for a string eval
      * ie "(eval 42)[/some/filename.pl:line]"
@@ -2098,8 +2099,17 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
         GV *called_gv = Nullgv;
         subr_entry->called_cv = resolve_sub_to_cv(aTHX_ subr_sv, &called_gv);
         if (called_gv) {
-            subr_entry->called_subpkg_pv = HvNAME(GvSTASH(called_gv));
+            char *p = HvNAME(GvSTASH(called_gv));
+            subr_entry->called_subpkg_pv = p;
             subr_entry->called_subnam_sv = newSVpv(GvNAME(called_gv), 0);
+
+            /* detect calls to POSIX::_exit */
+            if ('P'==*p++ && 'O'==*p++ && 'S'==*p++ && 'I'==*p++ && 'X'==*p++ && 0==*p) {
+                char *s = GvNAME(called_gv);
+                if ('_'==*s++ && 'e'==*s++ && 'x'==*s++ && 'i'==*s++ && 't'==*s++ && 0==*s) {
+                    finish_profile(aTHX);
+                }
+            }
         }
         else {
             subr_entry->called_subnam_sv = newSV(0); /* see incr_sub_inclusive_time */
