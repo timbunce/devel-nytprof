@@ -4861,7 +4861,7 @@ SV* cb;
     }
     if (cb && SvROK(cb)) {
         load_profile_to_callback(aTHX_ in, SvRV(cb));
-        RETVAL = &PL_sv_undef;
+        RETVAL = (HV*) &PL_sv_undef;
     }
     else {
         RETVAL = load_profile_to_hv(aTHX_ in);
