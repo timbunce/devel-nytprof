@@ -8,9 +8,10 @@ use NYTProfTest;
 
 use Devel::NYTProf::Run qw(profile_this);
 
+my $n = 10_000;
 my @src = (
-    "1+1;\n",
-    "2+2;\n",
+    "1+1 for (1..$n);\n",
+    "2+2 for (1..$n);\n",
 );
 
 run_test_group( {
@@ -49,10 +50,10 @@ run_test_group( {
         my $line_time_data = $fi->line_time_data;
         is ref $line_time_data, 'ARRAY';
 
-        is $fi->sum_of_stmts_count, 2;
+        is $fi->sum_of_stmts_count, 4;
 
         # XXX these timings will probably cause test failures
         cmp_ok $fi->sum_of_stmts_time, '>', 0;
-        cmp_ok $fi->sum_of_stmts_time, '<', 0.001; # should be tiny
+        cmp_ok $fi->sum_of_stmts_time, '<', 10; # should be tiny
     },
 });
