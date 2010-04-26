@@ -134,47 +134,49 @@ sub collapse_evals_in {
 
         next if @$siblings == 1;
 
-        my @subs  = map { $_->subs_defined } @$siblings;
-        my @calls = map { keys %{ $_->sub_call_lines } } @$siblings;
-        my @evals = map { $_->has_evals(0) } @$siblings;
-        my $msg = sprintf "%d:%d: multiple evals (subs %d, calls %d, evals %d, fids: %s)",
-                $parent_fid, $line, scalar @subs, scalar @calls, scalar @evals,
-                join(", ", map { $_->fid } @$siblings);
-        warn "$msg\n" if $trace >= 3;
-
-        next if @subs;  # ignore if the eval defines subs
-        next if @evals; # ignore if the eval has nested evals
-
         # compare src code of evals and collapse identical ones
-        my %src_same;
+        my %src_keyed;
         for my $fi (@$siblings) {
-            my $srclines_array = $fi->srclines_array || [];
-            my $src = join "\n", @$srclines_array;
-            my $key = join ",", # XXX just a basic key
-                scalar @$srclines_array, # number of lines
-                length $src,             # total length
-                unpack("%32C*",$src);    # 32-bit checksum
-            push @{$src_same{$key}}, $fi;
+            my $key = $fi->src_digest;
+            # include extra info to segregate (especially when there's no src)
+            $key .= ',evals' if $fi->has_evals;
+            $key .= ',subs'  if $fi->subs_defined;
+            push @{$src_keyed{$key}}, $fi;
         }
 
-        warn sprintf "%s COLLAPSING (%d evals with %d distinct srcs)\n",
-                $msg, scalar @$siblings, scalar keys %src_same
-            if $trace >= 1;
+        if ($trace >= 1) {
+            my @subs  = map { $_->subs_defined } @$siblings;
+            my @evals = map { $_->has_evals(0) } @$siblings;
+            warn sprintf "%d:%d: sibling evals (subs %d, evals %d, keys %d, fids: %s)",
+                    $parent_fid, $line, scalar @subs, scalar @evals,
+                    scalar keys %src_keyed,
+                    join(", ", map { $_->fid } @$siblings);
+        }
 
-        # if not 'too many' distinct eval source strings then collapse
-        # the evals for each distinct source string
-        if (values %src_same < 100) {
-
-            for my $src_same_fis (values %src_same) {
-                next if @$src_same_fis == 1; # unique src code
-                warn "Collapsing identical evals: @{[ map { $_->fid } @$src_same_fis ]}\n"
-                    if $trace >= 3;
-                my $fi = $parent_fi->collapse_sibling_evals(@$src_same_fis);
-                @$src_same_fis = ( $fi ); # update list in-place
-            }
+        # if 'too many' distinct eval source keys then simply collapse all
+        my $max_evals_siblings = $ENV{NYTPROF_MAX_EVAL_SIBLINGS} || 200;
+        if (values %src_keyed > $max_evals_siblings) {
+            $parent_fi->collapse_sibling_evals(@$siblings);
         }
         else {
-            $parent_fi->collapse_sibling_evals(@$siblings);
+            # finnese: consider each distinct src in turn
+
+            while ( my ($key, $src_same_fis) = each %src_keyed ) {
+                next if @$src_same_fis == 1; # unique src key
+                my @fids = map { $_->fid } @$src_same_fis;
+
+                if (grep { $_->subs_defined } @$src_same_fis) {
+                    warn "evals($key): collapsing skipped due to subs: @fids\n" if $trace >= 3;
+                }
+                elsif (grep { $_->has_evals(0) } @$src_same_fis) {
+                    warn "evals($key): collapsing skipped due to evals: @fids\n" if $trace >= 3;
+                }
+                else {
+                    warn "evals($key): collapsing identical: @fids\n" if $trace >= 3;
+                    my $fi = $parent_fi->collapse_sibling_evals(@$src_same_fis);
+                    @$src_same_fis = ( $fi ); # update list in-place
+                }
+            }
         }
     }
 }
@@ -190,28 +192,6 @@ sub subname_subinfo_map {
     return { %{ shift->{sub_subinfo} } }; # shallow copy
 }
 
-# { pkgname => [ subinfo1, subinfo2, ... ], ... }
-# if merged is true then array contains a single 'merged' subinfo
-sub XXXpackage_subinfo_map {
-    my $self = shift;
-    my ($merged_subs, $nested_pkgs) = @_;
-
-    my $all_subs = $self->subname_subinfo_map;
-    my %pkg;
-    while ( my ($name, $subinfo) = each %$all_subs ) {
-        $name =~ s/^(.*::).*/$1/; # XXX $subinfo->package
-        push @{ $pkg{$name} }, $subinfo;
-    }
-    if ($merged_subs) {
-        while ( my ($pkg_name, $subinfos) = each %pkg ) {
-            my $subinfo = shift(@$subinfos)->clone;
-            $subinfo->merge_in($_) for @$subinfos;
-            # replace the many with the one
-            @$subinfos = ($subinfo);
-        }
-    }
-    return \%pkg;
-}
 
 # package_tree_subinfo_map is like package_subinfo_map but returns
 # nested data instead of flattened.
@@ -642,7 +622,11 @@ subroutines defined on that line, typically just one.
 
 sub subs_defined_in_file {
     my ($self, $fid, $incl_lines) = @_;
-    $fid = $self->resolve_fid($fid);
+
+    my $fi = $self->fileinfo_of($fid)
+        or return;
+
+    $fid = $fi->fid;
     $incl_lines ||= 0;
     $incl_lines = 0 if $fid == 0;
     my $caches = $self->_caches;
@@ -650,8 +634,6 @@ sub subs_defined_in_file {
     my $cache_key = "subs_defined_in_file:$fid:$incl_lines";
     return $caches->{$cache_key} if $caches->{$cache_key};
 
-    my $fi = $self->fileinfo_of($fid)
-        or return;
     my %subs = map { $_->subname => $_ } $fi->subs_defined;
 
     if ($incl_lines) {    # add in the first-line-number keys

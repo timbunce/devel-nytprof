@@ -147,6 +147,9 @@ t/test22-strevala.t
 t/test23-strevall.p
 t/test23-strevall.rdt
 t/test23-strevall.t
+t/test24-strevalc.p
+t/test24-strevalc.rdt
+t/test24-strevalc.t
 t/test30-fork-0.p
 t/test30-fork-0.rdt
 t/test30-fork-0.t

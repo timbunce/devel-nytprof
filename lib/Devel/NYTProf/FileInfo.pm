@@ -315,6 +315,9 @@ sub collapse_sibling_evals {
         }
 
         push @{ $survivor->meta->{merged_fids} }, $donor_fi->fid;
+        ++$survivor->meta->{merged_fids_src_varied}
+            if $donor_fi->src_digest ne $survivor->src_digest;
+
         $self->_delete_eval($donor_fi);
         $donor_fi->_nullify;
     }
@@ -380,11 +383,24 @@ sub srclines_array {
     }
 
     if ($self->flags & NYTP_FIDf_IS_FAKE) {
-        my $fid = $self->fid;
-        return [ "# fid$fid: NYTP_FIDf_IS_FAKE - e.g., unknown caller of an eval.\n" ];
+        return [ "# NYTP_FIDf_IS_FAKE - e.g., unknown caller of an eval.\n" ];
     }
 
     return undef;
+}
+
+sub src_digest {
+    my $self = shift;
+    return $self->cache->{src_digest} ||= do {
+        my $srclines_array = $self->srclines_array || [];
+        my $src = join "\n", @$srclines_array;
+        my @key = (
+            scalar @$srclines_array, # number of lines
+            length $src,             # total length
+            unpack("%32C*",$src),    # 32-bit checksum
+        );
+        join ",", @key;
+    };
 }
 
 

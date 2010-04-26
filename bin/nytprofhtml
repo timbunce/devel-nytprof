@@ -58,10 +58,10 @@ GetOptions(
     'help|h'    => sub { exit usage() },
     'profself!'     => sub {
         # profile nytprofhtml itself
-        my $profself = "nytprof-nytprofhtml.out";
+        our $profself = "nytprof-nytprofhtml.out";
         $ENV{NYTPROF} .= ":file=$profself";
         require Devel::NYTProf;
-        END { warn "Profile of $0 written to $profself\n" if $profself; } 
+        END { warn "Profile of $0 written to $profself\n" if our $profself; } 
     },
 ) or do { exit usage(); };
 
@@ -171,12 +171,17 @@ $reporter->set_param(
     sub {
         my ($profile, $fi) = @_;
         my $merged_fids = $fi->meta->{merged_fids};
-        return sprintf qq{<div class="warn_title">NOTE!</div>\n
+        my $extra = '';
+        $extra = qq{
+            The source code shown below is the text of just one of the calls to the eval.<br />\n
+            This report page might not make much sense because the argument source code of those eval calls varied.<br />\n
+        } if $fi->meta->{merged_fids_src_varied};
+
+        return sprintf qq{<br /><div class="warn_title">NOTE!</div>\n
             <div class="warn">The data used to generate this report page was merged from %d executions<br />
             of the string eval on line %d of %s.<br />
-            The source code shown below is the text of just one of the calls to the eval.<br />\n
-            If the argument source code of those eval calls varied then this page might not make much sense.</div><br />\n
-        }, 1+scalar @$merged_fids, $fi->eval_line, $fi->eval_fi->filename;
+            %s</div>
+        }, 1+scalar @$merged_fids, $fi->eval_line, $fi->eval_fi->filename, $extra;
     },
 );
 
@@ -187,15 +192,16 @@ sub calc_mad_from_objects {
 }
 
 sub subroutine_table {
-    my ($profile, $filestr, $max_subs, $sortby) = @_;
+    my ($profile, $fi, $max_subs, $sortby) = @_;
     $sortby ||= 'excl_time';
 
-    my $subs_in_file = ($filestr)
-        ? $profile->subs_defined_in_file($filestr, 0)
+    my $subs_in_file = ($fi)
+        ? $profile->subs_defined_in_file($fi, 0)
         : $profile->subname_subinfo_map;
     return "" unless $subs_in_file && %$subs_in_file;
 
     my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
+    my $filestr = ($fi) ? $fi->filename : undef;
 
     # XXX slow - use Schwartzian transform or via XS or Sort::Key
     my @subs =
@@ -203,7 +209,7 @@ sub subroutine_table {
         values %$subs_in_file;
 
     # in the overall summary, don't show subs that were never called
-    @subs = grep { $_->calls > 0 } @subs if !$filestr;
+    @subs = grep { $_->calls > 0 } @subs if !$fi;
 
     my $dev_incl_time  = calc_mad_from_objects(\@subs, 'incl_time',    1);
     my $dev_excl_time  = calc_mad_from_objects(\@subs, 'excl_time',    1);
@@ -266,7 +272,7 @@ sub subroutine_table {
         # remove OWN filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
         #                     becomes __ANON__[(eval 3)[:99]:53]
         # XXX doesn't work right if $filestr isn't full filename
-        $subr =~ s/\Q$filestr\E:(\d+)/:$1/g;
+        $subr =~ s/\Q$filestr\E:(\d+)/:$1/g if $filestr;
         # remove @INC prefix from other paths
         $subr =~ s/$inc_path_regex//;    # for __ANON__[/very/long/path...]
 
@@ -311,7 +317,7 @@ $reporter->set_param(
         my ($profile, $fi) = @_;
         my $filestr = $fi->filename;
 
-        my $sub_table = subroutine_table($profile, $filestr, undef, undef);
+        my $sub_table = subroutine_table($profile, $fi, undef, undef);
 
         if ($sub_table) {
             my $dot_file = html_safe_filename($filestr) . ".dot";
@@ -525,7 +531,7 @@ sub report_src_line {
         $ws ||= ($linesrc =~ m/^((?:&nbsp;|\s)+)/) ? $1 : '';
 
         my @eval_fis = sort {
-            $b->sum_of_stmts_time <=> $a->sum_of_stmts_time or
+            $b->sum_of_stmts_time(1) <=> $a->sum_of_stmts_time(1) or
             $a->filename cmp $b->filename
         } values %$evals_called;
 
@@ -537,7 +543,7 @@ sub report_src_line {
             my $merged_fids = $eval_fi->meta->{merged_fids};
             if ($merged_fids) {
                 $extra .= sprintf " (data for these has been merged)";
-                $what .= "s";
+                $what = sprintf "%d string evals", 1+scalar @$merged_fids;
             }
 
             my @nested_evals = $eval_fi->has_evals(1);
@@ -553,17 +559,16 @@ sub report_src_line {
             if (my @subs_defined = $eval_fi->subs_defined(1)) {
                 my $sub_count  = @subs_defined;
                 my $call_count = sum map { $_->calls } @subs_defined;
-                $extra .= sprintf ". Times include %d call%s to %d sub%s defined herein.",
+                $extra .= sprintf ", times include %d call%s to %d sub%s defined herein",
                         $call_count, ($call_count != 1) ? 's' : '',
                         $sub_count,  ($sub_count  != 1) ? 's' : ''
                     if $call_count;
             }
 
             my $link = sprintf(q{<a %s>%s</a>}, $reporter->href_for_file($eval_fi), $what);
-            my $html = sprintf qq{%s# spent %s executing statements in %s%s%s},
+            my $html = sprintf qq{%s# spent %s executing statements in %s%s},
                 $ws, fmt_time($sum_of_stmts_time+$nest_eval_time, 5),
-                ($merged_fids) ? sprintf("%d ",1+scalar @$merged_fids) : '', $link,
-                $extra;
+                $link, $extra;
 
             $html;
         } @eval_fis;
@@ -610,7 +615,7 @@ sub output_subs_index_page {
     print $fh qq{<div class="body_content"><br />};
 
     # Show top subs across all files
-    print $fh subroutine_table($profile, 0, 0, $sortby);
+    print $fh subroutine_table($profile, undef, 0, $sortby);
 
     my $footer = get_footer($profile);
     print $fh "</div>$footer</body></html>";
@@ -665,7 +670,7 @@ sub output_index_page {
     # Show top subs across all files
     my $max_subs = 15; # keep it less than a page so users can see the file table
     my $all_subs = keys %{$profile->{sub_subinfo}};
-    print $fh subroutine_table($profile, 0, $max_subs, undef);
+    print $fh subroutine_table($profile, undef, $max_subs, undef);
     if ($all_subs > $max_subs) {
         print $fh sprintf qq{<div class="table_footer">
             See <a href="%s">all %d subroutines</a>
