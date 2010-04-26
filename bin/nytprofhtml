@@ -16,6 +16,7 @@ use Carp;
 use Getopt::Long;
 use List::Util qw(sum max);
 use File::Copy;
+use File::Path qw(rmtree);
 
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
@@ -48,58 +49,68 @@ use constant NUMERIC_PRECISION => 5;
 
 my @on_ready_js;
 
-my %opt = (
-    file => 'nytprof.out',
-    out  => 'nytprof',
-);
-GetOptions(\%opt, qw/file|f=s delete|d out|o=s lib|l=s help|h open/)
-    or do {
-        usage();
-        exit 1;
-    };
+GetOptions(
+    'file|f=s'   => \(my $opt_file = 'nytprof.out'),
+    'lib|l=s'   => \my $opt_lib,
+    'out|o=s'   => \(my $opt_out = 'nytprof'),
+    'delete|d!' => \my $opt_delete,
+    'open!'     => \my $opt_open,
+    'help|h'    => sub { exit usage() },
+    'profself!'     => sub {
+        # profile nytprofhtml itself
+        my $profself = "nytprof-nytprofhtml.out";
+        $ENV{NYTPROF} .= ":file=$profself";
+        require Devel::NYTProf;
+        END { warn "Profile of $0 written to $profself\n" if $profself; } 
+    },
+) or do { exit usage(); };
 
-if (defined($opt{help})) {
-    usage();
-    exit;
+
+sub usage {
+    print <<END;
+usage: [perl] nytprofhtml [opts]
+ --file <file>, -f <file>  Read profile data from the specified file [default: nytprof.out]
+ --out <dir>,   -o <dir>   Write report files to this directory [default: nytprof]
+ --delete,      -d         Delete any old report files in <dir> first
+ --lib <lib>,   -l <lib>   Add <lib> to the beginning of \@INC
+ --help,        -h         Print this message
+
+This script of part of the Devel::NYTProf distribution.
+See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
+END
+    return 1;
 }
 
-# handle file selection option
-if (!-r $opt{file}) {
-    die "$0: Unable to access $opt{file}\n";
-}
 
 # handle handle output location
-if (!-e $opt{out}) {
-
+if (!-e $opt_out) {
     # will be created
 }
-elsif (!-d $opt{out}) {
-    die "$0: Specified output directory `$opt{out}' is a file. whoops!\n";
+elsif (!-d $opt_out) {
+    die "$0: Specified output directory '$opt_out' already exists as a file!\n";
 }
-elsif (!-w $opt{out}) {
-    die "$0: Unable to write to output directory `$opt{out}'\n";
+elsif (!-w $opt_out) {
+    die "$0: Unable to write to output directory '$opt_out'\n";
 }
-
-# handle deleting old db's
-if (defined($opt{'delete'})) {
-    _delete();
+else {
+    if (defined($opt_delete)) {
+        print "Deleting existing $opt_out directory\n";
+        rmtree($opt_out);
+    }
 }
 
 # handle custom lib path
-if (defined($opt{lib})) {
-    if (-d $opt{lib}) {
-        unshift(@INC, $opt{lib});
-    }
-    else {
-        die "$0: Specified lib directory `$opt{lib}' does not exist.\n";
-    }
+if (defined($opt_lib)) {
+    warn "$0: Specified lib directory '$opt_lib' does not exist.\n"
+        unless -d $opt_lib;
+    require lib;
+    lib->import($opt_lib);
 }
 
-print "Generating report...\n";
-my $reporter = new Devel::NYTProf::Reader($opt{file});
+my $reporter = new Devel::NYTProf::Reader($opt_file);
 
 # place to store this
-$reporter->output_dir($opt{out});
+$reporter->output_dir($opt_out);
 
 # set formatting for html
 $reporter->set_param(
@@ -128,7 +139,13 @@ $reporter->set_param(
             [ "Statements", sprintf "Executed %d statements in %s",
                 $fi->sum_of_stmts_count, fmt_time($fi->sum_of_stmts_time) ],
         );
-        # XXX if string eval then add link to calling location
+        if ($fi->is_eval) {
+            push @intro_rows, [
+                "Eval Invoked At", sprintf q{<a %s>%s line %d</a>},
+                    $reporter->href_for_file($fi->eval_fi, $fi->eval_line),
+                    _escape_html($fi->eval_fi->filename), $fi->eval_line
+            ];
+        }
 
         my $intro_table = join "\n", map {
             sprintf q{<tr><td class="h">%s</td><td align="left">%s</td></tr>}, @$_
@@ -262,9 +279,10 @@ sub subroutine_table {
             unshift @hints, ($is_opcode) ? 'opcode' : 'xsub';
         }
 
-        my $href = $reporter->href_for_sub($subname);
         $sub_links .= sprintf qq{%*s<a %s>%s</a>%s</span></td>},
-            $max_pkg_name_len+2, $pkg, $href, $subr,
+            $max_pkg_name_len+2, $pkg,
+            $reporter->href_for_sub($subname),
+            $subr,
             (@hints) ? "&nbsp;(".join(", ",@hints).")" : "";
 
         $sub_links .= "</tr>\n";
@@ -456,9 +474,9 @@ sub report_src_line {
             # remove @INC prefix from paths
             $line_desc =~ s/$inc_path_regex//g;
 
-            my $href = $reporter->href_for_file($caller_fi, $line) || 'unknown';
+            my $href = $reporter->href_for_file($caller_fi, $line);
             push @prologue,
-                sprintf q{# %*s times%s%s at <a href="%s">%s</a>%s},
+                sprintf q{# %*s times%s%s at <a %s>%s</a>%s},
                 length($max_calls), $count, $times, $subname, $href,
                 $line_desc, $avg_time;
             $prologue[-1] =~ s/^(# +)1 times/$1   once/;  # better English
@@ -533,8 +551,7 @@ sub report_src_line {
                 $what .= "s";
             }
 
-            my $href = $reporter->href_for_file($eval_fi, undef);
-            my $link = ($href) ? sprintf(q{<a href="%s">%s</a>}, $href, $what) : $what;
+            my $link = sprintf(q{<a %s>%s</a>}, $reporter->href_for_file($eval_fi), $what);
             my $html = sprintf qq{%s# spent %s executing statements in %s%s%s},
                 $ws, fmt_time($sum_of_stmts_time+$nest_eval_time, 5),
                 ($merged_fids) ? sprintf("%d ",1+scalar @$merged_fids) : '',
@@ -564,7 +581,7 @@ output_index_page($reporter, "index.html");
 
 output_js_files($reporter);
 
-open_browser_on("$opt{out}/index.html") if $opt{open};
+open_browser_on("$opt_out/index.html") if $opt_open;
 
 exit 0;
 
@@ -577,8 +594,8 @@ sub output_subs_index_page {
     my ($r, $filename, $sortby) = @_;
     my $profile = $reporter->{profile};
 
-    open my $fh, '>', "$opt{out}/$filename"
-        or croak "Unable to open file $opt{out}/$filename: $!";
+    open my $fh, '>', "$opt_out/$filename"
+        or croak "Unable to open file $opt_out/$filename: $!";
 
     print $fh get_html_header("Subroutine Index - NYTProf");
     print $fh get_page_header(profile => $profile, title => "Performance Profile Subroutine Index");
@@ -600,8 +617,8 @@ sub output_index_page {
     my $profile = $reporter->{profile};
 
     ###
-    open my $fh, '>', "$opt{out}/$filename"
-        or croak "Unable to open file $opt{out}/$filename: $!";
+    open my $fh, '>', "$opt_out/$filename"
+        or croak "Unable to open file $opt_out/$filename: $!";
 
     print $fh get_html_header();
     print $fh get_page_header(profile => $profile, title => "Performance Profile Index", skip_link_to_index=>1);
@@ -911,8 +928,8 @@ sub output_subs_treemap_page {
     my ($r, $filename, $title, $area_sub) = @_;
     my $profile = $reporter->{profile};
 
-    open(my $fh, '>', "$opt{out}/$filename")
-        or croak "Unable to open file $opt{out}/$filename: $!";
+    open(my $fh, '>', "$opt_out/$filename")
+        or croak "Unable to open file $opt_out/$filename: $!";
 
     $title ||= "Subroutine Time Treemap";
     print $fh get_html_header("$title - NYTProf", { add_jit => "Treemap" });
@@ -956,7 +973,7 @@ sub output_subs_callgraph_dot_file {
     my $profile = $reporter->{profile};
     my $subinfos = $profile->subname_subinfo_map;
 
-    my $dot_file = "$opt{out}/$filename";
+    my $dot_file = "$opt_out/$filename";
     open my $fh, '>', $dot_file
         or croak "Unable to open file $dot_file: $!";
 
@@ -1078,7 +1095,7 @@ sub output_js_files {
     my ($profile) = @_;
     # find the js, gif, css etc files installed with Devel::NYTProf
     (my $lib = $INC{"Devel/NYTProf/Data.pm"}) =~ s/\/Data\.pm$//;
-    _copy_dir("$lib/js", "$opt{out}/js");
+    _copy_dir("$lib/js", "$opt_out/js");
 }
 
 sub _copy_dir {
@@ -1222,10 +1239,7 @@ sub output_file_table {
         push @t_stmt_time, $time;
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
-            my $href = $reporter->href_for_file($fi, undef, $_);
-            ($href)
-                ? sprintf(qq{<a href="%s">%s</a>}, $href, $_)
-                : ()
+            sprintf(qq{<a %s>%s</a>}, $reporter->href_for_file($fi, undef, $_), $_)
         } qw(line block sub);
         print $fh "<td>$rep_links</td>";
 
@@ -1324,31 +1338,6 @@ sub determine_severity {
     }
 
     return qq{<td class="$class">$fmt_val</td>};
-}
-
-# Delete the previous database/directory if it exists
-sub _delete {
-    if (-d $opt{out}) {
-        print "Deleting $opt{out}\n";
-        unlink glob($opt{out} . "/*");
-        unlink glob($opt{out} . "/.*");
-        rmdir $opt{out} or confess "Delete of $opt{out} failed: $!\n";
-    }
-}
-
-sub usage {
-    print <<END
-usage: [perl] nytprofhtml [opts]
- --file <file>, -f <file>  Use the specified file as Devel::NYTProf database
-                            file. [default: ./nytprof.out]
- --out <dir>,   -o <dir>   Place generated files here [default: ./nytprof]
- --delete,      -d         Delete the old nytprofhtml output [uses --out]
- --lib,         -l         Add a path to the beginning of \@INC
- --help,        -h         Print this message
-
-This script of part of the Devel::NYTProf distribution.
-See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
-END
 }
 
 

@@ -161,6 +161,18 @@ sub current_level {
     return $self->{current_level} || 'line';
 }
 
+sub fname_for_fileinfo {
+    my ($self, $fi, $level) = @_;
+    $level ||= $self->current_level;
+
+    my $fname = html_safe_filename($fi->filename_without_inc);
+    $fname .= "-".$fi->fid;
+    $fname .= "-$level" if $level;
+
+    return $fname;
+}
+
+
 ##
 sub _generate_report {
     my $self = shift;
@@ -172,19 +184,6 @@ sub _generate_report {
         or carp "Profile report data contains no files";
 
     #$profile->dump_profile_data({ filehandle => \*STDERR, separator=>"\t", });
-
-    # pre-calculate some data so it can be cross-referenced
-    foreach my $fi (@all_fileinfos) {
-
-        # discover file path
-        my $fname = html_safe_filename($fi->filename_without_inc);
-        $fname .= "-".$fi->fid;
-        $fname .= "-$LEVEL" if $LEVEL;
-
-        my $meta = $fi->meta;
-        $meta->{html_safe} = $fname;
-        $meta->{$LEVEL}->{html_safe} = $fname;
-    }
 
     foreach my $fi (@all_fileinfos) {
 
@@ -293,7 +292,7 @@ sub _generate_report {
 
         # the output file name that will be open later.  Not including directory at this time.
         # keep here so that the variable replacement subs can get at it.
-        my $fname = $meta->{html_safe} . $self->{suffix};
+        my $fname = $self->fname_for_fileinfo($fi) . $self->{suffix};
 
         # localize header and footer for variable replacement
         my $header    = $self->get_param('header',    [$profile, $fi, $fname, $LEVEL]);
@@ -446,24 +445,27 @@ sub _generate_report {
 }
 
 
-sub href_for_file {
+sub url_for_file {
     my ($self, $file, $anchor, $level) = @_;
-    $level ||= $self->current_level;
 
     my $fi = $self->{profile}->fileinfo_of($file);
-    return undef if $fi->is_fake;
+    #return "" if $fi->is_fake;
 
-    $level = 'line' if $fi->is_eval;
+    my $url = $self->fname_for_fileinfo($fi, $level);
+    $url .= '.html';
+    $url .= "#$anchor" if defined $anchor;
 
-    my $href = $fi->meta->{$level}->{html_safe};
-    $href &&= $href.'.html';
-    $href .= "#$anchor" if defined $anchor;
+    return $url;
+}
 
-    return $href;
+sub href_for_file {
+    my $url = shift->url_for_file(@_);
+    return qq{href="$url"} if $url;
+    return $url;
 }
 
 
-sub href_for_sub {
+sub url_for_sub {
     my ($self, $sub, %opts) = @_;
     my $profile = $self->{profile};
 
@@ -471,7 +473,7 @@ sub href_for_sub {
     if (!$first) {
         if (not defined $first) {
             warn("No file line range data for sub '$sub' (perhaps an xsub)\n")
-                unless our $href_for_sub_no_data_warn->{$sub}++;    # warn just once
+                unless our $url_for_sub_no_data_warn->{$sub}++;    # warn just once
             return "";
         }
         # probably xsub
@@ -480,14 +482,13 @@ sub href_for_sub {
         # use sanitized subname as label
         ($first = $sub) =~ s/\W/_/g;
     }
+    return $self->url_for_file($fi, $first);
+}
 
-    my $html_safe = $fi->meta->{html_safe} ||= do {
-        # warn, just once, and use a default value
-        warn "Sub '$sub' file '$file' (fid $fid) has no html_safe value\n";
-        "unknown";
-    };
-    $html_safe = ($opts{in_this_file}) ? "" : "$html_safe.html";
-    return sprintf q{href="%s#%s"}, $html_safe, $first;
+sub href_for_sub {
+    my $url = shift->url_for_sub(@_);
+    return qq{href="$url"} if $url;
+    return $url;
 }
 
 
