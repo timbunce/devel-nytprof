@@ -88,16 +88,19 @@ sub _delete_eval {
 }
 
 
-# return a ref to a hash of { subname => subinfo, ... }
-sub subs      { shift->[NYTP_FIDi_SUBS_DEFINED()] } # deprecated
-
 # return subs defined as list of SubInfo objects
-# XXX add $include_evals arg?
 sub subs_defined {
-    return values %{ shift->[NYTP_FIDi_SUBS_DEFINED()] };
+    my ($self, $incl_nested_evals) = @_;
+
+    return map { $_->subs_defined(0) } $self, $self->has_evals(1)
+        if $incl_nested_evals;
+
+    return values %{ $self->[NYTP_FIDi_SUBS_DEFINED()] };
 }
+
 sub subs_defined_sorted {
-    return sort { $a->subname cmp $b->subname } shift->subs_defined;
+    my ($self, $incl_nested_evals) = @_;
+    return sort { $a->subname cmp $b->subname } $self->subs_defined($incl_nested_evals);
 }
 
 

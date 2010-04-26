@@ -532,18 +532,7 @@ sub report_src_line {
         my $evals_called_html = join "\n", map {
             my $eval_fi = $_;
             my $sum_of_stmts_time = $eval_fi->sum_of_stmts_time;
-            my $what = "string eval";
-
-            my @nested_evals = $eval_fi->has_evals(1);
-            my ($nest_eval_time, $extra) = (0, '');
-            if (@nested_evals) {
-                $nest_eval_time = sum map { $_->sum_of_stmts_time } @nested_evals;
-
-                $extra .= sprintf " (%s in this eval plus %s in %d nested evals)",
-                        fmt_time($sum_of_stmts_time), fmt_time($nest_eval_time),
-                        scalar @nested_evals
-                    if $nest_eval_time;
-            }
+            my ($what, $extra) = ("string eval", "");
 
             my $merged_fids = $eval_fi->meta->{merged_fids};
             if ($merged_fids) {
@@ -551,11 +540,30 @@ sub report_src_line {
                 $what .= "s";
             }
 
+            my @nested_evals = $eval_fi->has_evals(1);
+            my $nest_eval_time = 0;
+            if (@nested_evals) {
+                $nest_eval_time = sum map { $_->sum_of_stmts_time } @nested_evals;
+                $extra .= sprintf ", %s here plus %s in %d nested evals",
+                        fmt_time($sum_of_stmts_time), fmt_time($nest_eval_time),
+                        scalar @nested_evals
+                    if $nest_eval_time;
+            }
+
+            if (my @subs_defined = $eval_fi->subs_defined(1)) {
+                my $sub_count  = @subs_defined;
+                my $call_count = sum map { $_->calls } @subs_defined;
+                $extra .= sprintf ". Times include %d call%s to %d sub%s defined herein.",
+                        $call_count, ($call_count != 1) ? 's' : '',
+                        $sub_count,  ($sub_count  != 1) ? 's' : ''
+                    if $call_count;
+            }
+
             my $link = sprintf(q{<a %s>%s</a>}, $reporter->href_for_file($eval_fi), $what);
             my $html = sprintf qq{%s# spent %s executing statements in %s%s%s},
                 $ws, fmt_time($sum_of_stmts_time+$nest_eval_time, 5),
-                ($merged_fids) ? sprintf("%d ",1+scalar @$merged_fids) : '',
-                $link, $extra;
+                ($merged_fids) ? sprintf("%d ",1+scalar @$merged_fids) : '', $link,
+                $extra;
 
             $html;
         } @eval_fis;

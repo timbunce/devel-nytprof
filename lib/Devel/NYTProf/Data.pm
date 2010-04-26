@@ -134,7 +134,7 @@ sub collapse_evals_in {
 
         next if @$siblings == 1;
 
-        my @subs  = map { values %{ $_->subs } } @$siblings;
+        my @subs  = map { $_->subs_defined } @$siblings;
         my @calls = map { keys %{ $_->sub_call_lines } } @$siblings;
         my @evals = map { $_->has_evals(0) } @$siblings;
         my $msg = sprintf "%d:%d: multiple evals (subs %d, calls %d, evals %d, fids: %s)",
@@ -652,7 +652,7 @@ sub subs_defined_in_file {
 
     my $fi = $self->fileinfo_of($fid)
         or return;
-    my %subs = %{ $fi->subs || {} }; # shallow copy
+    my %subs = map { $_->subname => $_ } $fi->subs_defined;
 
     if ($incl_lines) {    # add in the first-line-number keys
         croak "Can't include line numbers without a fid" unless $fid;
