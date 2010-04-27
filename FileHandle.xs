@@ -299,7 +299,7 @@ NYTP_read_unchecked(NYTP_file ifile, void *buffer, size_t len) {
     }
     while (1) {
         unsigned char *p = ifile->large_buffer + ifile->count;
-        unsigned int remaining = ((unsigned char *) ifile->zs.next_out) - p;
+        int remaining = ((unsigned char *) ifile->zs.next_out) - p;
 
         if (remaining >= len) {
             Copy(p, buffer, len, unsigned char);
@@ -522,8 +522,7 @@ NYTP_write(NYTP_file ofile, const void *buffer, size_t len) {
         return 0;
     }
     while (1) {
-        unsigned int remaining
-            = NYTP_FILE_LARGE_BUFFER_SIZE - ofile->zs.avail_in;
+        int remaining = NYTP_FILE_LARGE_BUFFER_SIZE - ofile->zs.avail_in;
         unsigned char *p = ofile->large_buffer + ofile->zs.avail_in;
 
         if (remaining >= len) {
