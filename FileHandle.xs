@@ -603,9 +603,7 @@ NYTP_close(NYTP_file file, int discard) {
         const double ratio = file->zs.total_in / (double) file->zs.total_out;
         flush_output(file, Z_FINISH);
         fprintf(raw_file, "#\n"
-                "# Total uncompressed bytes %lu\n"
-                "# Total compressed bytes %lu\n"
-                "# Compression ratio 1:%2f, data shrunk by %.2f%%\n",
+                "# Compressed %lu bytes to %lu, ratio %f:1, data shrunk by %f%%\n",
                 file->zs.total_in, file->zs.total_out, ratio,
                 100 * (1 - 1 / ratio));
     }
