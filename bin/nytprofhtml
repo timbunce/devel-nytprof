@@ -1215,7 +1215,7 @@ sub output_file_table {
     my @fis = $profile->noneval_fileinfos;
     @fis = sort { $b->meta->{'time'} <=> $a->meta->{'time'} } @fis;
 
-    my $dev_time = calculate_median_absolute_deviation([map { scalar $_->meta->{'time'} } @fis], 0);
+    my $dev_time = calculate_median_absolute_deviation([map { scalar $_->meta->{'time'} } @fis], 1);
     
     foreach my $fi (@fis) {
         my $meta = $fi->meta;
@@ -1269,12 +1269,11 @@ sub output_file_table {
             qq{<tr class="index"><td class="n">%s</td><td class="n">%s</td><td colspan="2" style="font-style: italic">%s</td></tr>};
         my $t_notes = "";
         my $stmt_time_diff = $allTimes - sum(@t_stmt_time);
-        if (sum(@t_stmt_exec) != $allCalls or $stmt_time_diff > 0.000_010) {
-            my $eval_fileinfos = grep { $_->eval_line } $profile->all_fileinfos;
-            $stmt_time_diff = ($stmt_time_diff > 0.000_010)
+        if (sum(@t_stmt_exec) != $allCalls or $stmt_time_diff > 0.001) {
+            $stmt_time_diff = ($stmt_time_diff > 0.001)
                 ? sprintf(" and %s", fmt_time($stmt_time_diff)) : "";
-            $t_notes = sprintf "(%d string evals account for a further %d statements%s)",
-                $eval_fileinfos, $allCalls - sum(@t_stmt_exec), $stmt_time_diff;
+            $t_notes = sprintf "(%d statements%s are unaccounted for)",
+                $allCalls - sum(@t_stmt_exec), $stmt_time_diff;
         }
         print $fh sprintf $stats_fmt, fmt_float(sum(@t_stmt_exec)), fmt_time(sum(@t_stmt_time)),
                 "Total $t_notes"
