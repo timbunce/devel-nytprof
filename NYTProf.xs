@@ -1274,7 +1274,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
     if (!is_profiling || !profile_stmts)
         return;
 #ifdef MULTIPLICITY
-    if (my_perl != orig_my_perl)
+    if (orig_my_perl && my_perl != orig_my_perl)
         return;
 #endif
 
@@ -1305,7 +1305,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
                                  last_executed_line);
 
         if (trace_level >= 4)
-            logwarn("Wrote %d:%-4d %2ld ticks (%u, %u)\n", last_executed_fid,
+            logwarn("\twrote %d:%-4d %2ld ticks (%u, %u)\n", last_executed_fid,
                 last_executed_line, elapsed, last_block_line, last_sub_line);
     }
 
@@ -1399,7 +1399,7 @@ DB_leave(pTHX_ OP *op)
     if (!is_profiling || !out || !profile_stmts)
         return;
 #ifdef MULTIPLICITY
-    if (my_perl != orig_my_perl)
+    if (orig_my_perl && my_perl != orig_my_perl)
         return;
 #endif
 
@@ -1423,7 +1423,7 @@ DB_leave(pTHX_ OP *op)
     }
 
     if (trace_level >= 4) {
-        logwarn("left %u:%u back to %s at %u:%u (b%u s%u) - discounting next statement%s\n",
+        logwarn("\tleft %u:%u back to %s at %u:%u (b%u s%u) - discounting next statement%s\n",
             prev_last_executed_fid, prev_last_executed_line,
             OP_NAME_safe(op),
             last_executed_fid, last_executed_line, last_block_line, last_sub_line,
@@ -2321,7 +2321,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         || !subr_entry_ix ) /* goto out of sub whose entry wasn't profiled */
        )
 #ifdef MULTIPLICITY
-    || (my_perl != orig_my_perl)
+    || (orig_my_perl && my_perl != orig_my_perl)
 #endif
     ) {
         return run_original_op(op_type);
@@ -2614,8 +2614,11 @@ enable_profile(pTHX_ char *file)
     /* enable the run-time aspects to profiling */
     int prev_is_profiling = is_profiling;
 #ifdef MULTIPLICITY
-    if (my_perl != orig_my_perl)
+    if (orig_my_perl && my_perl != orig_my_perl) {
+        if (trace_level)
+            logwarn("~ enable_profile call from different interpreter ignored\n");
         return 0;
+    }
 #endif
 
     if (trace_level)
@@ -2657,8 +2660,11 @@ disable_profile(pTHX)
 {
     int prev_is_profiling = is_profiling;
 #ifdef MULTIPLICITY
-    if (my_perl != orig_my_perl)
+    if (orig_my_perl && my_perl != orig_my_perl) {
+        if (trace_level)
+            logwarn("~ disable_profile call from different interpreter ignored\n");
         return 0;
+    }
 #endif
     if (is_profiling) {
         if (opt_use_db_sub)
@@ -2668,8 +2674,8 @@ disable_profile(pTHX)
         is_profiling = 0;
     }
     if (trace_level)
-        logwarn("~ disable_profile (previously %s, pid %d)\n",
-            prev_is_profiling ? "enabled" : "disabled", getpid());
+        logwarn("~ disable_profile (previously %s, pid %d, trace %d)\n",
+            prev_is_profiling ? "enabled" : "disabled", getpid(), trace_level);
     return prev_is_profiling;
 }
 
@@ -2679,8 +2685,11 @@ finish_profile(pTHX)
 {
     int saved_errno = errno;
 #ifdef MULTIPLICITY
-    if (my_perl != orig_my_perl)
+    if (orig_my_perl && my_perl != orig_my_perl)
+        if (trace_level) {
+            logwarn("~ finish_profile call from different interpreter ignored\n");
         return;
+    }
 #endif
 
     if (trace_level >= 1)
@@ -2714,10 +2723,12 @@ init_profiler(pTHX)
 #endif
 
 #ifdef MULTIPLICITY
-    if (!orig_my_perl)
-        orig_my_perl = my_perl;
-    else if (orig_my_perl != my_perl) {
-        logwarn("NYTProf: threads/multiplicity not supported!\n");
+    if (!orig_my_perl) {
+        if (1)
+            orig_my_perl = my_perl;
+    }
+    else if (orig_my_perl && orig_my_perl != my_perl) {
+        logwarn("NYTProf: perl interpreter address changed after init (threads/multiplicity not supported)\n");
         return 0;
     }
 #endif
@@ -2777,8 +2788,9 @@ init_profiler(pTHX)
 #endif
 
     if (trace_level)
-        logwarn("~ init_profiler for pid %d, clock %d, start %d, perldb 0x%lx\n",
-            last_pid, profile_clock, profile_start, (long unsigned)PL_perldb);
+        logwarn("~ init_profiler for pid %d, clock %d, start %d, perldb 0x%lx, exitf 0x%lx\n",
+            last_pid, profile_clock, profile_start,
+            (long unsigned)PL_perldb, (long unsigned)PL_exit_flags);
 
     if (get_hv("DB::sub", 0) == NULL) {
         logwarn("NYTProf internal error - perl not in debug mode\n");
