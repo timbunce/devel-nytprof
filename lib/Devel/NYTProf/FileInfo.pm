@@ -305,7 +305,7 @@ sub collapse_sibling_evals {
         }
 
         # copy line time data
-        my $d_ltd = $donor_fi->line_time_data; # XXX line only
+        my $d_ltd = $donor_fi->line_time_data || []; # XXX line only
         for my $line (0..@$d_ltd-1) {
             my $d_tld_l = $d_ltd->[$line] or next;
             my $s_tld_l = $s_ltd->[$line] ||= [];
