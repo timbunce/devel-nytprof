@@ -661,8 +661,9 @@ sub output_index_page {
         print $fh qq{<div class="jump_to_file"><form name="jump">};
         print $fh qq{<select name="file" onChange="location.href=document.jump.file.value;">\n};
         printf $fh qq{<option disabled="disabled">%s</option>\n}, "Jump to file...";
-        foreach my $fi ($profile->noneval_fileinfos) {
-            printf $fh qq{<option value="#f%s">%s</option>\n}, $fi->fid, $fi->filename;
+        foreach my $fi (sort { $a->filename cmp $b->filename } $profile->noneval_fileinfos) {
+            printf $fh qq{<option value="#f%s">%s</option>\n},
+                $fi->fid, _escape_html($fi->filename);
         }
         print $fh "</select></form></div>\n";
     }
