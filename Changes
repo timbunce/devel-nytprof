@@ -16,8 +16,8 @@ string eval merging - must allow at least viewing of source for called subs defi
 =head2 Changes in Devel::NYTProf 3.12 (svn 1194) 22nd April 2010
 
 XXX TODO
-Refine and document handing of string evals
 Consider eval_pv from outside perl, e.g. plperl
+On eval report add links to sibling eval reports
 
 Major changes:
 

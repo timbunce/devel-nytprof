@@ -53,7 +53,7 @@ sub profile_this {
     my @perl = ($this_perl, '-d:NYTProf');
     
     # (sadly, testing $Config{usesitecustomize} isn't reliable)
-    if ($Config{ccflags} =~ /(?<!\w)-DUSE_SITECUSTOMIZE\b/) {
+    if ($Config{usesitecustomize} eq 'define' or $Config{ccflags} =~ /(?<!\w)-DUSE_SITECUSTOMIZE\b/) {
         push @perl, '-f' if $opt{skip_sitecustomize};
     }
 

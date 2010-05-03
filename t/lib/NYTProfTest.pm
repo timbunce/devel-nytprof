@@ -352,7 +352,10 @@ sub run_command {
 sub run_perl_command {
     my ($cmd, $show_stdout) = @_;
     local $ENV{PERL5LIB} = $perl5lib;
-    run_command("$this_perl -f $cmd", $show_stdout);
+    my @opts;
+    push @opts, '-f' if $Config{usesitecustomize} eq 'define'
+                     or $Config{ccflags} =~ /(?<!\w)-DUSE_SITECUSTOMIZE\b/;
+    run_command("$this_perl @opts $cmd", $show_stdout);
 }
 
 

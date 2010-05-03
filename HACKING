@@ -302,9 +302,6 @@ associated with the 'next;' within the loop. Fixed by perl change 33710?
 
 Investigate style.css problem when using --outfile=some/other/dir
 
-Index should show eval fids in some form - collapsed per location?
-Or just included in the stats for the outer source file.
-
 Sub profiler should avoid sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
 because it's expensive (Perl_sv_setpvf_nocontext accounts for 29% of pp_entersub_profiler).
 Use a two level hash: HvNAME(GvSTASH(gv)) then GvNAME(gv).
@@ -391,7 +388,6 @@ Option to add sub call and return events into the data file as they happen.
 Would enable a dprofpp -T like output. See https://rt.cpan.org/Ticket/Display.html?id=50766
 
 For eval fid reports:
-- Add header with link to location of the invoking string eval
 - Add links to 'sibling' evals
 - Add eval information (evals and time) to file summary header
 
