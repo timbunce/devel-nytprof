@@ -33,7 +33,7 @@ run_test_group( {
         my $lines_s = $fi_s->srclines_array;
         isa_ok $lines_s, 'ARRAY', 'srclines_array should return an array ref';
 
-        my $fi_e = $profile->fileinfo_of('(eval 0)[-:1]');
+        my $fi_e = $profile->fileinfo_of('(eval 1)[-:1]');
         isa_ok $fi_e, 'Devel::NYTProf::FileInfo', 'should have fileinfo for "(eval 0)[-:1]"';
 
         if ($env->{savesrc}) {

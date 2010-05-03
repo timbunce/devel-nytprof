@@ -19,23 +19,34 @@ XXX TODO
 Refine and document handing of string evals
 Consider eval_pv from outside perl, e.g. plperl
 
-  Fixed off-by-1 error in number of Files an xsub/opcode was called from.
+Major changes:
+
+  Added profile reporting of code executed in string evals.
+    Each string eval executed gets it's own report page.
+    String evals may be collapsed/merged in some cases.
 
   Enabled savesrc=1 by default.
 
-  Added profile reporting of code executed in string evals.
-    Each string eval gets its own report page.  String evals that don't define
-    subs or use string eval themselves may be collapsed/merged in some cases.
+Other changes:
+
+  Fixed off-by-1 error in number of Files an xsub/opcode was called from.
+  Fixed Devel::NYTProf::Apache to work in more situations.
+
+  Improved behaviour for 'duplicate' anon-subs defined in separate
+    invocations of a particular string eval.
 
   Added automatic detection of calls to POSIX::_exit() by the sub profiler
     so finish_profile() gets called and a usable profile is produced.
   Added posix_exit=1 option to do the same thing (in a different way)
-    when the sub profiler is not beeing used (i.e., subs=0).
+    when the sub profiler is not being used (i.e., subs=0).
 
-  Corrected typos in nytprofhtml docs thanks to chocolate@cpan.org
+Documentation Changes:
 
   Sequences of blank lines are skipped in generated reports.
     Relevant for savesrc mode in which perl doesn't store pod sections.
+  Corrected typos in nytprofhtml docs thanks to chocolate@cpan.org.
+  Documented how to use Devel::NYTProf::Apache with virtual hosts that
+    use the PerlOptions +Parent or +Clone configuration.
 
 =head2 Changes in Devel::NYTProf 3.11 (svn 1171) 12th March 2010
 

@@ -3217,8 +3217,8 @@ write_sub_callers(pTHX)
             if (sc[NYTP_SCi_INCL_RTIME] < 0.0 || sc[NYTP_SCi_EXCL_RTIME] < 0.0) {
                 ++negative_time_calls;
                 if (trace_level) {
-                    logwarn("%s call has negative time: incl %"NVff"s, excl %"NVff"s (clock id %d)\n",
-                        called_subname, sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME], profile_clock);
+                    logwarn("%s call has negative time: incl %"NVff"s, excl %"NVff"s:\n",
+                        called_subname, sc[NYTP_SCi_INCL_RTIME], sc[NYTP_SCi_EXCL_RTIME]);
                     trace = 1;
                 }
             }
@@ -3237,7 +3237,7 @@ write_sub_callers(pTHX)
         }
     }
     if (negative_time_calls) {
-        logwarn("Warning: %d subroutine calls had negative time! The clock being used (%d) and the results you'll get are likely to be unstable.\n",
+        logwarn("Warning: %d subroutine calls had negative time! The clock being used (%d) is probably unstable, so the results will be as well.\n",
             negative_time_calls, profile_clock);
     }
 }
@@ -3382,6 +3382,8 @@ normalize_eval_seqn(pTHX_ SV *sv) {
     STRLEN len;
     char *start = SvPV(sv, len);
     char *first_space;
+
+    return; /* XXX normalize_eval_seqn is currently disabled */
 
     /* effectively does
        s/(

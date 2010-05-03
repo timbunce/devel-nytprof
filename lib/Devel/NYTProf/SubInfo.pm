@@ -5,6 +5,7 @@ use warnings;
 use Carp;
 
 use List::Util qw(sum min max);
+use Data::Dumper;
 
 use Devel::NYTProf::Constants qw(
     NYTP_SIi_FID NYTP_SIi_FIRST_LINE NYTP_SIi_LAST_LINE
@@ -262,6 +263,11 @@ sub normalize_for_test {
     my $self = shift;
     my $profile = $self->profile;
 
+    # normalize eval sequence numbers in anon sub names to 0
+    $self->[NYTP_SIi_SUB_NAME] =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg
+        if $self->[NYTP_SIi_SUB_NAME] =~ m/__ANON__/
+        && not $ENV{NYTPROF_TEST_SKIP_EVAL_NORM};
+
     # zero subroutine inclusive time
     $self->[NYTP_SIi_INCL_RTIME] = 0;
     $self->[NYTP_SIi_EXCL_RTIME] = 0;
@@ -284,12 +290,26 @@ sub normalize_for_test {
         $callers->{$fid} = { map { $_ => shift @lines } 1..@lines };
     }
 
-    # zero per-call-location subroutine inclusive time
     for my $sc (map { values %$_ } values %$callers) {
+        # zero per-call-location subroutine inclusive time
         $sc->[NYTP_SCi_INCL_RTIME] =
         $sc->[NYTP_SCi_EXCL_RTIME] =
         $sc->[NYTP_SCi_RECI_RTIME] = 0;
+
+        if (not $ENV{NYTPROF_TEST_SKIP_EVAL_NORM}) {
+            # normalize eval sequence numbers in anon sub names to 0
+            my $names = $sc->[NYTP_SCi_CALLING_SUB]||{};
+            for my $subname (keys %$names) {
+                (my $newname = $subname) =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg;
+                next if $newname eq $subname;
+                warn "Normalizing $subname to $newname overwrote other calling-sub data\n"
+                    if $names->{$newname};
+                $names->{$newname} = delete $names->{$subname};
+            }
+        }
+
     }
+    return $self->[NYTP_SIi_SUB_NAME];
 }
 
 sub dump {

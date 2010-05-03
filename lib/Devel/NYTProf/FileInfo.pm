@@ -413,12 +413,27 @@ sub normalize_for_test {
     # normalize flags to avoid failures due to savesrc and perl version
     $self->[NYTP_FIDi_FLAGS] &= ~(NYTP_FIDf_HAS_SRC|NYTP_FIDf_SAVE_SRC);
 
-    for my $sc (map { values %$_ } values %{ $self->sub_call_lines }) {
-        $sc->[NYTP_SCi_INCL_RTIME] =
-        $sc->[NYTP_SCi_EXCL_RTIME] =
-        $sc->[NYTP_SCi_RECI_RTIME] = 0;
-    }
+    # '1' => { 'main::foo' => [ 1, '1.38e-05', '1.24e-05', ..., { 'main::RUNTIME' => undef } ] }
+    for my $subscalled (values %{ $self->sub_call_lines }) {
 
+        for my $subname (keys %$subscalled) {
+            my $sc = $subscalled->{$subname};
+            $sc->[NYTP_SCi_INCL_RTIME] =
+            $sc->[NYTP_SCi_EXCL_RTIME] =
+            $sc->[NYTP_SCi_RECI_RTIME] = 0;
+
+            if (not $ENV{NYTPROF_TEST_SKIP_EVAL_NORM}) {
+                # normalize eval sequence numbers in anon sub names to 0
+                (my $newname = $subname) =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg;
+                if ($newname ne $subname) {
+                    warn "Normalizing $subname to $newname overwrote other called-by data\n"
+                        if $subscalled->{$newname};
+                    $subscalled->{$newname} = delete $subscalled->{$subname};
+                }
+            }
+        }
+
+    }
 }
 
 

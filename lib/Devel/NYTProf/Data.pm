@@ -565,8 +565,18 @@ sub normalize_variables {
         }
     }
 
-    # zero sub info and sub caller times
-    $_->normalize_for_test for values %{ $self->{sub_subinfo} };
+    my $sub_subinfo = $self->{sub_subinfo};
+    for my $subname (keys %$sub_subinfo) {
+        my $si = $self->{sub_subinfo}{$subname};
+        # zero sub info and sub caller times etc.
+        my $newname = $si->normalize_for_test;
+        if ($newname ne $subname) {
+            warn "Normalizing $subname to $newname overwrote other data\n"
+                if $sub_subinfo->{$newname};
+            $sub_subinfo->{$newname} = delete $sub_subinfo->{$subname};
+        }
+    }
+
     $_->normalize_for_test for $self->all_fileinfos;
 
     return;
