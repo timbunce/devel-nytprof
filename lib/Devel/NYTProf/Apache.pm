@@ -21,7 +21,7 @@ BEGIN {
 
     if (!$ENV{NYTPROF}) {
         $ENV{NYTPROF} = "file=/tmp/nytprof.$$.out";
-        warn "Defaulting NYTPROF env var to '$ENV{NYTPROF}'";
+        warn "NYTPROF env var not set, so defaulting to NYTPROF='$ENV{NYTPROF}'";
     }
 
     require Devel::NYTProf;
@@ -29,36 +29,51 @@ BEGIN {
 
 use strict;
 
-use constant MP2 => (exists $ENV{MOD_PERL_API_VERSION} && $ENV{MOD_PERL_API_VERSION} == 2)
-    ? 1
-    : 0;
+use constant TRACE => ($ENV{NYTPROF} =~ /\b trace = [^0] /x);
+use constant MP2   => (exists $ENV{MOD_PERL_API_VERSION} && $ENV{MOD_PERL_API_VERSION} == 2);
 
 # https://rt.cpan.org/Ticket/Display.html?id=42862
 die "Threads not supported" if $^O eq 'MSWin32';
 
+# XXX could use ModPerl::Util::current_perl_id() to get more insight
+*current_perl_id = (MP2 and eval "require ModPerl::Util")
+        ? \&ModPerl::Util::current_perl_id
+        : sub { '0' };
+
+sub trace {
+    return unless TRACE;
+    warn sprintf "NYTProf %d.%s: %s\n",
+        $$, current_perl_id(), shift
+}
+
 sub child_init {
+    trace("child_init(@_)") if TRACE;
     DB::enable_profile() unless $ENV{NYTPROF} =~ m/\b start = (?: no | end ) \b/x;
 }
 
 sub child_exit {
+    trace("child_exit(@_)") if TRACE;
     DB::_finish();
 }
-
 
 # arrange for the profile to be enabled in each child
 # and cleanly finished when the child exits
 if (MP2) {
-    require mod_perl2;
-    require Apache2::ServerUtil;
-    my $s = Apache2::ServerUtil->server;
-    $s->push_handlers(PerlChildInitHandler => \&child_init);
-    $s->push_handlers(PerlChildExitHandler => \&child_exit);
+
+    # For mod_perl2 we rely on profiling being active in the parent
+    # and for normal fork detection to detect the new child.
+    # We just need to be sure the profile is finished properly
+    # and an END block works well for that (if loaded right, see docs)
+    eval q{ END { child_exit('END') } 1 } or die;
 }
 else {
+    # the simple steps for mod_perl2 above might also be fine for mod_perl1
+    # but I'm not in a position to check right now. Perhaps you can help.
     require Apache;
     if (Apache->can('push_handlers')) {
         Apache->push_handlers(PerlChildInitHandler => \&child_init);
         Apache->push_handlers(PerlChildExitHandler => \&child_exit);
+        warn "$$: Apache child handlers installed" if TRACE;
     }
     else {
         Carp::carp("Apache.pm was not loaded");
@@ -78,6 +93,9 @@ Devel::NYTProf::Apache - Profile mod_perl applications with Devel::NYTProf
   # in your Apache config file with mod_perl installed
   PerlPassEnv NYTPROF
   PerlModule Devel::NYTProf::Apache
+
+If you're using virtual hosts with C<PerlOptions> that include either
+C<+Parent> or C<+Clone> then see L</VIRTUAL HOSTS> below.
 
 =head1 DESCRIPTION
 
@@ -118,6 +136,28 @@ command line.
       PerlModule Devel::NYTProf::Apache
   </IfDefine>
 
+
+=head1 VIRTUAL HOSTS
+
+If your httpd configuration includes virtual hosts with C<PerlOptions> that
+include either C<+Parent> or C<+Clone> then mod_perl2 will create a new perl
+interpreter to handle requests for that virtual host.
+This causes some issues for profiling.
+
+If C<Devel::NYTProf::Apache> is loaded in the top-level configuration then
+activity in any virtual hosts that use their own perl interpreter won't be
+profiled. Normal virtual hosts will be profiled just fine.
+
+You can profile a I<single> virtual host that uses its own perl interpreter by
+loading C<Devel::NYTProf::Apache> I<inside the configuration for that virtual
+host>. In this case I<do not> use C<PerlModule> directive. You need to use
+a C<Perl> directive instead, like this:
+
+    <VirtualHost *:1234>
+        ...
+        <Perl> use Devel::NYTProf::Apache; </Perl>
+        ...
+    </VirtualHost>
 
 =head1 LIMITATIONS
 
