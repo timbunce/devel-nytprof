@@ -363,6 +363,7 @@ appear as the caller in the call-tree because, while strictly accurate, it's
 probably less useful from the users perspective.
 Fixing that part is easy but handling incl/excl time needs more thought.
 
+For xsubs and opcodes that call perl subs:
 In the subroutine prologue that currently lists where the sub was called from,
 for xsubs & opcodes, add a list of subs that it called (typically none).
 That would be handy because currently calls from xsubs & opcodes appear in the
@@ -383,6 +384,7 @@ Then, rather than hand-crafting inflexible data structures we could use SQL
 (or, say, DBIx::Class) to return relevant data. Would also provide another
 route for other data sources (languages/tools) to be included in a report.
 Could also simplify: comparing profiles, merging profiles, ...
+Also 'pipelines' of plugin db-to-db transformations could be developed.
 Any volunteers to explore writing an nytprofimport for SQLite?
 
 Option to add sub call and return events into the data file as they happen.
@@ -391,10 +393,9 @@ Would enable a dprofpp -T like output. See https://rt.cpan.org/Ticket/Display.ht
 For eval fid reports:
 - Add header with link to location of the invoking string eval
 - Add links to 'sibling' evals
-- fix sub caller info to not rollup over evals
-- merge string evals which have identical src and invoking location
-- fix inconsistency in results of href_for_*() subs
 - Add eval information (evals and time) to file summary header
+
+Fix inconsistency in results of href_for_*() subs
 
 Make generation of call graph .dot files optional and/or optimize to make faster
 
