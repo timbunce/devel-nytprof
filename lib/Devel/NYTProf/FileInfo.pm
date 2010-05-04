@@ -408,7 +408,8 @@ sub normalize_for_test {
     my $self = shift;
 
     # normalize eval sequence numbers in 'file' names to 0
-    $self->[NYTP_FIDi_FILENAME] =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg;
+    $self->[NYTP_FIDi_FILENAME] =~ s/ \( ((?:re_)?) eval \s \d+ \) /(${1}eval 0)/xg
+        if not $ENV{NYTPROF_TEST_SKIP_EVAL_NORM};
 
     # normalize flags to avoid failures due to savesrc and perl version
     $self->[NYTP_FIDi_FLAGS] &= ~(NYTP_FIDf_HAS_SRC|NYTP_FIDf_SAVE_SRC);
