@@ -35,11 +35,28 @@ use Devel::NYTProf::Data;
 
 our @EXPORT_OK = qw(
     profile_this
+    perl_command_words
 );
 
 
 my $this_perl = $^X;
 $this_perl .= $Config{_exe} if $^O ne 'VMS' and $this_perl !~ m/$Config{_exe}$/i;
+
+
+sub perl_command_words {
+    my %opt = @_;
+
+    my @perl = ($this_perl);
+    
+    # testing just $Config{usesitecustomize} isn't reliable for perl 5.11.x
+    if (($Config{usesitecustomize}||'') eq 'define'
+    or   $Config{ccflags} =~ /(?<!\w)-DUSE_SITECUSTOMIZE\b/
+    ) {
+        push @perl, '-f' if $opt{skip_sitecustomize};
+    }
+
+    return @perl;
+}
 
 
 # croaks on failure to execute
@@ -50,12 +67,7 @@ sub profile_this {
 
     my $out_file = $opt{out_file} || 'nytprof.out';
 
-    my @perl = ($this_perl, '-d:NYTProf');
-    
-    # (sadly, testing $Config{usesitecustomize} isn't reliable)
-    if ($Config{usesitecustomize} eq 'define' or $Config{ccflags} =~ /(?<!\w)-DUSE_SITECUSTOMIZE\b/) {
-        push @perl, '-f' if $opt{skip_sitecustomize};
-    }
+    my @perl = (perl_command_words(%opt), '-d:NYTProf');
 
     warn sprintf "profile_this() using %s with NYTPROF=%s\n",
             join(" ", @perl), $ENV{NYTPROF} || ''

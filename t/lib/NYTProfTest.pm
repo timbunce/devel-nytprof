@@ -21,6 +21,7 @@ our @EXPORT = qw(
 use Devel::NYTProf::Data;
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths html_safe_filename);
+use Devel::NYTProf::Run qw(perl_command_words);
 
 
 my $this_perl = $^X;
@@ -352,10 +353,8 @@ sub run_command {
 sub run_perl_command {
     my ($cmd, $show_stdout) = @_;
     local $ENV{PERL5LIB} = $perl5lib;
-    my @opts;
-    push @opts, '-f' if $Config{usesitecustomize} eq 'define'
-                     or $Config{ccflags} =~ /(?<!\w)-DUSE_SITECUSTOMIZE\b/;
-    run_command("$this_perl @opts $cmd", $show_stdout);
+    my @perl = perl_command_words(skip_sitecustomize => 1);
+    run_command("@perl $cmd", $show_stdout);
 }
 
 
