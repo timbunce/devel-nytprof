@@ -966,6 +966,7 @@ nv_from_av(pTHX_ AV *av, int idx, NV default_nv)
 
 static const char *
 cx_block_type(PERL_CONTEXT *cx) {
+    char buf[20];
     switch (CxTYPE(cx)) {
     case CXt_NULL:              return "CXt_NULL";
     case CXt_SUB:               return "CXt_SUB";
@@ -978,6 +979,9 @@ cx_block_type(PERL_CONTEXT *cx) {
     case CXt_BLOCK:             return "CXt_BLOCK";
 #ifdef CXt_GIVEN
     case CXt_GIVEN:             return "CXt_GIVEN";
+#endif
+#ifdef CXt_LOOP
+    case CXt_LOOP:              return "CXt_LOOP";
 #endif
 #ifdef CXt_LOOP_FOR
     case CXt_LOOP_FOR:          return "CXt_LOOP_FOR";
@@ -992,7 +996,11 @@ cx_block_type(PERL_CONTEXT *cx) {
     case CXt_LOOP_LAZYIV:       return "CXt_LOOP_LAZYIV";
 #endif
     }
-    return "CXt_???";
+    /* short-lived and not thread safe but we only use this for tracing
+     * and it should never be reached anyway
+     */
+    sprintf(buf, "CXt_%d", CxTYPE(cx));
+    return buf;
 }
 
 
@@ -1077,8 +1085,12 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
                     OutCopFILE((COP*)o));
             return (COP*)o;
         }
+        if (CxTYPE(cx) == CXt_LOOP) {
+            return NULL;
+        }
         /* should never get here but we do */
-        if (trace_level >= trace) {
+        if (trace_level >= trace || 1) {
+            warn("not a cop");
             logwarn("\tstart_cop_of_context %s op '%s' isn't a cop\n",
                 cx_block_type(cx), OP_NAME(o));
             if (trace_level >  trace)
