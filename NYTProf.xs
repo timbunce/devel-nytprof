@@ -966,7 +966,7 @@ nv_from_av(pTHX_ AV *av, int idx, NV default_nv)
 
 static const char *
 cx_block_type(PERL_CONTEXT *cx) {
-    char buf[20];
+    static char buf[20];
     switch (CxTYPE(cx)) {
     case CXt_NULL:              return "CXt_NULL";
     case CXt_SUB:               return "CXt_SUB";
