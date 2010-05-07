@@ -999,7 +999,7 @@ cx_block_type(PERL_CONTEXT *cx) {
     /* short-lived and not thread safe but we only use this for tracing
      * and it should never be reached anyway
      */
-    sprintf(buf, "CXt_%d", CxTYPE(cx));
+    sprintf(buf, "CXt_%ld", (long)CxTYPE(cx));
     return buf;
 }
 
