@@ -23,9 +23,7 @@ use Devel::NYTProf::Reader;
 use Devel::NYTProf::Util qw(strip_prefix_from_paths html_safe_filename);
 use Devel::NYTProf::Run qw(perl_command_words);
 
-
-my $this_perl = $^X;
-$this_perl .= $Config{_exe} if $^O ne 'VMS' and $this_perl !~ m/$Config{_exe}$/i;
+my $diff_opts = ($Config{osname} eq 'MSWin32') ? '-c' : '-u';
 
 my %opts = (
     one          => $ENV{NYTPROF_TEST_ONE},
@@ -418,13 +416,11 @@ sub dump_profile_to_file {
     return;
 }
 
-
 sub diff_files {
     my ($old_file, $new_file, $newp_file) = @_;
 
     # we don't care if this fails, it's just an aid to debug test failures
-    my @opts = split / /, $ENV{NYTPROF_DIFF_OPTS} || '';    # e.g. '-y'
-    @opts = ('-u') unless @opts;
+    my @opts = split / /, $ENV{NYTPROF_DIFF_OPTS} || $diff_opts;    # e.g. '-y'
     system("cmp -s $new_file $newp_file || diff @opts $old_file $new_file 1>&2");
 }
 
