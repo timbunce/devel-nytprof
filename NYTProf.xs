@@ -3869,7 +3869,7 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
     NV incl_time;
     NV excl_time;
     NV reci_time;
-    UV rec_depth;
+    unsigned int rec_depth;
     SV *called_subname_sv;
     char text[MAXPATHLEN*2];
     SV *sv;
@@ -3884,7 +3884,7 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
     incl_time = va_arg(args, NV);
     excl_time = va_arg(args, NV);
     reci_time = va_arg(args, NV);
-    rec_depth = va_arg(args, UV);
+    rec_depth = va_arg(args, unsigned int);
     called_subname_sv = va_arg(args, SV *);
     caller_subname_sv = va_arg(args, SV *);
 
@@ -4130,6 +4130,10 @@ load_perl_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 
     if (!state->cb[tag])
         return;
+
+    if (trace_level >= 9) {
+        logwarn("\tcallback %s[%s] \n", description, arglist);
+    }
 
     sv_setuv_mg(state->input_chunk_seqn_sv, state->base_state.input_chunk_seqn);
 
@@ -4400,7 +4404,7 @@ load_profile_data_from_stream(loader_callback *callbacks,
                 NV spare_3         = read_nv(in);
                 NV spare_4         = read_nv(in);
                 NV reci_time       = read_nv(in);
-                UV rec_depth       = read_int(in);
+                unsigned int rec_depth = read_int(in);
                 SV *called_subname_sv = read_str(aTHX_ in, tmp_str1_sv);
 
                 PERL_UNUSED_VAR(spare_3);

@@ -5,7 +5,7 @@ use lib qw(t/lib);
 use Config;
 use NYTProfTest;
 
-plan tests => 18;
+plan tests => 20;
 
 use Devel::NYTProf::ReadStream qw(for_chunks);
 
@@ -25,7 +25,12 @@ for_chunks {
     push @seqn, "$.";
     my $tag = shift;
     push @{ $prof{$tag} }, [ @_ ];
-    if (1) { chomp @_; print "# $. $tag @_\n"; }
+    if (1) {
+        my @params = @_;
+        not defined $_ and $_ = '(undef)' for @params;
+        chomp @params;
+        print "# $. $tag @params\n";
+    }
 } filename => $out;
 
 ok scalar @seqn, 'should have read chunks';
@@ -52,3 +57,14 @@ is $attr{application}, '-e', 'application';
 is $attr{nv_size}, $Config{nvsize}, 'nv_size';
 cmp_ok $attr{xs_version}, '>=', 2.1, 'xs_version';
 cmp_ok $attr{basetime}, '>=', $^T, 'basetime';
+
+is_deeply $prof{SUB_INFO}, [
+    [ 1, 1, 1, 'main::A' ],
+    [ 1, 0, 0, 'main::BEGIN' ],
+    [ 1, 1, 1, 'main::RUNTIME' ]
+];
+
+$prof{SUB_CALLERS}[0][$_] = 0 for (3,4);
+is_deeply $prof{SUB_CALLERS}, [
+    [ 1, 3, 1, 0, 0, '0', '0', '0', 0, 'main::A', 'main::RUNTIME' ]
+];
