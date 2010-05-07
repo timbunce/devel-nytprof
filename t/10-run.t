@@ -8,21 +8,20 @@ use NYTProfTest;
 
 use Devel::NYTProf::Run qw(profile_this);
 
-my $n = 10_000;
+# tiny amount of source code to exercise RT#50851
 my @src = (
-    "1+1 for (1..$n);\n",
-    "2+2 for (1..$n);\n",
+    "1+1;\n",
+    "2+2;\n",
 );
 
 run_test_group( {
     extra_options => {
     },
-    extra_test_count => 18,
+    extra_test_count => 17,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
         $profile = profile_this(
-            # tiny amount of source code to exercise RT#50851
             src_code => join('', @src),
             out_file => $env->{file},
             skip_sitecustomize => 1,
@@ -50,10 +49,9 @@ run_test_group( {
         my $line_time_data = $fi->line_time_data;
         is ref $line_time_data, 'ARRAY';
 
-        is $fi->sum_of_stmts_count, 4;
+        is $fi->sum_of_stmts_count, 2;
 
-        # XXX these timings will probably cause test failures
-        cmp_ok $fi->sum_of_stmts_time, '>', 0;
-        cmp_ok $fi->sum_of_stmts_time, '<', 10; # should be tiny
+        # should be tiny (will be 0 on systems without a highres clock)
+        cmp_ok $fi->sum_of_stmts_time, '<', 10;
     },
 });
