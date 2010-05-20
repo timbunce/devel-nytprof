@@ -201,6 +201,13 @@ sub run_test_group {
     my $extra_test_code  = $rtg_opts->{extra_test_code};
     my $extra_test_count = $rtg_opts->{extra_test_count} || 0;
     my $extra_options    = $rtg_opts->{extra_options};
+    if ($ENV{NYTPROF_TEST_NOEXTRA}) {
+        diag "NYTPROF_TEST_NOEXTRA - skipping $extra_test_count extra tests"
+            if $extra_test_count;
+        $extra_test_code = undef;
+        $extra_test_count = 0;
+        $extra_options = {};
+    }
 
     # obtain group from file name
     my $group;
