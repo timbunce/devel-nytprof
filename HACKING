@@ -402,3 +402,8 @@ statement timings of the eval fid that don't include time spent in subs defined
 elsewhere but called from the string eval. The inconsistency is confusing.
 
 Modify csv output to optionally include extra metadata lines. Use for testing.
+
+In html report where sub callers are shown (called N times by S from F at line L)
+also show in compact form links to the callers of the caller, if there aren't too many.
+This makes it faster to climb the call stack. A simple mouseover will show the
+filename of the caller (perhaps a tooltip could give the file and sub).
