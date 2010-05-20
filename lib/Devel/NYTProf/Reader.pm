@@ -470,16 +470,10 @@ sub url_for_sub {
     my $profile = $self->{profile};
 
     my ($file, $fid, $first, $last, $fi) = $profile->file_line_range_of_sub($sub);
+    return "" unless $file;
     if (!$first) {
-        if (not defined $first) {
-            warn("No file line range data for sub '$sub' (perhaps an xsub)\n")
-                unless our $url_for_sub_no_data_warn->{$sub}++;    # warn just once
-            return "";
-        }
-        # probably xsub
-        # return no link if we don't have a file for this xsub
-        return "" unless $file;
-        # use sanitized subname as label
+        # use sanitized subname as label for xsubs
+        # XXX must match what nytprofhtml does for xsubs
         ($first = $sub) =~ s/\W/_/g;
     }
     return $self->url_for_file($fi, $first);

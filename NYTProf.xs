@@ -525,6 +525,39 @@ hash (char* _str, unsigned int len)
     return hash;
 }
 
+/**
+ * Returns a pointer to the ')' after the digits in the (?:re_)?eval prefix.
+ * As the prefix length is known, this gives the length of the digits.
+ */
+static const char *
+eval_prefix(const char *filename, const char *prefix, STRLEN prefix_len) {
+    if (memEQ(filename, prefix, prefix_len)
+        && isdigit(filename[prefix_len])) {
+        const char *s = filename + prefix_len + 1;
+
+        while (isdigit(*s))
+            ++s;
+        if (s[0] == ')')
+            return s;
+    }
+    return NULL;
+}
+
+/**
+ * Return true if filename looks like an eval
+ */
+static int
+filename_is_eval(const char *filename, STRLEN filename_len)
+{
+    if (filename_len < 6 || filename[filename_len - 1] != ']')
+        return 0;
+    if (eval_prefix(filename, "(eval ", 6))
+        return 1;
+    if (eval_prefix(filename, "(re_eval ", 9))
+        return 1;
+    return 0;
+}
+
 
 /**
  * Fetch/Store on hash table.  entry must always be defined.
@@ -541,8 +574,9 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
     Hash_entry* found = hashtable.table[h];
     while(NULL != found) {
 
-        if (found->key_len == entry.key_len &&
-        memEQ(found->key, entry.key, entry.key_len)) {
+        if (found->key_len == entry.key_len
+        && memEQ(found->key, entry.key, entry.key_len)
+        ) {
             *retval = found;
             return 0;
         }
@@ -753,6 +787,19 @@ find_autosplit_parent(pTHX_ char* file_name)
 }
 
 
+static Hash_entry *
+lookup_file_entry(pTHX_ char* file_name, STRLEN file_name_len) {
+    Hash_entry entry, *found;
+
+    entry.key = file_name;
+    entry.key_len = (unsigned int)file_name_len;
+    if (hash_op(entry, &found, 0) == 0)
+        return found;
+
+    return NULL;
+}
+
+
 /**
  * Return a unique persistent id number for a file.
  * If file name has not been seen before
@@ -915,7 +962,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     /* source only available if PERLDB_LINE or PERLDB_SAVESRC is true */
     /* which we set if savesrc option is enabled */
     if ( (src_av = GvAV(gv_fetchfile_flags(found->key, found->key_len, 0))) )
-        found->fid_flags |= NYTP_FIDf_HAS_SRC;
+        if (av_len(src_av) > -1)
+            found->fid_flags |= NYTP_FIDf_HAS_SRC;
 
     /* if it's a string eval or a synthetic filename from CODE ref in @INC,
      * or the command line -e '...code...'
@@ -1085,19 +1133,22 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
                     OutCopFILE((COP*)o));
             return (COP*)o;
         }
-#ifdef CXt_LOOP
-        /* e.g. "eval $_ for @ary" */
-        if (CxTYPE(cx) == CXt_LOOP)
+        if (trace_level >= trace)
+            logwarn("\tstart_cop_of_context %s op '%s' isn't a cop, giving up\n",
+                cx_block_type(cx), OP_NAME(o));
+        return NULL;
+#if 0   /* old code that never worked very well anyway */
+        if (CxTYPE(cx) == CXt_LOOP) /* e.g. "eval $_ for @ary" */
             return NULL;
-#endif
         /* should never get here but we do */
-        if (trace_level >= trace || 1) {
+        if (trace_level >= trace) {
             logwarn("\tstart_cop_of_context %s op '%s' isn't a cop\n",
                 cx_block_type(cx), OP_NAME(o));
             if (trace_level >  trace)
                 do_op_dump(1, PerlIO_stderr(), o);
         }
         o = o->op_next;
+#endif
     }
     if (trace_level >= 3) {
         logwarn("\tstart_cop_of_context: can't find next cop for %s line %ld\n",
@@ -1304,7 +1355,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         get_ticks_between(start_time, end_time, elapsed, overflow);
     }
     if (overflow)                                 /* XXX later output overflow to file */
-        logwarn("profile time overflow of %ld seconds discarded\n", overflow);
+        logwarn("profile time overflow of %ld seconds discarded!\n", overflow);
 
     reinit_if_forked(aTHX);
 
@@ -1317,9 +1368,10 @@ DB_stmt(pTHX_ COP *cop, OP *op)
             NYTP_write_time_line(out, elapsed, last_executed_fid,
                                  last_executed_line);
 
-        if (trace_level >= 4)
-            logwarn("\twrote %d:%-4d %2ld ticks (%u, %u)\n", last_executed_fid,
-                last_executed_line, elapsed, last_block_line, last_sub_line);
+        if (trace_level >= 5)
+            logwarn("\t@%d:%-4d %2ld ticks (%u, %u)\n",
+                last_executed_fid, last_executed_line,
+                elapsed, last_block_line, last_sub_line);
     }
 
     if (!cop)
@@ -1898,7 +1950,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             SV *pf_sv = *hv_fetch(pkg_fids_hv, subr_entry->called_subpkg_pv, (I32)strlen(subr_entry->called_subpkg_pv), 1);
             if (SvTYPE(pf_sv) == SVt_NULL) { /* log when first created */
                 sv_upgrade(pf_sv, SVt_PV);
-                if (trace_level >= 5)
+                if (trace_level >= 3)
                     logwarn("Noting that subs in package '%s' were called\n",
                         subr_entry->called_subpkg_pv);
             }
@@ -1909,7 +1961,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         sv_inc(AvARRAY(subr_call_av)[NYTP_SCi_CALL_COUNT]);
     }
 
-    if (trace_level >= 4)
+    if (trace_level >= 5)
         logwarn("%2d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%"NVff"-%"NVff"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
             subr_entry->subr_prof_depth,
             called_subname_pv,
@@ -2551,7 +2603,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     if (!profile_subs)
         subr_entry->already_counted++;
 
-    if (trace_level >= 3) {
+    if (trace_level >= 4) {
         logwarn("%2d ->%4s %s::%s from %s::%s @%u:%u (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
             subr_entry->subr_prof_depth,
             (subr_entry->called_is_xs) ? subr_entry->called_is_xs : "sub",
@@ -2944,13 +2996,16 @@ int count, unsigned int fid)
 }
 
 
-/* Given a sub_name lookup the package name in pkg_fids_hv hash.
- * pp_subcall_profiler() creates undef entries for a package the
- * first time a sub in the package is called.
- * Return Nullsv if there's no package name or no correponding entry
- * else returns the SV.
+/* Given a fully-qualified sub_name lookup the package name portion in
+ * the pkg_fids_hv hash.  Return Nullsv if there's no package name or no
+ * correponding entry else returns the SV.
+ *
+ * pkg_fids_hv:
+ * pp_subcall_profiler() creates undef entries for a package
+ *      name the first time a sub in the package is called.
  * write_sub_line_ranges() updates the SV with the filename associated
- * with the package, or at least its best guess.
+ *      with the package, or at least its best guess.
+ *
  * As most callers get len via the hash API, they will have an I32, where
  * "negative" length signifies UTF-8. As we're only dealing with looking for
  * ASCII here, it doesn't matter to use which encoding sub_name is in, but it
@@ -2989,22 +3044,6 @@ parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *la
     return 1;
 }
 
-/* Returns a pointer to the ')' after the digits in the (?:re_)?eval prefix.
-   As the prefix length is known, this gives the length of the digits.  */
-
-static char *
-eval_prefix(char *filename, const char *prefix, STRLEN prefix_len) {
-    if (memEQ(filename, prefix, prefix_len)
-        && isdigit(filename[prefix_len])) {
-        char *s = filename + prefix_len + 1;
-
-        while (isdigit(*s))
-            ++s;
-        if (s[0] == ')' && s[1] == '[')
-            return s;
-    }
-    return NULL;
-}
 
 static void
 write_sub_line_ranges(pTHX)
@@ -3016,7 +3055,7 @@ write_sub_line_ranges(pTHX)
     unsigned int fid;
 
     if (trace_level >= 2)
-        logwarn("~ writing sub line ranges\n");
+        logwarn("~ writing sub line ranges - prescan\n");
 
     /* Skim through PL_DBsub hash to build a package to filename hash
      * by associating the package part of the sub_name in the key
@@ -3048,17 +3087,10 @@ write_sub_line_ranges(pTHX)
         if (file_lines_len > 4
             && filename[file_lines_len - 2] == '-' && filename[file_lines_len - 1] == '0'
             && filename[file_lines_len - 4] != ':' && filename[file_lines_len - 3] != '0')
-            continue;
+            continue;   /* ignore filenames from %DB::sub that end in ":0-0" */
 
         first = strrchr(filename, ':');
         filename_len = (first) ? first - filename : 0;
-
-        /* skip filenames for generated evals /\A\((?:re_)?eval \d+\)\[.*]\z/
-         */
-        if (filename_len > 9 && filename[filename_len - 1] == ']'
-            && (eval_prefix(filename, "(eval ", 6) ||
-                eval_prefix(filename, "(re_eval ", 9)))
-            continue;
 
         /* get sv for package-of-subname to filename mapping */
         pkg_filename_sv = sub_pkg_filename_sv(aTHX_ sub_name, sub_name_len);
@@ -3066,9 +3098,36 @@ write_sub_line_ranges(pTHX)
         if (!pkg_filename_sv) /* we don't know package */
             continue;
 
-        /* already got a filename for this package XXX should allow multiple */
-        if (SvOK(pkg_filename_sv))
+        /* already got a cached filename for this package XXX should allow multiple */
+        if (SvOK(pkg_filename_sv)) {
+            STRLEN cached_len;
+            char *cached_filename = SvPV(pkg_filename_sv, cached_len);
+
+            /*
+             * if the cached filename is an eval and the current one isn't
+             * then we should cache the current one instead
+             */
+            if (filename_len > 0
+            &&  filename_is_eval(cached_filename, cached_len)
+            && !filename_is_eval(filename, filename_len)
+            ) {
+                if (trace_level >= 3)
+                    logwarn("Sub %.*s package prompted from %.*s to %.*s\n",
+                        (int)sub_name_len, sub_name,
+                        (int)cached_len, cached_filename,
+                        (int)filename_len, filename);
+                sv_setpvn(pkg_filename_sv, filename, filename_len);
+                continue;
+            }
+
+            if (trace_level >= 3 && strnNE(SvPV_nolen(pkg_filename_sv), filename, filename_len)) {
+                /* eg utf8::SWASHNEW is already associated with .../utf8.pm not .../utf8_heavy.pl */
+                logwarn("Package of sub %.*s is already associated with %s not %.*s\n",
+                    (int)sub_name_len, sub_name,
+                    SvPV_nolen(pkg_filename_sv), (int)filename_len, filename);
+            }
             continue;
+        }
 
         /* ignore if filename is empty (eg xs) */
         if (!filename_len) {
@@ -3107,6 +3166,9 @@ write_sub_line_ranges(pTHX)
         }
         sv_catpvs(sv, ":1-1");
     }
+
+    if (trace_level >= 2)
+        logwarn("~ writing sub line ranges\n");
 
     /* Iterate over PL_DBsub writing out fid and source line range of subs.
      * If filename is missing (i.e., because it's an xsub so has no source file)
@@ -3274,10 +3336,13 @@ write_src_of_files(pTHX)
         AV *src_av = GvAV(gv_fetchfile_flags(e->key, e->key_len, 0));
 
         if ( !(e->fid_flags & NYTP_FIDf_HAS_SRC) ) {
+            char *hint = "";
             ++t_no_src;
-            if (src_av) /* sanity check */
-                logwarn("fid %d has src but NYTP_FIDf_HAS_SRC not set! (%.*s)\n",
-                    e->id, e->key_len, e->key);
+            if (src_av && av_len(src_av) > -1) /* sanity check */
+                hint = " (NYTP_FIDf_HAS_SRC not set but src available!)";
+            if (trace_level >= 4 || *hint)
+                logwarn("fid %d has no src saved for %.*s%s\n",
+                    e->id, e->key_len, e->key, hint);
             continue;
         }
         if (!src_av) { /* sanity check */

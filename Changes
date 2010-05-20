@@ -25,6 +25,8 @@ Major changes:
     Each string eval executed gets it's own report page.
     String evals may be collapsed/merged in some cases.
 
+  Improved many sub-optimal behaviours related to string evals.
+
   Enabled savesrc=1 by default.
 
 Other changes:

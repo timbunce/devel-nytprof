@@ -691,7 +691,7 @@ sub subname_at_file_line {
 }
 
 
-=head2 file_line_range_of_subme
+=head2 file_line_range_of_sub
 
   ($file, $fid, $first, $last) = $profile->file_line_range_of_sub("main::foo");
 
