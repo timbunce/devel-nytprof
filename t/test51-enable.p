@@ -4,7 +4,7 @@ my $file_b = "nytprof-test51-b.out";
 my $file_c = "nytprof-test51-c.out";
 unlink $file_b, $file_c;
 
-eval "sub sub$_ { 1 }" for (1..10);
+eval "sub sub$_ { 1 }; 1;1;" for (1..10);
 
 sub1(); # profiled
 
