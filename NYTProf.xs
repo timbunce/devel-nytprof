@@ -1487,7 +1487,7 @@ DB_leave(pTHX_ OP *op)
         /* XXX OP_UNSTACK needs help */
     }
 
-    if (trace_level >= 4) {
+    if (trace_level >= 5) {
         logwarn("\tleft %u:%u back to %s at %u:%u (b%u s%u) - discounting next statement%s\n",
             prev_last_executed_fid, prev_last_executed_line,
             OP_NAME_safe(op),
@@ -3120,7 +3120,10 @@ write_sub_line_ranges(pTHX)
                 continue;
             }
 
-            if (trace_level >= 3 && strnNE(SvPV_nolen(pkg_filename_sv), filename, filename_len)) {
+            if (trace_level >= 3
+            && strnNE(SvPV_nolen(pkg_filename_sv), filename, filename_len)
+            && !filename_is_eval(filename, filename_len)
+            ) {
                 /* eg utf8::SWASHNEW is already associated with .../utf8.pm not .../utf8_heavy.pl */
                 logwarn("Package of sub %.*s is already associated with %s not %.*s\n",
                     (int)sub_name_len, sub_name,
