@@ -334,6 +334,7 @@ static NV cumulative_subr_secs = 0.0;
 static UV cumulative_subr_seqn = 0;
 static int main_runtime_used = 0;
 static SV *DB_INIT_cv;
+static SV *DB_END_cv;
 static SV *DB_fin_cv;
 
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
@@ -2379,7 +2380,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     ||  !is_profiling
         /* don't profile calls to non-existant import() methods */
         /* or our DB::_INIT as that makes tests perl version sensitive */
-    || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv || sub_sv == DB_fin_cv))
+    || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv
+                                 || sub_sv == DB_END_cv || sub_sv == DB_fin_cv))
         /* don't profile other kinds of goto */
     || (op_type==OP_GOTO &&
         (  !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV)
@@ -2594,7 +2596,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         STRLEN len;
         char *p = SvPV(subr_entry->called_subnam_sv, len);
 
-        if(memEQs(p, len, "_INIT")) {
+        if(*p == '_' && (memEQs(p, len, "_INIT") || memEQs(p, len, "_END"))) {
             subr_entry->already_counted++;
             goto skip_sub_profile;
         }
@@ -2802,6 +2804,7 @@ init_profiler(pTHX)
     last_pid = getpid();
     ticks_per_sec = (profile_usecputime) ? PL_clocktick : CLOCKS_PER_TICK;
     DB_INIT_cv = (SV*)GvCV(gv_fetchpv("DB::_INIT",          FALSE, SVt_PVCV));
+    DB_END_cv  = (SV*)GvCV(gv_fetchpv("DB::_END",           FALSE, SVt_PVCV));
     DB_fin_cv  = (SV*)GvCV(gv_fetchpv("DB::finish_profile", FALSE, SVt_PVCV));
 
     if (opt_use_db_sub) {
@@ -2926,10 +2929,11 @@ init_profiler(pTHX)
     if (!PL_endav)   PL_endav   = newAV();
     if (profile_start == NYTP_START_BEGIN) {
         enable_profile(aTHX_ NULL);
+    } else {
+        /* handled by _INIT */
+        av_push(PL_initav, SvREFCNT_inc(get_cv("DB::_INIT", GV_ADDWARN)));
     }
-    /* else handled by _INIT */
-    /* defer some init until INIT phase */
-    av_push(PL_initav, SvREFCNT_inc(get_cv("DB::_INIT", GV_ADDWARN)));
+    av_push(PL_endav, SvREFCNT_inc(get_cv("DB::_END", GV_ADDWARN)));
 
     /* seed first run time */
     if (profile_usecputime) {
@@ -4930,13 +4934,21 @@ _INIT()
         av_unshift(PL_endav, 1);  /* we want to be first */
         av_store(PL_endav, 0, SvREFCNT_inc(enable_profile_sv));
     }
+    if (trace_level >= 2)
+        logwarn("~ INIT done\n");
+
+void
+_END()
+    CODE:
     /* we want to END { finish_profile() } but we want it to be the last END
-     * block run so we don't push it into PL_endav until INIT phase.
-     * so it's likely to be the last thing run.
+     * block run so we don't push it into PL_endav until END phase has started,
+     * so it's likely to be the last thing run. Do this once, else we could end
+     * up in an infinite loop arms race with something else trying the same
+     * strategy.
      */
     av_push(PL_endav, (SV *)get_cv("DB::finish_profile", GV_ADDWARN));
     if (trace_level >= 2)
-        logwarn("~ INIT done\n");
+        logwarn("~ END done\n");
 
 
 
