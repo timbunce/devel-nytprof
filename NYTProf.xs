@@ -333,6 +333,7 @@ static NV cumulative_overhead_ticks = 0.0;
 static NV cumulative_subr_secs = 0.0;
 static UV cumulative_subr_seqn = 0;
 static int main_runtime_used = 0;
+static SV *DB_CHECK_cv;
 static SV *DB_INIT_cv;
 static SV *DB_END_cv;
 static SV *DB_fin_cv;
@@ -2380,7 +2381,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     ||  !is_profiling
         /* don't profile calls to non-existant import() methods */
         /* or our DB::_INIT as that makes tests perl version sensitive */
-    || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_INIT_cv
+    || (op_type==OP_ENTERSUB && (sub_sv == &PL_sv_yes || sub_sv == DB_CHECK_cv || sub_sv == DB_INIT_cv
                                  || sub_sv == DB_END_cv || sub_sv == DB_fin_cv))
         /* don't profile other kinds of goto */
     || (op_type==OP_GOTO &&
@@ -2596,7 +2597,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         STRLEN len;
         char *p = SvPV(subr_entry->called_subnam_sv, len);
 
-        if(*p == '_' && (memEQs(p, len, "_INIT") || memEQs(p, len, "_END"))) {
+        if(*p == '_' && (memEQs(p, len, "_CHECK") || memEQs(p, len, "_INIT") || memEQs(p, len, "_END"))) {
             subr_entry->already_counted++;
             goto skip_sub_profile;
         }
@@ -2803,6 +2804,7 @@ init_profiler(pTHX)
     /* Save the process id early. We monitor it to detect forks */
     last_pid = getpid();
     ticks_per_sec = (profile_usecputime) ? PL_clocktick : CLOCKS_PER_TICK;
+    DB_CHECK_cv = (SV*)GvCV(gv_fetchpv("DB::_CHECK",        FALSE, SVt_PVCV));
     DB_INIT_cv = (SV*)GvCV(gv_fetchpv("DB::_INIT",          FALSE, SVt_PVCV));
     DB_END_cv  = (SV*)GvCV(gv_fetchpv("DB::_END",           FALSE, SVt_PVCV));
     DB_fin_cv  = (SV*)GvCV(gv_fetchpv("DB::finish_profile", FALSE, SVt_PVCV));
@@ -2933,7 +2935,11 @@ init_profiler(pTHX)
         /* handled by _INIT */
         av_push(PL_initav, SvREFCNT_inc(get_cv("DB::_INIT", GV_ADDWARN)));
     }
-    av_push(PL_endav, SvREFCNT_inc(get_cv("DB::_END", GV_ADDWARN)));
+    if (PL_minus_c) {
+        av_push(PL_checkav, SvREFCNT_inc(get_cv("DB::_CHECK", GV_ADDWARN)));
+    } else {
+        av_push(PL_endav, SvREFCNT_inc(get_cv("DB::_END", GV_ADDWARN)));
+    }
 
     /* seed first run time */
     if (profile_usecputime) {
@@ -4939,6 +4945,8 @@ _INIT()
 
 void
 _END()
+    ALIAS:
+        _CHECK = 1
     CODE:
     /* we want to END { finish_profile() } but we want it to be the last END
      * block run so we don't push it into PL_endav until END phase has started,
@@ -4946,9 +4954,10 @@ _END()
      * up in an infinite loop arms race with something else trying the same
      * strategy.
      */
-    av_push(PL_endav, (SV *)get_cv("DB::finish_profile", GV_ADDWARN));
+    av_push((ix == 1 ? PL_checkav : PL_endav),
+            (SV *)get_cv("DB::finish_profile", GV_ADDWARN));
     if (trace_level >= 2)
-        logwarn("~ END done\n");
+        logwarn("~ %s done\n", ix == 1 ? "CHECK" : "END");
 
 
 
