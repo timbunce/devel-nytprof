@@ -1761,13 +1761,18 @@ append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
     if (DBsv && parse_DBsub_value(aTHX_ DBsv, NULL, &line, NULL)) {
         SvREFCNT_inc(DBsv); /* was made mortal by hv_delete */
         sv_catpvf(fullnamesv,                   "@%u", (unsigned int)line);
+        if (hv_fetch(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), (I32)SvCUR(fullnamesv), 0)) {
+            static unsigned int dup_begin_seqn;
+            sv_catpvf(fullnamesv, ".%u", ++dup_begin_seqn);
+        }
+        (void) hv_store(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), (I32)SvCUR(fullnamesv), DBsv, 0);
+
         /* As we know the length of fullnamesv *before* the concatenation, we
            can calculate the length and offset of the formatted addition, and
            hence directly string append it, rather than duplicating the call to
            a *printf function.  */
         sv_catpvn(subr_entry->called_subnam_sv, SvPVX(fullnamesv) + total_len,
                   SvCUR(fullnamesv) - total_len);
-        (void) hv_store(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), (I32)SvCUR(fullnamesv), DBsv, 0);
     }
     SvREFCNT_dec(fullnamesv);
 }

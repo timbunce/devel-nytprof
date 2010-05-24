@@ -36,6 +36,7 @@ Other changes:
 
   Improved behaviour for 'duplicate' anon-subs defined in separate
     invocations of a particular string eval.
+  Multiple BEGINs (e.g., use) on the same line get distinct names.
 
   Added automatic detection of calls to POSIX::_exit() by the sub profiler
     so finish_profile() gets called and a usable profile is produced.
