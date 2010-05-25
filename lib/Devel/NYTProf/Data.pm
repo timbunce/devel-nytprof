@@ -147,10 +147,11 @@ sub collapse_evals_in {
         if ($trace >= 1) {
             my @subs  = map { $_->subs_defined } @$siblings;
             my @evals = map { $_->has_evals(0) } @$siblings;
-            warn sprintf "%d:%d: sibling evals (subs %d, evals %d, keys %d, fids: %s) in %s",
-                    $parent_fid, $line, scalar @subs, scalar @evals,
+            warn sprintf "%d:%d: has %d sibling evals (subs %d, evals %d, keys %d) in %s; fids: %s\n",
+                    $parent_fid, $line, scalar @$siblings, scalar @subs, scalar @evals,
                     scalar keys %src_keyed,
-                    join(", ", map { $_->fid } @$siblings), $parent_fi->filename;
+                    $parent_fi->filename,
+                    join(" ", map { $_->fid } @$siblings);
         }
 
         # if 'too many' distinct eval source keys then simply collapse all
