@@ -35,10 +35,10 @@ use constant MP2   => (exists $ENV{MOD_PERL_API_VERSION} && $ENV{MOD_PERL_API_VE
 # https://rt.cpan.org/Ticket/Display.html?id=42862
 die "Threads not supported" if $^O eq 'MSWin32';
 
-# XXX could use ModPerl::Util::current_perl_id() to get more insight
+# help identify MULTIPLICITY issues
 *current_perl_id = (MP2 and eval "require ModPerl::Util")
         ? \&ModPerl::Util::current_perl_id
-        : sub { '0' };
+        : sub { 0+\$$ };
 
 sub trace {
     return unless TRACE;
@@ -64,11 +64,12 @@ if (MP2) {
     # and for normal fork detection to detect the new child.
     # We just need to be sure the profile is finished properly
     # and an END block works well for that (if loaded right, see docs)
-    eval q{ END { child_exit('END') } 1 } or die;
+    trace("adding child_exit hook") if TRACE;
+    eval q{ END { warn "END"; sleep 2; child_exit('END') } 1 } or die;
 }
 else {
     # the simple steps for mod_perl2 above might also be fine for mod_perl1
-    # but I'm not in a position to check right now. Perhaps you can help.
+    # but I'm not in a position to check right now. Try it out and let me know.
     require Apache;
     if (Apache->can('push_handlers')) {
         Apache->push_handlers(PerlChildInitHandler => \&child_init);
