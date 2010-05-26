@@ -552,7 +552,10 @@ eval_prefix(const char *filename, const char *prefix, STRLEN prefix_len) {
 static int
 filename_is_eval(const char *filename, STRLEN filename_len)
 {
-    if (filename_len < 6 || filename[filename_len - 1] != ']')
+    if (filename_len < 6)
+        return 0;
+    /* typically "(eval N)[...]" sometimes just "(eval N)" */
+    if (filename[filename_len - 1] != ']' && filename[filename_len - 1] != ')')
         return 0;
     if (eval_prefix(filename, "(eval ", 6))
         return 1;
@@ -871,6 +874,10 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
                 NYTP_FIDf_IS_EVAL | NYTP_FIDf_IS_FAKE | created_via
             );
             found->eval_line_num = 1;
+        }
+        else {
+            if (trace_level >= 2)
+                logwarn("New fid has odd filename: '%.*s'\n", file_name_len, file_name);
         }
     }
 

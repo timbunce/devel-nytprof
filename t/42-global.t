@@ -28,7 +28,7 @@ run_test_group( {
 
         my $subs1 = $profile->subname_subinfo_map;
 
-        my $begin = ($pre589) ? 'main::BEGIN' : 'main::BEGIN@3';
+        my $begin = ($pre589) ? 'main::BEGIN' : 'main::BEGIN@4';
         ok $subs1->{$begin};
         ok $subs1->{'main::RUNTIME'};
         ok $subs1->{'main::foo'};
@@ -39,7 +39,7 @@ run_test_group( {
 
         my @a; # ($file, $fid, $first, $last); 
         @a = $profile->file_line_range_of_sub($begin);
-        is "$a[1] $a[2] $a[3]", "$fid 3 6", "details for $begin should match";
+        is "$a[1] $a[2] $a[3]", "$fid 4 7", "details for $begin should match";
         @a = $profile->file_line_range_of_sub('main::RUNTIME');
         is "$a[1] $a[2] $a[3]", "$fid 1 1", 'details for main::RUNTIME should match';
         @a = $profile->file_line_range_of_sub('main::foo');
@@ -51,10 +51,15 @@ run_test_group( {
             'keys from subname_subinfo_map and subs_defined_in_file should match';
 
         my @begins = grep { $_->subname =~ /\bBEGIN\b/ } values %$subs2;
-        is @begins, ($pre589) ? 1 : 3,
-            'number of BEGIN subs';
-        is grep({ $_->calls == 1 } @begins), scalar @begins,
-            'all BEGINs should be called just once';
+        if ($pre589) { # we only see one sub and we don't see it called
+            is @begins, 1, 'number of BEGIN subs';
+            is grep({ $_->calls == 1 } @begins), 0, 'BEGIN has no calls';
+        }
+        else {
+            is @begins, 3, 'number of BEGIN subs';
+            is grep({ $_->calls == 1 } @begins), scalar @begins,
+                'all BEGINs should be called just once';
+        }
 
         my $sub;
         ok $sub = $subs2->{'main::RUNTIME'};
@@ -68,10 +73,10 @@ run_test_group( {
 __DATA__
 #!perl
 sub foo { 42 }
+BEGIN { 'b' } BEGIN { 'c' } # two on same line
 BEGIN { # BEGIN@3
     foo(2);
     *CORE::GLOBAL::sleep = \&foo;
 }
 sleep 1;
 
-BEGIN { 'b' } BEGIN { 'c' } # two on same line

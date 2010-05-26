@@ -18,7 +18,7 @@ fid_block_time	2	45	[ 0 1 ]
 fid_fileinfo	1	[ test23-strevall.p   1 2 0 0 ]
 fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	2	[ (eval 0) 3 1 2 2 0 0 ]
-fid_fileinfo	3	[ /unknown-eval-invoker   3 130 0 0 ]
+fid_fileinfo	3	[ /unknown-eval-invoker   3 386 0 0 ]
 fid_fileinfo	3	eval	1	[ count 1 nested 0 merged 0 ]
 fid_line_time	1	4	[ 0 1 ]
 fid_line_time	2	45	[ 0 1 ]
