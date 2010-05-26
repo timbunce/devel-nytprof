@@ -4941,7 +4941,9 @@ _INIT()
     else if (profile_start == NYTP_START_END) {
         SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
         if (trace_level >= 2)
-            logwarn("~ enable_profile defered until END\n");
+            logwarn("~ enable_profile deferred until END\n");
+        if (!PL_endav)
+            PL_endav = newAV();
         av_unshift(PL_endav, 1);  /* we want to be first */
         av_store(PL_endav, 0, SvREFCNT_inc(enable_profile_sv));
     }
@@ -4954,13 +4956,20 @@ _END()
         _CHECK = 1
     CODE:
     /* we want to END { finish_profile() } but we want it to be the last END
-     * block run so we don't push it into PL_endav until END phase has started,
+     * block run, so we don't push it into PL_endav until END phase has started,
      * so it's likely to be the last thing run. Do this once, else we could end
      * up in an infinite loop arms race with something else trying the same
      * strategy.
      */
-    av_push((ix == 1 ? PL_checkav : PL_endav),
-            (SV *)get_cv("DB::finish_profile", GV_ADDWARN));
+    CV *finish_profile_cv = get_cv("DB::finish_profile", GV_ADDWARN);
+    if (1) {    /* defer */
+        if (!PL_checkav) PL_checkav = newAV();
+        if (!PL_endav)   PL_endav   = newAV();
+        av_push((ix == 1 ? PL_checkav : PL_endav), SvREFCNT_inc(finish_profile_cv));
+    }
+    else {      /* immediate */
+        call_sv((SV *)finish_profile_cv, G_VOID);
+    }
     if (trace_level >= 2)
         logwarn("~ %s done\n", ix == 1 ? "CHECK" : "END");
 

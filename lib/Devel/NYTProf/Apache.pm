@@ -53,7 +53,7 @@ sub child_init {
 
 sub child_exit {
     trace("child_exit(@_)") if TRACE;
-    DB::_finish();
+    DB::finish_profile();
 }
 
 # arrange for the profile to be enabled in each child
@@ -64,8 +64,9 @@ if (MP2) {
     # and for normal fork detection to detect the new child.
     # We just need to be sure the profile is finished properly
     # and an END block works well for that (if loaded right, see docs)
-    trace("adding child_exit hook") if TRACE;
-    eval q{ END { warn "END"; sleep 2; child_exit('END') } 1 } or die;
+    # We rely on NYTProf's own END block to finish the profile.
+    #trace("adding child_exit hook") if TRACE;
+    #eval q{ END { child_exit('END') } 1 } or die;
 }
 else {
     # the simple steps for mod_perl2 above might also be fine for mod_perl1
