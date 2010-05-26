@@ -1011,7 +1011,7 @@ file as a stream of chunks of data.
 
 =head1 TROUBLESHOOTING
 
-=head2 Profile data incomplete, ...
+=head2 "Profile data incomplete, ..."
 
 This error message means the file doesn't contain all the expected data.
 That may be because it was truncated (perhaps the filesystem was full) or,
@@ -1028,6 +1028,13 @@ sudden and unnatural death that didn't give NYTProf a chance to finish the profi
 If the sudden death was due to a signal then L</sigexit=1> may help.
 If the sudden death was due to calling C<POSIX::_exit($status)> then you'll
 need to call L</finish_profile> before calling C<POSIX::_exit>.
+
+=head2 Some files don't have profile information
+
+This is usually due to NYTProf being loaded after the other files, for example
+
+If you can't alter the command line to add "C<-d:NYTProf>" you could try using
+the C<PERL5OPT> environment variable. See L</PROFILING>.
 
 =head1 AUTHORS AND CONTRIBUTORS
 

@@ -32,7 +32,8 @@ Major changes:
 Other changes:
 
   Fixed off-by-1 error in number of Files an xsub/opcode was called from.
-  Fixed Devel::NYTProf::Apache to work in more situations.
+  Fixed Devel::NYTProf::Apache to work in more situations
+    and enable the addpid option by default.
 
   Improved behaviour for 'duplicate' anon-subs defined in separate
     invocations of a particular string eval.
