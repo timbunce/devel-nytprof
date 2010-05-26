@@ -407,3 +407,4 @@ In html report where sub callers are shown (called N times by S from F at line L
 also show in compact form links to the callers of the caller, if there aren't too many.
 This makes it faster to climb the call stack. A simple mouseover will show the
 filename of the caller (perhaps a tooltip could give the file and sub).
+Also needed for modules that take shortcuts calling XS functions (*cough DBI*).
