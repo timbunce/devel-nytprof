@@ -633,62 +633,32 @@ subroutines defined on that line, typically just one.
 
 sub subs_defined_in_file {
     my ($self, $fid, $incl_lines) = @_;
+    croak "incl_lines is deprecated in subs_defined_in_file, use subs_defined_in_file_by_line instead" if $incl_lines;
 
     my $fi = $self->fileinfo_of($fid)
         or return;
 
     $fid = $fi->fid;
-    $incl_lines ||= 0;
-    $incl_lines = 0 if $fid == 0;
     my $caches = $self->_caches;
 
-    my $cache_key = "subs_defined_in_file:$fid:$incl_lines";
+    my $cache_key = "subs_defined_in_file:$fid";
     return $caches->{$cache_key} if $caches->{$cache_key};
 
     my %subs = map { $_->subname => $_ } $fi->subs_defined;
-
-    if ($incl_lines) {    # add in the first-line-number keys
-        croak "Can't include line numbers without a fid" unless $fid;
-        for (values %subs) {
-            next unless defined(my $first_line = $_->first_line);
-            push @{$subs{$first_line}}, $_;
-        }
-    }
 
     $caches->{$cache_key} = \%subs;
     return $caches->{$cache_key};
 }
 
 
-=head2 subname_at_file_line
-
-  @subname = $profile->subname_at_file_line($file, $line_number);
-  $subname = $profile->subname_at_file_line($file, $line_number);
-
-This method is currently unused and may be deprecated.
-
-=cut
-
-
-sub subname_at_file_line {
-    my ($self, $fid, $line) = @_;
-
-    my $subs = $self->subs_defined_in_file($fid, 0);
-
-    # XXX could be done more efficiently
-    my @subname;
-    for my $sub_info (values %$subs) {
-        next
-            if $sub_info->first_line > $line
-            or $sub_info->last_line < $line;
-        push @subname, $sub_info->subname;
+sub subs_defined_in_file_by_line {
+    my $subs = shift->subs_defined_in_file(@_);
+    my %line2subs;
+    for (values %$subs) {
+        my $first_line = $_->first_line || 0; # 0 = xsub?
+        push @{$line2subs{$first_line}}, $_;
     }
-    @subname = sort { length($a) <=> length($b) } @subname;
-    return @subname if wantarray;
-    carp
-        "Multiple subs at $fid line $line (@subname) but subname_at_file_line called in scalar context"
-        if @subname > 1;
-    return $subname[0];
+    return \%line2subs;
 }
 
 

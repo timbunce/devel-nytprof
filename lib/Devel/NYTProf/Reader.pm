@@ -194,35 +194,49 @@ sub _generate_report {
 
         my $meta = $fi->meta;
         my $filestr = $fi->filename;
-        warn "$filestr $LEVEL\n" if $trace;
-
-        my %stats_accum;         # holds all line times. used to find median
-        my %stats_by_line;        # holds individual line stats
-        my $runningTotalTime = 0;  # holds the running total
-
-        # (should equal sum of $stats_accum)
-        my $runningTotalCalls = 0; # holds the running total number of calls.
 
         # { linenumber => { subname => [ count, time ] } }
         my $subcalls_at_line = { %{ $fi->sub_call_lines } };
+        my $subcalls_max_line = max( keys %$subcalls_at_line ) || 0;
+
+        # { linenumber => [ $subinfo, ... ] }
+        my $subdefs_at_line = { %{ $profile->subs_defined_in_file_by_line($filestr) } };
+        my $subdefs_max_line = max( keys %$subdefs_at_line ) || 0;
+        delete $subdefs_at_line->{0}; # xsubs handled separately
 
         # { linenumber => { fid => $fileinfo } }
         my $evals_at_line = { %{ $fi->evals_by_line } };
-
-        my $subs_defined_hash = $profile->subs_defined_in_file($filestr, 1);
+        my $evals_max_line = max( keys %$evals_at_line ) || 0;
 
         # note that a file may have no source lines executed, so no keys here
         # (but is included because some xsubs in the package were executed)
-
         my $lines_array = $fi->line_time_data([$LEVEL]) || [];
 
-        foreach my $linenum (1..@$lines_array) {
+        my $max_linenum = max(
+            scalar @$lines_array,
+            $subcalls_max_line,
+            $subdefs_max_line,
+            $evals_max_line,
+        );
 
-            if (my $subdefs = $subs_defined_hash->{$linenum}) {
+        warn sprintf "%s %s max lines: stmts %d, subcalls %d, subdefs %d, evals %d\n",
+                $filestr, $LEVEL, scalar @$lines_array,
+                $subcalls_max_line, $subdefs_max_line, $evals_max_line
+            if $trace;
+
+        my %stats_accum;           # holds all line times. used to find median
+        my %stats_by_line;         # holds individual line stats
+        my $runningTotalTime = 0;  # holds the running total
+        # (should equal sum of $stats_accum)
+        my $runningTotalCalls = 0; # holds the running total number of calls.
+
+        for (my $linenum = 0; $linenum <= $max_linenum; ++$linenum) {
+
+            if (my $subdefs = delete $subdefs_at_line->{$linenum}) {
                 $stats_by_line{$linenum}->{'subdef_info'}  = $subdefs;
             }
 
-            if (my $subcalls = $subcalls_at_line->{$linenum}) {
+            if (my $subcalls = delete $subcalls_at_line->{$linenum}) {
                 my $line_stats = $stats_by_line{$linenum} ||= {};
 
                 $line_stats->{'subcall_info'}  = $subcalls;
@@ -233,7 +247,7 @@ sub _generate_report {
                     for (qw(subcall_count subcall_time));
             }
 
-            if (my $evalcalls = $evals_at_line->{$linenum}) {
+            if (my $evalcalls = delete $evals_at_line->{$linenum}) {
                 my $line_stats = $stats_by_line{$linenum} ||= {};
 
                 # %$evals => { fid => $fileinfo }
@@ -274,6 +288,13 @@ sub _generate_report {
             warn "$linenum: @{[ %{ $stats_by_line{$linenum} } ]}\n"
                 if $trace >= 3 && $stats_by_line{$linenum};
         }
+
+        warn "unprocessed keys in subdefs_at_line: @{[ keys %$subdefs_at_line ]}\n"
+            if %$subdefs_at_line;
+        warn "unprocessed keys in subcalls_at_line: @{[ keys %$subcalls_at_line ]}\n"
+            if %$subcalls_at_line;
+        warn "unprocessed keys in evals_at_line: @{[ keys %$evals_at_line ]}\n"
+            if %$evals_at_line;
 
         $meta->{'time'}      = $runningTotalTime;
         $meta->{'calls'}     = $runningTotalCalls;
@@ -324,12 +345,12 @@ sub _generate_report {
         if (!$src_lines) { # no savesrc, and no file available
 
             my $msg;
-            if ($fi->is_eval) {
-                $msg = "No source code available for string eval $filestr.\nSee savesrc option in documentation.",
-            }
-            elsif ($fi->is_fake) {
+            if ($fi->is_fake) {
                 # eg the "/unknown-eval-invoker"
-                $msg = "No source code available for 'fake' file $filestr.",
+                $msg = "No source code available for synthetic (fake) file $filestr.",
+            }
+            elsif ($fi->is_eval) {
+                $msg = "No source code available for string eval $filestr.\nSee savesrc option in documentation.",
             }
             elsif ($filestr =~ m{^/loader/0x[0-9a-zA-Z]+/}) {
                 # a synthetic file name that perl assigns when reading
@@ -353,19 +374,20 @@ sub _generate_report {
             }
 
             $src_lines = [ $msg ];
+            $LINE = 0; # start numbering from 0 to flag fake contents
+        }
+
+        if (my $z = $stats_by_line{0}) {
+            warn "$filestr has stats_by_line for line 0! @{[ %$z ]}\n";
+            warn "0: @{[ map { $_->subname } @{ $z->{subdef_info} } ]}\n"
+                if $z->{subdef_info};
             $LINE = 0;
         }
         
         # if we don't have source code, still pad out the lines to match the data we have
-        # so the report page isn't completely useless
+        # so the report page gets generated with annotations and so is still of some use.
         if (!@$src_lines or !$LINE) {
-            my @interesting_lines = grep { m/^\d+$/ } (
-                keys %$subcalls_at_line,
-                keys %$subs_defined_hash,
-                keys %stats_by_line
-            );
-            my $interesting_lines = max(@interesting_lines)||1;
-            $src_lines->[$_] ||= '' for 0..$interesting_lines-1; # grow array
+            $src_lines->[$_] ||= '' for 0..$max_linenum-1; # grow array
         }
 
         my $line_sub = $self->{mk_report_source_line}
@@ -421,7 +443,7 @@ sub _generate_report {
         # iterate over xsubs 
         $line_sub = $self->{mk_report_xsub_line}
             or die "mk_report_xsub_line not set";
-        my $subs_defined_in_file = $profile->subs_defined_in_file($filestr, 0);
+        my $subs_defined_in_file = $profile->subs_defined_in_file($filestr);
         foreach my $subname (sort keys %$subs_defined_in_file) {
             my $subinfo = $subs_defined_in_file->{$subname};
             my $kind = $subinfo->kind;
