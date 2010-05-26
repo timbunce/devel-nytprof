@@ -633,7 +633,11 @@ sub output_index_page {
     open my $fh, '>', "$opt_out/$filename"
         or croak "Unable to open file $opt_out/$filename: $!";
 
-    print $fh get_html_header();
+    my $application = $profile->{attribute}{application};
+    (my $app = $application) =~ s:.*/::; # basename
+    $app =~ s/ .*//;
+
+    print $fh get_html_header("Index of $app NYTProf Profile");
     print $fh get_page_header(profile => $profile, title => "Performance Profile Index", skip_link_to_index=>1);
     print $fh qq{
         <div class="body_content"><br />
@@ -643,8 +647,7 @@ sub output_index_page {
     my @all_fileinfos = $profile->all_fileinfos;
     my $eval_fileinfos = $profile->eval_fileinfos;
     my $summary = sprintf "Profile of %s for %s,",
-        $profile->{attribute}{application},
-        fmt_time($profile->{attribute}{profiler_duration});
+        $application, fmt_time($profile->{attribute}{profiler_duration});
     $summary .= sprintf " executing %d statements",
          $profile->{attribute}{total_stmts_measured}
         -$profile->{attribute}{total_stmts_discounted};
