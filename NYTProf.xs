@@ -130,6 +130,7 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_FIDf_SAVE_SRC       0x0020 /* src will be saved by profiler, if NYTP_FIDf_HAS_SRC also set */
 #define NYTP_FIDf_IS_ALIAS       0x0040 /* fid is clone of the 'parent' fid it was autosplit from */
 #define NYTP_FIDf_IS_FAKE        0x0080 /* eg dummy caller of a string eval that doesn't have a filename */
+#define NYTP_FIDf_IS_EVAL        0x0100 /* is an eval */
 
 /* indices to elements of the file info array */
 #define NYTP_FIDi_FILENAME       0
@@ -716,14 +717,19 @@ fmt_fid_flags(pTHX_ int fid_flags, SV *sv) {
     if (!sv)
         sv = sv_newmortal();
     sv_setpv(sv,"");
+    if (fid_flags & NYTP_FIDf_IS_EVAL)        sv_catpv(sv, "eval,");
+    if (fid_flags & NYTP_FIDf_IS_FAKE)        sv_catpv(sv, "fake,");
+    if (fid_flags & NYTP_FIDf_IS_AUTOSPLIT)   sv_catpv(sv, "autosplit,");
+    if (fid_flags & NYTP_FIDf_IS_ALIAS)       sv_catpv(sv, "alias,");
     if (fid_flags & NYTP_FIDf_IS_PMC)         sv_catpv(sv, "pmc,");
     if (fid_flags & NYTP_FIDf_VIA_STMT)       sv_catpv(sv, "viastmt,");
     if (fid_flags & NYTP_FIDf_VIA_SUB)        sv_catpv(sv, "viasub,");
-    if (fid_flags & NYTP_FIDf_IS_AUTOSPLIT)   sv_catpv(sv, "autosplit,");
     if (fid_flags & NYTP_FIDf_HAS_SRC)        sv_catpv(sv, "hassrc,");
     if (fid_flags & NYTP_FIDf_SAVE_SRC)       sv_catpv(sv, "savesrc,");
-    if (fid_flags & NYTP_FIDf_IS_ALIAS)       sv_catpv(sv, "alias,");
-    if (fid_flags & NYTP_FIDf_IS_FAKE)        sv_catpv(sv, "fake,");
+    if (SvOK(sv)) {
+        SvCUR_set(sv, SvCUR(sv)-1); /* trim trailing comma */
+        *SvEND(sv) = '\0';
+    }
     return sv;
 }
 
@@ -852,16 +858,17 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             }
             ++start;                                /* move past [ */
             /* recurse */
-            found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
+            found->eval_fid = get_file_id(aTHX_ start, end - start,
+                NYTP_FIDf_IS_EVAL | created_via);
             found->eval_line_num = atoi(end+1);
         }
-        else if (strnEQ(file_name, "(eval ", 6)) {
+        else if (filename_is_eval(file_name, file_name_len)) {
             /* strange eval that doesn't have a filename associated */
             /* seen in mod_perl, possibly from eval_sv(sv) api call */
             /* also when nameevals=0 option is in effect */
             char eval_file[] = "/unknown-eval-invoker";
             found->eval_fid = get_file_id(aTHX_ eval_file, sizeof(eval_file) - 1,
-                NYTP_FIDf_IS_FAKE | created_via
+                NYTP_FIDf_IS_EVAL | NYTP_FIDf_IS_FAKE | created_via
             );
             found->eval_line_num = 1;
         }
@@ -3808,8 +3815,9 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
         /* this eval fid refers to the fid that contained the eval */
         SV *eval_fi = *av_fetch(state->fid_fileinfo_av, eval_file_num, 1);
         if (!SvROK(eval_fi)) { /* should never happen */
-            logwarn("Eval '%s' (fid %d) has unknown invoking fid %d\n",
-                    SvPV_nolen(filename_sv), file_num, eval_file_num);
+            SV *fid_flags_sv = fmt_fid_flags(aTHX_ fid_flags, NULL);
+            logwarn("Eval '%s' (fid %d, flags:%s) has unknown invoking fid %d\n",
+                SvPV_nolen(filename_sv), file_num, SvPV_nolen(fid_flags_sv), eval_file_num);
             /* so make it look like a real file instead of an eval */
             av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
             eval_file_num = 0;
@@ -4779,6 +4787,7 @@ static struct int_constants_t int_constants[] = {
     {"NYTP_FIDf_SAVE_SRC",     NYTP_FIDf_SAVE_SRC},
     {"NYTP_FIDf_IS_ALIAS",     NYTP_FIDf_IS_ALIAS},
     {"NYTP_FIDf_IS_FAKE",      NYTP_FIDf_IS_FAKE},
+    {"NYTP_FIDf_IS_EVAL",      NYTP_FIDf_IS_EVAL},
     /* NYTP_FIDi_* */
     {"NYTP_FIDi_FILENAME",  NYTP_FIDi_FILENAME},
     {"NYTP_FIDi_EVAL_FID",  NYTP_FIDi_EVAL_FID},
