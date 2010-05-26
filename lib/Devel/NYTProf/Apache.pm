@@ -24,6 +24,11 @@ BEGIN {
         warn "NYTPROF env var not set, so defaulting to NYTPROF='$ENV{NYTPROF}'";
     }
 
+    require Devel::NYTProf::Core;
+
+    DB::set_option("endatexit", 1); # for vhost with PerlOption +Parent
+    DB::set_option("addpid", 1);
+
     require Devel::NYTProf;
 }
 
@@ -110,9 +115,11 @@ warning and default it to:
 
   file=/tmp/nytprof.$$.out
 
+The file actually created by NTProf will also have the process id appended to
+it because the C<addpid> option is enabled by default.
+
 See L<Devel::NYTProf/"ENVIRONMENT VARIABLES"> for 
 more details on the settings effected by this environment variable.
-
 Try using C<PerlPassEnv> so you can set the NYTPROF environment variable externally.
 
 Each profiled mod_perl process will need to have terminated before you can
