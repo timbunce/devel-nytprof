@@ -7,7 +7,14 @@
 0,1,0,my $file_c = "nytprof-test51-c.out";
 0,1,0,unlink $file_b, $file_c;
 0,0,0,
-0,2,0,eval "sub sub$_ { 1 }; 1;1;" for (1..10);
+0,1,0,sub sub1 { 1 }
+0,0,0,sub sub2 { 1 }
+0,0,0,sub sub3 { 1 }
+0,0,0,sub sub4 { 1 }
+0,0,0,sub sub5 { 1 }
+0,0,0,sub sub6 { 1 }
+0,0,0,sub sub7 { 1 }
+0,0,0,sub sub8 { 1 }
 0,0,0,
 0,1,0,sub1(); # profiled
 0,0,0,
