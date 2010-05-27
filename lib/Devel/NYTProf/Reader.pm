@@ -380,7 +380,7 @@ sub _generate_report {
         # Since we use @$src_lines to drive the report generation, pad the array to
         # ensure it has enough lines to include all the available profile info.
         # Then the report is still useful even if we have no source code.
-        $src_lines->[$_] ||= '' for @$src_lines-1 .. $max_linenum-1; # grow array
+        push @$src_lines, '' while @$src_lines < $max_linenum-1;
 
         if (my $z = $stats_by_line{0}) {
             # typically indicates cases where we could do better
