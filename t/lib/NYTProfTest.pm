@@ -10,6 +10,7 @@ use Getopt::Long;
 use Test::More;
 use Data::Dumper;
 use File::Temp qw(tempfile);
+use List::Util qw(shuffle);
 
 use base qw(Exporter);
 our @EXPORT = qw(
@@ -126,6 +127,7 @@ sub mk_opt_combinations {
             }
         }
     }
+    @opt_combinations = shuffle @opt_combinations;
     return \@opt_combinations;
 }
 
