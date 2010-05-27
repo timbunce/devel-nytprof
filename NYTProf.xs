@@ -715,6 +715,7 @@ fid_is_pmc(pTHX_ Hash_entry *fid_info)
 }
 
 
+/* XXX should be rewritten to use a static char * buffer */
 static SV *
 fmt_fid_flags(pTHX_ int fid_flags, SV *sv) {
     if (!sv)
@@ -995,12 +996,11 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     if (trace_level >= 2) {
         /* including last_executed_fid can be handy for tracking down how
             * a file got loaded */
-        logwarn("New fid %2u (after %2u:%-4u) 0x%02x e%u:%u %.*s %s %s,%s\n",
+        logwarn("New fid %2u (after %2u:%-4u) 0x%02x e%u:%u %.*s %s %s\n",
             found->id, last_executed_fid, last_executed_line,
             found->fid_flags, found->eval_fid, found->eval_line_num,
             found->key_len, found->key, (found->key_abs) ? found->key_abs : "",
-            (found->fid_flags & NYTP_FIDf_HAS_SRC)  ? "has src" : "no src",
-            (found->fid_flags & NYTP_FIDf_SAVE_SRC) ? "save src" : "nosave src"
+            SvPV_nolen(fmt_fid_flags(aTHX_ found->fid_flags, NULL))
         );
     }
 
@@ -1398,7 +1398,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
             cop = PL_curcop_nytprof;
         last_executed_line = CopLINE(cop);
         if (!last_executed_line) {
-            /* perl options, like -n, -p, -Mfoo etc can cause this as perl effectively
+            /* perl options, like -n, -p, -Mfoo etc can cause this because perl effectively
              * treats those as 'line 0', so we try not to warn in those cases.
              */
             char *pkg_name = CopSTASHPV(cop);
@@ -1406,6 +1406,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
             /* op is null when called via finish_profile called by END */
             if (!is_preamble && op) {
+                /* warn() can't either, in the cases I've encountered */
                 logwarn("Unable to determine line number in %s\n", OutCopFILE(cop));
                 if (trace_level > 5)
                     do_op_dump(1, PerlIO_stderr(), (OP*)cop);
@@ -1629,6 +1630,7 @@ open_output_file(pTHX_ char *filename)
 static void
 close_output_file(pTHX) {
     int result;
+
     if (!out)
         return;
 
@@ -1643,6 +1645,9 @@ close_output_file(pTHX) {
     if ((result = NYTP_close(out, 0)))
         logwarn("Error closing profile data file: %s\n", strerror(result));
     out = NULL;
+
+    if (trace_level >= 1)
+        logwarn("~ closed file.\n");
 }
 
 
@@ -1951,7 +1956,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
                 if (!SvOK(sv))
                     sv_setpvs(sv, ":0-0"); /* empty file name */
                 if (trace_level >= 2)
-                    logwarn("Adding fake DBsub entry for '%s' xsub\n", called_subname_pv);
+                    logwarn("Marking '%s' as %s\n", called_subname_pv, subr_entry->called_is_xs);
             }
         }
     }
@@ -2964,7 +2969,7 @@ init_profiler(pTHX)
         get_time_of_day(start_time);
     }
 
-    if (trace_level >= 2)
+    if (trace_level >= 1)
         logwarn("~ init_profiler done\n");
 
     return 1;
@@ -3079,7 +3084,7 @@ write_sub_line_ranges(pTHX)
     HV *hv = GvHV(PL_DBsub);
     unsigned int fid;
 
-    if (trace_level >= 2)
+    if (trace_level >= 1)
         logwarn("~ writing sub line ranges - prescan\n");
 
     /* Skim through PL_DBsub hash to build a package to filename hash
@@ -3195,8 +3200,8 @@ write_sub_line_ranges(pTHX)
         sv_catpvs(sv, ":1-1");
     }
 
-    if (trace_level >= 2)
-        logwarn("~ writing sub line ranges\n");
+    if (trace_level >= 1)
+        logwarn("~ writing sub line ranges of %ld subs\n", HvKEYS(hv));
 
     /* Iterate over PL_DBsub writing out fid and source line range of subs.
      * If filename is missing (i.e., because it's an xsub so has no source file)
@@ -3252,8 +3257,8 @@ write_sub_callers(pTHX)
 
     if (!sub_callers_hv)
         return;
-    if (trace_level >= 2)
-        logwarn("~ writing sub callers\n");
+    if (trace_level >= 1)
+        logwarn("~ writing sub callers for %ld subs\n", HvKEYS(sub_callers_hv));
 
     hv_iterinit(sub_callers_hv);
     while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &called_subname, &called_subname_len))) {
@@ -3355,7 +3360,7 @@ write_src_of_files(pTHX)
     int t_no_src = 0;
     long t_lines = 0;
 
-    if (trace_level >= 2)
+    if (trace_level >= 1)
         logwarn("~ writing file source code\n");
 
     for (e = hashtable.first_inserted; e; e = (Hash_entry *)e->next_inserted) {
@@ -4952,14 +4957,14 @@ _INIT()
     }
     else if (profile_start == NYTP_START_END) {
         SV *enable_profile_sv = (SV *)get_cv("DB::enable_profile", GV_ADDWARN);
-        if (trace_level >= 2)
+        if (trace_level >= 1)
             logwarn("~ enable_profile deferred until END\n");
         if (!PL_endav)
             PL_endav = newAV();
         av_unshift(PL_endav, 1);  /* we want to be first */
         av_store(PL_endav, 0, SvREFCNT_inc(enable_profile_sv));
     }
-    if (trace_level >= 2)
+    if (trace_level >= 1)
         logwarn("~ INIT done\n");
 
 void
@@ -4982,7 +4987,7 @@ _END()
     else {      /* immediate */
         call_sv((SV *)finish_profile_cv, G_VOID);
     }
-    if (trace_level >= 2)
+    if (trace_level >= 1)
         logwarn("~ %s done\n", ix == 1 ? "CHECK" : "END");
 
 
