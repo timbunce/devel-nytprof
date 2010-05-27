@@ -637,7 +637,7 @@ sub output_index_page {
     (my $app = $application) =~ s:.*/::; # basename
     $app =~ s/ .*//;
 
-    print $fh get_html_header("Index of $app NYTProf Profile");
+    print $fh get_html_header("NYTProf $app");
     print $fh get_page_header(profile => $profile, title => "Performance Profile Index", skip_link_to_index=>1);
     print $fh qq{
         <div class="body_content"><br />
