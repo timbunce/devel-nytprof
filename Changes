@@ -11,7 +11,6 @@ TODO soonish
 subroutine profiler docs need update
 add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
-string eval merging - must allow at least viewing of source for called subs defined in a nested eval
 
 =head2 Changes in Devel::NYTProf 3.12 (svn 1194) 22nd April 2010
 
@@ -22,9 +21,13 @@ Major changes:
 
   Added profile reporting of code executed in string evals.
     Each string eval executed gets it's own report page.
+    You can 'see' the code that was executed, with profile info.
     String evals may be collapsed/merged in some cases.
 
   Improved many sub-optimal behaviours related to string evals.
+
+  Profile data that couldn't be associated with a specific line,
+    such as calls made by perl to END blocks, is now shown in reports.
 
   Enabled savesrc=1 by default.
 

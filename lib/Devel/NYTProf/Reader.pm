@@ -377,17 +377,32 @@ sub _generate_report {
             $LINE = 0; # start numbering from 0 to flag fake contents
         }
 
+        # Since we use @$src_lines to drive the report generation, pad the array to
+        # ensure it has enough lines to include all the available profile info.
+        # Then the report is still useful even if we have no source code.
+        $src_lines->[$_] ||= '' for @$src_lines-1 .. $max_linenum-1; # grow array
+
         if (my $z = $stats_by_line{0}) {
-            warn "$filestr has stats_by_line for line 0! @{[ %$z ]}\n";
-            warn "0: @{[ map { $_->subname } @{ $z->{subdef_info} } ]}\n"
-                if $z->{subdef_info};
+            # typically indicates cases where we could do better
+            if ($trace || 1) {
+                warn "$filestr has unexpected info for line 0: @{[ %$z ]}\n";
+                # sub defs: used to be xsubs but they're handled separately now
+                # so there are no known causes of this any more
+                if (my $i = $z->{subdef_info}) {
+                    warn "0: @{[ map { $_->subname } @$i ]}\n"
+                }
+                # sub calls: they're typically END blocks that appear to be
+                # invoked from the main .pl script perl ran.
+                # Also some BEGINs and things like main::CORE:ftfile
+                # (see CPANDB's cpangraph script for some examples)
+                if (my $i = $z->{subcall_info}) {
+                    warn sprintf "0: called %20s %s\n", $_, join " ", @{ $i->{$_} }
+                        for sort keys %$i;
+                }
+            }
+
             $LINE = 0;
-        }
-        
-        # if we don't have source code, still pad out the lines to match the data we have
-        # so the report page gets generated with annotations and so is still of some use.
-        if (!@$src_lines or !$LINE) {
-            $src_lines->[$_] ||= '' for 0..$max_linenum-1; # grow array
+            unshift @$src_lines, "Profile data that couldn't be associated with a specific line:";
         }
 
         my $line_sub = $self->{mk_report_source_line}
