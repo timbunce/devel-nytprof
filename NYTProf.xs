@@ -715,26 +715,21 @@ fid_is_pmc(pTHX_ Hash_entry *fid_info)
 }
 
 
-/* XXX should be rewritten to use a static char * buffer */
-static SV *
-fmt_fid_flags(pTHX_ int fid_flags, SV *sv) {
-    if (!sv)
-        sv = sv_newmortal();
-    sv_setpv(sv,"");
-    if (fid_flags & NYTP_FIDf_IS_EVAL)        sv_catpv(sv, "eval,");
-    if (fid_flags & NYTP_FIDf_IS_FAKE)        sv_catpv(sv, "fake,");
-    if (fid_flags & NYTP_FIDf_IS_AUTOSPLIT)   sv_catpv(sv, "autosplit,");
-    if (fid_flags & NYTP_FIDf_IS_ALIAS)       sv_catpv(sv, "alias,");
-    if (fid_flags & NYTP_FIDf_IS_PMC)         sv_catpv(sv, "pmc,");
-    if (fid_flags & NYTP_FIDf_VIA_STMT)       sv_catpv(sv, "viastmt,");
-    if (fid_flags & NYTP_FIDf_VIA_SUB)        sv_catpv(sv, "viasub,");
-    if (fid_flags & NYTP_FIDf_HAS_SRC)        sv_catpv(sv, "hassrc,");
-    if (fid_flags & NYTP_FIDf_SAVE_SRC)       sv_catpv(sv, "savesrc,");
-    if (SvOK(sv)) {
-        SvCUR_set(sv, SvCUR(sv)-1); /* trim trailing comma */
-        *SvEND(sv) = '\0';
-    }
-    return sv;
+static char *
+fmt_fid_flags(pTHX_ int fid_flags, char *buf, Size_t len) {
+    *buf = '\0';
+    if (fid_flags & NYTP_FIDf_IS_EVAL)      my_strlcat(buf, "eval,",      len);
+    if (fid_flags & NYTP_FIDf_IS_FAKE)      my_strlcat(buf, "fake,",      len);
+    if (fid_flags & NYTP_FIDf_IS_AUTOSPLIT) my_strlcat(buf, "autosplit,", len);
+    if (fid_flags & NYTP_FIDf_IS_ALIAS)     my_strlcat(buf, "alias,",     len);
+    if (fid_flags & NYTP_FIDf_IS_PMC)       my_strlcat(buf, "pmc,",       len);
+    if (fid_flags & NYTP_FIDf_VIA_STMT)     my_strlcat(buf, "viastmt,",   len);
+    if (fid_flags & NYTP_FIDf_VIA_SUB)      my_strlcat(buf, "viasub,",    len);
+    if (fid_flags & NYTP_FIDf_HAS_SRC)      my_strlcat(buf, "hassrc,",    len);
+    if (fid_flags & NYTP_FIDf_SAVE_SRC)     my_strlcat(buf, "savesrc,",   len);
+    if (*buf) /* trim trailing comma */
+        buf[ my_strlcat(buf,"",len)-1 ] = '\0';
+    return buf;
 }
 
 
@@ -994,13 +989,14 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     emit_fid(found);
 
     if (trace_level >= 2) {
+        char buf[80];
         /* including last_executed_fid can be handy for tracking down how
             * a file got loaded */
         logwarn("New fid %2u (after %2u:%-4u) 0x%02x e%u:%u %.*s %s %s\n",
             found->id, last_executed_fid, last_executed_line,
             found->fid_flags, found->eval_fid, found->eval_line_num,
             found->key_len, found->key, (found->key_abs) ? found->key_abs : "",
-            SvPV_nolen(fmt_fid_flags(aTHX_ found->fid_flags, NULL))
+            fmt_fid_flags(aTHX_ found->fid_flags, buf, sizeof(buf))
         );
     }
 
@@ -3790,7 +3786,7 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
         normalize_eval_seqn(aTHX_ filename_sv);
 
     if (trace_level >= 2) {
-        SV *fid_flags_sv = fmt_fid_flags(aTHX_ fid_flags, NULL);
+        char buf[80];
         char parent_fid[80];
         if (eval_file_num || eval_line_num)
             sprintf(parent_fid, " (is eval at %u:%u)", eval_file_num, eval_line_num);
@@ -3799,7 +3795,7 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 
         logwarn("Fid %2u is %s%s 0x%x(%s)\n",
                 file_num, SvPV_nolen(filename_sv), parent_fid,
-                fid_flags, SvPV_nolen(fid_flags_sv));
+                fid_flags, fmt_fid_flags(aTHX_ fid_flags, buf, sizeof(buf)));
     }
 
     /* [ name, eval_file_num, eval_line_num, fid, flags, size, mtime, ... ]
@@ -3823,9 +3819,10 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
         /* this eval fid refers to the fid that contained the eval */
         SV *eval_fi = *av_fetch(state->fid_fileinfo_av, eval_file_num, 1);
         if (!SvROK(eval_fi)) { /* should never happen */
-            SV *fid_flags_sv = fmt_fid_flags(aTHX_ fid_flags, NULL);
+            char buf[80];
             logwarn("Eval '%s' (fid %d, flags:%s) has unknown invoking fid %d\n",
-                SvPV_nolen(filename_sv), file_num, SvPV_nolen(fid_flags_sv), eval_file_num);
+                SvPV_nolen(filename_sv), file_num,
+                fmt_fid_flags(aTHX_ fid_flags, buf, sizeof(buf)), eval_file_num);
             /* so make it look like a real file instead of an eval */
             av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
             eval_file_num = 0;
