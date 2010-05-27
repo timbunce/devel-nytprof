@@ -875,10 +875,6 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             );
             found->eval_line_num = 1;
         }
-        else {
-            if (trace_level >= 2)
-                logwarn("New fid has odd filename: '%.*s'\n", file_name_len, file_name);
-        }
     }
 
     /* is the file is an autosplit, e.g., has a file_name like
