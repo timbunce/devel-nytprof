@@ -408,3 +408,9 @@ also show in compact form links to the callers of the caller, if there aren't to
 This makes it faster to climb the call stack. A simple mouseover will show the
 filename of the caller (perhaps a tooltip could give the file and sub).
 Also needed for modules that take shortcuts calling XS functions (*cough DBI*).
+And/or, add a simple up arrow that'll just to the calling sub. Typically that'll
+be the surrounding "sub foo { ..." (which'll be handy for big subs) but for
+cases where the call to that sub wasn't recorded (eg pre 5.8.9 or the DBI's
+xs calling optimization) it'll be the most recent sub entry that was recorded.
+
+Generate extra report pages for xsubs in packages that don't have source code.
