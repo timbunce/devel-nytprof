@@ -384,7 +384,7 @@ sub _generate_report {
 
         if (my $z = $stats_by_line{0}) {
             # typically indicates cases where we could do better
-            if ($trace || 1) {
+            if ($trace) {
                 warn "$filestr has unexpected info for line 0: @{[ %$z ]}\n";
                 # sub defs: used to be xsubs but they're handled separately now
                 # so there are no known causes of this any more
