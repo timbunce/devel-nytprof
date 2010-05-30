@@ -38,9 +38,8 @@ use base qw'Exporter';
 use Carp;
 use Cwd qw(getcwd);
 use List::Util qw(sum);
-#use UNIVERSAL qw( isa can VERSION );
 
-our $VERSION = '3.11';
+our $VERSION = '4.00';
 
 our @EXPORT_OK = qw(
     fmt_float

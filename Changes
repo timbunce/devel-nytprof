@@ -11,11 +11,9 @@ TODO soonish
 subroutine profiler docs need update
 add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
-
-=head2 Changes in Devel::NYTProf 3.12 (svn 1194) 22nd April 2010
-
-XXX TODO
 On eval report add links to sibling eval reports
+
+=head2 Changes in Devel::NYTProf 4.00 (svn 1253) 30th May 2010
 
 Major changes:
 
