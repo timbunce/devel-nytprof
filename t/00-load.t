@@ -22,10 +22,13 @@ diag "\t$_: ".(defined $Config{$_} ? $Config{$_} : '(undef)')
         d_gettimeod d_sysconf
     );
 
-if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x) {
+if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x
+    or -d "/proc/xen" # maybe
+) {
+    diag("------------------------");
     diag("--- Xen platform issues:");
     diag("It looks like this is running inside a Xen virtual machine.");
-    diag("Operating system clocks may be unstable in this situation,");
+    diag("Operating system clocks may appear to be unstable in this situation,");
     diag("so tests may fail or produce odd warnings.");
     diag("See results from http://www.google.com/search?q=xen+clock+backwards");
     diag("Including https://bugs.launchpad.net/xen/+bug/146924");
@@ -33,6 +36,7 @@ if ("$Config{archname} $Config{osvers}" =~ /\b xen \b/x) {
     diag("And http://rhn.redhat.com/errata/RHSA-2009-1243.html");
     diag("In short, you may need to upgrade Xen and/or your OS.");
     diag("Note that use of NYTProf inside a virtual machine is likely to affect accuracy anyway.");
+    diag("------------------------");
 }
 
 my @env = grep { /^NYTPROF/ } sort keys %ENV;
