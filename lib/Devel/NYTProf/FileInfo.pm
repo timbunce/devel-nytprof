@@ -24,6 +24,8 @@ use constant {
     NYTP_FIDi_cache           => NYTP_FIDi_elements + 2,
 };
 
+my $trace = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) && $1; # XXX a hack
+
 sub filename  { shift->[NYTP_FIDi_FILENAME()] }
 sub eval_fid  { shift->[NYTP_FIDi_EVAL_FID()] }
 sub eval_line { shift->[NYTP_FIDi_EVAL_LINE()] }
@@ -101,6 +103,16 @@ sub subs_defined {
 sub subs_defined_sorted {
     my ($self, $incl_nested_evals) = @_;
     return sort { $a->subname cmp $b->subname } $self->subs_defined($incl_nested_evals);
+}
+
+sub _remove_sub_defined {
+    my ($self, $subinfo) = @_;
+    delete $self->[NYTP_FIDi_SUBS_DEFINED()]->{$subinfo->subname};
+}
+
+sub _add_new_sub_defined {
+    my ($self, $subinfo) = @_;
+    $self->[NYTP_FIDi_SUBS_DEFINED()]->{$subinfo->subname} = $subinfo
 }
 
 

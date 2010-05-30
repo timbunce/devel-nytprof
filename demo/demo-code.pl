@@ -1,4 +1,4 @@
-use strict;
+use strict 0.1;   # use UNIVERSAL::VERSION
 use Benchmark;
 use File::Find;
 

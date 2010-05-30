@@ -3568,6 +3568,7 @@ lookup_subinfo_av(pTHX_ SV *subname_sv, HV *sub_subinfo_hv)
         /* 0: fid - may be undef
          * 1: start_line - may be undef if not known and not known to be xs
          * 2: end_line - ditto
+         * typically due to an xsub that was called but exited via an exception
          */
         sv_setsv(*av_fetch(av, NYTP_SIi_SUB_NAME,   1), newSVsv(subname_sv));
         sv_setuv(*av_fetch(av, NYTP_SIi_CALL_COUNT, 1),   0); /* call count */

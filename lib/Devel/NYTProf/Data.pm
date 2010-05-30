@@ -91,8 +91,6 @@ sub new {
     my $fid_fileinfo = $profile->{fid_fileinfo};
     my $sub_subinfo  = $profile->{sub_subinfo};
 
-    #warn _dumper($profile);
-
     # add profile ref so fidinfo & subinfo objects
     # XXX circular ref, add weaken
     $_ and $_->[7] = $profile for @$fid_fileinfo;
@@ -101,6 +99,17 @@ sub new {
     # bless sub_subinfo data
     (my $sub_class = $class) =~ s/\w+$/SubInfo/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
+
+
+    # find called subs that have no file for
+    my @homeless_subs = grep { $_->calls and not $_->fid } values %$sub_subinfo;
+    if (@homeless_subs) { # give them a home...
+        # currently just the first existing fileinfo
+        # XXX ought to create a new dummy fileinfo for them
+        my $new_fi = $profile->fileinfo_of(1);
+        $_->alter_fileinfo(undef, $new_fi) for @homeless_subs;
+    }
+
 
     # Where a given eval() has been invoked more than once
     # rollup the corresponding fids if they're "uninteresting".
@@ -664,10 +673,10 @@ sub subs_defined_in_file_by_line {
 
 =head2 file_line_range_of_sub
 
-  ($file, $fid, $first, $last) = $profile->file_line_range_of_sub("main::foo");
+  ($file, $fid, $first, $last, $fi) = $profile->file_line_range_of_sub("main::foo");
 
-Returns the filename, fid, and first and last line numbers for the specified
-subroutine (which must be fully qualified with a package name).
+Returns the filename, fid, and first and last line numbers, and fileinfo object
+for the specified subroutine (which must be fully qualified with a package name).
 
 Returns an empty list if the subroutine name is not in the profile data.
 
@@ -675,12 +684,11 @@ The $fid return is the 'original' fid associated with the file the subroutine wa
 
 The $file returned is the source file that defined the subroutine.
 
-Where is a subroutine is defined within a string eval, for example, the fid
-will be the pseudo-fid for the eval, and the $file will be the filename that
-executed the eval.
+Subroutines that are implemented in XS have a line range of 0,0 and a possibly
+unknown file (if NYTProf couldn't find a good match based on the package name).
 
-Subroutines that are implemented in XS have a line range of 0,0 and currently
-don't have an associated file.
+Subroutines that were called but only returned via an exception may have a line
+range of undef,undef if they're xsubs or were defined before NYTProf was enabled.
 
 =cut
 

@@ -17,7 +17,9 @@ use Devel::NYTProf::Constants qw(
     NYTP_SCi_CALLING_SUB
 );
 
-sub fid        { $_[0]->[NYTP_SIi_FID] || croak "No fid for $_[0][6]" }
+my $trace = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) && $1; # XXX a hack
+
+sub fid        { shift->[NYTP_SIi_FID] || 0 }
 
 sub first_line { shift->[NYTP_SIi_FIRST_LINE] }
 
@@ -136,8 +138,12 @@ sub _max {
 
 sub alter_fileinfo {
     my ($self, $remove_fi, $new_fi) = @_;
-    my $remove_fid = $remove_fi->fid;
-    my $new_fid    = $new_fi->fid;
+    my $remove_fid = ($remove_fi) ? $remove_fi->fid : 0;
+    my $new_fid    = (   $new_fi) ?    $new_fi->fid : 0;
+
+    warn sprintf "Altering fileinfo of %s from %d to %d\n",
+            $self->subname, $remove_fid, $new_fid
+        if $trace;
 
     # remove mentions of $remove_fid from called-by details
     # { fid => { line => [ count, incl, excl, ... ] } }
@@ -156,6 +162,14 @@ sub alter_fileinfo {
                 $called_by->{$new_fid} = $cb;
             }
         }
+    }
+
+    if ($self->fid == $remove_fid) {
+        $self->[NYTP_SIi_FID] = $new_fid;
+    }
+
+    if ($remove_fi and $remove_fi->_remove_sub_defined($self)) {
+        $new_fi->_add_new_sub_defined($self);
     }
 }
 
@@ -187,7 +201,6 @@ sub merge_in {
     my $dst_called_by = $self->[NYTP_SIi_CALLED_BY] ||= {};
     my $src_called_by = $new ->[NYTP_SIi_CALLED_BY] ||  {};
 
-    my $trace = 0;
     my $subname = $self->subname(' and ');
 
     # iterate over src and merge into dst

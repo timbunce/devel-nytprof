@@ -26,9 +26,8 @@ run_test_group( {
         isa_ok $profile, 'Devel::NYTProf::Data';
 
         my $subs = $profile->subname_subinfo_map;
-        my @tmp;
-        @tmp = $profile->file_line_range_of_sub("UNIVERSAL::VERSION");
-        is @tmp, 0, 'UNIVERSAL::VERSION should have no known file or line range';
+        my ($filename, $fid, $first, $last) = $profile->file_line_range_of_sub("UNIVERSAL::VERSION");
+        is "$first-$last", "0-0", 'UNIVERSAL::VERSION line range';
 
     },
 });

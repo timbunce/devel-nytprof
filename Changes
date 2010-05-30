@@ -26,8 +26,11 @@ Major changes:
 
   Improved many sub-optimal behaviours related to string evals.
 
-  Profile data that couldn't be associated with a specific line,
-    such as calls made by perl to END blocks, is now shown in reports.
+  Subroutine calls that couldn't be associated with a specific line,
+    such as calls made by perl to END blocks, are now shown in reports.
+
+  Subroutine definitions that couldn't be associated with a specific file,
+    such as xsubs in packages with no perl source, are now shown in reports.
 
   Enabled savesrc=1 by default.
 
