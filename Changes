@@ -15,6 +15,11 @@ On eval report add links to sibling eval reports
 
 =head2 Changes in Devel::NYTProf 4.00 (svn 1253) 30th May 2010
 
+TODO:
+* collapse evals with identical src that define identical anon-subs
+  - also needs merging of those anon-subs (which got removed somewhere along the way)
+* Upload new example report and update the link in the docs
+
 Major changes:
 
   Added profile reporting of code executed in string evals.
