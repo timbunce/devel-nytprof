@@ -66,5 +66,5 @@ is_deeply $prof{SUB_INFO}, [
 
 $prof{SUB_CALLERS}[0][$_] = 0 for (3,4);
 is_deeply $prof{SUB_CALLERS}, [
-    [ 1, 3, 1, 0, 0, '0', '0', '0', 0, 'main::A', 'main::RUNTIME' ]
+    [ 1, 3, 1, 0, 0, '0', 0, 'main::A', 'main::RUNTIME' ]
 ];

@@ -3312,8 +3312,6 @@ write_sub_callers(pTHX)
                                    (unsigned int)count,
                                    sc[NYTP_SCi_INCL_RTIME],
                                    sc[NYTP_SCi_EXCL_RTIME],
-                                   0.0, /* NYTP_SCi_spare_3 */
-                                   0.0, /* NYTP_SCi_spare_4 */
                                    sc[NYTP_SCi_RECI_RTIME],
                                    (unsigned int)depth,
                                    called_subname, called_subname_len);
@@ -4193,7 +4191,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("NEW_FID"), "uuuuuuS"},
     {STR_WITH_LEN("SRC_LINE"), "uuS"},
     {STR_WITH_LEN("SUB_INFO"), "uuus"},
-    {STR_WITH_LEN("SUB_CALLERS"), "uuunn..nuss"},
+    {STR_WITH_LEN("SUB_CALLERS"), "uuunnnuss"},
     {STR_WITH_LEN("PID_START"), "uun"},
     {STR_WITH_LEN("PID_END"), "un"},
     {STR_WITH_LEN("[string]"), NULL},
@@ -4251,12 +4249,6 @@ load_perl_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
             unsigned int u = va_arg(args, unsigned int);
 
             sv_setuv(cb_args[i], u);
-            XPUSHs(cb_args[i++]);
-            break;
-        }
-        case '.':
-        {
-            sv_setnv(cb_args[i], 0.0);
             XPUSHs(cb_args[i++]);
             break;
         }
@@ -4494,14 +4486,9 @@ load_profile_data_from_stream(loader_callback *callbacks,
                 unsigned int count = read_int(in);
                 NV incl_time       = read_nv(in);
                 NV excl_time       = read_nv(in);
-                NV spare_3         = read_nv(in);
-                NV spare_4         = read_nv(in);
                 NV reci_time       = read_nv(in);
                 unsigned int rec_depth = read_int(in);
                 SV *called_subname_sv = read_str(aTHX_ in, tmp_str1_sv);
-
-                PERL_UNUSED_VAR(spare_3);
-                PERL_UNUSED_VAR(spare_4);
 
                 callbacks[nytp_sub_callers](state, nytp_sub_callers, fid,
                                             line, count, incl_time, excl_time,

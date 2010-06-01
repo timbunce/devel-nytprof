@@ -167,7 +167,7 @@ my %dispatcher =
 	 $out->write_sub_info($output_fid, $name, $first_line, $last_line);
      },
      SUB_CALLERS => sub {
-	 my (undef, $fid, $line, $count, $incl_time, $excl_time, $ucpu_time, $scpu_time, $reci_time, $rec_depth, $called, $caller) = @_;
+	 my (undef, $fid, $line, $count, $incl_time, $excl_time, $reci_time, $rec_depth, $called, $caller) = @_;
 	 confess("No mapping for $fid") unless defined $fids{$fid};
 	 $fid = $fids{$fid};
 	 my $mapped_fid = $map_range{$fid}[$line];
@@ -178,8 +178,6 @@ my %dispatcher =
 	     $sum->{count} += $count;
 	     $sum->{incl} += $incl_time;
 	     $sum->{excl} += $excl_time;
-	     $sum->{ucpu} += $ucpu_time;
-	     $sum->{scpu} += $scpu_time;
 	     $sum->{reci} += $reci_time;
 	     $sum->{depth} = $rec_depth if $rec_depth > $sum->{depth};
 	 } else {
@@ -190,8 +188,6 @@ my %dispatcher =
 		  count => $count,
 		  incl => $incl_time,
 		  excl => $excl_time,
-		  ucpu => $ucpu_time,
-		  scpu => $scpu_time,
 		  reci => $reci_time,
 		 };
 	 }
@@ -303,7 +299,7 @@ foreach my $fid_line (sort keys %callers) {
 	foreach my $caller (sort keys %{$callers{$fid_line}{$called}}) {
 	    my $sum = $callers{$fid_line}{$called}{$caller};
 	    $out->write_sub_callers($fid, $line, $caller, $sum->{count},
-				    @{$sum}{qw(incl excl ucpu scpu reci)},
+				    @{$sum}{qw(incl excl reci)},
 				    $sum->{depth}, $called);
 	}
     }

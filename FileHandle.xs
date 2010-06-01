@@ -1017,8 +1017,7 @@ size_t
 NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid, unsigned int line,
                        const char *caller_name, I32 caller_name_len,
                        unsigned int count, NV incl_rtime, NV excl_rtime,
-                       NV incl_utime, NV incl_stime, NV reci_rtime,
-                       unsigned int depth,
+                       NV reci_rtime, unsigned int depth,
                        const char *called_name, I32 called_name_len)
 {
     size_t total;
@@ -1045,14 +1044,6 @@ NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid, unsigned int line,
         return retval;
 
     total += retval = output_nv(ofile, excl_rtime);
-    if (retval < 1)
-        return retval;
-
-    total += retval = output_nv(ofile, incl_utime);
-    if (retval < 1)
-        return retval;
-
-    total += retval = output_nv(ofile, incl_stime);
     if (retval < 1)
         return retval;
 
@@ -1256,7 +1247,7 @@ unsigned int last_line
         RETVAL
 
 size_t
-NYTP_write_sub_callers(handle, fid, line, caller, count, incl_rtime, excl_rtime, incl_utime, incl_stime, reci_rtime, depth, called_sub)
+NYTP_write_sub_callers(handle, fid, line, caller, count, incl_rtime, excl_rtime, reci_rtime, depth, called_sub)
 NYTP_file handle
 unsigned int fid
 unsigned int line
@@ -1264,8 +1255,6 @@ SV *caller
 unsigned int count
 NV incl_rtime
 NV excl_rtime
-NV incl_utime
-NV incl_stime
 NV reci_rtime
 unsigned int depth
 SV *called_sub
@@ -1278,8 +1267,7 @@ SV *called_sub
         RETVAL = NYTP_write_sub_callers(handle, fid, line, caller_p,
                                         SvUTF8(caller) ? -(I32)caller_len : (I32)caller_len,
                                         count, incl_rtime, excl_rtime,
-                                        incl_utime, incl_stime, reci_rtime,
-                                        depth, called_p,
+                                        reci_rtime, depth, called_p,
                                         SvUTF8(called_sub) ? -(I32)called_len : (I32)called_len);
     OUTPUT:
         RETVAL
