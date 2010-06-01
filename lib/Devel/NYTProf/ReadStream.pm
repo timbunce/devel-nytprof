@@ -83,7 +83,7 @@ comma before any options.  Example:
 The F<nytprof.out> file contains a sequence of tagged chunks that are
 streamed out as the profiled program runs.  This documents how the
 chunks appear when presented to the callback function of the
-for_chunks() function for version 2.0 and 2.1 of the file format.
+for_chunks() function for version 4.0 of the file format.
 
 I<Note that the chunks and their arguments are liable to change
 between versions as NYTProf evolves.>
@@ -149,9 +149,7 @@ The path to the program that ran; same as C<$0> in the program itself.
 This chunk just say that from now on all chunks have been compressed
 in the file.
 
-=item PID_START => $pid, $parent_pid (v2.0)
-
-=item PID_START => $pid, $parent_pid, $start_time (v2.1)
+=item PID_START => $pid, $parent_pid, $start_time
 
 The process with the given $pid starts running (under the profiler).
 
@@ -194,9 +192,7 @@ Used to capture the source code of the program and modules profiled.
 Currently only used for C<< perl -e '...' >> and C<< perl - >> runs
 and requires use of the C<use_db_sub=1> option.
 
-=item PID_END => $pid (v2.0)
-
-=item PID_END => $pid, $end_time (v2.1)
+=item PID_END => $pid, $end_time
 
 The process with the given $pid is done running.  See the description
 of PID_START above.
