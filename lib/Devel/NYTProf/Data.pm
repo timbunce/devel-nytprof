@@ -147,9 +147,10 @@ sub collapse_evals_in {
         my %src_keyed;
         for my $fi (@$siblings) {
             my $key = $fi->src_digest;
-            # include extra info to segregate (especially when there's no src)
-            $key .= ',evals' if $fi->has_evals;
-            $key .= ',subs'  if $fi->subs_defined;
+            if (!$key) { # include extra info to segregate when there's no src
+                $key .= ',evals' if $fi->has_evals;
+                $key .= ',subs'  if $fi->subs_defined;
+            }
             push @{$src_keyed{$key}}, $fi;
         }
 
@@ -169,17 +170,14 @@ sub collapse_evals_in {
             $parent_fi->collapse_sibling_evals(@$siblings);
         }
         else {
-            # finnese: consider each distinct src in turn
+            # finesse: consider each distinct src in turn
 
             while ( my ($key, $src_same_fis) = each %src_keyed ) {
                 next if @$src_same_fis == 1; # unique src key
                 my @fids = map { $_->fid } @$src_same_fis;
 
-                if (grep { $_->subs_defined } @$src_same_fis) {
-                    warn "evals($key): collapsing skipped due to subs: @fids\n" if $trace >= 3;
-                }
-                elsif (grep { $_->has_evals(0) } @$src_same_fis) {
-                    warn "evals($key): collapsing skipped due to evals: @fids\n" if $trace >= 3;
+                if (grep { $_->has_evals(0) } @$src_same_fis) {
+                    warn "evals($key): collapsing skipped due to evals in @fids\n" if $trace >= 3;
                 }
                 else {
                     warn "evals($key): collapsing identical: @fids\n" if $trace >= 3;
@@ -703,7 +701,7 @@ sub file_line_range_of_sub {
     return if not $fid; # sub has no known file
 
     my $fileinfo = $fid && $self->fileinfo_of($fid)
-        or die "No fid_fileinfo for sub $sub fid '$fid'\n";
+        or croak "No fid_fileinfo for sub $sub fid '$fid'";
 
     return ($fileinfo->filename, $fid, $first, $last, $fileinfo);
 }

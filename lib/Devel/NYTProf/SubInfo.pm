@@ -112,6 +112,11 @@ sub fileinfo {
     $self->profile->fileinfo_of($fid);
 }
 
+sub _move_to_fileinfo {
+    my ($self, $fi) = @_;
+    $self->[NYTP_SIi_FID] = $fi->fid;
+}
+
 sub clone {             # shallow
     my $self = shift;
     return bless [ @$self ] => ref $self;
@@ -174,6 +179,24 @@ sub alter_fileinfo {
 }
 
 
+sub _rename {
+    my ($self, $newname) = @_;
+
+    my $oldname = $self->[NYTP_SIi_SUB_NAME];
+    return if $newname eq $oldname;
+
+    $self->[NYTP_SIi_SUB_NAME] = $newname;
+
+    $self->fileinfo->_rename_subinfo($self, $newname);
+
+    my $callers = $self->caller_fid_line_places || {};
+    for my $sc (map { values %$_ } values %$callers) {
+        my $caller_subnames = $sc->[NYTP_SCi_CALLING_SUB];
+    }
+
+}
+
+
 # merge details of another sub into this one
 # there are very few cases where this is sane thing to do
 # it's meant for merging things like anon-subs in evals
@@ -184,15 +207,17 @@ sub merge_in {
 
     # see also "case NYTP_TAG_SUB_CALLERS:" in load_profile_data_from_stream()
 
+    if ($new->[NYTP_SIi_SUB_NAME] ne $self->[NYTP_SIi_SUB_NAME]) {
+        $self->[NYTP_SIi_SUB_NAME]    = [ $self->[NYTP_SIi_SUB_NAME] ]
+            if not ref $self->[NYTP_SIi_SUB_NAME];
+        push @{$self->[NYTP_SIi_SUB_NAME]}, $new->[NYTP_SIi_SUB_NAME];
+    }
+
     $self->[NYTP_SIi_FIRST_LINE]  = _min($self->[NYTP_SIi_FIRST_LINE], $new->[NYTP_SIi_FIRST_LINE]);
     $self->[NYTP_SIi_LAST_LINE]   = _max($self->[NYTP_SIi_LAST_LINE],  $new->[NYTP_SIi_LAST_LINE]);
-
     $self->[NYTP_SIi_CALL_COUNT] += $new->[NYTP_SIi_CALL_COUNT];
     $self->[NYTP_SIi_INCL_RTIME] += $new->[NYTP_SIi_INCL_RTIME];
     $self->[NYTP_SIi_EXCL_RTIME] += $new->[NYTP_SIi_EXCL_RTIME];
-    $self->[NYTP_SIi_SUB_NAME]    = [ $self->[NYTP_SIi_SUB_NAME] ]
-        if not ref $self->[NYTP_SIi_SUB_NAME];
-    push @{$self->[NYTP_SIi_SUB_NAME]}, $new->[NYTP_SIi_SUB_NAME];
     $self->[NYTP_SIi_REC_DEPTH]   = max($self->[NYTP_SIi_REC_DEPTH], $new->[NYTP_SIi_REC_DEPTH]);
     # adding reci_rtime is correct only if one sub doesn't call the other
     $self->[NYTP_SIi_RECI_RTIME] += $new->[NYTP_SIi_RECI_RTIME]; # XXX

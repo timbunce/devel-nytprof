@@ -112,7 +112,17 @@ sub _remove_sub_defined {
 
 sub _add_new_sub_defined {
     my ($self, $subinfo) = @_;
-    $self->[NYTP_FIDi_SUBS_DEFINED()]->{$subinfo->subname} = $subinfo
+    my $subs_defined = $self->[NYTP_FIDi_SUBS_DEFINED()];
+    if (my $existing_si = $subs_defined->{$subinfo->subname}) {
+        warn sprintf "Merging %s sub into existing sub with same name in %s\n",
+            $subinfo->subname, $self->filename;
+        $existing_si->merge_in($subinfo);
+        @$subinfo = (); # zap!
+    }
+    else {
+        $subs_defined->{$subinfo->subname} = $subinfo;
+    }
+
 }
 
 
@@ -276,12 +286,23 @@ sub collapse_sibling_evals {
         # copy data from donor to survivor then delete donor
 
         # XXX nested evals not handled yet
-        warn "collapse_sibling_evals: nested evals not handled"
+        warn sprintf "collapse_sibling_evals: nested evals in %s not handled",
+                $donor_fi->filename
             if $donor_fi->has_evals;
 
-        # XXX subs defined not handled yet
-        warn "collapse_sibling_evals: subs defined not handled"
-            if $donor_fi->subs_defined;
+        if (my @subs_defined = $donor_fi->subs_defined) {
+            warn "collapse_sibling_evals: subs defined not fully handled"
+                if $trace;
+
+            for my $si (@subs_defined) {
+                warn sprintf "Moving fid %d sub %s\n",
+                    $donor_fi->fid, $si->subname
+                    if $trace;
+                $donor_fi->_remove_sub_defined($si);
+                $survivor->_add_new_sub_defined($si);
+                $si->_move_to_fileinfo($survivor);
+            }
+        }
 
         # '1' => { 'main::foo' => [ 1, '1.38e-05', '1.24e-05', ..., { 'main::RUNTIME' => undef } ] }
         if (my $sub_call_lines = $donor_fi->sub_call_lines) {
@@ -402,12 +423,12 @@ sub src_digest {
     return $self->cache->{src_digest} ||= do {
         my $srclines_array = $self->srclines_array || [];
         my $src = join "\n", @$srclines_array;
-        my @key = (
-            scalar @$srclines_array, # number of lines
-            length $src,             # total length
-            unpack("%32C*",$src),    # 32-bit checksum
-        );
-        join ",", @key;
+        # return empty string for digest if there's no src
+        ($src) ? join ",", (
+                    scalar @$srclines_array, # number of lines
+                    length $src,             # total length
+                    unpack("%32C*",$src) )   # 32-bit checksum
+                : '';
     };
 }
 
