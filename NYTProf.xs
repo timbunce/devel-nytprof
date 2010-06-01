@@ -4468,10 +4468,6 @@ load_profile_data_from_stream(loader_callback *callbacks,
                 SV *subname_sv = read_str(aTHX_ in, tmp_str1_sv);
                 unsigned int first_line = read_int(in);
                 unsigned int last_line  = read_int(in);
-                int extra_items = read_int(in);
-
-                while (extra_items-- > 0)
-                    (void)read_int(in);
 
                 callbacks[nytp_sub_info](state, nytp_sub_info, fid,
                                          first_line, last_line, subname_sv);

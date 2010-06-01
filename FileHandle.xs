@@ -1004,9 +1004,6 @@ NYTP_write_sub_info(NYTP_file ofile, unsigned int fid,
     if (retval < 1)
         return retval;
 
-    /* FIXME. Next time we change the file format, remove this:  */
-    /* how many extra items follow */
-    total += retval = output_int(ofile, 0);
     if (retval < 1)
         return retval;
 
