@@ -163,9 +163,9 @@ to calculate percentages.)
 Files are represented by integers called 'fid' (File IDs) and this chunk declares
 the mapping between these numbers and file path names.
 
-=item TIME_BLOCK => $eval_fid, $eval_line, $ticks, $fid, $line, $block_line, $sub_line
+=item TIME_BLOCK => $ticks, $fid, $line, $block_line, $sub_line
 
-=item TIME_LINE => $eval_fid, $eval_line, $ticks, $fid, $line
+=item TIME_LINE => $ticks, $fid, $line
 
 A TIME_BLOCK or TIME_LINE chunk is output each time the execution of
 the program leaves a statement.

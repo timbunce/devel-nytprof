@@ -4185,8 +4185,8 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("VERSION"), "uu"},
     {STR_WITH_LEN("ATTRIBUTE"), "33"},
     {STR_WITH_LEN("COMMENT"), "3"},
-    {STR_WITH_LEN("TIME_BLOCK"), "00uuuuu"},
-    {STR_WITH_LEN("TIME_LINE"), "00uuu"},
+    {STR_WITH_LEN("TIME_BLOCK"), "uuuuu"},
+    {STR_WITH_LEN("TIME_LINE"), "uuu"},
     {STR_WITH_LEN("DISCOUNT"), ""},
     {STR_WITH_LEN("NEW_FID"), "uuuuuuS"},
     {STR_WITH_LEN("SRC_LINE"), "uuS"},
@@ -4236,14 +4236,6 @@ load_perl_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 
     while ((type = *arglist++)) {
         switch(type) {
-        case '0':
-        {
-            /* These really should go, but need a flag day change in 
-               documented callback API.  */
-            sv_setuv(cb_args[i], 0);
-            XPUSHs(cb_args[i++]);
-            break;
-        }
         case 'u':
         {
             unsigned int u = va_arg(args, unsigned int);

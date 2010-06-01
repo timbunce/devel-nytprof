@@ -60,7 +60,7 @@ my @pending_fids;
 my %pending_subs;
 
 sub _time_block_or_line {
-    my ($tag, undef, undef, $ticks, $fid, $line, $block_line, $sub_line) = @_;
+    my ($tag, $ticks, $fid, $line, $block_line, $sub_line) = @_;
     my $is_line = $tag eq 'TIME_LINE';
 
     confess("No mapping for $fid") unless defined $fids{$fid};
