@@ -33,8 +33,8 @@ fid_sub_time	2	1	[ 0 2 ]
 profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
-sub_subinfo	main::BEGIN	[ 1 2 4 0 0 0 0 0 ]
-sub_subinfo	main::RUNTIME	[ 1 1 1 0 0 0 0 0 ]
-sub_subinfo	main::__ANON__[(eval 0)[test11.p:3]:1]	[ 2 1 1 2 0 0 0 0 ]
-sub_subinfo	main::__ANON__[(eval 0)[test11.p:3]:1]	called_by	1	5	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-sub_subinfo	main::__ANON__[(eval 0)[test11.p:3]:1]	called_by	1	6	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+sub_subinfo	main::BEGIN	[ 1:2-4 calls 0 times 0 0 0 0 ]
+sub_subinfo	main::RUNTIME	[ 1:1-1 calls 0 times 0 0 0 0 ]
+sub_subinfo	main::__ANON__[(eval 0)[test11.p:3]:1]	[ 2:1-1 calls 2 times 0 0 0 0 ]
+sub_subinfo	main::__ANON__[(eval 0)[test11.p:3]:1]	called_by	1:5	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+sub_subinfo	main::__ANON__[(eval 0)[test11.p:3]:1]	called_by	1:6	[ 1 0 0 0 0 0 0 main::RUNTIME ]

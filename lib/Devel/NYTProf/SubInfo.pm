@@ -328,24 +328,27 @@ sub normalize_for_test {
 sub dump {
     my ($self, $separator, $fh, $path, $prefix) = @_;
 
+    my ($fid, $l1, $l2, $calls) = @{$self}[
+        NYTP_SIi_FID, NYTP_SIi_FIRST_LINE, NYTP_SIi_LAST_LINE, NYTP_SIi_CALL_COUNT
+    ];
     my @values = @{$self}[
-        NYTP_SIi_FID, NYTP_SIi_FIRST_LINE, NYTP_SIi_LAST_LINE,
-        NYTP_SIi_CALL_COUNT, NYTP_SIi_INCL_RTIME, NYTP_SIi_EXCL_RTIME,
+        NYTP_SIi_INCL_RTIME, NYTP_SIi_EXCL_RTIME,
         NYTP_SIi_REC_DEPTH, NYTP_SIi_RECI_RTIME
     ];
-    printf $fh "%s[ %s ]\n",
-        $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
+    printf $fh "%s[ %s:%s-%s calls %s times %s ]\n",
+        $prefix,
+        map({ defined($_) ? $_ : 'undef' } $fid, $l1, $l2, $calls),
+        join(" ", map { defined($_) ? $_ : 'undef' } @values);
 
     my @caller_places = $self->caller_places;
     for my $cp (@caller_places) {
         my ($fid, $line, $sc) = @$cp;
         my @sc = @$sc;
         $sc[NYTP_SCi_CALLING_SUB] = join "|", keys %{ $sc[NYTP_SCi_CALLING_SUB] };
-        printf $fh "%s%s%s%d%s%d%s[ %s ]\n",
+        printf $fh "%s%s%s%d:%d%s[ %s ]\n",
             $prefix,
             'called_by', $separator,
-            $fid,  $separator,
-            $line, $separator,
+            $fid, $line, $separator,
             join(" ", map { defined($_) ? $_ : 'undef' } @sc);
     }
 }

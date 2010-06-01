@@ -27,4 +27,4 @@ fid_sub_time	2	45	[ 0 1 ]
 profile_modes	fid_block_time	block
 profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
-sub_subinfo	main::BEGIN	[ 1 0 0 0 0 0 0 0 ]
+sub_subinfo	main::BEGIN	[ 1:0-0 calls 0 times 0 0 0 0 ]
