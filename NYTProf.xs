@@ -4366,7 +4366,7 @@ load_profile_data_from_stream(loader_callback *callbacks,
             croak("NYTProf data format error while reading header");
         if (2 != sscanf(buffer, "NYTProf %d %d\n", &file_major, &file_minor))
             croak("NYTProf data format error while parsing header");
-        if (file_major != 3)
+        if (file_major != NYTP_FILE_MAJOR_VERSION)
             croak("NYTProf data format version %d.%d is not supported by NYTProf %s (which expects version %d.%d)",
                 file_major, file_minor, XS_VERSION, NYTP_FILE_MAJOR_VERSION, NYTP_FILE_MINOR_VERSION);
 
