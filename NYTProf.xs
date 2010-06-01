@@ -3491,8 +3491,6 @@ normalize_eval_seqn(pTHX_ SV *sv) {
     char *start = SvPV(sv, len);
     char *first_space;
 
-    return; /* XXX normalize_eval_seqn is currently disabled */
-
     /* effectively does
        s/(
           \(                  # first character is literal (
@@ -3783,9 +3781,6 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
     filename_sv = va_arg(args, SV *);
 
     va_end(args);
-
-    if (eval_file_num)
-        normalize_eval_seqn(aTHX_ filename_sv);
 
     if (trace_level >= 2) {
         char buf[80];
