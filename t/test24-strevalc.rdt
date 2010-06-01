@@ -35,11 +35,11 @@ fid_fileinfo	6	[ (eval 5)[test24-strevalc.p:8] 1 8 6 2 0 0 ]
 fid_fileinfo	6	eval	1	[ count 1 nested 0 merged 0 ]
 fid_fileinfo	7	[ (eval 6)[(eval 5)[test24-strevalc.p:8]:1] 6 1 7 2 0 0 ]
 fid_fileinfo	8	[ (eval 7)[test24-strevalc.p:8] 1 8 8 2 0 0 ]
-fid_fileinfo	8	sub	main::__ANON__[(eval 0)[test24-strevalc.p:8]:1]	1-1
-fid_fileinfo	8	call	1	main::__ANON__[(eval 0)[test24-strevalc.p:8]:1]	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+fid_fileinfo	8	sub	main::__ANON__[(eval 7)[test24-strevalc.p:8]:1]	1-1
+fid_fileinfo	8	call	1	main::__ANON__[(eval 7)[test24-strevalc.p:8]:1]	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	9	[ (eval 8)[test24-strevalc.p:8] 1 8 9 2 0 0 ]
-fid_fileinfo	9	sub	main::__ANON__[(eval 0)[test24-strevalc.p:8]:1]	1-1
-fid_fileinfo	9	call	1	main::__ANON__[(eval 0)[test24-strevalc.p:8]:1]	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+fid_fileinfo	9	sub	main::__ANON__[(eval 8)[test24-strevalc.p:8]:1]	1-1
+fid_fileinfo	9	call	1	main::__ANON__[(eval 8)[test24-strevalc.p:8]:1]	[ 1 0 0 0 0 0 0 main::RUNTIME ]
 fid_line_time	1	2	[ 0 1 ]
 fid_line_time	1	7	[ 0 1 ]
 fid_line_time	1	8	[ 0 6 ]
@@ -65,6 +65,7 @@ profile_modes	fid_line_time	line
 profile_modes	fid_sub_time	sub
 sub_subinfo	main::BEGIN	[ 1:0-0 calls 0 times 0 0 0 0 ]
 sub_subinfo	main::RUNTIME	[ 1:1-1 calls 0 times 0 0 0 0 ]
-sub_subinfo	main::__ANON__[(eval 0)[test24-strevalc.p:8]:1]	[ 8:1-1 calls 2 times 0 0 0 0 ]
-sub_subinfo	main::__ANON__[(eval 0)[test24-strevalc.p:8]:1]	called_by	8:1	[ 1 0 0 0 0 0 0 main::RUNTIME ]
-sub_subinfo	main::__ANON__[(eval 0)[test24-strevalc.p:8]:1]	called_by	9:1	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+sub_subinfo	main::__ANON__[(eval 7)[test24-strevalc.p:8]:1]	[ 8:1-1 calls 1 times 0 0 0 0 ]
+sub_subinfo	main::__ANON__[(eval 7)[test24-strevalc.p:8]:1]	called_by	8:1	[ 1 0 0 0 0 0 0 main::RUNTIME ]
+sub_subinfo	main::__ANON__[(eval 8)[test24-strevalc.p:8]:1]	[ 9:1-1 calls 1 times 0 0 0 0 ]
+sub_subinfo	main::__ANON__[(eval 8)[test24-strevalc.p:8]:1]	called_by	9:1	[ 1 0 0 0 0 0 0 main::RUNTIME ]

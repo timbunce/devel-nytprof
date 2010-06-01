@@ -3489,6 +3489,8 @@ normalize_eval_seqn(pTHX_ SV *sv) {
     char *start = SvPV(sv, len);
     char *first_space;
 
+    return; /* disabled, again */
+
     /* effectively does
        s/(
           \(                  # first character is literal (
