@@ -29,6 +29,7 @@ fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	sub	main::bar	7-9
 fid_fileinfo	1	sub	main::baz	11-17
 fid_fileinfo	1	sub	main::foo	3-5
+fid_fileinfo	1	sub	main::x	undef-undef
 fid_fileinfo	1	call	4	main::CORE:print	[ 3 0 0 0 0 0 0 main::foo ]
 fid_fileinfo	1	call	8	main::CORE:print	[ 1 0 0 0 0 0 0 main::bar ]
 fid_fileinfo	1	call	12	main::CORE:print	[ 1 0 0 0 0 0 0 main::baz ]

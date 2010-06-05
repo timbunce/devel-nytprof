@@ -39,6 +39,7 @@ fid_block_time	2	9	[ 0 1 ]
 fid_block_time	2	11	[ 0 1 ]
 fid_block_time	2	15	[ 0 1 ]
 fid_fileinfo	1	[ test62-subcaller1.p   1 2 0 0 ]
+fid_fileinfo	1	sub	Devel::NYTProf::Test::example_xsub	undef-undef
 fid_fileinfo	1	sub	MyTie::FETCH	7-7
 fid_fileinfo	1	sub	MyTie::STORE	8-8
 fid_fileinfo	1	sub	MyTie::TIESCALAR	6-6

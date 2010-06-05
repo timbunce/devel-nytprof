@@ -18,6 +18,7 @@ fid_block_time	1	2	[ 0 1 ]
 fid_block_time	1	4	[ 0 1 ]
 fid_block_time	1	5	[ 0 1 ]
 fid_fileinfo	1	[ test50-disable.p   1 2 0 0 ]
+fid_fileinfo	1	sub	DB::disable_profile	0-0
 fid_fileinfo	1	sub	main::BEGIN	0-0
 fid_fileinfo	1	sub	main::RUNTIME	1-1
 fid_fileinfo	1	call	2	DB::disable_profile	[ 1 0 0 0 0 0 0 main::RUNTIME ]

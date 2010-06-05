@@ -446,14 +446,14 @@ sub report_src_line {
             push @callers, [$fid, $_, @{$fid_line_info->{$_}}] for keys %$fid_line_info;
         }
         my $total_calls = sum(my @caller_calls = map { $_->[2] } @callers);
-        my $max_calls = max(@caller_calls);
-        my $avg_per_call = fmt_time($sub_info->incl_time / $total_calls);
 
-        push @prologue, sprintf "# spent %s within %s which was called%s",
+        push @prologue, sprintf "# spent %s within %s which was called%s:",
             fmt_incl_excl_time($sub_info->incl_time, $sub_info->excl_time),
-            $sub_info->subname, ($total_calls <= 1)
-            ? ""
-            : " $total_calls times, avg ${avg_per_call}/call:";
+            $sub_info->subname,
+            ($total_calls <= 1) ? ""
+                : sprintf(" %d times, avg %s/call",
+                    $total_calls, fmt_time($sub_info->incl_time / $total_calls));
+        my $max_calls = max(@caller_calls);
 
         # order by most frequent caller first, then by time
         @callers = sort { $b->[2] <=> $a->[2] || $b->[3] <=> $a->[3] } @callers;
@@ -461,16 +461,23 @@ sub report_src_line {
         for my $caller (@callers) {
             my ($fid, $line, $count, $incl_time, $excl_time, undef, undef,
                 undef, undef, $calling_subs) = @$caller;
-            my $caller_fi = $profile->fileinfo_of($fid);
 
-            my @subnames = sort keys %$calling_subs;
+            my @subnames = sort keys %{$calling_subs || {}};
             ref $_ and $_ = sprintf "%s (merge of %d subs)", $_->[0], scalar @$_
                 for @subnames;
             my $subname = (@subnames) ? " by " . join(" or ", @subnames) : "";
-            my $avg_time =
-                ($count <= 1)
-                ? ""
-                : sprintf ", avg %s/call", fmt_time($incl_time / $count);
+
+            my $caller_fi = $profile->fileinfo_of($fid);
+            if (!$caller_fi) { # should never happen
+                warn sprintf "Caller of %s, from fid %d line %d has no fileinfo (%s)",
+                    $sub_info, $fid, $line, $subname;
+                    die 2;
+                next;
+            }
+
+            my $avg_time = "";
+            $avg_time = sprintf ", avg %s/call", fmt_time($incl_time / $count)
+                if $count > 1;
             my $times = sprintf " (%s+%s)", fmt_time($excl_time),
                 fmt_time($incl_time - $excl_time);
 

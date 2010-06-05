@@ -43,7 +43,7 @@ rapidly.
 use warnings;
 use strict;
 
-use Carp;
+use Carp qw(carp croak cluck);
 use Cwd qw(getcwd);
 use Scalar::Util qw(blessed);
 
@@ -101,13 +101,13 @@ sub new {
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
 
-    # find called subs that have no file for
+    # find subs that have calls but no fid
     my @homeless_subs = grep { $_->calls and not $_->fid } values %$sub_subinfo;
     if (@homeless_subs) { # give them a home...
         # currently just the first existing fileinfo
         # XXX ought to create a new dummy fileinfo for them
         my $new_fi = $profile->fileinfo_of(1);
-        $_->alter_fileinfo(undef, $new_fi) for @homeless_subs;
+        $_->_alter_fileinfo(undef, $new_fi) for @homeless_subs;
     }
 
 
@@ -198,6 +198,18 @@ sub attributes {
 
 sub subname_subinfo_map {
     return { %{ shift->{sub_subinfo} } }; # shallow copy
+}
+
+sub _disconnect_subinfo {
+    my ($self, $si) = @_;
+    my $subname = $si->subname;
+    my $si2 = delete $self->{sub_subinfo}{$subname};
+    # sanity check
+    carp sprintf "disconnect_subinfo: deleted entry %s %s doesn't match argument %s %s",
+            ($si2) ? ($si2, $si2->subname) : ('undef', 'undef'),
+            $si, $subname
+        if $si2 != $si or $si2->subname ne $subname;
+    # do more?
 }
 
 
@@ -331,12 +343,12 @@ sub subinfo_of {
     my ($self, $subname) = @_;
 
     if (not defined $subname) {
-        carp "Can't resolve subinfo of undef value";
+        cluck "Can't resolve subinfo of undef value";
         return undef;
     }
 
     my $si = $self->{sub_subinfo}{$subname}
-        or warn carp "Can't resolve subinfo of '$subname'";
+        or cluck "Can't resolve subinfo of '$subname'";
 
     return $si;
 }
