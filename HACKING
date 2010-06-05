@@ -414,3 +414,13 @@ cases where the call to that sub wasn't recorded (eg pre 5.8.9 or the DBI's
 xs calling optimization) it'll be the most recent sub entry that was recorded.
 
 Generate extra report pages for xsubs in packages that don't have source code.
+
+USE_SITECUSTOMIZE causes two "Unable to determine line number" warnings at start of
+every program:
+  (-e:0)	nextstate
+  Unable to determine line number in -e
+  (-e:0)	gvsv(main::!)
+  (-e:0)	nextstate
+  Unable to determine line number in -e
+  (-e:0)	const(PV("/usr/local/perl512-dev/lib/site_perl/5.12.0/sitecustomize.pl"\0))
+Would be nice to find a way to silence the warnings in this case.

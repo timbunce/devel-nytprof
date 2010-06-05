@@ -19,6 +19,10 @@ TODO:
 * collapse evals with identical src that define identical anon-subs
   - also needs merging of those anon-subs (which got removed somewhere along the way)
 * Upload new example report and update the link in the docs
+* report should indicate subs that have been merged
+* report totals (evals and subs) should account for things merged away
+  eg perhaps add $si->subs_defined_count() that includes count of merged subs
+* resolve undef warnings from nytprofhtml on (eg) perlcritic of perlcritic
 
 Major changes:
 
@@ -36,6 +40,9 @@ Major changes:
     such as xsubs in packages with no perl source, are now shown in reports.
 
   Enabled savesrc=1 by default.
+
+  The data file format has changed so v3.x files can't be read.
+  The Devel::NYTProf::ReadStream interface has also changed.
 
 Other changes:
 
