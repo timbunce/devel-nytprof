@@ -3644,10 +3644,10 @@ typedef struct loader_state_profiler {
     unsigned int last_file_num;
     unsigned int last_line_num;
     int statement_discount;
-    int total_stmts_discounted;
-    int total_sub_calls;
-    int total_stmts_measured;
+    UV total_stmts_discounted;
+    UV total_stmts_measured;
     NV total_stmts_duration;
+    UV total_sub_calls;
     AV *fid_line_time_av;
     AV *fid_block_time_av;
     AV *fid_sub_time_av;
@@ -4650,9 +4650,9 @@ load_profile_to_hv(pTHX_ NYTP_file in)
         }
 
         if (show_summary_stats)
-            logwarn("Summary: statements profiled %d (%d-%d), sum of time %"NVff"s, profile spanned %"NVff"s\n",
-                state.total_stmts_measured - state.total_stmts_discounted,
-                state.total_stmts_measured, state.total_stmts_discounted,
+            logwarn("Summary: statements profiled %lu (=%lu-%lu), sum of time %"NVff"s, profile spanned %"NVff"s\n",
+                (unsigned long)(state.total_stmts_measured - state.total_stmts_discounted),
+                (unsigned long)state.total_stmts_measured, (unsigned long)state.total_stmts_discounted,
                 state.total_stmts_duration,
                 state.profiler_end_time - state.profiler_start_time);
     }
