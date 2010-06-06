@@ -262,11 +262,9 @@ sub subroutine_table {
 
         # package and subname
         my $subname = $sub->subname;
-        if (ref $subname) { # subs have been merged
-            push @hints, sprintf "merge of %d subs", scalar @$subname;
-            $subname = $subname->[0];
+        if (my $merged_sub_names = $sub->meta->{merged_sub_names}) {
+            push @hints, sprintf "merge of %d subs", 1+scalar @$merged_sub_names;
         }
-
         my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1, $2) : ('', $subname);
 
         # remove OWN filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
@@ -440,16 +438,21 @@ sub report_src_line {
     for my $sub_info (@$subdef_info) {
         my $callers = $sub_info->caller_fid_line_places;
         next unless $callers && %$callers;
+        my $subname = $sub_info->subname;
 
         my @callers;
         while (my ($fid, $fid_line_info) = each %$callers) {
-            push @callers, [$fid, $_, @{$fid_line_info->{$_}}] for keys %$fid_line_info;
+            for my $line (keys %$fid_line_info) {
+                my $sc = $fid_line_info->{$line};
+                warn "$linesrc $subname caller info missing" if !@$sc;
+                push @callers, [ $fid, $line, @$sc ];
+            }
         }
         my $total_calls = sum(my @caller_calls = map { $_->[2] } @callers);
 
         push @prologue, sprintf "# spent %s within %s which was called%s:",
             fmt_incl_excl_time($sub_info->incl_time, $sub_info->excl_time),
-            $sub_info->subname,
+            $subname,
             ($total_calls <= 1) ? ""
                 : sprintf(" %d times, avg %s/call",
                     $total_calls, fmt_time($sub_info->incl_time / $total_calls));
@@ -463,8 +466,6 @@ sub report_src_line {
                 undef, undef, $calling_subs) = @$caller;
 
             my @subnames = sort keys %{$calling_subs || {}};
-            ref $_ and $_ = sprintf "%s (merge of %d subs)", $_->[0], scalar @$_
-                for @subnames;
             my $subname = (@subnames) ? " by " . join(" or ", @subnames) : "";
 
             my $caller_fi = $profile->fileinfo_of($fid);
