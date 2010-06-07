@@ -619,7 +619,7 @@ Nested string evals can give rise to file names like
 
 	(eval 1047)[(eval 93)[/foo/bar.pm:42]:17]
 
-=head3 Collapsing
+=head3 Collapsing Evals
 
 Some applications execute a great many string eval statements. If NYTProf generated
 a report page for each one it would not only slow report generation but also
@@ -631,20 +631,32 @@ To try to balance these conflicting needs, NYTProf currently I<collapses
 uninteresting string eval siblings>.
 
 What does that mean? Well, for each source code line that executed any string
-evals NYTProf first gathers the corresponding eval 'files' (the siblings) into groups.
-Lines containing a string eval statement that only executed once aren't affected.
-The groups are keyed by source code (if available) and whether any subroutines
-were defined or any nested string evals were executed.
+evals, NYTProf first gathers the corresponding eval 'files' for that line
+(known as the 'siblings') into groups keyed by distinct source code.
 
 Then, for each of those groups of siblings, NYTProf will 'collapse' a group
-that shares the same source code and doesn't define any subs or execute any
-string evals.  Collapsing means to pick one sibling as the survivor and merge
-and delete all the data from the others into it.
+that shares the same source code and doesn' execute any string evals itself.
+Collapsing means to pick one sibling as the survivor and merge and delete all
+the data from the others into it.
 
 If there are a large number of sibling groups then the data for all of them are
 collapsed into one regardless.
 
 The report annotations will indicate when evals have been collapsed together.
+
+=head3 Collapsing Anonymous Subroutines
+
+Anonymous subroutines defined within string evals have names like this:
+
+	main::__ANON__[(eval 75)[/foo/bar.pm:42]:12]
+
+That anonymous subroutine was defined on line 12 of the source code executed by
+the string eval on line 42 of F</foo/bar.pm>. That was the 75th string eval
+executed by the program.
+
+Anonymous subroutines I<defined on the same line of sibling evals that get
+collapsed> are also collapsed. That is, the profile information is merged into
+one and the others are discarded.
 
 =head3 Timing
 

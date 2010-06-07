@@ -16,13 +16,10 @@ On eval report add links to sibling eval reports
 =head2 Changes in Devel::NYTProf 4.00 (svn 1253) 30th May 2010
 
 TODO:
-* collapse evals with identical src that define identical anon-subs
-  - also needs merging of those anon-subs (which got removed somewhere along the way)
 * Upload new example report and update the link in the docs
 * report should indicate subs that have been merged
 * report totals (evals and subs) should account for things merged away
   eg perhaps add $si->subs_defined_count() that includes count of merged subs
-* resolve undef warnings from nytprofhtml on (eg) perlcritic of perlcritic
 * document anon sub merging
 
 Major changes:
