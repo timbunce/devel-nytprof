@@ -5,7 +5,7 @@ use strict;
 use Carp;
 use List::Util qw(sum max);
 
-use Devel::NYTProf::Util qw(strip_prefix_from_paths);
+use Devel::NYTProf::Util qw(strip_prefix_from_paths trace_level);
 
 use Devel::NYTProf::Constants qw(
     NYTP_FIDf_HAS_SRC NYTP_FIDf_SAVE_SRC NYTP_FIDf_IS_FAKE NYTP_FIDf_IS_PMC
@@ -24,8 +24,6 @@ use constant {
     NYTP_FIDi_meta            => NYTP_FIDi_elements + 1,
     NYTP_FIDi_cache           => NYTP_FIDi_elements + 2,
 };
-
-my $trace = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) && $1; # XXX a hack
 
 sub filename  { shift->[NYTP_FIDi_FILENAME()] }
 sub eval_fid  { shift->[NYTP_FIDi_EVAL_FID()] }
@@ -272,7 +270,7 @@ sub collapse_sibling_evals {
         # copy data from donor to survivor_fi then delete donor
         warn sprintf "collapse_sibling_evals: processing donor fid %d: %s\n",
                 $donor_fi->fid, $donor_fi->filename
-            if $trace;
+            if trace_level();
 
         # XXX nested evals not handled yet
         warn sprintf "collapse_sibling_evals: nested evals in %s not handled",
@@ -284,10 +282,10 @@ sub collapse_sibling_evals {
             for my $si (@subs_defined) {
                 warn sprintf " - moving from fid %d: sub %s\n",
                         $donor_fi->fid, $si->subname
-                    if $trace;
+                    if trace_level();
                 $si->_alter_fileinfo($donor_fi, $survivor_fi);
                 warn sprintf " - moving done\n"
-                    if $trace;
+                    if trace_level();
             }
         }
 
@@ -359,7 +357,7 @@ sub collapse_sibling_evals {
             warn sprintf "collapse_sibling_evals: merging %d subs into %s: %s\n",
                     scalar @$to_merge, $survivor_subname,
                     join ", ", map { $_->subname } @$to_merge
-                if $trace;
+                if trace_level();
 
             for my $delete_si (@$to_merge) {
                 my $delete_subname = $delete_si->subname;
@@ -389,7 +387,7 @@ sub collapse_sibling_evals {
     }
 
     warn sprintf "collapse_sibling_evals done\n"
-        if $trace;
+        if trace_level();
 
     return $survivor_fi;
 }

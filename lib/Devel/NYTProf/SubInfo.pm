@@ -7,6 +7,9 @@ use Carp;
 use List::Util qw(sum min max);
 use Data::Dumper;
 
+use Devel::NYTProf::Util qw(
+    trace_level
+);
 use Devel::NYTProf::Constants qw(
     NYTP_SIi_FID NYTP_SIi_FIRST_LINE NYTP_SIi_LAST_LINE
     NYTP_SIi_CALL_COUNT NYTP_SIi_INCL_RTIME NYTP_SIi_EXCL_RTIME
@@ -26,8 +29,6 @@ use constant {
     NYTP_SIi_cache           => NYTP_SIi_elements + 2,
 };
 
-
-my $trace = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) && $1; # XXX a hack
 
 sub fid        { shift->[NYTP_SIi_FID] || 0 }
 
@@ -185,7 +186,7 @@ sub _alter_called_by_fileinfo {
 
             warn sprintf "Altering %s to change calls from fid %d to be from fid %d\n",
                     $self->subname, $remove_fid, $new_fid
-                if $trace;
+                if trace_level();
 
             if (my $new_cb = $called_by->{$new_fid}) {
                 # need to merge $cb into $new_cb
@@ -216,7 +217,7 @@ sub merge_in {
 
     warn sprintf "Merging sub %s into %s (%s)\n",
             $donor_subname, $self_subname, join(" ", %opts)
-        if $trace;
+        if trace_level();
 
     # see also "case NYTP_TAG_SUB_CALLERS:" in load_profile_data_from_stream()
     push @{ $self->meta->{merged_sub_names} }, $donor->subname;
@@ -257,7 +258,7 @@ sub _merge_in_caller_info {
 
     if (!@$src_line_info) {
         carp sprintf "_merge_in_caller_info%s skipped (empty donor)", $tag
-            if $trace;
+            if trace_level();
         return;
     }
     if (!@$dst_line_info) {
@@ -265,7 +266,7 @@ sub _merge_in_caller_info {
         $dst_line_info->[NYTP_SCi_CALLING_SUB] = undef;
     }
 
-    if ($trace) {
+    if (trace_level()) {
         carp sprintf "_merge_in_caller_info%s merging:", $tag;
         warn sprintf " . %s\n", fmt_sc($src_line_info);
         warn sprintf " + %s\n", fmt_sc($dst_line_info);
@@ -286,7 +287,7 @@ sub _merge_in_caller_info {
     $dst_cs->{$_} = $src_cs->{$_} for keys %$src_cs;
 
     warn sprintf " = %s\n", fmt_sc($dst_line_info)
-        if $trace;
+        if trace_level();
 
     @$src_line_info = (); # zap!
 

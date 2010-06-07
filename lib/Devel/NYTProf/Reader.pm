@@ -28,6 +28,7 @@ use Devel::NYTProf::Util qw(
     strip_prefix_from_paths
     html_safe_filename
     calculate_median_absolute_deviation
+    trace_level
 );
 
 # These control the limits for what the script will consider ok to severe times
@@ -36,7 +37,6 @@ use constant SEVERITY_SEVERE => 2.0;    # above this deviation, a bottleneck
 use constant SEVERITY_BAD    => 1.0;
 use constant SEVERITY_GOOD   => 0.5;    # within this deviation, okay
 
-my $trace = 0;
 
 # Static class variables
 our $FLOAT_FORMAT = $Config{nvfformat};
@@ -222,7 +222,7 @@ sub _generate_report {
         warn sprintf "%s %s max lines: stmts %d, subcalls %d, subdefs %d, evals %d\n",
                 $filestr, $LEVEL, scalar @$lines_array,
                 $subcalls_max_line, $subdefs_max_line, $evals_max_line
-            if $trace;
+            if trace_level();
 
         my %stats_accum;           # holds all line times. used to find median
         my %stats_by_line;         # holds individual line stats
@@ -286,7 +286,7 @@ sub _generate_report {
             }
 
             warn "$linenum: @{[ %{ $stats_by_line{$linenum} } ]}\n"
-                if $trace >= 3 && $stats_by_line{$linenum};
+                if trace_level() >= 3 && $stats_by_line{$linenum};
         }
 
         warn "unprocessed keys in subdefs_at_line: @{[ keys %$subdefs_at_line ]}\n"
@@ -384,7 +384,7 @@ sub _generate_report {
 
         if (my $z = $stats_by_line{0}) {
             # typically indicates cases where we could do better
-            if ($trace) {
+            if (trace_level()) {
                 warn "$filestr has unexpected info for line 0: @{[ %$z ]}\n";
                 # sub defs: used to be xsubs but they're handled separately now
                 # so there are no known causes of this any more

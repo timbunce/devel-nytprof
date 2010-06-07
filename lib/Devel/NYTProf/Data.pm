@@ -50,11 +50,13 @@ use Scalar::Util qw(blessed);
 use Devel::NYTProf::Core;
 use Devel::NYTProf::FileInfo;
 use Devel::NYTProf::SubInfo;
-use Devel::NYTProf::Util qw(make_path_strip_editor strip_prefix_from_paths get_abs_paths_alternation_regex);
+use Devel::NYTProf::Util qw(
+    make_path_strip_editor strip_prefix_from_paths get_abs_paths_alternation_regex
+    trace_level
+);
 
 our $VERSION = '4.00';
 
-my $trace = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) && $1; # XXX a hack
 
 =head2 new
 
@@ -154,7 +156,7 @@ sub collapse_evals_in {
             push @{$src_keyed{$key}}, $fi;
         }
 
-        if ($trace >= 1) {
+        if (trace_level() >= 1) {
             my @subs  = map { $_->subs_defined } @$siblings;
             my @evals = map { $_->has_evals(0) } @$siblings;
             warn sprintf "%d:%d: has %d sibling evals (subs %d, evals %d, keys %d) in %s; fids: %s\n",
@@ -177,10 +179,10 @@ sub collapse_evals_in {
                 my @fids = map { $_->fid } @$src_same_fis;
 
                 if (grep { $_->has_evals(0) } @$src_same_fis) {
-                    warn "evals($key): collapsing skipped due to evals in @fids\n" if $trace >= 3;
+                    warn "evals($key): collapsing skipped due to evals in @fids\n" if trace_level() >= 3;
                 }
                 else {
-                    warn "evals($key): collapsing identical: @fids\n" if $trace >= 3;
+                    warn "evals($key): collapsing identical: @fids\n" if trace_level() >= 3;
                     my $fi = $parent_fi->collapse_sibling_evals(@$src_same_fis);
                     @$src_same_fis = ( $fi ); # update list in-place
                 }
