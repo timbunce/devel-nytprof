@@ -16,7 +16,7 @@ my $src_code = join("", <DATA>);
 
 run_test_group( {
     extra_options => { start => 'begin' },
-    extra_test_count => 17,
+    extra_test_count => 8,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
