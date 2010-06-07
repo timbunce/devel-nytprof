@@ -15,12 +15,6 @@ On eval report add links to sibling eval reports
 
 =head2 Changes in Devel::NYTProf 4.00 (svn 1253) 30th May 2010
 
-TODO:
-* Upload new example report and update the link in the docs
-* report totals (evals and subs) should account for things merged away
-  eg perhaps add $si->subs_defined_count() that includes count of merged subs
-* document anon sub merging
-
 Major changes:
 
   Added profile reporting of code executed in string evals.

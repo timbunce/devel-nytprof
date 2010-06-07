@@ -878,22 +878,19 @@ This section lists other clock sources that NYTProf may use.
 =head3 gettimeofday
 
 This is the traditional high resolution time of day interface for most
-unix-like systems. It's used on platforms like Mac OS X which don't
-(yet) support C<clock_gettime()>.
+unix-like systems.  With this clock NYTProf outputs timings as a count of 1
+microsecond ticks.
 
-With this clock NYTProf outputs timings as a count of 1 microsecond ticks.
+=head3 mach_absolute_time
 
-=for comment re high resolution timing for OS X:
-http://developer.apple.com/qa/qa2004/qa1398.html
-http://www.macresearch.org/tutorial_performance_and_time
-http://cocoasamurai.blogspot.com/2006/12/tip-when-you-must-be-precise-be-mach.html
-http://boredzo.org/blog/archives/2006-11-26/how-to-use-mach-clocks
+On Mac OS X the mach_absolute_time() function is used. With this clock NYTProf
+outputs timings as a count of 100 nanosecond ticks.
 
 =head3 Time::HiRes
 
-On systems which don't support C<clock_gettime()> or C<gettimeofday()>
-NYTProf falls back to using the L<Time::HiRes> module.
-With this clock NYTProf outputs timings as a count of 1 microsecond ticks.
+On systems which don't support other clocks, NYTProf falls back to using the
+L<Time::HiRes> module.  With this clock NYTProf outputs timings as a count of 1
+microsecond ticks.
 
 =head2 Clock References
 
@@ -1007,7 +1004,7 @@ L<http://blog.timbunce.org/2008/07/16/nytprof-v2-the-background-story/>.
 
 Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
 
-Blog posts L<http://blog.timbunce.org/tag/nytprof/> and L<http://technorati.com/search/nytprof>
+Blog posts L<http://blog.timbunce.org/tag/nytprof/>
 
 Public SVN Repository and hacking instructions at L<http://code.google.com/p/perl-devel-nytprof/>
 
