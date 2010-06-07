@@ -17,7 +17,6 @@ On eval report add links to sibling eval reports
 
 TODO:
 * Upload new example report and update the link in the docs
-* report should indicate subs that have been merged
 * report totals (evals and subs) should account for things merged away
   eg perhaps add $si->subs_defined_count() that includes count of merged subs
 * document anon sub merging

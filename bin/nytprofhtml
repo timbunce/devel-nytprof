@@ -485,6 +485,9 @@ sub report_src_line {
             ($total_calls <= 1) ? ""
                 : sprintf(" %d times, avg %s/call",
                     $total_calls, fmt_time($sub_info->incl_time / $total_calls));
+        push @prologue, sprintf "# (data for this subroutine includes %d others that were merged with it)",
+                scalar @{$sub_info->meta->{merged_sub_names}}
+            if $sub_info->meta->{merged_sub_names};
         my $max_calls = max(@caller_calls);
 
         # order by most frequent caller first, then by time
@@ -596,8 +599,8 @@ sub report_src_line {
                 my $sub_count  = @subs_defined;
                 my $call_count = sum map { $_->calls } @subs_defined;
                 my $excl_time  = sum map { $_->excl_time } @subs_defined;
-                $extra .= sprintf "<br /># incl. %s spent executing %d call%s to %d sub%s defined therein.",
-                        fmt_time($excl_time, 5),
+                $extra .= sprintf "<br /># includes %s spent executing %d call%s to %d sub%s defined therein.",
+                        fmt_time($excl_time, 2),
                         $call_count, ($call_count != 1) ? 's' : '',
                         $sub_count,  ($sub_count  != 1) ? 's' : ''
                     if $call_count;
