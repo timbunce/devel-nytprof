@@ -141,6 +141,7 @@ sub collapse_evals_in {
         $profile->collapse_evals_in($fi); # recurse first
         push @{ $evals_on_line{$fi->eval_line} }, $fi;
     }
+
     while ( my ($line, $siblings) = each %evals_on_line) {
 
         next if @$siblings == 1;
@@ -164,6 +165,16 @@ sub collapse_evals_in {
                     scalar keys %src_keyed,
                     $parent_fi->filename,
                     join(" ", map { $_->fid } @$siblings);
+            if (trace_level() >= 2) {
+                for my $si (@subs) {
+                    warn sprintf "%d:%d evals: define sub %s in fid %s\n",
+                            $parent_fid, $line, $si->subname, $si->fid;
+                }
+                for my $fi (@evals) {
+                    warn sprintf "%d:%d evals: execute eval %s\n",
+                            $parent_fid, $line, $fi->filename;
+                }
+            }
         }
 
         # if 'too many' distinct eval source keys then simply collapse all
@@ -246,7 +257,8 @@ sub package_subinfo_map {
 
     for my $subinfos (values %to_merge) {
         my $subinfo = shift(@$subinfos)->clone;
-        $subinfo->merge_in($_) for @$subinfos;
+        $subinfo->merge_in($_, src_keep => 1)
+            for @$subinfos;
         # replace the many with the one
         @$subinfos = ($subinfo);
     }

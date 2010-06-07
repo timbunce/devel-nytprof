@@ -3993,7 +3993,9 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
 
     subinfo_av = lookup_subinfo_av(aTHX_ called_subname_sv, state->sub_subinfo_hv);
 
-    /* { caller_fid => { caller_line => [ count, incl_time, ... ] } } */
+    /* subinfo_av's NYTP_SIi_CALLED_BY element is a hash ref:
+     * { caller_fid => { caller_line => [ count, incl_time, ... ] } }
+     */
     sv = *av_fetch(subinfo_av, NYTP_SIi_CALLED_BY, 1);
     if (!SvROK(sv))                   /* autoviv */
         sv_setsv(sv, newRV_noinc((SV*)newHV()));
@@ -4020,6 +4022,7 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
              */
             logwarn("Merging extra sub caller info for %s called at %d:%d\n",
                     SvPV_nolen(called_subname_sv), fid, line);
+
         av = (AV *)SvRV(sv);
         sv = *av_fetch(av, NYTP_SCi_CALL_COUNT, 1);
         sv_setuv(sv, (SvOK(sv)) ? SvUV(sv) + count : count);
@@ -4036,21 +4039,25 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
         sv = *av_fetch(av, NYTP_SCi_REC_DEPTH,  1);
         if (!SvOK(sv) || SvUV(sv) < rec_depth) /* max() */
             sv_setuv(sv, rec_depth);
-
         /* XXX temp hack way to store calling subname */
         sv = *av_fetch(av, NYTP_SCi_CALLING_SUB, 1);
         if (!SvROK(sv))               /* autoviv */
             sv_setsv(sv, newRV_noinc((SV*)newHV()));
         (void)hv_fetch_ent((HV *)SvRV(sv), caller_subname_sv, 1, 0);
 
-        /* add sub call to NYTP_FIDi_SUBS_CALLED hash of fid making the call */
-        /* => { line => { subname => [ ... ] } } */
+        /* also reference this sub call info array from the calling fileinfo
+         * fi->[NYTP_FIDi_SUBS_CALLED] => { line => { subname => [ ... ] } }
+         */
         fi = SvRV(*av_fetch(state->fid_fileinfo_av, fid, 1));
         fi = *av_fetch((AV *)fi, NYTP_FIDi_SUBS_CALLED, 1);
         fi = *hv_fetch((HV*)SvRV(fi), text, len, 1);
         if (!SvROK(fi))               /* autoviv */
             sv_setsv(fi, newRV_noinc((SV*)newHV()));
         fi = HeVAL(hv_fetch_ent((HV *)SvRV(fi), called_subname_sv, 1, 0));
+        if (1) { /* ref a clone of the sub call info array */
+            AV *av2 = av_make(AvFILL(av)+1, AvARRAY(av));
+            av = av2;
+        }
         sv_setsv(fi, newRV_inc((SV *)av));
     }
     else {                            /* is meta-data about sub */

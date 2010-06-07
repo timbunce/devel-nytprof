@@ -17,6 +17,7 @@ use Devel::NYTProf::Constants qw(
 
     NYTP_SCi_CALL_COUNT NYTP_SCi_INCL_RTIME NYTP_SCi_EXCL_RTIME NYTP_SCi_RECI_RTIME
     NYTP_SCi_REC_DEPTH NYTP_SCi_CALLING_SUB
+    NYTP_SCi_elements
 );
 
 # extra constants for private elements
@@ -268,6 +269,7 @@ sub collapse_sibling_evals {
 
     for my $donor_fi (@donors) {
         # copy data from donor to survivor_fi then delete donor
+
         warn sprintf "collapse_sibling_evals: processing donor fid %d: %s\n",
                 $donor_fi->fid, $donor_fi->filename
             if trace_level();
@@ -277,6 +279,8 @@ sub collapse_sibling_evals {
                 $donor_fi->filename
             if $donor_fi->has_evals;
 
+        # for each sub defined in the donor,
+        # move the sub definition to the survivor
         if (my @subs_defined = $donor_fi->subs_defined) {
 
             for my $si (@subs_defined) {
@@ -289,6 +293,8 @@ sub collapse_sibling_evals {
             }
         }
 
+        # for each sub call made by the donor,
+        # move the sub calls to the survivor
         # 1 => { 'main::foo' => [ 1, '1.38e-05', '1.24e-05', ..., { 'main::RUNTIME' => undef } ] }
         if (my $sub_call_lines = $donor_fi->sub_call_lines) {
 
@@ -299,17 +305,19 @@ sub collapse_sibling_evals {
                 my $s_sc_hash = $s_scl->{$line} ||= {};
                 for my $subname (keys %$sc_hash ) {
                     my $s_sc_info = $s_sc_hash->{$subname} ||= [];
+                    my $sc_info   = delete $sc_hash->{$subname};
+                    Devel::NYTProf::SubInfo::_merge_in_caller_info($s_sc_info, $sc_info,
+                        tag => "line $line calls to $subname",
+                    );
 
-                    Devel::NYTProf::SubInfo::_merge_in_caller_info($s_sc_info, delete $sc_hash->{$subname}, "eval"); # XXX
                     $subnames_called_by_donor{$subname}++;
                 }
             }
             %$sub_call_lines = (); # zap
 
-            # update subinfo
+            # update subinfo (NYTP_SIi_CALLED_BY)
             $profile->subinfo_of($_)->_alter_called_by_fileinfo($donor_fi, $survivor_fi)
                 for keys %subnames_called_by_donor;
-
         }
 
         # copy line time data
@@ -337,11 +345,13 @@ sub collapse_sibling_evals {
         $donor_fi->_nullify;
     }
 
+    # now the fid merging is complete...
     # look for any anon subs that are effectively duplicates
     # (ie have the same name except for eval seqn)
     # if more than one for any given name we merge them
     if (my @subs_defined = $survivor_fi->subs_defined_sorted) {
-        # bucket by normalized name
+
+        # bucket anon subs by normalized name
         my %newname;
         for my $si (@subs_defined) {
             next unless $si->is_anon;
@@ -370,12 +380,10 @@ sub collapse_sibling_evals {
                     for my $subs_called_on_line (values %{ $caller_fi->sub_call_lines }) {
                         my $sc_info = delete $subs_called_on_line->{$delete_subname}
                             or next;
-                        if (my $s_sc_info = $subs_called_on_line->{$survivor_subname}) {
-                            Devel::NYTProf::SubInfo::_merge_in_caller_info($s_sc_info, $sc_info); # XXX
-                        }
-                        else {
-                            $subs_called_on_line->{$survivor_subname} = $sc_info;
-                        }
+                        my $s_sc_info = $subs_called_on_line->{$survivor_subname} ||= [];
+                        Devel::NYTProf::SubInfo::_merge_in_caller_info($s_sc_info, $sc_info,
+                            tag => "collapse eval $delete_subname",
+                        );
                     }
                 }
 

@@ -23,6 +23,7 @@ TODO:
 * report totals (evals and subs) should account for things merged away
   eg perhaps add $si->subs_defined_count() that includes count of merged subs
 * resolve undef warnings from nytprofhtml on (eg) perlcritic of perlcritic
+* document anon sub merging
 
 Major changes:
 

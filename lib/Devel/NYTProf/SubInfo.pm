@@ -183,21 +183,20 @@ sub _alter_called_by_fileinfo {
         my $cb = delete $called_by->{$remove_fid};
 
         if ($cb && $new_fid) {
+            my $new_cb = $called_by->{$new_fid} ||= {};
 
-            warn sprintf "Altering %s to change calls from fid %d to be from fid %d\n",
+            warn sprintf "_alter_called_by_fileinfo: %s from fid %d to fid %d\n",
                     $self->subname, $remove_fid, $new_fid
                 if trace_level();
 
-            if (my $new_cb = $called_by->{$new_fid}) {
-                # need to merge $cb into $new_cb
-                while ( my ($line, $cb_li) = each %$cb ) {
-                    my $dst_line_info = $new_cb->{$line} ||= [];
-                    _merge_in_caller_info($dst_line_info, delete $cb->{$line}, $self->subname);
-                }
+            # merge $cb into $new_cb
+            while ( my ($line, $cb_li) = each %$cb ) {
+                my $dst_line_info = $new_cb->{$line} ||= [];
+                _merge_in_caller_info($dst_line_info, delete $cb->{$line},
+                    tag => "$line:".$self->subname,
+                );
             }
-            else {
-                $called_by->{$new_fid} = $cb;
-            }
+
         }
     }
 
@@ -235,16 +234,19 @@ sub merge_in {
     my $dst_called_by = $self ->[NYTP_SIi_CALLED_BY] ||= {};
     my $src_called_by = $donor->[NYTP_SIi_CALLED_BY] ||  {};
 
+    $opts{opts} ||= "merge in $donor_subname";
+
     # iterate over src and merge into dst
     while (my ($fid, $src_line_hash) = each %$src_called_by) {
 
         my $dst_line_hash = $dst_called_by->{$fid};
-        #if (!$dst_line_hash) { $dst_called_by->{$fid} = $src_line_hash; next; }
 
         # merge lines in %$src_line_hash into %$dst_line_hash
         for my $line (keys %$src_line_hash) {
             my $dst_line_info = $dst_line_hash->{$line} ||= [];
-            _merge_in_caller_info($dst_line_info, delete $src_line_hash->{$line}, "merge in $donor_subname");
+            my $src_line_info = $src_line_hash->{$line};
+            delete $src_line_hash->{$line} unless $opts{src_keep};
+            _merge_in_caller_info($dst_line_info, $src_line_info, %opts);
         }
     }
 
@@ -253,23 +255,23 @@ sub merge_in {
 
 
 sub _merge_in_caller_info {
-    my ($dst_line_info, $src_line_info, $tag) = @_;
-    $tag = ($tag) ? " $tag" : "";
+    my ($dst_line_info, $src_line_info, %opts) = @_;
+    my $tag = ($opts{tag}) ? " $opts{tag}" : "";
 
     if (!@$src_line_info) {
         carp sprintf "_merge_in_caller_info%s skipped (empty donor)", $tag
             if trace_level();
         return;
     }
+
+    if (trace_level()) {
+        carp sprintf "_merge_in_caller_info%s merging from $src_line_info -> $dst_line_info:", $tag;
+        warn sprintf " . %s\n", fmt_sc($src_line_info);
+        warn sprintf " + %s\n", fmt_sc($dst_line_info);
+    }
     if (!@$dst_line_info) {
         @$dst_line_info = (0) x NYTP_SCi_elements;
         $dst_line_info->[NYTP_SCi_CALLING_SUB] = undef;
-    }
-
-    if (trace_level()) {
-        carp sprintf "_merge_in_caller_info%s merging:", $tag;
-        warn sprintf " . %s\n", fmt_sc($src_line_info);
-        warn sprintf " + %s\n", fmt_sc($dst_line_info);
     }
 
     # merge @$src_line_info into @$dst_line_info
@@ -289,13 +291,12 @@ sub _merge_in_caller_info {
     warn sprintf " = %s\n", fmt_sc($dst_line_info)
         if trace_level();
 
-    @$src_line_info = (); # zap!
-
     return;
 }
 
 sub fmt_sc {
     my ($sc) = @_;
+    return "(empty)" if !@$sc;
     my $dst_cs = $sc->[NYTP_SCi_CALLING_SUB]||{};
     my $by = join " & ", sort keys %$dst_cs;
     sprintf "calls %d%s",
