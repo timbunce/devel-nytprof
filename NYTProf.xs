@@ -1399,12 +1399,13 @@ DB_stmt(pTHX_ COP *cop, OP *op)
              * treats those as 'line 0', so we try not to warn in those cases.
              */
             char *pkg_name = CopSTASHPV(cop);
-            int is_preamble = (PL_scopestack_ix <= 6 && strEQ(pkg_name,"main"));
+            int is_preamble = (PL_scopestack_ix <= 7 && strEQ(pkg_name,"main"));
 
             /* op is null when called via finish_profile called by END */
             if (!is_preamble && op) {
                 /* warn() can't either, in the cases I've encountered */
-                logwarn("Unable to determine line number in %s\n", OutCopFILE(cop));
+                logwarn("Unable to determine line number in %s (ssix%d)\n",
+                    OutCopFILE(cop), PL_scopestack_ix);
                 if (trace_level > 5)
                     do_op_dump(1, PerlIO_stderr(), (OP*)cop);
             }
