@@ -423,4 +423,10 @@ every program:
   (-e:0)	nextstate
   Unable to determine line number in -e
   (-e:0)	const(PV("/usr/local/perl512-dev/lib/site_perl/5.12.0/sitecustomize.pl"\0))
+because it unshifts some code onto PL_preambleav (like -M/-V etc):
+"BEGIN { do {local $!; -f '%s/sitecustomize.pl'} && do '%s/sitecustomize.pl' }"
+which toke.c then concats into PL_linestr in the 'PL_preambled' block
+(where PL_perldb, PL_minus_E, PL_minus_n, PL_minus_p are handled).
 Would be nice to find a way to silence the warnings in this case.
+Even better if the profiler could know it was profiling preamble code.
+I can't see an obvious way but I'm fairly clueless re toke.c
