@@ -68,6 +68,15 @@ sub has_evals {
 }
 
 
+sub sibling_evals {
+    my ($self) = @_;
+    my $parent_fi = $self->eval_fi
+        or return; # not an eval
+    my $eval_line = $self->eval_line;
+    return grep { $_->eval_line == $eval_line } $parent_fi->has_evals;
+}
+
+
 sub _nullify {
     my $self = shift;
     @$self = (); # Zap!

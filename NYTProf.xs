@@ -1405,7 +1405,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
             if (!is_preamble && op) {
                 /* warn() can't either, in the cases I've encountered */
                 logwarn("Unable to determine line number in %s (ssix%d)\n",
-                    OutCopFILE(cop), PL_scopestack_ix);
+                    OutCopFILE(cop), (int)PL_scopestack_ix);
                 if (trace_level > 5)
                     do_op_dump(1, PerlIO_stderr(), (OP*)cop);
             }

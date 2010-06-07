@@ -145,6 +145,21 @@ $reporter->set_param(
                     $reporter->href_for_file($fi->eval_fi, $fi->eval_line),
                     _escape_html($fi->eval_fi->filename), $fi->eval_line
             ];
+
+            my @sibling_html;
+            for my $e_fi ($fi->sibling_evals) {
+                if ($e_fi == $fi) {
+                    push @sibling_html, 1+@sibling_html;
+                }
+                else {
+                    push @sibling_html, sprintf qq{<a %s>%d</a>},
+                        $reporter->href_for_file($e_fi),
+                        1+@sibling_html;
+                }
+            }
+            push @intro_rows, [ "Sibling evals",
+                join ", ", @sibling_html
+            ] if @sibling_html >= 2;
         }
 
         my $intro_table = join "\n", map {
@@ -170,18 +185,31 @@ $reporter->set_param(
     'merged_fids',
     sub {
         my ($profile, $fi) = @_;
+
         my $merged_fids = $fi->meta->{merged_fids};
-        my $extra = '';
-        $extra = qq{
+        my $evals_shown = 1 + scalar @$merged_fids;
+
+        my @siblings = $fi->sibling_evals;
+        my $merged_siblings = sum(map { scalar @{$_->meta->{merged_fids}} } @siblings);
+        my $evals_total = @siblings + $merged_siblings;
+
+        my @msg;
+        push @msg, sprintf qq{
+            The data used to generate this report page was merged from %s<br />
+            of the string eval on line %d of %s.
+        },  ($evals_shown == $evals_total)
+                ? sprintf("all %d executions", $evals_shown)
+                : sprintf("%d of the %d executions", $evals_shown, $evals_total),
+            $fi->eval_line, $fi->eval_fi->filename;
+
+        push @msg, qq{
             The source code shown below is the text of just one of the calls to the eval.<br />\n
             This report page might not make much sense because the argument source code of those eval calls varied.<br />\n
         } if $fi->meta->{merged_fids_src_varied};
 
         return sprintf qq{<br /><div class="warn_title">NOTE!</div>\n
-            <div class="warn">The data used to generate this report page was merged from %d executions<br />
-            of the string eval on line %d of %s.<br />
-            %s</div>
-        }, 1+scalar @$merged_fids, $fi->eval_line, $fi->eval_fi->filename, $extra;
+            <div class="warn">%s</div>
+        }, join "<br />", @msg;
     },
 );
 
