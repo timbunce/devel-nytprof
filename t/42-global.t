@@ -15,7 +15,7 @@ my $src_code = join("", <DATA>);
 
 run_test_group( {
     extra_options => { start => 'begin' },
-    extra_test_count => 15,
+    extra_test_count => 17,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
@@ -66,6 +66,9 @@ run_test_group( {
         is $sub->calls, 0, 'main::RUNTIME should be called 0 times';
         ok $sub = $subs2->{'main::foo'};
         is $sub->calls, 2, 'main::foo should be called 2 times';
+
+        ok my $called_by_subnames = $sub->called_by_subnames;
+        is keys %$called_by_subnames, 2, 'should be called from 2 subs';
 
     },
 });
