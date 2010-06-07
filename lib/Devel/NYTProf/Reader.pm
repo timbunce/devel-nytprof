@@ -451,9 +451,7 @@ sub _generate_report {
             $LINE++;
         }
 
-        if (my $line_sub = $self->{mk_report_separator_line}) {
-            print OUT $line_sub->($profile, $fi);
-        }
+        my $separator_sub = $self->{mk_report_separator_line};
 
         # iterate over xsubs 
         $line_sub = $self->{mk_report_xsub_line}
@@ -465,6 +463,11 @@ sub _generate_report {
 
             next if $kind eq 'perl';
             next if $subinfo->calls == 0;
+
+            if ($separator_sub) {
+                print OUT $separator_sub->($profile, $fi);
+                undef $separator_sub; # do mk_report_separator_line just once
+            }
 
             print OUT $line_sub->(
                 $subname,

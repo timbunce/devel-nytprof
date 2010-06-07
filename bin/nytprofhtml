@@ -599,8 +599,8 @@ sub report_src_line {
                 my $sub_count  = @subs_defined;
                 my $call_count = sum map { $_->calls } @subs_defined;
                 my $excl_time  = sum map { $_->excl_time } @subs_defined;
-                $extra .= sprintf "<br /># includes %s spent executing %d call%s to %d sub%s defined therein.",
-                        fmt_time($excl_time, 2),
+                $extra .= sprintf "<br />%s# includes %s spent executing %d call%s to %d sub%s defined therein.",
+                        $ws, fmt_time($excl_time, 2),
                         $call_count, ($call_count != 1) ? 's' : '',
                         $sub_count,  ($sub_count  != 1) ? 's' : ''
                     if $call_count;
