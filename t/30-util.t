@@ -1,8 +1,9 @@
-use Test::More tests => 27;
+use Test::More tests => 28;
 
 use Devel::NYTProf::Util qw(
     fmt_time fmt_incl_excl_time
     html_safe_filename
+    trace_level
 );
 
 my $us = "&micro;s";
@@ -37,3 +38,6 @@ is html_safe_filename('C:foo'), 'C-foo';
 is html_safe_filename('C:\foo'), 'C-foo';
 is html_safe_filename('<lots>of|\'really\'special*"chars"?'), 'lots-of-really-special-chars';
 is html_safe_filename('no.dots.please'), 'no-dots-please';
+
+my $trace_level = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) ? $1 : 0;
+is trace_level(), $trace_level, "trace_level $trace_level";

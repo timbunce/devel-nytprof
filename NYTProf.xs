@@ -4831,6 +4831,16 @@ BOOT:
 }
 
 
+MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Util
+
+PROTOTYPES: DISABLE
+
+void
+trace_level()
+   PPCODE: 
+   XSRETURN_IV(trace_level);
+
+
 MODULE = Devel::NYTProf     PACKAGE = Devel::NYTProf::Test
 
 PROTOTYPES: DISABLE
@@ -4880,8 +4890,8 @@ CODE:
     PERL_UNUSED_VAR(items);
     if (opt_use_db_sub)
         DB_stmt(aTHX_ NULL, PL_op);
-    else if (1||trace_level)
-        logwarn("DB called needlessly\n");
+    else
+        logwarn("DB::DB called unexpectedly\n");
 
 void
 set_option(const char *opt, const char *value)

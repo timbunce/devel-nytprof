@@ -38,6 +38,7 @@ use base qw'Exporter';
 use Carp;
 use Cwd qw(getcwd);
 use List::Util qw(sum);
+use Devel::NYTProf::Core;
 
 our $VERSION = '4.00';
 
@@ -51,6 +52,7 @@ our @EXPORT_OK = qw(
     get_alternation_regex
     get_abs_paths_alternation_regex
     html_safe_filename
+    trace_level
 );
 
 
