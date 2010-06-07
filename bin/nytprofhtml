@@ -445,6 +445,7 @@ sub report_src_line {
             for my $line (keys %$fid_line_info) {
                 my $sc = $fid_line_info->{$line};
                 warn "$linesrc $subname caller info missing" if !@$sc;
+                next if !@$sc;
                 push @callers, [ $fid, $line, @$sc ];
             }
         }
@@ -699,16 +700,18 @@ sub output_index_page {
         print $fh q{<br/>(Can't create visual treemap of subroutine exclusive times without the <a href="http://search.cpan.org/dist/JSON-Any/">JSON::Any</a> module.)<br/>};
     }
 
-    output_subs_callgraph_dot_file($reporter, "packages-callgraph.dot", undef, 1);
-    print $fh q{NYTProf also generates call-graph files in }
-        .q{<a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> format: }
-        .q{<a href="packages-callgraph.dot">inter-package calls</a>};
-    output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot", undef, 0);
-    print $fh q{, <a href="subs-callgraph.dot">all inter-subroutine calls</a>};
-    print $fh q{ (possibly too complex to render easily)}
-        if $all_subs > 200; # arbitrary
-    print $fh q{.<br/>};
-    
+    if (1) {
+        output_subs_callgraph_dot_file($reporter, "packages-callgraph.dot", undef, 1);
+        print $fh q{NYTProf also generates call-graph files in }
+            .q{<a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> format: }
+            .q{<a href="packages-callgraph.dot">inter-package calls</a>};
+        output_subs_callgraph_dot_file($reporter, "subs-callgraph.dot", undef, 0);
+        print $fh q{, <a href="subs-callgraph.dot">all inter-subroutine calls</a>};
+        print $fh q{ (probably too complex to render easily)}
+            if $all_subs > 200; # arbitrary
+        print $fh q{.<br/>};
+    }
+
     print $fh q{<br/>You can hover over some table cells and headings to view extra information.};
     print $fh q{<br/>Some table column headings can be clicked on to sort the table by that column.};
     print $fh q{<br/>};
