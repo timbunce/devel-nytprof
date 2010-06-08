@@ -11,9 +11,8 @@ TODO soonish
 subroutine profiler docs need update
 add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
-On eval report add links to sibling eval reports
 
-=head2 Changes in Devel::NYTProf 4.00 (svn 1253) 30th May 2010
+=head2 Changes in Devel::NYTProf 4.00 (svn 1291) 8th June 2010
 
 Major changes:
 
@@ -40,7 +39,10 @@ Other changes:
   Fixed off-by-1 error in number of Files an xsub/opcode was called from.
   Fixed Devel::NYTProf::Apache to work in more situations
     and enable the addpid option by default.
+  Fixed that END blocks defined at runtime are included in the profile
+    thanks to Nicholas Clark.
 
+  Compilation-only checks (perl -c) can be profiled thanks to Nicholas Clark.
   Improved behaviour for 'duplicate' anon-subs defined in separate
     invocations of a particular string eval.
   Multiple BEGINs (e.g., use) on the same line get distinct names.
