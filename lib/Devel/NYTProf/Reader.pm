@@ -163,6 +163,7 @@ sub current_level {
 
 sub fname_for_fileinfo {
     my ($self, $fi, $level) = @_;
+    confess "No fileinfo" unless $fi;
     $level ||= $self->current_level;
 
     my $fname = html_safe_filename($fi->filename_without_inc);
@@ -487,6 +488,7 @@ sub _generate_report {
 
 sub url_for_file {
     my ($self, $file, $anchor, $level) = @_;
+    confess "No file specified" unless $file;
 
     my $fi = $self->{profile}->fileinfo_of($file);
     #return "" if $fi->is_fake;
