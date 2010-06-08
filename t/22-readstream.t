@@ -9,6 +9,8 @@ plan tests => 20;
 
 use Devel::NYTProf::ReadStream qw(for_chunks);
 
+my $pre589 = ($] < 5.008009 or $] eq "5.010000");
+
 (my $base = __FILE__) =~ s/\.t$//;
 
 # generate an nytprof out file
@@ -41,13 +43,19 @@ is_deeply(\@seqn, [0..@seqn-1], "chunk seq");
 is_deeply $prof{VERSION}, [ [ 4, 0 ] ];
 
 # check for expected tags
-# (but not START_DEFLATE as that'll be missing if there's no zlib)
+# but not START_DEFLATE as that'll be missing if there's no zlib
+# and not SRC_LINE as old perl's 
 for my $tag (qw(
-        COMMENT ATTRIBUTE DISCOUNT SRC_LINE TIME_BLOCK
+        COMMENT ATTRIBUTE DISCOUNT TIME_BLOCK
         SUB_INFO SUB_CALLERS
         PID_START PID_END NEW_FID
 )) {
     is ref $prof{$tag}[0], 'ARRAY', $tag;
+}
+
+SKIP: {
+    skip 'needs perl >= 5.8.9 or >= 5.10.1', 1 if $pre589;
+    is ref $prof{SRC_LINE}[0], 'ARRAY', 'SRC_LINE';
 }
 
 # check some attributes

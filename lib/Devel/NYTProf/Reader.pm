@@ -358,6 +358,9 @@ sub _generate_report {
                 # code returned by a CODE ref in @INC
                 $msg = "No source code available for 'file' loaded via CODE reference in \@INC.\nSee savesrc option in documentation.",
             }
+            elsif (not $fi->is_file) {
+                $msg = "No source code available for non-file '$filestr'.\nSee savesrc option in documentation.",
+            }
             else {
 
                 # the report will not be complete, but this doesn't need to be fatal

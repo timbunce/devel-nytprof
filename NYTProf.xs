@@ -974,15 +974,18 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         if (av_len(src_av) > -1)
             found->fid_flags |= NYTP_FIDf_HAS_SRC;
 
+    /* flag "perl -e '...'" and "perl -" as string evals */
+    if (found->key[0] == '-' && (found->key_len == 1 ||
+                                (found->key[1] == 'e' && found->key_len == 2)))
+        found->fid_flags |= NYTP_FIDf_IS_EVAL;
+
     /* if it's a string eval or a synthetic filename from CODE ref in @INC,
-     * or the command line -e '...code...'
      * then we'd like to save the src (NYTP_FIDf_HAS_SRC) if it's available
      */
     if (found->eval_fid
+    || (found->fid_flags & NYTP_FIDf_IS_EVAL)
     || (profile_opts & NYTP_OPTf_SAVESRC)
     || (found->key_len > 10 && found->key[9] == 'x' && strnEQ(found->key, "/loader/0x", 10))
-    || (found->key[0] == '-' && (found->key_len == 1 ||
-                                (found->key[1] == 'e' && found->key_len == 2)))
     ) {
         found->fid_flags |= NYTP_FIDf_SAVE_SRC;
     }
@@ -3391,16 +3394,6 @@ write_src_of_files(pTHX)
         if (trace_level >= 4)
             logwarn("fid %d has %ld src lines for %.*s\n",
                 e->id, (long)lines, e->key_len, e->key);
-        /* for perl 5.10.0 or 5.8.8 (or earlier) use_db_sub is needed to get src */
-        /* give a hint for the common case */
-        if (lines <= 0 && !opt_use_db_sub
-            &&   ( e->key[0] == '-'
-                   && ( e->key_len == 1
-                        || ( e->key[1] == 'e' &&  e->key_len == 2 ) ) )
-        ) {
-            av_store(src_av, 1, newSVpvf("# fid%d: source not available, try using use_db_sub=1 option.\n",e->id));
-            lines = 1;
-        }
         for (line = 1; line <= lines; ++line) { /* lines start at 1 */
             SV **svp = av_fetch(src_av, line, 0);
             STRLEN len = 0;

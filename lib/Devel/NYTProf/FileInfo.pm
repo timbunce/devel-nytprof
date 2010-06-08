@@ -9,6 +9,7 @@ use Devel::NYTProf::Util qw(strip_prefix_from_paths trace_level);
 
 use Devel::NYTProf::Constants qw(
     NYTP_FIDf_HAS_SRC NYTP_FIDf_SAVE_SRC NYTP_FIDf_IS_FAKE NYTP_FIDf_IS_PMC
+    NYTP_FIDf_IS_EVAL
 
     NYTP_FIDi_FILENAME NYTP_FIDi_EVAL_FID NYTP_FIDi_EVAL_LINE NYTP_FIDi_FID
     NYTP_FIDi_FLAGS NYTP_FIDi_FILESIZE NYTP_FIDi_FILEMTIME NYTP_FIDi_PROFILE
@@ -33,16 +34,17 @@ sub fid       { shift->[NYTP_FIDi_FID()] }
 sub size      { shift->[NYTP_FIDi_FILESIZE()] }
 sub mtime     { shift->[NYTP_FIDi_FILEMTIME()] }
 sub profile   { shift->[NYTP_FIDi_PROFILE()] }
+sub flags     { shift->[NYTP_FIDi_FLAGS()] }
 
 # if an eval then return fileinfo obj for the fid that executed the eval
 sub eval_fi   { shift->[NYTP_FIDi_EVAL_FI()] }
+#   is_eval is true only for simple string evals (doesn't consider NYTP_FIDf_IS_EVAL)
 sub is_eval   { shift->[NYTP_FIDi_EVAL_FI()] ? 1 : 0 }
 
-sub flags     { shift->[NYTP_FIDi_FLAGS()] }
 sub is_fake   { shift->flags & NYTP_FIDf_IS_FAKE }
 sub is_file   {
     my $self = shift;
-    return not ($self->is_fake or $self->is_eval);
+    return not ($self->is_fake or $self->is_eval or $self->flags & NYTP_FIDf_IS_EVAL());
 }
 
 # general purpose hash - mainly a hack to help kill off Reader.pm
