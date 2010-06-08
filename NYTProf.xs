@@ -4424,7 +4424,8 @@ load_profile_data_from_stream(loader_callback *callbacks,
                 if (c == NYTP_TAG_TIME_BLOCK) {
                     block_line_num = read_int(in);
                     sub_line_num = read_int(in);
-                    tag = nytp_time_block;
+                    if (profile_blocks)
+                        tag = nytp_time_block;
                 }
 
                 /* Because it happens that the two "optional" arguments are

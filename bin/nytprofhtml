@@ -56,6 +56,7 @@ GetOptions(
     'delete|d!' => \my $opt_delete,
     'open!'     => \my $opt_open,
     'help|h'    => sub { exit usage() },
+    'minimal|m!'=> \my $opt_minimal,
     'profself!'     => sub {
         # profile nytprofhtml itself
         our $profself = "nytprof-nytprofhtml.out";
@@ -66,6 +67,8 @@ GetOptions(
 ) or do { exit usage(); };
 
 
+DB::set_option('blocks', 0) if $opt_minimal;
+
 sub usage {
     print <<END;
 usage: [perl] nytprofhtml [opts]
@@ -73,6 +76,7 @@ usage: [perl] nytprofhtml [opts]
  --out <dir>,   -o <dir>   Write report files to this directory [default: nytprof]
  --delete,      -d         Delete any old report files in <dir> first
  --lib <lib>,   -l <lib>   Add <lib> to the beginning of \@INC
+ --minimal,     -m         Don't generate graphviz .dot files or block/sub-level reports
  --help,        -h         Print this message
 
 This script of part of the Devel::NYTProf distribution.
@@ -345,7 +349,7 @@ $reporter->set_param(
 
         my $sub_table = subroutine_table($profile, $fi, undef, undef);
 
-        if ($sub_table) {
+        if ($sub_table and not $opt_minimal) {
             my $dot_file = html_safe_filename($filestr) . ".dot";
 
             $sub_table .= qq{
@@ -732,7 +736,7 @@ sub output_index_page {
         print $fh q{<br/>(Can't create visual treemap of subroutine exclusive times without the <a href="http://search.cpan.org/dist/JSON-Any/">JSON::Any</a> module.)<br/>};
     }
 
-    if (1) {
+    if (not $opt_minimal) {
         output_subs_callgraph_dot_file($reporter, "packages-callgraph.dot", undef, 1);
         print $fh q{NYTProf also generates call-graph files in }
             .q{<a href="http://en.wikipedia.org/wiki/Graphviz">Graphviz</a> format: }
@@ -1300,7 +1304,7 @@ sub output_file_table {
 
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
             sprintf(qq{<a %s>%s</a>}, $reporter->href_for_file($fi, undef, $_), $_)
-        } qw(line block sub);
+        } values %{$profile->get_profile_levels};
         print $fh "<td>$rep_links</td>";
 
         print $fh sprintf q{<td><a name="f%s" title="%s">%s</a> %s</td>},

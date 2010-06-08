@@ -45,6 +45,8 @@ Other changes:
     invocations of a particular string eval.
   Multiple BEGINs (e.g., use) on the same line get distinct names.
 
+  Added --minimal option to nytprofhtml to disable generation of
+    graphviz .dot files and block/sub-level statement report files.
   Added automatic detection of calls to POSIX::_exit() by the sub profiler
     so finish_profile() gets called and a usable profile is produced.
   Added posix_exit=1 option to do the same thing (in a different way)
