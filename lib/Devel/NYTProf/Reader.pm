@@ -11,7 +11,7 @@
 ###########################################################
 package Devel::NYTProf::Reader;
 
-our $VERSION = '4.00';
+our $VERSION = '4.01';
 
 use warnings;
 use strict;

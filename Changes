@@ -12,6 +12,16 @@ subroutine profiler docs need update
 add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
 
+=head2 Changes in Devel::NYTProf 4.01 (svn 1296) 10th June 2010
+
+  Fixed links from block/sub level report pages to string eval report
+    pages.  RT#58284
+
+  Restored ordering of line - block - sub links on index page.
+
+  Clarified that saving the source code of string evals requires perl
+    version 5.8.9+, 5.10.1+, 5.12 or later. RT#58283
+
 =head2 Changes in Devel::NYTProf 4.00 (svn 1291) 8th June 2010
 
 Major changes:

@@ -31,7 +31,7 @@ use Devel::NYTProf::Constants qw(NYTP_SCi_CALLING_SUB);
 my $json_any = eval { require JSON::Any; JSON::Any->import; JSON::Any->new }
     or warn "Can't load JSON::Any module - HTML visualizations skipped.\n";
 
-our $VERSION = '4.00';
+our $VERSION = '4.01';
 
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
@@ -1302,9 +1302,11 @@ sub output_file_table {
         );
         push @t_stmt_time, $time;
 
+
+        my %levels = reverse %{$profile->get_profile_levels};
         my $rep_links = join '&nbsp;&bull;&nbsp;', map {
             sprintf(qq{<a %s>%s</a>}, $reporter->href_for_file($fi, undef, $_), $_)
-        } values %{$profile->get_profile_levels};
+        } grep { $levels{$_} } qw(line block sub);
         print $fh "<td>$rep_links</td>";
 
         print $fh sprintf q{<td><a name="f%s" title="%s">%s</a> %s</td>},
