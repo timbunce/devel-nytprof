@@ -495,6 +495,7 @@ sub url_for_file {
 
     my $fi = $self->{profile}->fileinfo_of($file);
     #return "" if $fi->is_fake;
+    $level = 'line' if $fi->is_eval;
 
     my $url = $self->fname_for_fileinfo($fi, $level);
     $url .= '.html';
