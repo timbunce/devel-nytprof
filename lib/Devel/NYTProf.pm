@@ -393,21 +393,27 @@ The default 'opcode redirection' technique can't profile subroutines that were
 compiled before NYTProf was loaded. So using use_db_sub=1 can be useful in
 cases where you can't load the profiler early in the life of the application.
 
+Another side effect of C<use_db_sub=1> is that it enables recording of the
+source code of the C<< perl -e '...' >> and C<< perl - >> input for old
+versions of perl. See also L</savesrc=0>.
+
 =head2 savesrc=0
 
 Disable the saving of source code.
 
-By default NYTProf saves a copy of all source code, including string evals,
-into the profile data file.  This makes the file self-contained, so the
-reporting tools no longer depend on having the unmodified source code files
-available.
-(If you're using perl 5.10.0 or 5.8.8 (or earlier) then you need to also enable
-the L</use_db_sub=1> option otherwise perl doesn't make the source code
-available to NYTProf. Perl 5.8.9 and 5.10.1+ don't require that.)
+By default NYTProf saves a copy of all source code into the profile data file.
+This makes the file self-contained, so the reporting tools no longer depend on
+having the unmodified source code files available.
 
 With C<savesrc=0> some source code is still saved: the arguments to the
 C<perl -e> option, the script fed to perl via STDIN when using C<perl ->,
 and the source code of string evals.
+
+Saving the source code of string evals requires perl version 5.8.9+, 5.10.1+,
+or 5.12 or later.
+
+Saving the source code of the C<< perl -e '...' >> or C<< perl - >> input
+requires either a recent perl version, as above, or setting the L</use_db_sub=1> option.
 
 =head2 slowops=N
 

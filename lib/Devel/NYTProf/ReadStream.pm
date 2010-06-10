@@ -188,9 +188,10 @@ where subroutines were called from.
 
 =item SRC_LINE => $fid, $line, $text
 
-Used to capture the source code of the program and modules profiled.
-Currently only used for C<< perl -e '...' >> and C<< perl - >> runs
-and requires use of the C<use_db_sub=1> option.
+Used to reproduce the source code of the files and evals profiled.
+Requires perl 5.8.9+ or 5.10.1+ or 5.12 or later. For earlier versions of perl
+the source code of C<< perl -e '...' >> and C<< perl - >> 'files' is available
+if the C<use_db_sub=1> option was used when profiling.
 
 =item PID_END => $pid, $end_time
 

@@ -351,7 +351,7 @@ sub _generate_report {
                 $msg = "No source code available for synthetic (fake) file $filestr.",
             }
             elsif ($fi->is_eval) {
-                $msg = "No source code available for string eval $filestr.\nSee savesrc option in documentation.",
+                $msg = "No source code available for string eval $filestr.\nYou probably need to use a more recent version of perl. See savesrc option in documentation.",
             }
             elsif ($filestr =~ m{^/loader/0x[0-9a-zA-Z]+/}) {
                 # a synthetic file name that perl assigns when reading
@@ -359,7 +359,7 @@ sub _generate_report {
                 $msg = "No source code available for 'file' loaded via CODE reference in \@INC.\nSee savesrc option in documentation.",
             }
             elsif (not $fi->is_file) {
-                $msg = "No source code available for non-file '$filestr'.\nSee savesrc option in documentation.",
+                $msg = "No source code available for non-file '$filestr'.\nYou probably need to use a more recent version of perl. See savesrc option in documentation.",
             }
             else {
 
