@@ -30,13 +30,13 @@ run_test_group( {
         my $fi_s = $profile->fileinfo_of('-');
         isa_ok $fi_s, 'Devel::NYTProf::FileInfo', 'should have fileinfo for "-"';
 
-        my $lines_s = $fi_s->srclines_array;
-        isa_ok $lines_s, 'ARRAY', 'srclines_array should return an array ref';
-
         my $fi_e = $profile->fileinfo_of('(eval 1)[-:1]');
         isa_ok $fi_e, 'Devel::NYTProf::FileInfo', 'should have fileinfo for "(eval 0)[-:1]"';
 
         if ($env->{savesrc}) {
+            my $lines_s = $fi_s->srclines_array;
+            isa_ok $lines_s, 'ARRAY', 'srclines_array should return an array ref';
+
             is $lines_s->[0], $src_code, 'source code line should match';
             my $lines_e = $fi_e->srclines_array;
             # perl adds a newline to eval strings
@@ -44,7 +44,7 @@ run_test_group( {
             #warn "@$lines_e";
         }
         else {
-            pass() for 1..2;
+            pass() for 1..3;
         }
     },
 });
