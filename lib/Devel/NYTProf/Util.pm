@@ -96,12 +96,18 @@ sub make_path_strip_editor {
     my @inc = @$inc_ref
         or return;
 
-    my $inc_regex = get_abs_paths_alternation_regex(\@inc);
+    our %make_path_strip_editor_cache;
+    my $key = join "\t", $anchor, $replacement, @inc;
 
-    # anchor at start, capture anchor
-    $inc_regex = qr{($anchor)$inc_regex};
+    return $make_path_strip_editor_cache{$key} ||= do {
 
-    return sub { $_[0] =~ s{$inc_regex}{$1$replacement} };
+        my $inc_regex = get_abs_paths_alternation_regex(\@inc);
+
+        # anchor at start, capture anchor
+        $inc_regex = qr{($anchor)$inc_regex};
+
+        sub { $_[0] =~ s{$inc_regex}{$1$replacement} };
+    };
 }
 
 
