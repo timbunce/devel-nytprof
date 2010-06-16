@@ -175,9 +175,7 @@ sub evals_by_line {
     # { line => { fid_of_eval_at_line => $fi, ... } }
 
     my %evals_by_line;
-    my $fid = $self->fid;
-    for my $fi ($self->profile->all_fileinfos) {
-        next unless (($fi->eval_fid || 0) == $fid);
+    for my $fi ($self->has_evals) {
         $evals_by_line{ $fi->eval_line }->{ $fi->fid } = $fi;
     }
 
