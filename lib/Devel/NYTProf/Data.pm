@@ -159,7 +159,7 @@ sub collapse_evals_in {
             push @{$src_keyed{$key}}, $fi;
         }
 
-        if (trace_level() >= 1) {
+        if (trace_level() >= 2) {
             my @subs  = map { $_->subs_defined } @$siblings;
             my @evals = map { $_->has_evals(0) } @$siblings;
             warn sprintf "%d:%d: has %d sibling evals (subs %d, evals %d, keys %d) in %s; fids: %s\n",

@@ -403,8 +403,8 @@ sub collapse_sibling_evals {
         }
     }
 
-    warn sprintf "collapse_sibling_evals done\n"
-        if trace_level();
+    warn sprintf "collapse_sibling_evals done for ".$survivor_fi->filename."\n"
+        if trace_level() >= 2;
 
     return $survivor_fi;
 }
