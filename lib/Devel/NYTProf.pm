@@ -38,7 +38,7 @@ if ($use_db_sub) {                     # install DB::DB sub
 # DB::sub shouldn't be called, but needs to exist for perl <5.8.7 (<perl@24265)
 # Could be called in obscure cases, e.g. if "perl -d" (not -d:NYTProf)
 # was used with Devel::NYTProf loaded some other way
-sub sub { die "DB::sub called unexpectly" }
+sub sub { die "DB::sub called unexpectedly" }
 
 sub CLONE { DB::disable_profiler }
 
@@ -708,7 +708,7 @@ You can reduce the cost of profiling by adjusting some options. The trade-off
 is reduced detail and/or accuracy in reports.
 
 If you don't need statement-level profiling then you can disable it via L</stmts=0>.
-If you do need it but don't mind loosing block-level timings then set L</blocks=0>.
+If you do want it but don't mind loosing block-level timings then set L</blocks=0>.
 If you want need still more speed then set L</leave=0> to disable the
 adjustments made for statements that 'leave' the current control flow (doing
 this I<will> make timings for some kinds of statements less accurate).
@@ -716,8 +716,13 @@ this I<will> make timings for some kinds of statements less accurate).
 If you don't need subroutine profiling then you can disable it via L</subs=0>.
 If you do need it but don't need timings for perl opcodes then set L</slowops=0>.
 
+Generally speaking, setting blocks=0 and slowops=0 will give you a useful boost
+with the least loss of detail.
+
 Another approach is to only enable NYTProf in the sections of code that
 interest you. See L</RUN-TIME CONTROL OF PROFILING> for more details.
+
+To speed up L<nytprofhtml> try using the --minimal (-m) option.
 
 =head1 REPORTS
 
@@ -731,6 +736,12 @@ perl. (Though the module is in a state of flux and may be deprecated soon.)
 Included in the bin directory of this distribution are some scripts which
 turn the raw profile data into more useful formats:
 
+=head2 nytprofhtml
+
+Creates attractive, richly annotated, and fully cross-linked html
+reports (including statistics, source code and color highlighting).
+This is the main report generation tool for NYTProf.
+
 =head2 nytprofcsv
 
 Creates comma delimited profile reports. Old and limited.
@@ -739,11 +750,6 @@ Creates comma delimited profile reports. Old and limited.
 
 Translates a profile into a format that can be loaded into KCachegrind
 L<http://kcachegrind.sourceforge.net>
-
-=head2 nytprofhtml
-
-Creates attractive, richly annotated, and fully cross-linked html
-reports (including statistics, source code and color highlighting).
 
 =head2 nytprofmerge
 
