@@ -179,7 +179,7 @@ sub _alter_called_by_fileinfo {
 
             warn sprintf "_alter_called_by_fileinfo: %s from fid %d to fid %d\n",
                     $self->subname, $remove_fid, $new_fid
-                if trace_level();
+                if trace_level() >= 4;
 
             # merge $cb into $new_cb
             while ( my ($line, $cb_li) = each %$cb ) {
@@ -208,7 +208,7 @@ sub merge_in {
 
     warn sprintf "Merging sub %s into %s (%s)\n",
             $donor_subname, $self_subname, join(" ", %opts)
-        if trace_level();
+        if trace_level() >= 4;
 
     # see also "case NYTP_TAG_SUB_CALLERS:" in load_profile_data_from_stream()
     push @{ $self->meta->{merged_sub_names} }, $donor->subname;

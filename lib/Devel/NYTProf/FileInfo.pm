@@ -281,7 +281,7 @@ sub collapse_sibling_evals {
 
         warn sprintf "collapse_sibling_evals: processing donor fid %d: %s\n",
                 $donor_fi->fid, $donor_fi->filename
-            if trace_level();
+            if trace_level() >= 3;
 
         # XXX nested evals not handled yet
         warn sprintf "collapse_sibling_evals: nested evals in %s not handled",
@@ -295,10 +295,10 @@ sub collapse_sibling_evals {
             for my $si (@subs_defined) {
                 warn sprintf " - moving from fid %d: sub %s\n",
                         $donor_fi->fid, $si->subname
-                    if trace_level();
+                    if trace_level() >= 4;
                 $si->_alter_fileinfo($donor_fi, $survivor_fi);
                 warn sprintf " - moving done\n"
-                    if trace_level();
+                    if trace_level() >= 4;
             }
         }
 
@@ -376,7 +376,7 @@ sub collapse_sibling_evals {
             warn sprintf "collapse_sibling_evals: merging %d subs into %s: %s\n",
                     scalar @$to_merge, $survivor_subname,
                     join ", ", map { $_->subname } @$to_merge
-                if trace_level();
+                if trace_level() >= 3;
 
             for my $delete_si (@$to_merge) {
                 my $delete_subname = $delete_si->subname;
