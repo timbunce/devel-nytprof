@@ -12,6 +12,13 @@ subroutine profiler docs need update
 add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
 
+=head2 Changes in Devel::NYTProf 4.02 (svn XXX) 16th June 2010
+
+  Fixed nytprofhtml performance problem for profiles with
+    many files/evals.
+
+  Added progress reporting to nytprofhtml.
+
 =head2 Changes in Devel::NYTProf 4.01 (svn 1296) 10th June 2010
 
   Fixed links from block/sub level report pages to string eval report

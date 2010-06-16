@@ -142,14 +142,16 @@ sub report {
     my $self = shift;
     my ($opts) = @_;
 
-    print "Writing report to $self->{output_dir} directory\n"
-        unless $opts->{quiet};
-
     my $level_additional_sub = $opts->{level_additional};
     my $profile              = $self->{profile};
     my $modes                = $profile->get_profile_levels;
-    for my $level (grep { {reverse %$modes}->{$_} } qw(sub block line)) {
-        $self->_generate_report($profile, $level);
+    my @levels = grep { {reverse %$modes}->{$_} } qw(sub block line);
+    for my $level (@levels) {
+        print "Writing $level reports to $self->{output_dir} directory\n"
+            unless $opts->{quiet};
+        $self->_generate_report($profile, $level,
+            show_progress => (not $opts->{quiet} and -t STDOUT)
+        );
         $level_additional_sub->($profile, $level)
             if $level_additional_sub;
     }
@@ -177,7 +179,7 @@ sub fname_for_fileinfo {
 ##
 sub _generate_report {
     my $self = shift;
-    my ($profile, $LEVEL) = @_;
+    my ($profile, $LEVEL, %opts) = @_;
 
     $self->current_level($LEVEL);
 
@@ -186,12 +188,23 @@ sub _generate_report {
 
     #$profile->dump_profile_data({ filehandle => \*STDERR, separator=>"\t", });
 
-    foreach my $fi (@all_fileinfos) {
-
+    my @fis = @all_fileinfos;
+    if ($LEVEL ne 'line') {
         # we only generate line-level reports for evals
         # for efficiency and because some data model editing only
         # is only implemented for line-level data
-        next if $fi->is_eval and $LEVEL ne 'line';
+        @fis = grep { not $_->is_eval } @fis;
+    }
+
+    my $progress;
+    foreach my $fi (@fis) {
+
+        if ($opts{show_progress}) {
+            local $| = 1;
+            ++$progress;
+            print ("\b" x 20);
+            printf " %d%% ...", $progress/@fis*100;
+        }
 
         my $meta = $fi->meta;
         my $filestr = $fi->filename;
@@ -223,7 +236,7 @@ sub _generate_report {
         warn sprintf "%s %s max lines: stmts %d, subcalls %d, subdefs %d, evals %d\n",
                 $filestr, $LEVEL, scalar @$lines_array,
                 $subcalls_max_line, $subdefs_max_line, $evals_max_line
-            if trace_level();
+            if trace_level() >= 4;
 
         my %stats_accum;           # holds all line times. used to find median
         my %stats_by_line;         # holds individual line stats
@@ -486,6 +499,7 @@ sub _generate_report {
         print OUT $self->get_param('footer', [$profile, $filestr]);
         close OUT;
     }
+    print "\n" if $opts{show_progress};
 }
 
 
