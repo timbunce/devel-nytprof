@@ -88,6 +88,8 @@ sub new {
 
     return undef if $args->{callback};
 
+    print "Processing $file data\n" unless $args->{quiet};
+
     bless $profile => $class;
 
     my $fid_fileinfo = $profile->{fid_fileinfo};
