@@ -18,6 +18,18 @@ use List::Util qw(sum max);
 use File::Copy;
 use File::Path qw(rmtree);
 
+# Handle --profself before loading Devel::NYTProf::Core
+# (because it parses NYTPROF for options)
+BEGIN {
+    if (grep { $_ eq '--profself' } @ARGV) {
+        # profile nytprofhtml itself
+        our $profself = "nytprof-nytprofhtml.out";
+        $ENV{NYTPROF} .= ":file=$profself:trace=1";
+        require Devel::NYTProf;
+        END { warn "Profile of $0 written to $profself\n" if our $profself; } 
+    }
+}
+
 use Devel::NYTProf::Reader;
 use Devel::NYTProf::Core;
 use Devel::NYTProf::Util qw(
@@ -57,13 +69,7 @@ GetOptions(
     'open!'     => \my $opt_open,
     'help|h'    => sub { exit usage() },
     'minimal|m!'=> \my $opt_minimal,
-    'profself!'     => sub {
-        # profile nytprofhtml itself
-        our $profself = "nytprof-nytprofhtml.out";
-        $ENV{NYTPROF} .= ":file=$profself";
-        require Devel::NYTProf;
-        END { warn "Profile of $0 written to $profself\n" if our $profself; } 
-    },
+    'profself!'     => sub { }, # handled in BEGIN above
 ) or do { exit usage(); };
 
 
