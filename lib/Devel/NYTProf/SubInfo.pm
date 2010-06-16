@@ -42,15 +42,7 @@ sub incl_time  { shift->[NYTP_SIi_INCL_RTIME] }
 
 sub excl_time  { shift->[NYTP_SIi_EXCL_RTIME] }
 
-sub subname    {
-    my $subname = shift->[NYTP_SIi_SUB_NAME];
-    return $subname if not ref $subname;
-    # the subname of a merged sub is a ref to an array of the merged subnames
-    # XXX could be ref to an array of the merged subinfos
-    # XXX or better to add a separate accessor instead of abusing subname like this
-    return $subname if not defined(my $join = shift);
-    return join $join, @$subname;
-}
+sub subname    { shift->[NYTP_SIi_SUB_NAME] }
 
 sub subname_without_package {
     my $subname = shift->[NYTP_SIi_SUB_NAME];
@@ -264,7 +256,7 @@ sub _merge_in_caller_info {
         return;
     }
 
-    if (trace_level()) {
+    if (trace_level() >= 5) {
         carp sprintf "_merge_in_caller_info%s merging from $src_line_info -> $dst_line_info:", $tag;
         warn sprintf " . %s\n", fmt_sc($src_line_info);
         warn sprintf " + %s\n", fmt_sc($dst_line_info);
@@ -289,7 +281,7 @@ sub _merge_in_caller_info {
     $dst_cs->{$_} = $src_cs->{$_} for keys %$src_cs;
 
     warn sprintf " = %s\n", fmt_sc($dst_line_info)
-        if trace_level();
+        if trace_level() >= 5;
 
     return;
 }
