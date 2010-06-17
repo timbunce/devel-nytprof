@@ -55,7 +55,7 @@ use Devel::NYTProf::Util qw(
     trace_level
 );
 
-our $VERSION = '4.01';
+our $VERSION = '4.02';
 
 
 =head2 new

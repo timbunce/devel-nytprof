@@ -18,7 +18,7 @@ use Getopt::Long;
 
 use Devel::NYTProf::Reader;
 
-our $VERSION = '4.01';
+our $VERSION = '4.02';
 
 use constant NUMERIC_PRECISION => 5;
 
