@@ -48,7 +48,6 @@ lib/Devel/NYTProf/js/jit/jit.js
 lib/Devel/NYTProf/js/jquery-min.js
 lib/Devel/NYTProf/js/jquery-tablesorter-min.js
 lib/Devel/NYTProf/js/style-tablesorter.css
-perftest.pl
 ppport.h
 slowops.h
 t/00-load.t
