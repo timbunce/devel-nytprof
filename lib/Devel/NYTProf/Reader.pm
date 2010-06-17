@@ -202,8 +202,7 @@ sub _generate_report {
         if ($opts{show_progress}) {
             local $| = 1;
             ++$progress;
-            print ("\b" x 20);
-            printf " %d%% ...", $progress/@fis*100;
+            printf "\r %d%% ... ", $progress/@fis*100;
         }
 
         my $meta = $fi->meta;
