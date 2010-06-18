@@ -344,14 +344,33 @@ sub collapse_sibling_evals {
             if $donor_fi->src_digest ne $survivor_fi->src_digest;
 
         # remove eval from NYTP_FIDi_HAS_EVALS
-        if (my $eval_fis = $self->[NYTP_FIDi_HAS_EVALS()]) {
+        # XXX DISABLED - moved to after donor loop
+        if (0 and my $eval_fis = $self->[NYTP_FIDi_HAS_EVALS()]) {
             my $count = @$eval_fis;
-            @$eval_fis = grep { $_ != $donor_fi } @$eval_fis;
-            warn "_delete_eval missed" if @$eval_fis == $count;
-            # XXX needs to update NYTP_FIDi_SUBS_DEFINED NYTP_FIDi_SUBS_CALLED ?
+            # XXX this is very expensive when there are many siblings
+            # could possibly be deferred till outside the donor loop
+            # so alll donors could be deleted at once
+            while ($count--) {
+                if ($eval_fis->[$count] == $donor_fi) {
+                    splice @$eval_fis, $count, 1;
+                    undef $count; # mark as done
+                    last;
+                }
+            }
+            warn "_delete_eval missed for ".$donor_fi->filename
+                if defined $count;
         }
 
         $donor_fi->_nullify;
+    }
+
+    # remove donors
+    if (my $eval_fis = $self->[NYTP_FIDi_HAS_EVALS()]) {
+        my %donors = map { +"$_" => 1 } @donors;
+        my $count = @$eval_fis;
+        @$eval_fis = grep { !$donors{$_} } @$eval_fis;
+        warn "_delete_eval mismatch"
+            if @$eval_fis != $count - @donors;
     }
 
     # now the fid merging is complete...
