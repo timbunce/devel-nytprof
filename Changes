@@ -12,6 +12,10 @@ subroutine profiler docs need update
 add u key to treemap to trigger moving 'up' a level
 add "calls N subs" to treemap mouseover box
 
+=head2 Changes in Devel::NYTProf 4.03 (svn 1309) 17th June 2010
+
+  For subs that recurse, show max depth and time in subroutine table.
+
 =head2 Changes in Devel::NYTProf 4.02 (svn 1309) 17th June 2010
 
   Fixed nytprofhtml performance problem for profiles with

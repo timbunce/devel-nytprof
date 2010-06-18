@@ -320,12 +320,16 @@ sub subroutine_table {
             my $is_opcode = ($pkg eq 'CORE' or $subr =~ /^CORE:/);
             unshift @hints, ($is_opcode) ? 'opcode' : 'xsub';
         }
+        if (my $recdepth = $sub->recur_max_depth) {
+            unshift @hints, sprintf "recurses: max depth %d, inclusive time %s",
+                $recdepth, fmt_time($sub->recur_incl_time);
+        }
 
         $sub_links .= sprintf qq{%*s<a %s>%s</a>%s</span></td>},
             $max_pkg_name_len+2, $pkg,
             $reporter->href_for_sub($subname),
             $subr,
-            (@hints) ? "&nbsp;(".join(", ",@hints).")" : "";
+            (@hints) ? "&nbsp;(".join("; ",@hints).")" : "";
 
         $sub_links .= "</tr>\n";
     }
