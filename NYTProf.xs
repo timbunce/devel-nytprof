@@ -392,6 +392,11 @@ logwarn(const char *pat, ...)
     if (!logfh)
         logfh = stderr;
     vfprintf(logfh, pat, args);
+    /* Flush to ensure the log message gets pushed out to the kernel.
+     * This flush will be expensive but is needed to ensure the log has recent info
+     * if there's a core dump. Could add an option to disable flushing if needed.
+     */
+    fflush(logfh);
     va_end(args);
 }
 
