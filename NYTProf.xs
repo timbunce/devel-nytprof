@@ -2955,6 +2955,12 @@ init_profiler(pTHX)
     if (!PL_checkav) PL_checkav = newAV();
     if (!PL_initav)  PL_initav  = newAV();
     if (!PL_endav)   PL_endav   = newAV();
+    /* pre-extend PL_endav to reduce the chance of DB::_END realloc'ing
+     * it while END blocks are executed (which could upset some embedded
+     * applications that don't handle PL_endav carefully, like mod_perl)
+     */
+    av_extend(PL_endav, av_len(PL_endav)+30);
+
     if (profile_start == NYTP_START_BEGIN) {
         enable_profile(aTHX_ NULL);
     } else {
@@ -4952,6 +4958,7 @@ _INIT()
         av_unshift(PL_endav, 1);  /* we want to be first */
         av_store(PL_endav, 0, SvREFCNT_inc(enable_profile_sv));
     }
+    av_extend(PL_endav, av_len(PL_endav)+20); /* see PL_endav in init_profiler() */
     if (trace_level >= 1)
         logwarn("~ INIT done\n");
 
