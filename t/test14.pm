@@ -10,7 +10,7 @@ sub pre { 1 }
 1;
 __END__
 sub foo {
-  1;
+  $&;
 }
 
 sub bar {
