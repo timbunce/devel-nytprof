@@ -542,8 +542,8 @@ sub get_fid_line_data {
   $profile->normalize_variables;
 
 Traverses the profile data structure and normalizes highly variable data, such
-as the time, in order that the data can more easily be compared. This is used,
-for example, by the test suite.
+as the time, in order that the data can more easily be compared. This is mainly of
+use to the test suite.
 
 The data normalized is:
 
@@ -582,9 +582,9 @@ sub normalize_variables {
         basetime xs_version perl_version clock_id ticks_per_sec nv_size
         profiler_duration profiler_end_time profiler_start_time
         total_stmts_duration total_stmts_measured total_stmts_discounted
-        total_sub_calls
+        total_sub_calls sawampersand_line
     )) {
-        $attributes->{$attr} = 0;
+        $attributes->{$attr} = 0 if exists $attributes->{$attr};
     }
 
     for my $attr (qw(PL_perldb)) {

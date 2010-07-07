@@ -888,6 +888,23 @@ NYTP_write_process_end(NYTP_file ofile, unsigned int pid, NV time_of_day)
 }
 
 size_t
+NYTP_write_sawampersand(NYTP_file ofile, unsigned int fid, unsigned int line)
+{
+    size_t total;
+    size_t retval;
+
+    total += retval = NYTP_write_attribute_unsigned(ofile, STR_WITH_LEN("sawampersand_fid"),  fid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = NYTP_write_attribute_unsigned(ofile, STR_WITH_LEN("sawampersand_line"), line);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
+size_t
 NYTP_write_new_fid(NYTP_file ofile, unsigned int id, unsigned int eval_fid,
                    unsigned int eval_line_num, unsigned int flags,
                    unsigned int size, unsigned int mtime,

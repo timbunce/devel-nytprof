@@ -329,6 +329,7 @@ static unsigned int last_executed_fid;
 static        char *last_executed_fileptr;
 static unsigned int last_block_line;
 static unsigned int last_sub_line;
+static bool         last_sawampersand;
 static unsigned int is_profiling;       /* disable_profile() & enable_profile() */
 static Pid_t last_pid;
 static NV cumulative_overhead_ticks = 0.0;
@@ -373,6 +374,15 @@ static OP *pp_subcall_profiler(pTHX_ int type);
 static OP *pp_leave_profiler(pTHX);
 static HV *sub_callers_hv;
 static HV *pkg_fids_hv;     /* currently just package names */
+
+#define CHECK_SAWAMPERSAND(fid,line) STMT_START { \
+    if (PL_sawampersand != last_sawampersand) { \
+        if (trace_level >= 1) \
+            logwarn("Slow regex match variable seen (first noted at %u:%u)\n", fid, line); \
+        NYTP_write_sawampersand(out, fid, line); \
+        last_sawampersand = PL_sawampersand; \
+    } \
+} STMT_END
 
 /* macros for outputing profile data */
 #ifndef HAS_GETPPID
@@ -1375,6 +1385,8 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         logwarn("profile time overflow of %ld seconds discarded!\n", overflow);
 
     reinit_if_forked(aTHX);
+
+    CHECK_SAWAMPERSAND(last_executed_fid, last_executed_line);
 
     if (last_executed_fid) {
         if (profile_blocks)
@@ -2421,8 +2433,10 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         return run_original_op(op_type);
     }
 
-    if (!profile_stmts)
+    if (!profile_stmts) {
         reinit_if_forked(aTHX);
+        CHECK_SAWAMPERSAND(last_executed_fid, last_executed_line);
+    }
 
     if (trace_level >= 99) {
         logwarn("profiling a call [op %ld, %s, seix %d]\n",
@@ -3213,7 +3227,7 @@ write_sub_line_ranges(pTHX)
     }
 
     if (trace_level >= 1)
-        logwarn("~ writing sub line ranges of %ld subs\n", HvKEYS(hv));
+        logwarn("~ writing sub line ranges of %ld subs\n", (long)HvKEYS(hv));
 
     /* Iterate over PL_DBsub writing out fid and source line range of subs.
      * If filename is missing (i.e., because it's an xsub so has no source file)
@@ -3270,7 +3284,7 @@ write_sub_callers(pTHX)
     if (!sub_callers_hv)
         return;
     if (trace_level >= 1)
-        logwarn("~ writing sub callers for %ld subs\n", HvKEYS(sub_callers_hv));
+        logwarn("~ writing sub callers for %ld subs\n", (long)HvKEYS(sub_callers_hv));
 
     hv_iterinit(sub_callers_hv);
     while (NULL != (fid_line_rvhv = hv_iternextsv(sub_callers_hv, &called_subname, &called_subname_len))) {

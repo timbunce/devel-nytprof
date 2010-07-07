@@ -14,6 +14,9 @@ add "calls N subs" to treemap mouseover box
 
 =head2 Changes in Devel::NYTProf 4.04
 
+  Profile records presence of the slow regex match vars ($& $' $`).
+XXX not included in reports yet
+
   Trace log messages are now flushed immediately.
   Reduced risk of crashes in embedded applications that don't handle PL_endav
     carefully, like mod_perl.
