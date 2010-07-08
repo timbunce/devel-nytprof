@@ -363,12 +363,6 @@ Any volunteers to explore writing an nytprofimport for SQLite?
 Option to add sub call and return events into the data file as they happen.
 Would enable a dprofpp -T like output. See https://rt.cpan.org/Ticket/Display.html?id=50766
 
-For eval fid reports:
-- Add links to 'sibling' evals
-- Add eval information (evals and time) to file summary header
-
-Fix inconsistency in results of href_for_*() subs
-
 String evals could/should be tied into the subroutine profiler.
 That would give inclusive timings which we don't have at the moment.
 The evals appear in the html report as if they're calls but the timings are
@@ -389,3 +383,9 @@ xs calling optimization) it'll be the most recent sub entry that was recorded.
 
 Generate extra report pages for xsubs in packages that don't have source code.
 They're currently all dumped into the 'main' file.
+
+Docs describing how the subroutine profiler works need updating.
+Add 'u' key to treemap to trigger moving 'up' a level.
+Add "calls N subs" to treemap mouseover box
+Upgrade treemap to JIT version 2 (which has transition animations).
+

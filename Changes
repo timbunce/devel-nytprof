@@ -6,20 +6,14 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
-TODO soonish
-
-subroutine profiler docs need update
-add u key to treemap to trigger moving 'up' a level
-add "calls N subs" to treemap mouseover box
-
-=head2 Changes in Devel::NYTProf 4.04
+=head2 Changes in Devel::NYTProf 4.04 (svn 1329) 8th July 2010
 
   Profile records presence of the slow regex match vars ($& $' $`).
-  The cumulative inclusive time measured for subs that are involved in
-    recursion is now reported as 'recursion: ... sum of overlapping time'.
+  The (cumulative inclusive) recursion time measured for subs that are involved
+    in recursion is now reported as 'recursion: ... sum of overlapping time'.
   Trace log messages are now flushed immediately.
   Reduced risk of crashes in embedded applications that don't handle PL_endav
-    carefully, like mod_perl.
+    carefully, like crrent versions of mod_perl.
 
 =head2 Changes in Devel::NYTProf 4.03 (svn 1316) 19th June 2010
 
