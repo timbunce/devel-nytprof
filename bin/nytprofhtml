@@ -184,11 +184,36 @@ $reporter->set_param(
 
 $reporter->set_param(
     'taintmsg',
-    qq{<div class="warn_title">WARNING!</div>\n
+    qq{<br /><div class="warn_title">WARNING!</div>\n
 <div class="warn">The source file used to generate this report was modified
 after the profiler data was generated.
 The data might be out of sync with the modified source code so you should regenerate it.
-Meanwhile, the data on this page might not make much sense!</div><br />\n}
+Meanwhile, the data on this page might not make much sense!</div>\n}
+);
+
+$reporter->set_param(
+    'sawampersand',
+    sub {
+        my ($profile, $fi) = @_;
+        my $line = $profile->{attribute}{sawampersand_line};
+        return qq{<br /><div class="warn_title">NOTE!</div>\n
+<div class="warn"><p>While profiling this file Perl noted the use of one or more special
+variables that impact the performance of <i>all</i> regular expressions in the program.</p>
+
+<p>Use of the "<tt>\$`</tt>", "<tt>\$&</tt>", and "<tt>\$'</tt>" variables should be replaced with faster alternatives.
+See the WARNING at the end of the <a href="http://perldoc.perl.org/perlre.html#Capture-buffers">
+Capture Buffers section of the perlre documentation</a>.</p>
+
+<p>The use is detected by perl at compile time but by NYTProf during execution.
+NYTProf first noted it when executing <a href="#$line">line $line</a>.
+That was probably the first statement executed by the program after perl
+compiled the code containing the variables.
+If the variables can't be found by studying the source code, try using the
+<a href="http://search.cpan.org/perldoc?Devel::FindAmpersand">Devel::FindAmpersand</a>
+module.</p>
+
+</div>\n}
+    }
 );
 
 $reporter->set_param(
@@ -1271,7 +1296,8 @@ sub output_file_table {
     my $allTimes = $profile->{attribute}{total_stmts_duration};
     my $allCalls = $profile->{attribute}{total_stmts_measured}
                  - $profile->{attribute}{total_stmts_discounted};
-    my $sawampersand_fid = $profile->{attribute}{sawampersand_fid};
+    # file in which sawampersand was noted during profiling
+    my $sawampersand_fi = $profile->fileinfo_of($profile->{attribute}{sawampersand_fid}, 1);
 
     my (@t_stmt_exec, @t_stmt_time);
     my @fis = $profile->noneval_fileinfos;
@@ -1299,8 +1325,12 @@ sub output_file_table {
             $eval_stmts = sum(map { $_->sum_of_stmts_count } @has_evals);
             $eval_time  = sum(map { $_->sum_of_stmts_time  } @has_evals);
         }
-        if ($fid == $sawampersand_fid) {
-            push @extra, "variables that impact regex performance for whole application seen here";
+        # is this file one where we sawampersand (or contains an eval that is)?
+        if ($sawampersand_fi && $fi == ($sawampersand_fi->outer || $sawampersand_fi)) {
+            my $in_eval = ($fi == $sawampersand_fi)
+                ? 'here'
+                : sprintf q{<a %s>in eval here</a>}, $reporter->href_for_file($sawampersand_fi, undef, 'line');
+            push @extra, sprintf qq{variables that impact regex performance for whole application seen $in_eval},
             $css_class = "warn $css_class";
         }
 

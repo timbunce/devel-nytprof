@@ -74,6 +74,10 @@ sub new {
         taintmsg => "# WARNING!\n"
             . "# The source file used in generating this report has been modified\n"
             . "# since generating the profiler database.  It might be out of sync\n",
+        sawampersand => "# NOTE!\n"
+            . "# This file uses special regexp match variables that impact the performance\n"
+            . "# of all regular expression in the program!\n"
+            . "# See WARNING in http://perldoc.perl.org/perlre.html#Capture-buffers\n",
     };
 
     bless($self, $class);
@@ -347,6 +351,10 @@ sub _generate_report {
         # In this case we need to warn the user as the report would be garbled.
         print OUT $self->get_param('taintmsg', [$profile, $fi])
             if !$fi->has_savesrc and $self->file_has_been_modified($filestr);
+
+        print OUT $self->get_param('sawampersand', [$profile, $fi])
+            if $profile->{attribute}{sawampersand_fid}
+            && $fi->fid == $profile->{attribute}{sawampersand_fid};
 
         print OUT $self->get_param('merged_fids', [$profile, $fi])
             if $fi->meta->{merged_fids};
