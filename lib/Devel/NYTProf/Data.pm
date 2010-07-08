@@ -333,10 +333,10 @@ sub noneval_fileinfos {
 
 
 sub fileinfo_of {
-    my $self = shift;
-    my $arg  = shift;
+    my ($self, $arg, $silent_if_undef) = @_;
+
     if (not defined $arg) {
-        carp "Can't resolve fid of undef value";
+        carp "Can't resolve fid of undef value" unless $silent_if_undef;
         return undef;
     }
 
