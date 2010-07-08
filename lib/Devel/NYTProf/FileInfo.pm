@@ -275,12 +275,15 @@ sub collapse_sibling_evals {
 
     my $s_ltd = $survivor_fi->line_time_data; # XXX line only
     my $s_scl = $survivor_fi->sub_call_lines;
+    my %donor_fids;
 
     for my $donor_fi (@donors) {
         # copy data from donor to survivor_fi then delete donor
+        my $donor_fid = $donor_fi->fid;
+        $donor_fids{$donor_fid} = $donor_fi;
 
         warn sprintf "collapse_sibling_evals: processing donor fid %d: %s\n",
-                $donor_fi->fid, $donor_fi->filename
+                $donor_fid, $donor_fi->filename
             if trace_level() >= 3;
 
         # XXX nested evals not handled yet
@@ -294,7 +297,7 @@ sub collapse_sibling_evals {
 
             for my $si (@subs_defined) {
                 warn sprintf " - moving from fid %d: sub %s\n",
-                        $donor_fi->fid, $si->subname
+                        $donor_fid, $si->subname
                     if trace_level() >= 4;
                 $si->_alter_fileinfo($donor_fi, $survivor_fi);
                 warn sprintf " - moving done\n"
@@ -336,41 +339,28 @@ sub collapse_sibling_evals {
             my $s_tld_l = $s_ltd->[$line] ||= [];
             $s_tld_l->[$_] += $d_tld_l->[$_] for (0..@$d_tld_l-1);
             warn sprintf "%d:%d: @$s_tld_l from @$d_tld_l fid:%d\n",
-                $survivor_fi->fid, $line, $donor_fi->fid if 0;
+                $survivor_fi->fid, $line, $donor_fid if 0;
         }
 
-        push @{ $survivor_fi->meta->{merged_fids} }, $donor_fi->fid;
+        push @{ $survivor_fi->meta->{merged_fids} }, $donor_fid;
         ++$survivor_fi->meta->{merged_fids_src_varied}
             if $donor_fi->src_digest ne $survivor_fi->src_digest;
-
-        # remove eval from NYTP_FIDi_HAS_EVALS
-        # XXX DISABLED - moved to after donor loop
-        if (0 and my $eval_fis = $self->[NYTP_FIDi_HAS_EVALS()]) {
-            my $count = @$eval_fis;
-            # XXX this is very expensive when there are many siblings
-            # could possibly be deferred till outside the donor loop
-            # so alll donors could be deleted at once
-            while ($count--) {
-                if ($eval_fis->[$count] == $donor_fi) {
-                    splice @$eval_fis, $count, 1;
-                    undef $count; # mark as done
-                    last;
-                }
-            }
-            warn "_delete_eval missed for ".$donor_fi->filename
-                if defined $count;
-        }
 
         $donor_fi->_nullify;
     }
 
-    # remove donors
+    # remove donors from parent NYTP_FIDi_HAS_EVALS
     if (my $eval_fis = $self->[NYTP_FIDi_HAS_EVALS()]) {
         my %donors = map { +"$_" => 1 } @donors;
         my $count = @$eval_fis;
         @$eval_fis = grep { !$donors{$_} } @$eval_fis;
         warn "_delete_eval mismatch"
             if @$eval_fis != $count - @donors;
+    }
+
+    # update sawampersand_fid if it's one of the now-dead donors
+    if ($donor_fids{ $profile->attributes->{sawampersand_fid} || 0 }) {
+        $profile->attributes->{sawampersand_fid} = $survivor_fi->fid;
     }
 
     # now the fid merging is complete...
