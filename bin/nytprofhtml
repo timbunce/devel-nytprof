@@ -596,7 +596,7 @@ sub report_src_line {
             $html .= sprintf qq{, avg %s/call}, fmt_time(($incl_time+$reci_time) / $count),
                 if $count > 1;
             if ($rec_depth) {
-                $html .= sprintf qq{, recursion: max depth %d, time %s},
+                $html .= sprintf qq{, recursion: max depth %d, sum of overlapping time %s},
                     $rec_depth, fmt_time($reci_time);
             }
             $html;
@@ -1357,7 +1357,7 @@ sub output_file_table {
 
         print $fh sprintf q{<td><a name="f%s" title="%s">%s</a> %s</td>},
             $fi->fid, $fi->abs_filename, $fi->filename_without_inc,
-            (@extra) ? sprintf("(%s)", join ", ", @extra) : "";
+            (@extra) ? sprintf("(%s)", join "; ", @extra) : "";
         print $fh "</tr>\n";
     }
     print $fh "</tbody>\n";

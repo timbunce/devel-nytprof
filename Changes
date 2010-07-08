@@ -14,11 +14,9 @@ add "calls N subs" to treemap mouseover box
 
 =head2 Changes in Devel::NYTProf 4.04
 
-TODO: time reporting for subs that recurse is wrong (eg fib() in demo/demo-code.pl)
-
   Profile records presence of the slow regex match vars ($& $' $`).
-XXX not included in reports yet
-
+  The cumulative inclusive time measured for subs that are involved in
+    recursion is now reported as 'recursion: ... sum of overlapping time'.
   Trace log messages are now flushed immediately.
   Reduced risk of crashes in embedded applications that don't handle PL_endav
     carefully, like mod_perl.
