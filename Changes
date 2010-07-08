@@ -13,7 +13,7 @@ Changes - List of significant changes to Devel::NYTProf
     in recursion is now reported as 'recursion: ... sum of overlapping time'.
   Trace log messages are now flushed immediately.
   Reduced risk of crashes in embedded applications that don't handle PL_endav
-    carefully, like crrent versions of mod_perl.
+    carefully, like current versions of mod_perl.
 
 =head2 Changes in Devel::NYTProf 4.03 (svn 1316) 19th June 2010
 
@@ -155,7 +155,7 @@ Documentation Changes:
     perl opcodes (e.g., system calls and regexs). They're treated like xsubs.
     slowops=0 disables profiling of 'slowops'
     slowops=1 puts timings into one package ("CORE::", eg CORE::sleep)
-    slowops=2 (the defaut) puts timings into into the package that made the
+    slowops=2 (the default) puts timings into into the package that made the
     call, e.g., "Foo::CORE:sleep" (note the single colon).
 
   Added sigexit=1 option to enable a useable profile when the process
@@ -215,7 +215,7 @@ Changes to nytprofhtml:
     http://code.google.com/p/perl-devel-nytprof/issues/detail?id=15
   Fixed to use correct scripts during test and so avoid permissions
     issues, thanks to David Golden.
-  Fixed suprious "Unable to determine line number" warnings
+  Fixed spurious "Unable to determine line number" warnings
     when using options like -p, -n, -Mfoo.
 
   Changed enable_profile() to discard the time spent since
