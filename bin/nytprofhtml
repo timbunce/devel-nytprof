@@ -1271,6 +1271,7 @@ sub output_file_table {
     my $allTimes = $profile->{attribute}{total_stmts_duration};
     my $allCalls = $profile->{attribute}{total_stmts_measured}
                  - $profile->{attribute}{total_stmts_discounted};
+    my $sawampersand_fid = $profile->{attribute}{sawampersand_fid};
 
     my (@t_stmt_exec, @t_stmt_time);
     my @fis = $profile->noneval_fileinfos;
@@ -1280,16 +1281,17 @@ sub output_file_table {
     
     foreach my $fi (@fis) {
         my $meta = $fi->meta;
+        my $fid = $fi->fid;
         my @extra;
+        my $css_class = 'index';
 
         # The stats in this table include rolled up sums of nested evals.
 
-        my @has_evals = $fi->has_evals(1);
         my ($eval_stmts, $eval_time) = (0,0);
-        if (@has_evals) {
+        if (my @has_evals = $fi->has_evals(1)) {
             my $n_evals = scalar @has_evals;
             my $msg = sprintf "including %d string eval%s", $n_evals, ($n_evals>1) ? "s" : "";
-            if (my @nested = grep { $_->eval_fid != $fi->fid } @has_evals) {
+            if (my @nested = grep { $_->eval_fid != $fid } @has_evals) {
                 $msg .= sprintf ": %d direct plus %d nested",
                     $n_evals-@nested, scalar @nested;
             }
@@ -1297,8 +1299,12 @@ sub output_file_table {
             $eval_stmts = sum(map { $_->sum_of_stmts_count } @has_evals);
             $eval_time  = sum(map { $_->sum_of_stmts_time  } @has_evals);
         }
+        if ($fid == $sawampersand_fid) {
+            push @extra, "variables that impact regex performance for whole application seen here";
+            $css_class = "warn $css_class";
+        }
 
-        print $fh qq{<tr class="index">};
+        print $fh qq{<tr class="$css_class">};
 
         my $stmts = $meta->{'calls'} + $eval_stmts;
         print $fh determine_severity($stmts,     undef, 0,

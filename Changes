@@ -14,6 +14,8 @@ add "calls N subs" to treemap mouseover box
 
 =head2 Changes in Devel::NYTProf 4.04
 
+TODO: time reporting for subs that recurse is wrong (eg fib() in demo/demo-code.pl)
+
   Profile records presence of the slow regex match vars ($& $' $`).
 XXX not included in reports yet
 
