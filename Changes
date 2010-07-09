@@ -6,9 +6,9 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
-=head2 Changes in Devel::NYTProf 4.04 (svn 1329) 8th July 2010
+=head2 Changes in Devel::NYTProf 4.04 (svn 1332) 9th July 2010
 
-  Profile records presence of the slow regex match vars ($& $' $`).
+  Profile now reports presence of the slow regex match vars ($& $' $`).
   The (cumulative inclusive) recursion time measured for subs that are involved
     in recursion is now reported as 'recursion: ... sum of overlapping time'.
   Trace log messages are now flushed immediately.
