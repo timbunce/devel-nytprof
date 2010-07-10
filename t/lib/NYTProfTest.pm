@@ -479,10 +479,14 @@ sub verify_csv_report {
         }
     }
 
+    my $automated_testing = $ENV{AUTOMATED_TESTING}
+        # also try to catch some cases where AUTOMATED_TESTING isn't set
+        # like http://www.cpantesters.org/cpan/report/07588221-b19f-3f77-b713-d32bba55d77f
+                        || ($ENV{PERL_BATCH}||'') eq 'yes';
     # if it was slower than expected then we're very generous, to allow for
     # slow systems, e.g. cpan-testers running in cpu-starved virtual machines.
     # e.g., http://www.nntp.perl.org/group/perl.cpan.testers/2009/06/msg4227689.html
-    my $max_time_overrun_percentage = ($ENV{AUTOMATED_TESTING}) ? 400 : 200;
+    my $max_time_overrun_percentage = ($automated_testing) ? 400 : 200;
     # e.g., http://www.nntp.perl.org/group/perl.cpan.testers/2009/06/msg4230206.html
     my $max_time_underrun_percentage = 90;
 
