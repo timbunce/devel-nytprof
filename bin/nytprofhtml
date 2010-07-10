@@ -200,7 +200,7 @@ $reporter->set_param(
 <div class="warn"><p>While profiling this file Perl noted the use of one or more special
 variables that impact the performance of <i>all</i> regular expressions in the program.</p>
 
-<p>Use of the "<tt>\$`</tt>", "<tt>\$&</tt>", and "<tt>\$'</tt>" variables should be replaced with faster alternatives.
+<p>Use of the "<tt>\$`</tt>", "<tt>\$&</tt>", and "<tt>\$'</tt>" variables should be replaced with faster alternatives.<br />
 See the WARNING at the end of the <a href="http://perldoc.perl.org/perlre.html#Capture-buffers">
 Capture Buffers section of the perlre documentation</a>.</p>
 
@@ -210,7 +210,8 @@ That was probably the first statement executed by the program after perl
 compiled the code containing the variables.
 If the variables can't be found by studying the source code, try using the
 <a href="http://search.cpan.org/perldoc?Devel::FindAmpersand">Devel::FindAmpersand</a>
-module.</p>
+or <a href="http://search.cpan.org/perldoc?B::Lint">B::Lint</a>
+modules.</p>
 
 </div>\n}
     }
