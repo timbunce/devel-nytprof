@@ -551,10 +551,10 @@ hash (char* _str, unsigned int len)
 static const char *
 eval_prefix(const char *filename, const char *prefix, STRLEN prefix_len) {
     if (memEQ(filename, prefix, prefix_len)
-        && isdigit(filename[prefix_len])) {
+        && isdigit((int)filename[prefix_len])) {
         const char *s = filename + prefix_len + 1;
 
-        while (isdigit(*s))
+        while (isdigit((int)*s))
             ++s;
         if (s[0] == ')')
             return s;
@@ -810,7 +810,7 @@ find_autosplit_parent(pTHX_ char* file_name)
 }
 
 
-static Hash_entry *
+static Hash_entry * /* currently unused */
 lookup_file_entry(pTHX_ char* file_name, STRLEN file_name_len) {
     Hash_entry entry, *found;
 

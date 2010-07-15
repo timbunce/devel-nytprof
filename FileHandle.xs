@@ -893,7 +893,7 @@ NYTP_write_sawampersand(NYTP_file ofile, unsigned int fid, unsigned int line)
     size_t total;
     size_t retval;
 
-    total += retval = NYTP_write_attribute_unsigned(ofile, STR_WITH_LEN("sawampersand_fid"),  fid);
+    total = retval = NYTP_write_attribute_unsigned(ofile, STR_WITH_LEN("sawampersand_fid"),  fid);
     if (retval < 1)
         return retval;
 
