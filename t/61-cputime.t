@@ -39,7 +39,7 @@ run_test_group( {
         ok $sub;
         is $sub->calls, 1, 'main::foo should be called 1 time';
         cmp_ok $sub->incl_time, '>=', 0.4 * 0.99, 'cputime of foo() should be at least 0.4';
-        cmp_ok $sub->incl_time, '<', 1.0, 'cputime of foo() should be not much more than 0.4';
+        cmp_ok $sub->incl_time, '<', 1.1, 'cputime of foo() should be not much more than 0.4';
         is $sub->incl_time, $sub->excl_time, 'incl_time and excl_time should be the same';
     },
 });
