@@ -28,6 +28,7 @@ sub inc {
     # call foo and then execute a slow expression *in the same statement*
     # With all line profilers except NYTProf, the time for that expression gets
     # assigned to the previous statement, i.e., the last statement executed in foo()!
+    # XXX this doesn't seem to be slow in 5.12+ - need a better example
     foo() && 'aaaaaaaaaaa' =~ /((a{0,5}){0,5})*[c]/;
 
     1;

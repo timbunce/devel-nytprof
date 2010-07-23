@@ -190,6 +190,10 @@ percentages and also be able to spot 'leaks' in the data processing (e.g. if
 the sum of the statement times don't match the time spent with the profiler
 enabled, due to nested string evals for example).
 
+Add flags to sub call info to indicate what phase (BEGIN, etc) the call
+happened in. That'll allow call graphs to ignore BEGIN-time calls
+(which tend to make graphviz output too noisy to be useful).
+
 *** For reports only
 
 ::Reader and its data structures need to be refactored to death.
@@ -216,6 +220,9 @@ in the report because we didn't know where the sub was.
 They could them be included in a separate 'miscellaneous' page.
 This is a more general way to view the problem of xsubs in packages
 for which we don't have any perl source code.
+
+Consider restoring inclusive-time treemap with an appropriate description
+to explain how to interpret it.
 
 *** Other - mostly unsorted - stuff ***
 
@@ -388,4 +395,5 @@ Docs describing how the subroutine profiler works need updating.
 Add 'u' key to treemap to trigger moving 'up' a level.
 Add "calls N subs" to treemap mouseover box
 Upgrade treemap to JIT version 2 (which has transition animations).
+
 
