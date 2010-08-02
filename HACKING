@@ -396,4 +396,8 @@ Add 'u' key to treemap to trigger moving 'up' a level.
 Add "calls N subs" to treemap mouseover box
 Upgrade treemap to JIT version 2 (which has transition animations).
 
-
+The subroutine profiler spends a lot of its time allocating the two
+calle[rd]_subname_sv SVs in subr_entry_setup and freeing them in subr_entry_destroy.
+If, instead of freeing the SVs they were chained into a freelist that
+subr_entry_setup could pull from, we'd get a significant boost in performance
+for the subroutine profiler.
