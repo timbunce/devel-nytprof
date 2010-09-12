@@ -6,6 +6,12 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 4.05 (svn 1340) 12th Sept 2010
+
+  Fixed handling of negative values for subroutine line ranges
+    (that may be added to %DB::sub by buggy software). 
+  Protect against bad line numbers hanging report generation.
+
 =head2 Changes in Devel::NYTProf 4.04 (svn 1332) 9th July 2010
 
   Profile now reports presence of the slow regex match vars ($& $' $`).

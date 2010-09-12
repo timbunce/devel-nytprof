@@ -3349,6 +3349,13 @@ write_sub_callers(pTHX)
             /* trim length to effectively hide the [fid:line] suffix */
             caller_subname_len = (I32)(fid_line_start-caller_subname);
 
+            /* catch negative line numbers that have been stored unsigned */
+            if (line > 2147483648) { /* 2**31 */
+                logwarn("%s called by %.*s at fid %u line %u - crazy line number changed to 0\n",
+                    called_subname, (int)caller_subname_len, caller_subname, fid, line);
+                line = 0;
+            }
+
             count = uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0);
             sc[NYTP_SCi_CALL_COUNT] = count * 1.0;
             sc[NYTP_SCi_INCL_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
