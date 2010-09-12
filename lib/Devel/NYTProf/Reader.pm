@@ -228,18 +228,25 @@ sub _generate_report {
         # note that a file may have no source lines executed, so no keys here
         # (but is included because some xsubs in the package were executed)
         my $lines_array = $fi->line_time_data([$LEVEL]) || [];
+        my $src_max_line = scalar @$lines_array;
+
+        for ($src_max_line, $subcalls_max_line, $subdefs_max_line, $evals_max_line) {
+            next if $_ < 2**16;
+            warn "Ignoring indication that $filestr has $_ lines! (Possibly corrupt data)\n";
+            $_ = 0;
+        }
 
         my $max_linenum = max(
-            scalar @$lines_array,
+            $src_max_line,
             $subcalls_max_line,
             $subdefs_max_line,
             $evals_max_line,
         );
 
-        warn sprintf "%s %s max lines: stmts %d, subcalls %d, subdefs %d, evals %d\n",
-                $filestr, $LEVEL, scalar @$lines_array,
+        warn sprintf "%s max lines: %s (stmts %s, subcalls %s, subdefs %s, evals %s)\n",
+                $filestr, $max_linenum, scalar @$lines_array,
                 $subcalls_max_line, $subdefs_max_line, $evals_max_line
-            if trace_level() >= 4;
+            if trace_level() >= 4 or $max_linenum > 2**15;
 
         my %stats_accum;           # holds all line times. used to find median
         my %stats_by_line;         # holds individual line stats
