@@ -117,6 +117,8 @@ if (defined($opt_lib)) {
     lib->import($opt_lib);
 }
 
+$SIG{USR2} = \&Carp::cluck;
+
 my $reporter = new Devel::NYTProf::Reader($opt_file);
 
 # place to store this
