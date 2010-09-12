@@ -3350,7 +3350,7 @@ write_sub_callers(pTHX)
             caller_subname_len = (I32)(fid_line_start-caller_subname);
 
             /* catch negative line numbers that have been stored unsigned */
-            if (line > 2147483648) { /* 2**31 */
+            if (line > 2147483600) { /* ~2**31 */
                 logwarn("%s called by %.*s at fid %u line %u - crazy line number changed to 0\n",
                     called_subname, (int)caller_subname_len, caller_subname, fid, line);
                 line = 0;

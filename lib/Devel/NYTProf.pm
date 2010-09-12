@@ -11,7 +11,7 @@
 ###########################################################
 package Devel::NYTProf;
 
-our $VERSION = '4.04';
+our $VERSION = '4.05';
 
 package    # hide the package from the PAUSE indexer
     DB;
