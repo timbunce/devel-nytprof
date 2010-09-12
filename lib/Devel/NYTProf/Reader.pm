@@ -11,7 +11,7 @@
 ###########################################################
 package Devel::NYTProf::Reader;
 
-our $VERSION = '4.04';
+our $VERSION = '4.05';
 
 use warnings;
 use strict;
@@ -389,17 +389,25 @@ sub _generate_report {
                 $msg = "No source code available for non-file '$filestr'.\nYou probably need to use a more recent version of perl. See savesrc option in documentation.",
             }
             else {
+                $msg = "Unable to open '$filestr' for reading: $!";
+
+                # clarify some current Moose limitations XXX
+                if ($filestr =~ m!/(accessor .*) defined at /!) {
+                    $msg = "Source for generated Moose $1 isn't available ($filestr: $!)";
+                }
+                elsif ($filestr =~ m!/(generated method \(unknown origin\))!) {
+                    $msg = "Source for Moose $1 isn't available ($filestr: $!)";
+                }
 
                 # the report will not be complete, but this doesn't need to be fatal
                 my $hint = '';
-                $hint = " Try running $0 in the same directory as you ran Devel::NYTProf, "
+                $hint .= " Try running $0 in the same directory as you ran Devel::NYTProf, "
                       . "or ensure \@INC is correct."
                     if $filestr ne '-e'
                     and $filestr !~ m:^/:
                     and not our $_generate_report_inc_hint++;                # only once
 
-                $msg = "Unable to open '$filestr' for reading: $!.$hint\n";
-                warn $msg
+                warn "$msg$hint\n"
                     unless our $_generate_report_filestr_warn->{$filestr}++; # only once per filestr
 
             }
