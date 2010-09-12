@@ -357,7 +357,7 @@ static int disable_profile(pTHX);
 static void finish_profile(pTHX);
 static void open_output_file(pTHX_ char *);
 static int reinit_if_forked(pTHX);
-static int parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *last_line_p);
+static int parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *last_line_p, char *sub_name);
 static void write_cached_fids(void);
 static void write_src_of_files(pTHX);
 static void write_sub_line_ranges(pTHX);
@@ -1791,7 +1791,7 @@ append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
     SvPOK_on(fullnamesv);
     DBsv = hv_delete(GvHV(PL_DBsub), SvPVX(fullnamesv), (I32)total_len, 1);
 
-    if (DBsv && parse_DBsub_value(aTHX_ DBsv, NULL, &line, NULL)) {
+    if (DBsv && parse_DBsub_value(aTHX_ DBsv, NULL, &line, NULL, SvPVX(fullnamesv))) {
         SvREFCNT_inc(DBsv); /* was made mortal by hv_delete */
         sv_catpvf(fullnamesv,                   "@%u", (unsigned int)line);
         if (hv_fetch(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), (I32)SvCUR(fullnamesv), 0)) {
@@ -3084,18 +3084,39 @@ sub_pkg_filename_sv(pTHX_ char *sub_name, I32 len)
 
 
 static int
-parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *last_line_p) {
+parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *last_line_p, char *sub_name) {
     /* "filename:first-last" */
     char *filename = SvPV_nolen(sv);
-    char *first = strrchr(filename, ':');
-    char *last = (first) ? strchr(first, '-') : NULL;
+    char *first = strrchr(filename, ':'); /* find last colon */
+    char *last;
+    int first_is_neg = 0;
 
-    if (!first || !last || !grok_number(first+1, last-first-1, first_line_p))
-        return 0;
-    if (last_line_p)
-        *last_line_p = atoi(++last);
-    if (filename_len_p)
+    if (first && filename_len_p)
         *filename_len_p = first - filename;
+
+    if (!first++)            /* start of first number, if colon was found */
+        return 0;
+    if ('-' == *first) {     /* first number is negative */
+        ++first;
+        first_is_neg = 1;
+    }
+    last = strchr(first, '-');  /* find separator dash */
+
+    if (!last || !grok_number(first, last-first, first_line_p))
+        return 0;
+    if (first_is_neg) {
+        warn("Negative first line number in %%DB::sub entry '%s' for %s\n",
+            filename, sub_name);
+        *first_line_p = 0;
+    }
+
+    if ('-' == *++last) { /* skip past dash, is next char a minus? */
+        warn("Negative last line number in %%DB::sub entry '%s' for %s\n",
+            filename, sub_name);
+        last = "0";
+    }
+    if (last_line_p)
+        *last_line_p = atoi(last);
 
     return 1;
 }
@@ -3239,7 +3260,7 @@ write_sub_line_ranges(pTHX)
         STRLEN filename_len;
         UV first_line, last_line;
 
-        if (!parse_DBsub_value(aTHX_ file_lines_sv, &filename_len, &first_line, &last_line)) {
+        if (!parse_DBsub_value(aTHX_ file_lines_sv, &filename_len, &first_line, &last_line, sub_name)) {
             logwarn("Can't parse %%DB::sub entry for %s '%s'\n", sub_name, filename);
             continue;
         }
@@ -3687,7 +3708,7 @@ load_discount_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
 
-    if (trace_level >= 4)
+    if (trace_level >= 8)
         logwarn("discounting next statement after %u:%d\n",
                 state->last_file_num, state->last_line_num);
     if (state->statement_discount)
@@ -3728,7 +3749,7 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
         }
     }
 
-    if (trace_level >= 4) {
+    if (trace_level >= 8) {
         const char *new_file_name = "";
         if (file_num != state->last_file_num && SvROK(fid_info_rvav))
             new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), NYTP_FIDi_FILENAME, 1));
@@ -3759,7 +3780,7 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
                 1 - state->statement_discount
         );
 
-        if (trace_level >= 4)
+        if (trace_level >= 8)
             logwarn("\tblock %u, sub %u\n", block_line_num, sub_line_num);
     }
 
@@ -4005,7 +4026,7 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
     normalize_eval_seqn(aTHX_ caller_subname_sv);
     normalize_eval_seqn(aTHX_ called_subname_sv);
 
-    if (trace_level >= 3)
+    if (trace_level >= 6)
         logwarn("Sub %s called by %s %u:%u: count %d, incl %"NVff", excl %"NVff"\n",
                 SvPV_nolen(called_subname_sv), SvPV_nolen(caller_subname_sv),
                 fid, line, count, incl_time, excl_time);
