@@ -1,7 +1,7 @@
 # test handling of string eval 'file names' that don't include the
 # invoking filename (normally added when $^P & 0x100 is true).
 
-1;
+shift;
 
 # fake an eval (using a #line directive) that doesn't match the
 # usual "(eval N)[file:line]" syntax:
