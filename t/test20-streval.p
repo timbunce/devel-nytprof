@@ -8,7 +8,7 @@ my $code = 'foo()';
 eval $code;
 
 # call twice from the same line
-eval $code or die $@ for (1,2);
+eval $code or die $@; eval $code or die $@;
 
 # once from an eval inside an eval
 eval "eval q{$code}";

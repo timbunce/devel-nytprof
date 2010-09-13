@@ -11,7 +11,7 @@
 0,1,0,eval $code;
 0,0,0,
 0,0,0,# call twice from the same line
-0,2,0,eval $code or die $@ for (1,2);
+0,2,0,eval $code or die $@; eval $code or die $@;
 0,0,0,
 0,0,0,# once from an eval inside an eval
 0,1,0,eval "eval q{$code}";

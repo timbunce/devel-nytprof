@@ -1,7 +1,7 @@
-1;
+shift;
 DB::disable_profile();
-1;
+shift;
 DB::enable_profile();
-1;
+shift;
 DB::disable_profile();
-1; # finish with profile disabled
+shift; # finish with profile disabled
