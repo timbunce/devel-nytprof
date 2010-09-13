@@ -2,8 +2,8 @@
 # More information at http://search.cpan.org/dist/Devel-NYTProf/
 # Format: time,calls,time/call,code
 0,0,0,sub foo {
-0,2,0,eval "1;
-0,0,0,2;
+0,2,0,eval "shift;
+0,0,0,shift;
 0,0,0,bar();";
 0,0,0,}
 0,0,0,

@@ -1,6 +1,6 @@
 sub foo {
-    eval "1;
-          2;
+    eval "shift;
+          shift;
           bar();";
 }
 
