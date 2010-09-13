@@ -5,4 +5,4 @@ sub foo { print "foo @_\n" }
 
 my $code = 'sub { foo() }';
 
-eval($code)->() for 1..3;
+eval($code)->(); eval($code)->(); eval($code)->();
