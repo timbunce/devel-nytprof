@@ -10,8 +10,8 @@ use Devel::NYTProf::Run qw(profile_this);
 
 # tiny amount of source code to exercise RT#50851
 my @src = (
-    "1+1;\n",
-    "2+2;\n",
+    "\$a = 1;\n",
+    "\$b = 2;\n",
 );
 
 run_test_group( {
