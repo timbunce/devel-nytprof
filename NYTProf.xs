@@ -331,7 +331,7 @@ static unsigned int last_block_line;
 static unsigned int last_sub_line;
 static bool         last_sawampersand;
 static unsigned int is_profiling;       /* disable_profile() & enable_profile() */
-static Pid_t last_pid;
+static Pid_t last_pid = 0;
 static NV cumulative_overhead_ticks = 0.0;
 static NV cumulative_subr_secs = 0.0;
 static UV cumulative_subr_seqn = 0;
@@ -2823,7 +2823,40 @@ finish_profile(pTHX)
 }
 
 
+static void
+_init_profiler_clock(pTHX)
+{
+#ifdef HAS_CLOCK_GETTIME
+    if (profile_clock == -1) { /* auto select */
+#  ifdef CLOCK_MONOTONIC
+        profile_clock = CLOCK_MONOTONIC;
+#  else
+        profile_clock = CLOCK_REALTIME;
+#  endif
+    }
+    /* downgrade to CLOCK_REALTIME if desired clock not available */
+    if (clock_gettime(profile_clock, &start_time) != 0) {
+        if (trace_level)
+            logwarn("~ clock_gettime clock %d not available (%s) using CLOCK_REALTIME instead\n",
+                profile_clock, strerror(errno));
+        profile_clock = CLOCK_REALTIME;
+        /* check CLOCK_REALTIME as well, just in case */
+        if (clock_gettime(profile_clock, &start_time) != 0)
+            croak("clock_gettime CLOCK_REALTIME not available (%s), aborting",
+                strerror(errno));
+    }
+#else
+    if (profile_clock != -1) {  /* user tried to select different clock */
+        logwarn("clock %d not available (clock_gettime not supported on this system)\n", profile_clock);
+        profile_clock = -1;
+    }
+#endif
+    ticks_per_sec = (profile_usecputime) ? PL_clocktick : CLOCKS_PER_TICK;
+}
+
+
 /* Initial setup - should only be called once */
+
 static int
 init_profiler(pTHX)
 {
@@ -2844,7 +2877,6 @@ init_profiler(pTHX)
 
     /* Save the process id early. We monitor it to detect forks */
     last_pid = getpid();
-    ticks_per_sec = (profile_usecputime) ? PL_clocktick : CLOCKS_PER_TICK;
     DB_CHECK_cv = (SV*)GvCV(gv_fetchpv("DB::_CHECK",        FALSE, SVt_PVCV));
     DB_INIT_cv = (SV*)GvCV(gv_fetchpv("DB::_INIT",          FALSE, SVt_PVCV));
     DB_END_cv  = (SV*)GvCV(gv_fetchpv("DB::_END",           FALSE, SVt_PVCV));
@@ -2872,31 +2904,7 @@ init_profiler(pTHX)
     if (opt_perldb) /* force a PL_perldb value - for testing only, not documented */
         PL_perldb = opt_perldb;
 
-#ifdef HAS_CLOCK_GETTIME
-    if (profile_clock == -1) { /* auto select */
-#  ifdef CLOCK_MONOTONIC
-        profile_clock = CLOCK_MONOTONIC;
-#  else
-        profile_clock = CLOCK_REALTIME;
-#  endif
-    }
-    /* downgrade to CLOCK_REALTIME if desired clock not available */
-    if (clock_gettime(profile_clock, &start_time) != 0) {
-        if (trace_level)
-            logwarn("~ clock_gettime clock %d not available (%s) using CLOCK_REALTIME instead\n",
-                profile_clock, strerror(errno));
-        profile_clock = CLOCK_REALTIME;
-        /* check CLOCK_REALTIME as well, just in case */
-        if (clock_gettime(profile_clock, &start_time) != 0)
-            croak("clock_gettime CLOCK_REALTIME not available (%s), aborting",
-                strerror(errno));
-    }
-#else
-    if (profile_clock != -1) {  /* user tried to select different clock */
-        logwarn("clock %d not available (clock_gettime not supported on this system)\n", profile_clock);
-        profile_clock = -1;
-    }
-#endif
+    _init_profiler_clock(aTHX);
 
     if (trace_level)
         logwarn("~ init_profiler for pid %d, clock %d, start %d, perldb 0x%lx, exitf 0x%lx\n",
@@ -4929,10 +4937,12 @@ example_xsub_eval(...)
      */
     eval_pv("Devel::NYTProf::Test::example_xsub()", 1);
 
+
 void
 set_errno(int e)
     CODE:
     SETERRNO(e, 0);
+
 
 void
 ticks_for_usleep(long u_seconds)
@@ -4942,10 +4952,10 @@ ticks_for_usleep(long u_seconds)
     time_of_day_t s_time;
     time_of_day_t e_time;
     struct timeval timebuf;
-
     timebuf.tv_sec  = (long)(u_seconds / 1000000);
     timebuf.tv_usec = u_seconds - (timebuf.tv_sec * 1000000);
-
+    if (!last_pid)
+        _init_profiler_clock(aTHX);
     get_time_of_day(s_time);
     PerlSock_select(0, 0, 0, 0, &timebuf);
     get_time_of_day(e_time);
