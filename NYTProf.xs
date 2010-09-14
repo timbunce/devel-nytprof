@@ -1386,6 +1386,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
     reinit_if_forked(aTHX);
 
+    /* XXX move down into the (file != last_executed_fileptr) block ? */
     CHECK_SAWAMPERSAND(last_executed_fid, last_executed_line);
 
     if (last_executed_fid) {
@@ -4932,6 +4933,31 @@ void
 set_errno(int e)
     CODE:
     SETERRNO(e, 0);
+
+void
+ticks_for_usleep(long u_seconds)
+    PPCODE:
+    long elapsed = -1, overflow = -1;
+#ifdef HAS_SELECT
+    time_of_day_t s_time;
+    time_of_day_t e_time;
+    struct timeval timebuf;
+
+    timebuf.tv_sec  = (long)(u_seconds / 1000000);
+    timebuf.tv_usec = u_seconds - (timebuf.tv_sec * 1000000);
+
+    get_time_of_day(s_time);
+    PerlSock_select(0, 0, 0, 0, &timebuf);
+    get_time_of_day(e_time);
+    get_ticks_between(s_time, e_time, elapsed, overflow);
+#else
+    PERL_UNUSED_VAR(u_seconds);
+#endif
+    EXTEND(SP, 4);
+    PUSHs(sv_2mortal(newSVnv(elapsed)));
+    PUSHs(sv_2mortal(newSVnv(overflow)));
+    PUSHs(sv_2mortal(newSVnv(CLOCKS_PER_TICK)));
+    PUSHs(sv_2mortal(newSViv(profile_clock)));
 
 
 MODULE = Devel::NYTProf     PACKAGE = DB
