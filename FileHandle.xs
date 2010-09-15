@@ -650,13 +650,13 @@ NYTP_close(NYTP_file file, int discard) {
 
 /**
  * Output an integer in bytes, optionally preceded by a tag. Use the special tag
- * NYTP_TAG_NO_TAG to suppress the tag output. A wrapper macro output_int(fh, i)
+ * NYTP_TAG_NO_TAG to suppress the tag output. A wrapper macro output_u32(fh, i)
  * does this for you.
  * "In bytes" means output the number in binary, using the least number of bytes
  * possible.  All numbers are positive. Use sign slot as a marker
  */
 static size_t
-output_tag_int(NYTP_file file, unsigned char tag, unsigned int i)
+output_tag_u32(NYTP_file file, unsigned char tag, U32 i)
 {
     U8 buffer[6];
     U8 *p = buffer;
@@ -693,7 +693,7 @@ output_tag_int(NYTP_file file, unsigned char tag, unsigned int i)
     return NYTP_write(file, buffer, p - buffer);
 }
 
-#define     output_int(fh, i)   output_tag_int((fh), NYTP_TAG_NO_TAG, (unsigned int)(i))
+#define     output_u32(fh, i)   output_tag_u32((fh), NYTP_TAG_NO_TAG, (i))
 
 static size_t
 output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signifies utf8 */
@@ -706,7 +706,7 @@ output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signif
         len = -len;
     }
 
-    total = retval = output_tag_int(file, tag, len);
+    total = retval = output_tag_u32(file, tag, len);
     if (retval <= 0)
         return retval;
 
@@ -730,7 +730,7 @@ output_nv(NYTP_file file, NV nv)
 }
 
 size_t
-NYTP_write_header(NYTP_file ofile, unsigned int major, unsigned int minor)
+NYTP_write_header(NYTP_file ofile, U32 major, U32 minor)
 {
     return NYTP_printf(ofile, "NYTProf %u %u\n", major, minor);
 }
@@ -849,17 +849,17 @@ NYTP_start_deflate_write_tag_comment(NYTP_file ofile, int compression_level) {
 #endif
 
 size_t
-NYTP_write_process_start(NYTP_file ofile, unsigned int pid, unsigned int ppid,
+NYTP_write_process_start(NYTP_file ofile, U32 pid, U32 ppid,
                          NV time_of_day)
 {
     size_t total;
     size_t retval;
 
-    total = retval = output_tag_int(ofile, NYTP_TAG_PID_START, pid);
+    total = retval = output_tag_u32(ofile, NYTP_TAG_PID_START, pid);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, ppid);
+    total += retval = output_u32(ofile, ppid);
     if (retval < 1)
         return retval;
 
@@ -871,12 +871,12 @@ NYTP_write_process_start(NYTP_file ofile, unsigned int pid, unsigned int ppid,
 }
 
 size_t
-NYTP_write_process_end(NYTP_file ofile, unsigned int pid, NV time_of_day)
+NYTP_write_process_end(NYTP_file ofile, U32 pid, NV time_of_day)
 {
     size_t total;
     size_t retval;
 
-    total = retval = output_tag_int(ofile, NYTP_TAG_PID_END, pid);
+    total = retval = output_tag_u32(ofile, NYTP_TAG_PID_END, pid);
     if (retval < 1)
         return retval;
 
@@ -888,7 +888,7 @@ NYTP_write_process_end(NYTP_file ofile, unsigned int pid, NV time_of_day)
 }
 
 size_t
-NYTP_write_sawampersand(NYTP_file ofile, unsigned int fid, unsigned int line)
+NYTP_write_sawampersand(NYTP_file ofile, U32 fid, U32 line)
 {
     size_t total;
     size_t retval;
@@ -905,35 +905,35 @@ NYTP_write_sawampersand(NYTP_file ofile, unsigned int fid, unsigned int line)
 }
 
 size_t
-NYTP_write_new_fid(NYTP_file ofile, unsigned int id, unsigned int eval_fid,
-                   unsigned int eval_line_num, unsigned int flags,
-                   unsigned int size, unsigned int mtime,
+NYTP_write_new_fid(NYTP_file ofile, U32 id, U32 eval_fid,
+                   U32 eval_line_num, U32 flags,
+                   U32 size, U32 mtime,
                    const char *name, I32 len)
 {
     size_t total;
     size_t retval;
 
-    total = retval = output_tag_int(ofile, NYTP_TAG_NEW_FID, id);
+    total = retval = output_tag_u32(ofile, NYTP_TAG_NEW_FID, id);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, eval_fid);
+    total += retval = output_u32(ofile, eval_fid);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, eval_line_num);
+    total += retval = output_u32(ofile, eval_line_num);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, flags);
+    total += retval = output_u32(ofile, flags);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, size);
+    total += retval = output_u32(ofile, size);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, mtime);
+    total += retval = output_u32(ofile, mtime);
     if (retval < 1)
         return retval;
 
@@ -960,15 +960,15 @@ write_time_common(NYTP_file ofile, unsigned char tag, I32 elapsed, U32 overflow,
         elapsed = 0;
     }
 
-    total = retval = output_tag_int(ofile, tag, elapsed);
+    total = retval = output_tag_u32(ofile, tag, elapsed);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, fid);
+    total += retval = output_u32(ofile, fid);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, line);
+    total += retval = output_u32(ofile, line);
     if (retval < 1)
         return retval;
 
@@ -987,11 +987,11 @@ NYTP_write_time_block(NYTP_file ofile, I32 elapsed, U32 overflow,
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, last_block_line);
+    total += retval = output_u32(ofile, last_block_line);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, last_sub_line);
+    total += retval = output_u32(ofile, last_sub_line);
     if (retval < 1)
         return retval;
 
@@ -1006,14 +1006,14 @@ NYTP_write_time_line(NYTP_file ofile, I32 elapsed, U32 overflow,
 }
 
 size_t
-NYTP_write_sub_info(NYTP_file ofile, unsigned int fid,
+NYTP_write_sub_info(NYTP_file ofile, U32 fid,
                     const char *name, I32 len,
-                    unsigned int first_line, unsigned int last_line)
+                    U32 first_line, U32 last_line)
 {
     size_t total;
     size_t retval;
 
-    total = retval = output_tag_int(ofile, NYTP_TAG_SUB_INFO, fid);
+    total = retval = output_tag_u32(ofile, NYTP_TAG_SUB_INFO, fid);
     if (retval < 1)
         return retval;
 
@@ -1021,11 +1021,11 @@ NYTP_write_sub_info(NYTP_file ofile, unsigned int fid,
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, first_line);
+    total += retval = output_u32(ofile, first_line);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, last_line);
+    total += retval = output_u32(ofile, last_line);
     if (retval < 1)
         return retval;
 
@@ -1036,20 +1036,20 @@ NYTP_write_sub_info(NYTP_file ofile, unsigned int fid,
 }
 
 size_t
-NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid, unsigned int line,
+NYTP_write_sub_callers(NYTP_file ofile, U32 fid, U32 line,
                        const char *caller_name, I32 caller_name_len,
-                       unsigned int count, NV incl_rtime, NV excl_rtime,
-                       NV reci_rtime, unsigned int depth,
+                       U32 count, NV incl_rtime, NV excl_rtime,
+                       NV reci_rtime, U32 depth,
                        const char *called_name, I32 called_name_len)
 {
     size_t total;
     size_t retval;
 
-    total = retval = output_tag_int(ofile, NYTP_TAG_SUB_CALLERS, fid);
+    total = retval = output_tag_u32(ofile, NYTP_TAG_SUB_CALLERS, fid);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, line);
+    total += retval = output_u32(ofile, line);
     if (retval < 1)
         return retval;
 
@@ -1057,7 +1057,7 @@ NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid, unsigned int line,
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, count);
+    total += retval = output_u32(ofile, count);
     if (retval < 1)
         return retval;
 
@@ -1073,7 +1073,7 @@ NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid, unsigned int line,
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, depth);
+    total += retval = output_u32(ofile, depth);
     if (retval < 1)
         return retval;
 
@@ -1085,17 +1085,17 @@ NYTP_write_sub_callers(NYTP_file ofile, unsigned int fid, unsigned int line,
 }
 
 size_t
-NYTP_write_src_line(NYTP_file ofile, unsigned int fid,
-                    unsigned int line, const char *text, I32 text_len)
+NYTP_write_src_line(NYTP_file ofile, U32 fid,
+                    U32 line, const char *text, I32 text_len)
 {
     size_t total;
     size_t retval;
 
-    total = retval = output_tag_int(ofile, NYTP_TAG_SRC_LINE, fid);
+    total = retval = output_tag_u32(ofile, NYTP_TAG_SRC_LINE, fid);
     if (retval < 1)
         return retval;
 
-    total += retval = output_int(ofile, line);
+    total += retval = output_u32(ofile, line);
     if (retval < 1)
         return retval;
 
@@ -1205,25 +1205,25 @@ SV *value
 size_t
 NYTP_write_process_start(handle, pid, ppid, time_of_day)
 NYTP_file handle
-unsigned int pid
-unsigned int ppid
+U32 pid
+U32 ppid
 NV time_of_day
 
 size_t
 NYTP_write_process_end(handle, pid, time_of_day)
 NYTP_file handle
-unsigned int pid
+U32 pid
 NV time_of_day
 
 size_t
 NYTP_write_new_fid(handle, id, eval_fid, eval_line_num, flags, size, mtime, name)
 NYTP_file handle
-unsigned int id
-unsigned int eval_fid
+U32 id
+U32 eval_fid
 int eval_line_num
-unsigned int flags
-unsigned int size
-unsigned int mtime
+U32 flags
+U32 size
+U32 mtime
 SV *name
     PREINIT:
         STRLEN len;
@@ -1239,27 +1239,27 @@ size_t
 NYTP_write_time_block(handle, elapsed, overflow, fid, line, last_block_line, last_sub_line)
 NYTP_file handle
 U32 elapsed
-unsigned int overflow
-unsigned int fid
-unsigned int line
-unsigned int last_block_line
-unsigned int last_sub_line
+U32 overflow
+U32 fid
+U32 line
+U32 last_block_line
+U32 last_sub_line
 
 size_t
 NYTP_write_time_line(handle, elapsed, overflow, fid, line)
 NYTP_file handle
 U32 elapsed
-unsigned int overflow
-unsigned int fid
-unsigned int line
+U32 overflow
+U32 fid
+U32 line
 
 size_t
 NYTP_write_sub_info(handle, fid, name, first_line, last_line)
 NYTP_file handle
-unsigned int fid
+U32 fid
 SV *name
-unsigned int first_line
-unsigned int last_line
+U32 first_line
+U32 last_line
     PREINIT:
         STRLEN len;
         const char *const p = SvPV(name, len);
@@ -1273,14 +1273,14 @@ unsigned int last_line
 size_t
 NYTP_write_sub_callers(handle, fid, line, caller, count, incl_rtime, excl_rtime, reci_rtime, depth, called_sub)
 NYTP_file handle
-unsigned int fid
-unsigned int line
+U32 fid
+U32 line
 SV *caller
-unsigned int count
+U32 count
 NV incl_rtime
 NV excl_rtime
 NV reci_rtime
-unsigned int depth
+U32 depth
 SV *called_sub
     PREINIT:
         STRLEN caller_len;
@@ -1299,8 +1299,8 @@ SV *called_sub
 size_t
 NYTP_write_src_line(handle, fid,  line, text)
 NYTP_file handle
-unsigned int fid
-unsigned int line
+U32 fid
+U32 line
 SV *text
     PREINIT:
         STRLEN len;
@@ -1318,6 +1318,6 @@ NYTP_file handle
 size_t
 NYTP_write_header(handle, major, minor)
 NYTP_file handle
-unsigned int major
-unsigned int minor
+U32 major
+U32 minor
 
