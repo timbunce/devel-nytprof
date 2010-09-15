@@ -59,9 +59,8 @@ my %map_range;
 my @pending_fids;
 my %pending_subs;
 
-sub _time_block_or_line {
+sub _write_time_block_or_line {
     my ($tag, $ticks, $fid, $line, $block_line, $sub_line) = @_;
-    my $is_line = $tag eq 'TIME_LINE';
 
     confess("No mapping for $fid") unless defined $fids{$fid};
     $fid = $fids{$fid};
@@ -69,10 +68,11 @@ sub _time_block_or_line {
     my $mapped_fid = $map_range{$fid}[$line];
     $fid = $mapped_fid if defined $mapped_fid;
 
-    if ($is_line) {
-	$out->write_time_line($ticks, $fid, $line);
+    # XXX overflow isn't passed in or through
+    if ($tag eq 'TIME_LINE') {
+	$out->write_time_line($ticks, 0, $fid, $line);
     } else {
-	$out->write_time_block($ticks, $fid, $line, $block_line, $sub_line);
+	$out->write_time_block($ticks, 0, $fid, $line, $block_line, $sub_line);
     }
 }
 
@@ -152,8 +152,8 @@ my %dispatcher =
 	 $out->write_new_fid($new_fid, $new_eval_fid, $eval_line, $flags,
 			     $size, $mtime, $name);
      },
-     TIME_BLOCK => \&_time_block_or_line,
-     TIME_LINE => \&_time_block_or_line,
+     TIME_BLOCK => \&_write_time_block_or_line,
+     TIME_LINE  => \&_write_time_block_or_line,
 
      DISCOUNT => sub {
 	 $out->write_discount();
@@ -316,8 +316,8 @@ foreach my $key (sort grep {!$identical{$_}} keys %attributes) {
 	my @grouped;
 	foreach my $prog (sort keys %counts) {
 	    my $count = $counts{$prog};
-	    push @grouped,
-		sprintf "$prog ($count run%s)", $count == 1 ? '' : 's';
+	    push @grouped, $prog;
+            $grouped[-1] .= " ($count runs)" if $count > 1;
 	}
 	my $last = pop @grouped;
 	my $value = @grouped ? join (', ', @grouped) . " and $last" : $last;

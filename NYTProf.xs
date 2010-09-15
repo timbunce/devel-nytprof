@@ -1381,8 +1381,6 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         get_time_of_day(end_time);
         get_ticks_between(start_time, end_time, elapsed, overflow);
     }
-    if (overflow)                                 /* XXX later output overflow to file */
-        logwarn("profile time overflow of %ld seconds discarded!\n", overflow);
 
     reinit_if_forked(aTHX);
 
@@ -1391,11 +1389,11 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
     if (last_executed_fid) {
         if (profile_blocks)
-            NYTP_write_time_block(out, elapsed, last_executed_fid,
+            NYTP_write_time_block(out, elapsed, overflow, last_executed_fid,
                                   last_executed_line, last_block_line,
                                   last_sub_line);
         else 
-            NYTP_write_time_line(out, elapsed, last_executed_fid,
+            NYTP_write_time_line(out, elapsed, overflow, last_executed_fid,
                                  last_executed_line);
 
         if (trace_level >= 5)

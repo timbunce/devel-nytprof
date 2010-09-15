@@ -945,11 +945,20 @@ NYTP_write_new_fid(NYTP_file ofile, unsigned int id, unsigned int eval_fid,
 }
 
 static size_t
-write_time_common(NYTP_file ofile, unsigned char tag, unsigned int elapsed,
-                  unsigned int fid, unsigned int line)
+write_time_common(NYTP_file ofile, unsigned char tag, I32 elapsed, U32 overflow,
+                  U32 fid, U32 line)
 {
     size_t total;
     size_t retval;
+
+    if (overflow)       /* XXX temp - needs protocol change to add new tag */
+        fprintf(stderr, "profile time overflow of %lu seconds discarded!\n",
+            (unsigned long)overflow);
+
+    if (elapsed < 0) {  /* XXX temp - needs support for signed ints */
+        fprintf(stderr, "Negative time %ld recorded as 0\n", elapsed);
+        elapsed = 0;
+    }
 
     total = retval = output_tag_int(ofile, tag, elapsed);
     if (retval < 1)
@@ -967,14 +976,13 @@ write_time_common(NYTP_file ofile, unsigned char tag, unsigned int elapsed,
 }
 
 size_t
-NYTP_write_time_block(NYTP_file ofile, unsigned int elapsed, unsigned int fid,
-                      unsigned int line, unsigned int last_block_line,
-                      unsigned int last_sub_line)
+NYTP_write_time_block(NYTP_file ofile, I32 elapsed, U32 overflow,
+    U32 fid, U32 line, U32 last_block_line, U32 last_sub_line)
 {
     size_t total;
     size_t retval;
 
-    total = retval = write_time_common(ofile, NYTP_TAG_TIME_BLOCK, elapsed,
+    total = retval = write_time_common(ofile, NYTP_TAG_TIME_BLOCK, elapsed, overflow,
                                        fid, line);
     if (retval < 1)
         return retval;
@@ -991,10 +999,10 @@ NYTP_write_time_block(NYTP_file ofile, unsigned int elapsed, unsigned int fid,
 }
 
 size_t
-NYTP_write_time_line(NYTP_file ofile, unsigned int elapsed, unsigned int fid,
-                     unsigned int line)
+NYTP_write_time_line(NYTP_file ofile, I32 elapsed, U32 overflow,
+    U32 fid, U32 line)
 {
-    return write_time_common(ofile, NYTP_TAG_TIME_LINE, elapsed, fid, line);
+    return write_time_common(ofile, NYTP_TAG_TIME_LINE, elapsed, overflow, fid, line);
 }
 
 size_t
@@ -1228,18 +1236,20 @@ SV *name
         RETVAL
 
 size_t
-NYTP_write_time_block(handle, elapsed, fid, line, last_block_line, last_sub_line)
+NYTP_write_time_block(handle, elapsed, overflow, fid, line, last_block_line, last_sub_line)
 NYTP_file handle
-unsigned int elapsed
+U32 elapsed
+unsigned int overflow
 unsigned int fid
 unsigned int line
 unsigned int last_block_line
 unsigned int last_sub_line
 
 size_t
-NYTP_write_time_line(handle, elapsed, fid, line)
+NYTP_write_time_line(handle, elapsed, overflow, fid, line)
 NYTP_file handle
-unsigned int elapsed
+U32 elapsed
+unsigned int overflow
 unsigned int fid
 unsigned int line
 
@@ -1310,3 +1320,4 @@ NYTP_write_header(handle, major, minor)
 NYTP_file handle
 unsigned int major
 unsigned int minor
+
