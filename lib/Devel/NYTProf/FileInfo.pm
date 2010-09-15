@@ -3,6 +3,7 @@ package Devel::NYTProf::FileInfo;    # fid_fileinfo
 use strict;
 
 use Carp;
+use Config;
 use List::Util qw(sum max);
 
 use Devel::NYTProf::Util qw(strip_prefix_from_paths trace_level);
@@ -542,6 +543,9 @@ sub dump {
         NYTP_FIDi_FLAGS, NYTP_FIDi_FILESIZE, NYTP_FIDi_FILEMTIME
     ];
     $values[0] = $self->filename_without_inc;
+    # also remove possible remaining perl version seen in some cpantesters
+    # http://www.cpantesters.org/cpan/report/bf913910-bfdd-11df-a657-c9f38a00995b
+    $values[0] =~ s!^$Config{version}/!!o;
 
     printf $fh "%s[ %s ]\n", $prefix, join(" ", map { defined($_) ? $_ : 'undef' } @values);
 
