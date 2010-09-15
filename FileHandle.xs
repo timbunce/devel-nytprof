@@ -1024,7 +1024,7 @@ write_time_common(NYTP_file ofile, unsigned char tag, I32 elapsed, U32 overflow,
             (unsigned long)overflow);
 
     if (elapsed < 0) {  /* XXX temp - needs support for signed ints */
-        fprintf(stderr, "Negative time %ld recorded as 0\n", elapsed);
+        fprintf(stderr, "Negative ticks %ld recorded as 0\n", (long)elapsed);
         elapsed = 0;
     }
 
