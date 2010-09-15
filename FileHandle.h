@@ -111,3 +111,12 @@ size_t NYTP_write_sub_callers(NYTP_file ofile, U32 fid, U32 line,
 size_t NYTP_write_src_line(NYTP_file ofile, U32 fid,
                         U32 line, const char *text, I32 text_len);
 size_t NYTP_write_discount(NYTP_file ofile);
+
+
+/* XXX
+ * On the write-side the functions above encapsulate the data format.
+ * On the read-side we've not got that far yet (and there's less need).
+ */
+U32 read_u32(NYTP_file ifile);
+NV  read_nv(NYTP_file ifile);
+

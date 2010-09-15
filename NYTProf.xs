@@ -347,7 +347,6 @@ static AV *slowop_name_cache;
 
 /* prototypes */
 static void output_header(pTHX);
-static unsigned int read_int(NYTP_file ifile);
 static SV *read_str(pTHX_ NYTP_file ifile, SV *sv);
 static unsigned int get_file_id(pTHX_ char*, STRLEN, int created_via);
 static void DB_stmt(pTHX_ COP *cop, OP *op);
@@ -496,7 +495,7 @@ read_str(pTHX_ NYTP_file ifile, SV *sv) {
         croak("File format error at offset %ld%s, expected string tag but found %d ('%c')",
               NYTP_tell(ifile)-1, NYTP_type_of_offset(ifile), tag, tag);
 
-    len = read_int(ifile);
+    len = read_u32(ifile);
     if (sv) {
         SvGROW(sv, len+1);  /* forces SVt_PV */
     }
@@ -3475,67 +3474,6 @@ write_src_of_files(pTHX)
 }
 
 
-/**
- * Read an integer by decompressing the next 1 to 4 bytes of binary into a 32-
- * bit integer. See output_int() for the compression details.
- */
-static unsigned int
-read_int(NYTP_file ifile)
-{
-    unsigned char d;
-    unsigned int newint;
-
-    NYTP_read(ifile, &d, sizeof(d), "integer prefix");
-
-    if (d < 0x80) {                               /* 7 bits */
-        newint = d;
-    }
-    else {
-        unsigned char buffer[4];
-        unsigned char *p = buffer;
-        unsigned int length;
-
-        if (d < 0xC0) {                          /* 14 bits */
-            newint = d & 0x7F;
-            length = 1;
-        }
-        else if (d < 0xE0) {                          /* 21 bits */
-            newint = d & 0x1F;
-            length = 2;
-        }
-        else if (d < 0xFF) {                          /* 28 bits */
-            newint = d & 0xF;
-            length = 3;
-        }
-        else if (d == 0xFF) {                         /* 32 bits */
-            newint = 0;
-            length = 4;
-        }
-        NYTP_read(ifile, buffer, length, "integer");
-        while (length--) {
-            newint <<= 8;
-            newint |= *p++;
-        }
-    }
-    return newint;
-}
-
-
-/**
- * Read an NV by simple byte copy to memory
- */
-static NV
-read_nv(NYTP_file ifile)
-{
-    NV nv;
-    /* no error checking on the assumption that a later token read will
-     * detect the error/eof condition
-     */
-    NYTP_read(ifile, (unsigned char *)&nv, sizeof(NV), "float");
-    return nv;
-}
-
-
 static void
 normalize_eval_seqn(pTHX_ SV *sv) {
     /* in-place-edit any eval sequence numbers to 0 */
@@ -4467,16 +4405,16 @@ load_profile_data_from_stream(loader_callback *callbacks,
             case NYTP_TAG_TIME_LINE:                       /*FALLTHRU*/
             case NYTP_TAG_TIME_BLOCK:
             {
-                unsigned int ticks    = read_int(in);
-                unsigned int file_num = read_int(in);
-                unsigned int line_num = read_int(in);
+                unsigned int ticks    = read_u32(in);
+                unsigned int file_num = read_u32(in);
+                unsigned int line_num = read_u32(in);
                 unsigned int block_line_num = 0;
                 unsigned int sub_line_num = 0;
                 nytp_tax_index tag = nytp_time_line;
 
                 if (c == NYTP_TAG_TIME_BLOCK) {
-                    block_line_num = read_int(in);
-                    sub_line_num = read_int(in);
+                    block_line_num = read_u32(in);
+                    sub_line_num = read_u32(in);
                     if (profile_blocks)
                         tag = nytp_time_block;
                 }
@@ -4491,12 +4429,12 @@ load_profile_data_from_stream(loader_callback *callbacks,
             case NYTP_TAG_NEW_FID:                             /* file */
             {
                 SV *filename_sv;
-                unsigned int file_num      = read_int(in);
-                unsigned int eval_file_num = read_int(in);
-                unsigned int eval_line_num = read_int(in);
-                unsigned int fid_flags     = read_int(in);
-                unsigned int file_size     = read_int(in);
-                unsigned int file_mtime    = read_int(in);
+                unsigned int file_num      = read_u32(in);
+                unsigned int eval_file_num = read_u32(in);
+                unsigned int eval_line_num = read_u32(in);
+                unsigned int fid_flags     = read_u32(in);
+                unsigned int file_size     = read_u32(in);
+                unsigned int file_mtime    = read_u32(in);
 
                 filename_sv = read_str(aTHX_ in, NULL);
 
@@ -4509,8 +4447,8 @@ load_profile_data_from_stream(loader_callback *callbacks,
 
             case NYTP_TAG_SRC_LINE:
             {
-                unsigned int file_num = read_int(in);
-                unsigned int line_num = read_int(in);
+                unsigned int file_num = read_u32(in);
+                unsigned int line_num = read_u32(in);
                 SV *src = read_str(aTHX_ in, NULL);
 
                 callbacks[nytp_src_line](state, nytp_src_line, file_num,
@@ -4520,10 +4458,10 @@ load_profile_data_from_stream(loader_callback *callbacks,
 
             case NYTP_TAG_SUB_INFO:
             {
-                unsigned int fid        = read_int(in);
+                unsigned int fid        = read_u32(in);
                 SV *subname_sv = read_str(aTHX_ in, tmp_str1_sv);
-                unsigned int first_line = read_int(in);
-                unsigned int last_line  = read_int(in);
+                unsigned int first_line = read_u32(in);
+                unsigned int last_line  = read_u32(in);
 
                 callbacks[nytp_sub_info](state, nytp_sub_info, fid,
                                          first_line, last_line, subname_sv);
@@ -4532,14 +4470,14 @@ load_profile_data_from_stream(loader_callback *callbacks,
 
             case NYTP_TAG_SUB_CALLERS:
             {
-                unsigned int fid   = read_int(in);
-                unsigned int line  = read_int(in);
+                unsigned int fid   = read_u32(in);
+                unsigned int line  = read_u32(in);
                 SV *caller_subname_sv = read_str(aTHX_ in, tmp_str2_sv);
-                unsigned int count = read_int(in);
+                unsigned int count = read_u32(in);
                 NV incl_time       = read_nv(in);
                 NV excl_time       = read_nv(in);
                 NV reci_time       = read_nv(in);
-                unsigned int rec_depth = read_int(in);
+                unsigned int rec_depth = read_u32(in);
                 SV *called_subname_sv = read_str(aTHX_ in, tmp_str1_sv);
 
                 callbacks[nytp_sub_callers](state, nytp_sub_callers, fid,
@@ -4552,8 +4490,8 @@ load_profile_data_from_stream(loader_callback *callbacks,
 
             case NYTP_TAG_PID_START:
             {
-                unsigned int pid  = read_int(in);
-                unsigned int ppid = read_int(in);
+                unsigned int pid  = read_u32(in);
+                unsigned int ppid = read_u32(in);
                 NV start_time = read_nv(in);
 
                 callbacks[nytp_pid_start](state, nytp_pid_start, pid, ppid,
@@ -4563,7 +4501,7 @@ load_profile_data_from_stream(loader_callback *callbacks,
 
             case NYTP_TAG_PID_END:
             {
-                unsigned int pid = read_int(in);
+                unsigned int pid = read_u32(in);
                 NV end_time = read_nv(in);
 
                 callbacks[nytp_pid_end](state, nytp_pid_end, pid, end_time);

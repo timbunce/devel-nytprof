@@ -648,6 +648,9 @@ NYTP_close(NYTP_file file, int discard) {
     return fclose(raw_file) == 0 ? 0 : errno;
 }
 
+
+/* ====== Low-level element I/O functions ====== */
+
 /**
  * Output an integer in bytes, optionally preceded by a tag. Use the special tag
  * NYTP_TAG_NO_TAG to suppress the tag output. A wrapper macro output_u32(fh, i)
@@ -668,16 +671,16 @@ output_tag_u32(NYTP_file file, unsigned char tag, U32 i)
     if (i < 0x80) {                               /* < 8 bits */
         *p++ = (U8)i;
     }
-    else if (i < 0x4000) {                        /* < 15 bits */
+    else if (i < 0x4000) {                        /* < 16 bits */
         *p++ = (U8)((i >> 8) | 0x80);
         *p++ = (U8)i;
     }
-    else if (i < 0x200000) {                      /* < 22 bits */
+    else if (i < 0x200000) {                      /* < 24 bits */
         *p++ = (U8)((i >> 16) | 0xC0);
         *p++ = (U8)(i >> 8);
         *p++ = (U8)i;
     }
-    else if (i < 0x10000000) {                    /* 32 bits */
+    else if (i < 0x10000000) {                    /* < 32 bits */
         *p++ = (U8)((i >> 24) | 0xE0);
         *p++ = (U8)(i >> 16);
         *p++ = (U8)(i >> 8);
@@ -694,6 +697,53 @@ output_tag_u32(NYTP_file file, unsigned char tag, U32 i)
 }
 
 #define     output_u32(fh, i)   output_tag_u32((fh), NYTP_TAG_NO_TAG, (i))
+
+
+/**
+ * Read an integer by decompressing the next 1 to 4 bytes of binary into a 32-
+ * bit integer. See output_int() for the compression details.
+ */
+U32
+read_u32(NYTP_file ifile)
+{
+    unsigned char d;
+    U32 newint;
+
+    NYTP_read(ifile, &d, sizeof(d), "integer prefix");
+
+    if (d < 0x80) {                               /* < 8 bits */
+        newint = d;
+    }
+    else {
+        unsigned char buffer[4];
+        unsigned char *p = buffer;
+        unsigned int length;
+
+        if (d < 0xC0) {                          /* < 16 bits */
+            newint = d & 0x7F;
+            length = 1;
+        }
+        else if (d < 0xE0) {                     /* < 24 bits */
+            newint = d & 0x1F;
+            length = 2;
+        }
+        else if (d < 0xFF) {                     /* < 32 bits */
+            newint = d & 0xF;
+            length = 3;
+        }
+        else if (d == 0xFF) {                    /* = 32 bits */
+            newint = 0;
+            length = 4;
+        }
+        NYTP_read(ifile, buffer, length, "integer");
+        while (length--) {
+            newint <<= 8;
+            newint |= *p++;
+        }
+    }
+    return newint;
+}
+
 
 static size_t
 output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signifies utf8 */
@@ -719,6 +769,7 @@ output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signif
     return total;
 }
 
+
 /**
  * Output a double precision float via a simple binary write of the memory.
  * (Minor portbility issues are seen as less important than speed and space.)
@@ -728,6 +779,23 @@ output_nv(NYTP_file file, NV nv)
 {
     return NYTP_write(file, (unsigned char *)&nv, sizeof(NV));
 }
+
+/**
+ * Read an NV by simple byte copy to memory
+ */
+NV
+read_nv(NYTP_file ifile)
+{
+    NV nv;
+    /* no error checking on the assumption that a later token read will
+     * detect the error/eof condition
+     */
+    NYTP_read(ifile, (unsigned char *)&nv, sizeof(NV), "float");
+    return nv;
+}
+
+
+/* ====== Higher-level protocol I/O functions ====== */
 
 size_t
 NYTP_write_header(NYTP_file ofile, U32 major, U32 minor)
