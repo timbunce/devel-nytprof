@@ -3681,13 +3681,13 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
     NV seconds;
     unsigned int eval_file_num = 0;
     unsigned int eval_line_num = 0;
-    unsigned int ticks;
+    I32 ticks;
     unsigned int file_num;
     unsigned int line_num;
 
     va_start(args, tag);
 
-    ticks = va_arg(args, unsigned int);
+    ticks = va_arg(args, I32);
     file_num = va_arg(args, unsigned int);
     line_num = va_arg(args, unsigned int);
 
@@ -3705,8 +3705,8 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
         const char *new_file_name = "";
         if (file_num != state->last_file_num && SvROK(fid_info_rvav))
             new_file_name = SvPV_nolen(*av_fetch((AV *)SvRV(fid_info_rvav), NYTP_FIDi_FILENAME, 1));
-        logwarn("Read %d:%-4d %2u ticks%s %s\n",
-                file_num, line_num, ticks, trace_note, new_file_name);
+        logwarn("Read %d:%-4d %2ld ticks%s %s\n",
+                file_num, line_num, (long)ticks, trace_note, new_file_name);
     }
 
     add_entry(aTHX_ state->fid_line_time_av, file_num, line_num,
@@ -4186,8 +4186,8 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("VERSION"), "uu"},
     {STR_WITH_LEN("ATTRIBUTE"), "33"},
     {STR_WITH_LEN("COMMENT"), "3"},
-    {STR_WITH_LEN("TIME_BLOCK"), "uuuuu"},
-    {STR_WITH_LEN("TIME_LINE"), "uuu"},
+    {STR_WITH_LEN("TIME_BLOCK"), "iuuuu"},
+    {STR_WITH_LEN("TIME_LINE"),  "iuu"},
     {STR_WITH_LEN("DISCOUNT"), ""},
     {STR_WITH_LEN("NEW_FID"), "uuuuuuS"},
     {STR_WITH_LEN("SRC_LINE"), "uuS"},
@@ -4242,6 +4242,14 @@ load_perl_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
             unsigned int u = va_arg(args, unsigned int);
 
             sv_setuv(cb_args[i], u);
+            XPUSHs(cb_args[i++]);
+            break;
+        }
+        case 'i':
+        {
+            I32 i32 = va_arg(args, I32);
+
+            sv_setuv(cb_args[i], i32);
             XPUSHs(cb_args[i++]);
             break;
         }
@@ -4405,7 +4413,7 @@ load_profile_data_from_stream(loader_callback *callbacks,
             case NYTP_TAG_TIME_LINE:                       /*FALLTHRU*/
             case NYTP_TAG_TIME_BLOCK:
             {
-                unsigned int ticks    = read_u32(in);
+                I32 ticks = read_i32(in);
                 unsigned int file_num = read_u32(in);
                 unsigned int line_num = read_u32(in);
                 unsigned int block_line_num = 0;

@@ -696,7 +696,14 @@ output_tag_u32(NYTP_file file, unsigned char tag, U32 i)
     return NYTP_write(file, buffer, p - buffer);
 }
 
+static size_t
+output_tag_i32(NYTP_file file, unsigned char tag, I32 i)
+{
+    return output_tag_u32(file, tag, *( (U32*) &i ) );
+}
+
 #define     output_u32(fh, i)   output_tag_u32((fh), NYTP_TAG_NO_TAG, (i))
+#define     output_i32(fh, i)   output_tag_i32((fh), NYTP_TAG_NO_TAG, (i))
 
 
 /**
@@ -742,6 +749,12 @@ read_u32(NYTP_file ifile)
         }
     }
     return newint;
+}
+
+I32
+read_i32(NYTP_file ifile) {
+    U32 u = read_u32(ifile);
+    return *( (I32*)&u );
 }
 
 
@@ -1019,16 +1032,13 @@ write_time_common(NYTP_file ofile, unsigned char tag, I32 elapsed, U32 overflow,
     size_t total;
     size_t retval;
 
-    if (overflow)       /* XXX temp - needs protocol change to add new tag */
+    if (overflow) {
+        /* XXX needs protocol change to output a new time-overflow tag */
         fprintf(stderr, "profile time overflow of %lu seconds discarded!\n",
             (unsigned long)overflow);
-
-    if (elapsed < 0) {  /* XXX temp - needs support for signed ints */
-        fprintf(stderr, "Negative ticks %ld recorded as 0\n", (long)elapsed);
-        elapsed = 0;
     }
 
-    total = retval = output_tag_u32(ofile, tag, elapsed);
+    total = retval = output_tag_i32(ofile, tag, elapsed);
     if (retval < 1)
         return retval;
 

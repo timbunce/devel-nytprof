@@ -118,5 +118,6 @@ size_t NYTP_write_discount(NYTP_file ofile);
  * On the read-side we've not got that far yet (and there's less need).
  */
 U32 read_u32(NYTP_file ifile);
+I32 read_i32(NYTP_file ifile);
 NV  read_nv(NYTP_file ifile);
 
