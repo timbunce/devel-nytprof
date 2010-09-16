@@ -833,27 +833,25 @@ helps reduce the cumulative error that naturally occurs when adding together
 many timings. When using these clocks NYTProf outputs timings as a count of 100
 nanosecond ticks.
 
+=head3 CLOCK_MONOTONIC
+
+CLOCK_MONOTONIC represents the amount of time since an unspecified point in
+the past (typically system start-up time).  It increments uniformly
+independent of adjustments to 'wallclock time'. NYTProf will use this clock by
+default, if available.
+
 =head3 CLOCK_REALTIME
 
 CLOCK_REALTIME is typically the system's main high resolution 'wall clock time'
 source.  The same source as used for the gettimeofday() call used by most kinds
 of perl benchmarking and profiling tools.
 
-If your system doesn't support clock_gettime() then NYTProf will use
-gettimeofday(), or the nearest equivalent,
-
 The problem with real time is that it's far from simple. It tends to drift and
 then be reset to match 'reality', either sharply or by small adjustments (via the
 adjtime() system call).
 
 Surprisingly, it can also go backwards, for reasons explained in
-http://preview.tinyurl.com/5wawnn
-
-=head3 CLOCK_MONOTONIC
-
-CLOCK_MONOTONIC represents the amount of time since an unspecified point in
-the past (typically system start-up time).  It increments uniformly
-independent of adjustments to 'wallclock time'.
+http://preview.tinyurl.com/5wawnn so CLOCK_MONOTONIC is preferred.
 
 =head3 CLOCK_VIRTUAL
 
@@ -886,6 +884,9 @@ A future version of NYTProf should be able to list the supported clocks.
 =head2 Other Clocks
 
 This section lists other clock sources that NYTProf may use.
+
+If your system doesn't support clock_gettime() then NYTProf will use
+gettimeofday(), or the nearest equivalent,
 
 =head3 gettimeofday
 
