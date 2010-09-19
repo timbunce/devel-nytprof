@@ -1634,7 +1634,8 @@ open_output_file(pTHX_ char *filename)
         if (fopen_errno==EEXIST && !(profile_opts & NYTP_OPTf_ADDPID))
             hint = " (enable addpid option to protect against concurrent writes)";
         disable_profile(aTHX);
-        croak("Failed to open output '%s': %s%s", filename, strerror(fopen_errno), hint);
+        croak("NYTProf failed to open '%s' for writing, error %d: %s%s",
+            filename, fopen_errno, strerror(fopen_errno), hint);
     }
     if (trace_level >= 1)
         logwarn("~ opened %s\n", filename);
