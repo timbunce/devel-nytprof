@@ -58,10 +58,14 @@ Devel::NYTProf - Powerful fast feature-rich perl source code profiler
   perl -d:NYTProf some_perl.pl
 
   # convert database into a set of html files, e.g., ./nytprof/index.html
-  nytprofhtml
+  # and open a web browser on the nytprof/index.html file
+  nytprofhtml --open
 
   # or into comma separated files, e.g., ./nytprof/*.csv
   nytprofcsv
+
+A screencast about profiling perl code, including a detailed look at how to use
+NYTProf and how to optimize your code, is available at L<http://timbunce.blip.tv/file/3913278/>
 
 =head1 DESCRIPTION
 
