@@ -26,6 +26,8 @@ use Devel::NYTProf::Run qw(perl_command_words);
 
 my $diff_opts = ($Config{osname} eq 'MSWin32') ? '-c' : '-u';
 
+eval { require BSD::Resource } if $ENV{NYTPROF_TEST_RUSAGE}; # experimental
+
 my %opts = (
     one          => $ENV{NYTPROF_TEST_ONE},
     profperlopts => $ENV{NYTPROF_TEST_PROFPERLOPTS} || '-d:NYTProf',
@@ -138,6 +140,8 @@ my %env_failed;
 sub do_foreach_opt_combination {
     my ($opt_combinations, $code) = @_;
 
+    my $rusage_start = get_rusage();
+
     COMBINATION:
     for my $env (@$opt_combinations) {
 
@@ -165,6 +169,7 @@ sub do_foreach_opt_combination {
             for keys %$env;
         $env_failed{ $ENV{NYTPROF} } = $failed;
     }
+    report_rusage($rusage_start);
 }
 
 
@@ -607,6 +612,18 @@ sub count_of_failed_tests {
     return scalar grep { not $_->{ok} } @details;
 }
 
+
+sub get_rusage {
+    return scalar eval { BSD::Resource::getrusage(BSD::Resource::RUSAGE_CHILDREN()) };
+}
+
+sub report_rusage {
+    my $ru1 = shift or return;
+    my $ru2 = get_rusage();
+    my %diff;
+    $diff{$_} = $ru2->$_ - $ru1->$_ for (qw(maxrss));
+    warn " maxrss: $diff{maxrss}\n";
+}
 
 
 1;
