@@ -9,6 +9,7 @@ Changes - List of significant changes to Devel::NYTProf
 =head2 Changes in Devel::NYTProf 4.06 (svn XXX) XXX
 
   Added note to the docs re profiling applications that use Coro.
+  Clarified usecputime=1 docs.
 
 =head2 Changes in Devel::NYTProf 4.05 (svn 1359) 15th Sept 2010
 

@@ -445,19 +445,21 @@ likely to change in future.
 =head2 usecputime=1
 
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
-time (which is the default).
+time (which is the default). But there are better ways to do this, read on.
 
 Measuring CPU time has the advantage of making the measurements independent of
-time spent blocked waiting for the cpu or network i/o etc. But it also has the
-severe disadvantage of having typically I<far> less accurate timings.
+time spent blocked waiting for the cpu or network i/o etc. But the method used
+by Cusecputime=1> also has the severe disadvantage of having typically I<far>
+less accurate timings.
 
-Most systems use a 0.01 second granularity. With modern processors having multi-
-gigahertz clocks, 0.01 seconds is like a lifetime. The cpu time clock 'ticks'
+Most systems have a 0.01 second granularity in the results from the C<times()>
+sytem call.  With modern processors having multi- gigahertz clocks, 0.01
+seconds is like a lifetime. The 'ticks' of this CPU time clock
 happen so rarely relative to the activity of a most applications that you'd
 have to run the code for many hours to have any hope of reasonably useful results.
 
-A better alternative would be to use the C<clock=N> option to select a
-high-resolution cpu time clock, if available on your system, because that'll
+A much better alternative is to use the L</clock=N> option to select a
+high-resolution CPU time clock, if available on your system, because that'll
 give you higher resolution and work for the subroutine profiler as well.
 
 =head2 file=...
