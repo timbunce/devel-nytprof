@@ -6,6 +6,10 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 4.06 (svn XXX) XXX
+
+  Added note to the docs re profiling applications that use Coro.
+
 =head2 Changes in Devel::NYTProf 4.05 (svn 1359) 15th Sept 2010
 
   Fixed tests to work with a new optimization in perl 5.13.4.

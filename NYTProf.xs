@@ -2173,7 +2173,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
 
     if (subr_entry_ix <= prev_subr_entry_ix) {
         /* one cause of this is running NYTProf with threads */
-        logwarn("NYTProf panic: stack is confused, giving up!\n");
+        logwarn("NYTProf panic: stack is confused, giving up! (Try running with subs=0)\n");
         /* limit the damage */
         disable_profile(aTHX);
         return prev_subr_entry_ix;
