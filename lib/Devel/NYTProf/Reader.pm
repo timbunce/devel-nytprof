@@ -463,7 +463,7 @@ sub _generate_report {
                 # XXX we should be smarter about this - patches welcome!
                 # We should at least ignore the common AutoSplit case
                 # which we detect and workaround elsewhere.
-                warn "Ignoring '$line' directive at line $LINE - profile data for $filestr will be out of sync with source!\n"
+                warn "Ignoring '$line' directive at line $LINE - profile data for $filestr will be out of sync with source\n"
                     unless our $line_directive_warn->{$filestr}++; # once per file
             }
 
