@@ -78,14 +78,16 @@ sub profile_this {
 
     if (my $src_file = $opt{src_file}) {
         system(@perl, $src_file) == 0
-            or carp "@perl $src_file exited with an error status";
+            or carp "Exit status $? from @perl $src_file";
     }
     elsif (my $src_code = $opt{src_code}) {
         open my $fh, "| @perl"
             or croak "Can't open pipe to @perl";
         print $fh $src_code;
         close $fh 
-            or carp "@perl exited with an error status";
+            or carp $! ? "Error closing @perl pipe: $!"
+                       : "Exit status $? from @perl";
+
     }
     else {
         croak "Neither src_file or src_code was provided";
