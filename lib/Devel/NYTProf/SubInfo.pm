@@ -258,8 +258,8 @@ sub _merge_in_caller_info {
 
     if (trace_level() >= 5) {
         carp sprintf "_merge_in_caller_info%s merging from $src_line_info -> $dst_line_info:", $tag;
-        warn sprintf " . %s\n", fmt_sc($src_line_info);
-        warn sprintf " + %s\n", fmt_sc($dst_line_info);
+        warn sprintf " . %s\n", _fmt_sc($src_line_info);
+        warn sprintf " + %s\n", _fmt_sc($dst_line_info);
     }
     if (!@$dst_line_info) {
         @$dst_line_info = (0) x NYTP_SCi_elements;
@@ -280,13 +280,13 @@ sub _merge_in_caller_info {
     my $dst_cs = $dst_line_info->[NYTP_SCi_CALLING_SUB]||={};
     $dst_cs->{$_} = $src_cs->{$_} for keys %$src_cs;
 
-    warn sprintf " = %s\n", fmt_sc($dst_line_info)
+    warn sprintf " = %s\n", _fmt_sc($dst_line_info)
         if trace_level() >= 5;
 
     return;
 }
 
-sub fmt_sc {
+sub _fmt_sc {
     my ($sc) = @_;
     return "(empty)" if !@$sc;
     my $dst_cs = $sc->[NYTP_SCi_CALLING_SUB]||{};
