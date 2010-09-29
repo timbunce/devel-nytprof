@@ -19,7 +19,7 @@ run_test_group( {
     extra_options => {
         start => 'init', compress => 1, leave => 0, stmts => 0, slowops => 0,
     },
-    extra_test_count => 2,
+    extra_test_count => 6,
     extra_test_code  => sub {
         my ($profile, $env) = @_;
 
