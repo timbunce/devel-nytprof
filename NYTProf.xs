@@ -3059,31 +3059,41 @@ int count, unsigned int fid)
 }
 
 
-/* Given a fully-qualified sub_name lookup the package name portion in
- * the pkg_fids_hv hash.  Return Nullsv if there's no package name or no
- * correponding entry else returns the SV.
- *
- * pkg_fids_hv:
- * pp_subcall_profiler() creates undef entries for a package
- *      name the first time a sub in the package is called.
- * write_sub_line_ranges() updates the SV with the filename associated
- *      with the package, or at least its best guess.
- *
+/* Given a fully-qualified name, return the length of the package name.
  * As most callers get len via the hash API, they will have an I32, where
  * "negative" length signifies UTF-8. As we're only dealing with looking for
  * ASCII here, it doesn't matter to use which encoding sub_name is in, but it
  * reduces total code by doing the abs(len) in here.
  */
-static SV *
-sub_pkg_filename_sv(pTHX_ char *sub_name, I32 len)
+static STRLEN
+pkg_name_len(char *sub_name, I32 len)
 {
-    SV **svp;
     const char *delim = "::";
     /* find end of package name */
     char *colon = rninstr(sub_name, sub_name+(len > 0 ? len : -len), delim, delim+2);
     if (!colon || colon == sub_name)
+        return 0;   /* no :: delimiter */
+    return (colon - sub_name);
+}
+
+/* Given a fully-qualified sub_name lookup the package name portion in
+ * the pkg_fids_hv hash.  Return Nullsv if there's no package name or no
+ * correponding entry, else returns the SV.
+ *
+ * About pkg_fids_hv:
+ * pp_subcall_profiler() creates undef entries for a package
+ *      name the first time a sub in the package is called.
+ * write_sub_line_ranges() updates the SV with the filename associated
+ *      with the package, or at least its best guess.
+ */
+static SV *
+sub_pkg_filename_sv(pTHX_ char *sub_name, I32 len)
+{
+    SV **svp;
+    STRLEN pkg_len = pkg_name_len(sub_name, len);
+    if (!pkg_len)
         return Nullsv;   /* no :: delimiter */
-    svp = hv_fetch(pkg_fids_hv, sub_name, (I32)(colon-sub_name), 0);
+    svp = hv_fetch(pkg_fids_hv, sub_name, (I32)pkg_len, 0);
     if (!svp)
         return Nullsv;   /* not a package we've profiled sub calls into */
     return *svp;
@@ -3171,7 +3181,7 @@ write_sub_line_ranges(pTHX)
         if (file_lines_len > 4
             && filename[file_lines_len - 2] == '-' && filename[file_lines_len - 1] == '0'
             && filename[file_lines_len - 4] != ':' && filename[file_lines_len - 3] != '0')
-            continue;   /* ignore filenames from %DB::sub that end in ":0-0" */
+            continue;   /* ignore filenames from %DB::sub that match /:[^0]-0$/ */
 
         first = strrchr(filename, ':');
         filename_len = (first) ? first - filename : 0;
@@ -3196,7 +3206,8 @@ write_sub_line_ranges(pTHX)
             && !filename_is_eval(filename, filename_len)
             ) {
                 if (trace_level >= 3)
-                    logwarn("Sub %.*s package prompted from %.*s to %.*s\n",
+                    logwarn("Package '%.*s' (of sub %.*s) association promoted from '%.*s' to '%.*s'\n",
+                        (int)pkg_name_len(sub_name, sub_name_len), sub_name,
                         (int)sub_name_len, sub_name,
                         (int)cached_len, cached_filename,
                         (int)filename_len, filename);
@@ -3209,9 +3220,12 @@ write_sub_line_ranges(pTHX)
             && !filename_is_eval(filename, filename_len)
             ) {
                 /* eg utf8::SWASHNEW is already associated with .../utf8.pm not .../utf8_heavy.pl */
-                logwarn("Package of sub %.*s is already associated with %s not %.*s\n",
+                logwarn("Package '%.*s' (of sub %.*s) not associated with '%.*s' because already associated with '%s'\n",
+                    (int)pkg_name_len(sub_name, sub_name_len), sub_name,
                     (int)sub_name_len, sub_name,
-                    SvPV_nolen(pkg_filename_sv), (int)filename_len, filename);
+                    (int)filename_len, filename,
+                    SvPV_nolen(pkg_filename_sv)
+                );
             }
             continue;
         }
