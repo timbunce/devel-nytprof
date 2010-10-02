@@ -25,7 +25,6 @@ use Devel::NYTProf::Data;
 use Devel::NYTProf::Util qw(
     fmt_float
     fmt_time
-    strip_prefix_from_paths
     html_safe_filename
     calculate_median_absolute_deviation
     trace_level
