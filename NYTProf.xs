@@ -340,6 +340,8 @@ static SV *DB_CHECK_cv;
 static SV *DB_INIT_cv;
 static SV *DB_END_cv;
 static SV *DB_fin_cv;
+static char *class_mop_evaltag     = " defined at ";
+static int   class_mop_evaltag_len = 12;
 
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
 
@@ -888,6 +890,22 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         }
     }
 
+    /* detect Class::MOP #line evals */
+    /* See _add_line_directive() in Class::MOP::Method::Generated */
+    if (!found->eval_fid) {
+        char *tag = ninstr(file_name, file_name+file_name_len, class_mop_evaltag, class_mop_evaltag+class_mop_evaltag_len);
+        if (tag) {
+            char *definer = tag + class_mop_evaltag_len;
+            int len       = file_name_len - (definer - file_name);
+            found->eval_fid      = get_file_id(aTHX_ definer, len, created_via);
+            found->eval_line_num = 1; /* XXX pity Class::MOP doesn't include the line here */
+            if (trace_level >= 1)
+                logwarn("Class::MOP eval for '%.*s' (fid %u:%u) from '%.*s'\n",
+                    len, definer, found->eval_fid, found->eval_line_num,
+                    (int)file_name_len, file_name);
+        } 
+    }
+
     /* is the file is an autosplit, e.g., has a file_name like
      * "../../lib/POSIX.pm (autosplit into ../../lib/auto/POSIX/errno.al)"
      */
@@ -930,8 +948,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     found->key_abs = NULL;
     if (!found->eval_fid &&
         !(file_name[0] == '-'
-         && (file_name_len==1
-             || (file_name[1] == 'e' && file_name_len==2))) &&
+         && (file_name_len==1 || (file_name[1]=='e' && file_name_len==2))) &&
 #ifdef WIN32
         /* XXX should we check for UNC names too? */
         (file_name_len < 3 || !isALPHA(file_name[0]) || file_name[1] != ':' ||
@@ -939,8 +956,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 #else
         *file_name != '/'
 #endif
-        )
-    {
+    ) {
         char file_name_abs[MAXPATHLEN * 2];
         /* Note that the current directory may have changed
             * between loading the file and profiling it.
