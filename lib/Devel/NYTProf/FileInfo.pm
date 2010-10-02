@@ -420,12 +420,16 @@ sub collapse_sibling_evals {
 }
 
 
-# should return the filename that the application used
-# when loading the file
+# Should return the filename that the application used when loading the file
+# For evals should remove the @INC portion from within the "(eval N)[$path]"
+# and similarly for Class::MOP #line evals "... defined at $path".
+# This is a bit of a fudge. Filename handling should be improved in the profiler.
 sub filename_without_inc {
     my $self = shift;
     my $f    = [$self->filename];
-    strip_prefix_from_paths([$self->profile->inc], $f);
+    strip_prefix_from_paths([$self->profile->inc], $f,
+        qr/(?: ^ | \[ | \sdefined\sat\s )/x
+    );
     return $f->[0];
 }
 

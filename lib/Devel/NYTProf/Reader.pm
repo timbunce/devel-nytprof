@@ -172,7 +172,7 @@ sub fname_for_fileinfo {
     $level ||= $self->current_level;
 
     my $fname = html_safe_filename($fi->filename_without_inc);
-    $fname .= "-".$fi->fid;
+    $fname .= "-".$fi->fid; # to ensure uniqueness and for info
     $fname .= "-$level" if $level;
 
     return $fname;
