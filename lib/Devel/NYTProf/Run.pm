@@ -95,7 +95,9 @@ sub profile_this {
 
     # undocumented hack that's handy for testing
     if ($opt{htmlopen}) {
-        warn system("nytprofhtml --open --file='$out_file'");
+        my @nytprofhtml_open = ("nytprofhtml", "--open", "-file=$out_file");
+        warn "Running @nytprofhtml_open\n";
+        system @nytprofhtml_open;
     }
 
     my $profile = Devel::NYTProf::Data->new( { filename => $out_file } );
