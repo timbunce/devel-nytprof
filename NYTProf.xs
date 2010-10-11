@@ -3462,7 +3462,7 @@ write_src_of_files(pTHX)
             ++t_no_src;
             if (src_av && av_len(src_av) > -1) /* sanity check */
                 hint = " (NYTP_FIDf_HAS_SRC not set but src available!)";
-            if (trace_level >= 4 || *hint)
+            if (trace_level >= 3 || *hint)
                 logwarn("fid %d has no src saved for %.*s%s\n",
                     e->id, e->key_len, e->key, hint);
             continue;
@@ -3481,7 +3481,7 @@ write_src_of_files(pTHX)
         ++t_save_src;
 
         lines = av_len(src_av); /* -1 is empty, 1 is 1 line etc, 0 shouldn't happen */
-        if (trace_level >= 4)
+        if (trace_level >= 3)
             logwarn("fid %d has %ld src lines for %.*s\n",
                 e->id, (long)lines, e->key_len, e->key);
         for (line = 1; line <= lines; ++line) { /* lines start at 1 */
