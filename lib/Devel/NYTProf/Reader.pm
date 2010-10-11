@@ -415,6 +415,16 @@ sub _generate_report {
             $LINE = 0; # start numbering from 0 to flag fake contents
         }
 
+        # ensure we don't have any undef source lines
+        # (to avoid warnings from the code below)
+        my $src_undefs;
+        defined $_ or $_ = '' && ++$src_undefs for @$src_lines;
+        # XXX shouldn't be need but don't have a test case so grumble
+        # about it in the hope of getting a test case
+        warn sprintf "Saw %d missing (undef) lines in the %d lines of source code for %s\n",
+                $src_undefs, scalar @$src_lines, $filestr
+            if $src_undefs;
+
         # Since we use @$src_lines to drive the report generation, pad the array to
         # ensure it has enough lines to include all the available profile info.
         # Then the report is still useful even if we have no source code.
