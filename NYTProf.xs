@@ -3082,8 +3082,9 @@ int count, unsigned int fid)
  * reduces total code by doing the abs(len) in here.
  */
 static STRLEN
-pkg_name_len(char *sub_name, I32 len)
+pkg_name_len(pTHX_ char *sub_name, I32 len)
 {
+    /* pTHX_ needed for old rninstr in old perl versions */
     const char *delim = "::";
     /* find end of package name */
     char *colon = rninstr(sub_name, sub_name+(len > 0 ? len : -len), delim, delim+2);
@@ -3106,7 +3107,7 @@ static SV *
 sub_pkg_filename_sv(pTHX_ char *sub_name, I32 len)
 {
     SV **svp;
-    STRLEN pkg_len = pkg_name_len(sub_name, len);
+    STRLEN pkg_len = pkg_name_len(aTHX_ sub_name, len);
     if (!pkg_len)
         return Nullsv;   /* no :: delimiter */
     svp = hv_fetch(pkg_fids_hv, sub_name, (I32)pkg_len, 0);
@@ -3223,7 +3224,7 @@ write_sub_line_ranges(pTHX)
             ) {
                 if (trace_level >= 3)
                     logwarn("Package '%.*s' (of sub %.*s) association promoted from '%.*s' to '%.*s'\n",
-                        (int)pkg_name_len(sub_name, sub_name_len), sub_name,
+                        (int)pkg_name_len(aTHX_ sub_name, sub_name_len), sub_name,
                         (int)sub_name_len, sub_name,
                         (int)cached_len, cached_filename,
                         (int)filename_len, filename);
@@ -3237,7 +3238,7 @@ write_sub_line_ranges(pTHX)
             ) {
                 /* eg utf8::SWASHNEW is already associated with .../utf8.pm not .../utf8_heavy.pl */
                 logwarn("Package '%.*s' (of sub %.*s) not associated with '%.*s' because already associated with '%s'\n",
-                    (int)pkg_name_len(sub_name, sub_name_len), sub_name,
+                    (int)pkg_name_len(aTHX_ sub_name, sub_name_len), sub_name,
                     (int)sub_name_len, sub_name,
                     (int)filename_len, filename,
                     SvPV_nolen(pkg_filename_sv)
