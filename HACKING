@@ -30,72 +30,22 @@ When developing, please ensure that no new compiler warnings are output.
 
 TESTING
 -------
-You MUST write test cases for your changes. All tests that are dropped into the
-"t" folder will be executed. (Remember to add them to MANIFEST.)  The testing system is
-customized for this module because profilers are not that easy to test.
-The system still uses Test::Harness and Test::More, so it should behave just
-like any other perl modules 'make test'.
+Please try to add tests covering any changes you make.
 
-Writing tests is easy!
+You can run individual tests like this:
 
-1) Design a perl script that will trigger the new behavior/feature that you
-   want to test. Name the file 't/test##-description.p'
+  perl -Mblib t/30-util.t
 
-2) Create an empty 'reference' file for the test.
-   Name the file 't/test##-description.rdt'
-   When the test is run you'll get an error and a diff and you'll
-   find a t/test##-description.rdt.new file waiting for you.
-   If, and only if, the contents of that file are correct, then rename
-   it to t/test##-description.rdt and you're done!
-   Of course working out if the contents are correct can be
-   non-trivial, but at least you don't have to write the file :)
-
-3) Create a corresponding CSV output file if appropriate.
-   You can use the same trick of creating an empty file, but this
-   time with a .x suffix: t/test##-description.x
-   You still need to verify the .x.new file of course!
-
-4) Create a test script like this:
-
-     use strict;
-     use Test::More;
-     use lib qw(t/lib);
-     use NYTProfTest;
-
-     run_test_group;
-
-   You can add additional tests as parameters to run_test_group:
-
-     run_test_group(2 => sub {
-         my ($profile, $env) = @_;
-         is $profile->foo, 'bar', "...";
-         is $profile->baz, 'bax', "...";
-     });
-
-
-Note:  While writing a test, it is helpful to be able to run it directly, 
-without the test harness.  This allows you to view more output stdout and 
-stderr.  Fortunately, its easy to do:
+Most tests include some underlying perl code that's being profiled.
+Either as a .p file, which can be profiled like this:
 
   perl -Mblib -MDevel::NYTProf t/test01.p
 
-The output will be in the ./nytprof.out file.  You can then also run the
-csv manually:
+or embedded at the end of a t/*.t file, which can be profiled like this:
 
-  perl -Mblib bin/nytprofcsv
+  perl -Mblib -MDevel::NYTProf -x t/70-subname
 
-The final file will be in ./nytprof/test01.p.csv
-
-Remember, testing is VERY VERY important!  Within a day or two of releasing
-code, the CPAN testers will test the release on pretty much every major platform
-you can think of.  A failed test report is much easier to fix than a runtime
-error like "bash: segmentation fault: core dumped"
-
-GENERATING DISTRIBUTIONS
-------------------------
-Releases are generated with 'make metafile', and then fed through tar+gz.
-You shouldn't ever check-in the distribution directory, any temporary files
-(including Makefile.old) or change the $VERSION numbers. We'll do this for you.
+The output will be in the ./nytprof.out file.
 
 RESOURCES
 ---------
@@ -120,11 +70,6 @@ Add tests for evals in regex: s/.../ ...perl code... /e
 Add tests for -block and -sub csv reports.
 
 Add tests with various kinds of blocks and loops (if, do, while, until, etc).
-
-Add mechanism to specify options inside the .p file, such as
-  # NYTPROF=...
-though this may not be needed if t/20.runtests.t gets dropped
-and the logic moved to a library for traditional t/*.t files to use.
 
 Add mechanism to specify inside the .p file that NYTProf
 should not be loaded via the command line. That's needed to test
@@ -401,3 +346,9 @@ calle[rd]_subname_sv SVs in subr_entry_setup and freeing them in subr_entry_dest
 If, instead of freeing the SVs they were chained into a freelist that
 subr_entry_setup could pull from, we'd get a significant boost in performance
 for the subroutine profiler.
+
+Would be good to be able to measure the time spent in require. The easy way
+would be to treat it as a slowop.  I recall enabling this in the early days
+of slowop support but running into problems. It would be good to revisit.
+This would help with profiling issues like:
+http://blog.moose.perl.org/2010/08/moose-110-and-classmop-105-now-compiling-10-faster.html
