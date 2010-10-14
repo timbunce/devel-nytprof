@@ -163,8 +163,7 @@ associated with the line of the source file that the previous statement starts o
 
 By default the statement profiler also determines the first line of the current
 block and the first line of the current statement, and accumulates times
-associated with those. NYTProf is the only Perl profiler to perform block level
-profiling.
+associated with those.
 
 Another innovation unique to NYTProf is automatic compensation for a problem
 inherent in simplistic statement-to-statement timing. Consider a statement that
@@ -377,9 +376,6 @@ and returning into the middle of statement, or re-evaluating a loop condition.
 
 This feature also ensures that in embedded environments, such as mod_perl,
 the last statement executed doesn't accumulate the time spent 'outside perl'.
-
-NYTProf is the only line-level profiler to measure these times correctly.
-The profiler is fast enough that you shouldn't need to disable this feature.
 
 =head2 findcaller=1
 
@@ -715,9 +711,8 @@ is reduced detail and/or accuracy in reports.
 
 If you don't need statement-level profiling then you can disable it via L</stmts=0>.
 If you do want it but don't mind loosing block-level timings then set L</blocks=0>.
-If you want need still more speed then set L</leave=0> to disable the
-adjustments made for statements that 'leave' the current control flow (doing
-this I<will> make timings for some kinds of statements less accurate).
+To further boost statement-level profiling performance try L</leave=0> but note that
+I<will> apportion timings for some kinds of statements less accurate).
 
 If you don't need subroutine profiling then you can disable it via L</subs=0>.
 If you do need it but don't need timings for perl opcodes then set L</slowops=0>.
