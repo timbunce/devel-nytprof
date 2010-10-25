@@ -352,3 +352,13 @@ would be to treat it as a slowop.  I recall enabling this in the early days
 of slowop support but running into problems. It would be good to revisit.
 This would help with profiling issues like:
 http://blog.moose.perl.org/2010/08/moose-110-and-classmop-105-now-compiling-10-faster.html
+
+We need a start=begin option to start at the _end_ of any INIT subs.
+(The current start=init option is the closest we have but it's not very
+useful if lots of other work is done in INIT blocks.)
+
+We need an option to discount the time spent in CORE:accept so that time
+pure-perl webservers spend waiting for the next request doesn't distort the
+profile. Possibly straight-forward to implement. The trick is to add the time
+spent in the sub to the statement profiler overhead time, thus getting it
+subtracted from the higher level sub time. Maybe.
