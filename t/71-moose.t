@@ -1,5 +1,3 @@
-# Tests CORE::GLOBAL::foo plus assorted data model methods
-
 use strict;
 use Test::More;
 
@@ -31,7 +29,7 @@ run_test_group( {
             src_code => $src_code,
             out_file => $env->{file},
             skip_sitecustomize => 1,
-            #htmlopen => 1,
+            htmlopen => $ENV{NYTPROF_TEST_HTMLOPEN},
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
 
@@ -49,6 +47,6 @@ has attrib_std  => ( is => 'rw',  default => 42 );
 has attrib_lazy => ( is => 'rw', lazy => 1, default => sub { 43 } );
 END {
     my $p = P->new;
-    $p->attrib_std;
-    $p->attrib_lazy
+    print $p->attrib_std."\n";
+    print $p->attrib_lazy."\n";
 }
