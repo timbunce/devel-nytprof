@@ -95,7 +95,7 @@ sub profile_this {
 
     # undocumented hack that's handy for testing
     if ($opt{htmlopen}) {
-        my @nytprofhtml_open = ("nytprofhtml", "--open", "-file=$out_file");
+        my @nytprofhtml_open = ("perl", "nytprofhtml", "--open", "-file=$out_file");
         warn "Running @nytprofhtml_open\n";
         system @nytprofhtml_open;
     }
