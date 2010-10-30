@@ -8,6 +8,8 @@ use NYTProfTest;
 
 use Devel::NYTProf::Run qw(profile_this);
 
+plan skip_all => "Currently a developer-only test" unless -d '.svn';
+
 warn "Incomplete test";
 
 my $src_code = join("", <DATA>);
@@ -24,7 +26,7 @@ run_test_group( {
             src_code => $src_code,
             out_file => $env->{file},
             skip_sitecustomize => 1,
-            #htmlopen => 1,
+            htmlopen => $ENV{NYTPROF_TEST_HTMLOPEN},
         );
         isa_ok $profile, 'Devel::NYTProf::Data';
 
