@@ -1411,7 +1411,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
             NYTP_write_time_line(out, elapsed, overflow, last_executed_fid,
                                  last_executed_line);
 
-        if (trace_level >= 5)
+        if (trace_level >= 5) /* previous fid:line and how much time we spent there */
             logwarn("\t@%d:%-4d %2ld ticks (%u, %u)\n",
                 last_executed_fid, last_executed_line,
                 elapsed, last_block_line, last_sub_line);
@@ -1459,8 +1459,8 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         last_executed_fid = get_file_id(aTHX_ file, strlen(file), NYTP_FIDf_VIA_STMT);
     }
 
-    if (trace_level >= 7)
-        logwarn("     @%d:%-4d %s\n", last_executed_fid, last_executed_line,
+    if (trace_level >= 7)   /* show the fid:line we're about to execute */
+        logwarn("\t@%d:%-4d... %s\n", last_executed_fid, last_executed_line,
             (profile_blocks) ? "looking for block and sub lines" : "");
 
     if (profile_blocks) {
@@ -1492,11 +1492,10 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
 
 static void
-DB_leave(pTHX_ OP *op)
+DB_leave(pTHX_ OP *op, OP *prev_op)
 {
-    int saved_errno = errno;
-    unsigned int prev_last_executed_fid  = last_executed_fid;
-    unsigned int prev_last_executed_line = last_executed_line;
+    int saved_errno, is_multicall;
+    unsigned int prev_last_executed_fid, prev_last_executed_line;
 
     /* Called _after_ ops that indicate we've completed a statement
      * and are returning into the middle of some outer statement.
@@ -1511,6 +1510,20 @@ DB_leave(pTHX_ OP *op)
 #ifdef MULTIPLICITY
     if (orig_my_perl && my_perl != orig_my_perl)
         return;
+#endif
+
+    saved_errno = errno;
+    prev_last_executed_fid  = last_executed_fid;
+    prev_last_executed_line = last_executed_line;
+
+#ifdef CxMULTICALL
+    /* pp_return, pp_leavesub and pp_leavesublv
+     * return a NULL op when returning from a MULTICALL.
+     * See Lightweight Callbacks in perlcall.
+     */
+    is_multicall = (!op && CxMULTICALL(&cxstack[cxstack_ix]));
+#else
+    is_multicall = 0;
 #endif
 
     /* measure and output end time of previous statement
@@ -1533,11 +1546,11 @@ DB_leave(pTHX_ OP *op)
     }
 
     if (trace_level >= 5) {
-        logwarn("\tleft %u:%u back to %s at %u:%u (b%u s%u) - discounting next statement%s\n",
+        logwarn("\tleft %u:%u via %s back to %s at %u:%u (b%u s%u) - discounting next statement%s\n",
             prev_last_executed_fid, prev_last_executed_line,
-            OP_NAME_safe(op),
+            OP_NAME_safe(prev_op), OP_NAME_safe(op),
             last_executed_fid, last_executed_line, last_block_line, last_sub_line,
-            (op) ? "" : ", LEAVING PERL"
+            (op || is_multicall) ? "" : ", LEAVING PERL"
         );
     }
 
@@ -2708,8 +2721,9 @@ pp_stmt_profiler(pTHX)                            /* handles OP_DBSTATE, OP_SETS
 static OP *
 pp_leave_profiler(pTHX)                           /* handles OP_LEAVESUB, OP_LEAVEEVAL, etc */
 {
+    OP *prev_op = PL_op;
     OP *op = run_original_op(PL_op->op_type);
-    DB_leave(aTHX_ op);
+    DB_leave(aTHX_ op, prev_op);
     return op;
 }
 
@@ -2724,7 +2738,7 @@ pp_fork_profiler(pTHX)                            /* handles OP_FORK */
 static OP *
 pp_exit_profiler(pTHX)                            /* handles OP_EXIT, OP_EXEC, etc */
 {
-    DB_leave(aTHX_ NULL);                         /* call DB_leave *before* run_original_op() */
+    DB_leave(aTHX_ NULL, PL_op);                  /* call DB_leave *before* run_original_op() */
     if (PL_op->op_type == OP_EXEC)
         finish_profile(aTHX);                     /* this is the last chance we'll get */
     return run_original_op(PL_op->op_type);
