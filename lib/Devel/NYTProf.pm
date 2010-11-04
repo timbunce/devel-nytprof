@@ -601,6 +601,52 @@ internals of perl mean that, in some cases, the information that's gathered is
 accurate but surprising. In some cases it can appear to be misleading.
 (Of course, in some cases it may actually be plain wrong. Caveat lector.)
 
+=head2 If Statement and Subroutine Timings Don't Match
+
+NYTProf has two profilers: a statement profiler that's invoked when perl moves
+from one perl statement to another, and a subroutine profiler that's invoked
+when perl calls or returns from a subroutine.
+
+The individual statement timings for a subroutine usually add up to slightly
+less than the exclusive time for the subroutine. That's because the handling of
+the subroutine call and return overheads is included in the exclusive time for
+the subroutine. The difference may only be a new microseconds but that may
+become noticeable for subroutines that are called hundreds of thousands of times.
+
+The statement profiler keeps track how much time was spent on overheads, like
+writing statement profile data to disk. The subroutine profiler subtracts the
+overheads that have accumulated between entering and leaving the subroutine in
+order to give a more accurate profile.  The statement profiler is generally
+very fast because most writes get buffered for zip compression so the profiler
+overhead per statement tends to be very small, often a single 'tick'.
+The result is that the accumulated overhead is quite noisy. This becomes more
+significant for subroutines that are called frequently and are also fast.
+This may be another, smaller, contribution to the discrepancy between statement
+time and exclusive times.
+
+=head2 If Headline Subroutine Timings Don't Match the Called Subs
+
+Overall subroutine times are reported with a headline like C<spent 10s (2+8) within ...>.
+In this example, 10 seconds were spent inside the subroutine (the "inclusive
+time") and, of that, 8 seconds were spent in subroutines called by this one.
+That leaves 2 seconds as the time spent in the subroutine code itself (the
+"exclusive time", sometimes also called the "self time").
+
+The report shows the source code of the subroutine. Lines that make calls to
+other subroutines are annotated with details of the time spent in those calls.
+
+Sometimes the sum of the times for calls made by the lines of code in the
+subroutine is less than the inclusive-exclusive time reported in the headline
+(10-2 = 8 seconds in the example above).
+
+What's happening here is that calls to other subroutines are being made but
+NYTProf isn't able to determine the calling location correctly so the calls
+don't appear in the report in the correct place. (This is more common with
+older versions of perl. See below.)
+
+In general the overall subroutine timing is accurate and should be trusted more
+than the sum of statement or nested sub call timings.
+
 =head2 Perl 5.10.1+ (or else 5.8.9+) is Recommended
 
 These versions of perl yield much more detailed information about calls to
