@@ -170,14 +170,15 @@ sub fmt_float {
 
 
 # XXX undocumented hack that may become to an option one day
-my $fmt_time_opt = $ENV{NYTPROF_FMT_TIME}; # e.g., '%fs'
+# Useful for making the time data more easily parseable
+my $fmt_time_opt = $ENV{NYTPROF_FMT_TIME}; # e.g., '%f' for 'raw' times
 
 sub fmt_time {
     my ($sec, $width) = @_;
     $width = '' unless defined $width;
-    return sprintf "%$width.0fs", 0    unless $sec;
     return '-'.fmt_time(-$sec, $width) if $sec < 0; # negative value, can happen
     return sprintf $fmt_time_opt, $sec if $fmt_time_opt;
+    return sprintf "%$width.0fs", 0    unless $sec;
     return sprintf "%$width.0fns",                              $sec * 1e9 if $sec < 1e-6;
     return sprintf "%$width.0f&micro;s",                        $sec * 1e6 if $sec < 1e-3;
     return sprintf "%$width.*fms", 3 - length(int($sec * 1e3)), $sec * 1e3 if $sec < 1;
