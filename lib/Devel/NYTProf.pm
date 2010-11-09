@@ -641,8 +641,11 @@ subroutine is less than the inclusive-exclusive time reported in the headline
 
 What's happening here is that calls to other subroutines are being made but
 NYTProf isn't able to determine the calling location correctly so the calls
-don't appear in the report in the correct place. (This is more common with
-older versions of perl. See below.)
+don't appear in the report in the correct place.
+
+Using an old version of perl is one cause (see below). Another is calling
+subroutines that exit via C<goto &sub;> - most frequently encountered in
+AUTOLOAD subs and code using the L<Memoize> module.
 
 In general the overall subroutine timing is accurate and should be trusted more
 than the sum of statement or nested sub call timings.
