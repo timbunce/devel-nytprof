@@ -45,7 +45,7 @@ $FLOAT_FORMAT =~ s/"//g;
 sub new {
     my $class = shift;
     my $file  = shift;
-    my $opts  = shift;
+    my $opts  = shift || {};
 
     my $self = {
         file => $file || 'nytprof.out',
@@ -80,7 +80,10 @@ sub new {
     };
 
     bless($self, $class);
-    $self->{profile} = Devel::NYTProf::Data->new({filename => $self->{file}});
+    $self->{profile} = Devel::NYTProf::Data->new({
+        %$opts,
+        filename => $self->{file},
+    });
 
     return $self;
 }

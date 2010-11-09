@@ -10,12 +10,13 @@ Changes - List of significant changes to Devel::NYTProf
 
   Improved handling of Class::MOP/Moose generated methods.
   Improved handling of embedded filenames, e.g., "(eval N)[$path]"
+  Updated and clarified usecputime=1 docs.
+  Updated tests for new functionality in Sub::Name 0.06.
+  Added --no-mergeevals option to nytprofhtml.
   Added "If Statement and Subroutine Timings Don't Match" and
     "If Headline Subroutine Timings Don't Match the Called Subs"
     sections to the DATA COLLECTION AND INTERPRETATION docs.
   Added note to the docs re profiling applications that use Coro.
-  Clarified usecputime=1 docs.
-  Updated tests for new functionality in Sub::Name 0.06.
 
 =head2 Changes in Devel::NYTProf 4.05 (svn 1359) 15th Sept 2010
 

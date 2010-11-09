@@ -69,6 +69,7 @@ GetOptions(
     'open!'     => \my $opt_open,
     'help|h'    => sub { exit usage() },
     'minimal|m!'=> \my $opt_minimal,
+    'mergeevals!'=> \(my $opt_mergeevals = 1),
     'profself!'     => sub { }, # handled in BEGIN above
 ) or do { exit usage(); };
 
@@ -83,6 +84,7 @@ usage: [perl] nytprofhtml [opts]
  --delete,      -d         Delete any old report files in <dir> first
  --lib <lib>,   -l <lib>   Add <lib> to the beginning of \@INC
  --minimal,     -m         Don't generate graphviz .dot files or block/sub-level reports
+ --no-mergeevals           Disable merging of string evals
  --help,        -h         Print this message
 
 This script of part of the Devel::NYTProf distribution.
@@ -119,7 +121,10 @@ if (defined($opt_lib)) {
 
 $SIG{USR2} = \&Carp::cluck;
 
-my $reporter = new Devel::NYTProf::Reader($opt_file);
+my $reporter = new Devel::NYTProf::Reader($opt_file, {
+    quiet => 0,
+    skip_collapse_evals => !$opt_mergeevals,
+});
 
 # place to store this
 $reporter->output_dir($opt_out);

@@ -117,8 +117,10 @@ sub new {
 
     # Where a given eval() has been invoked more than once
     # rollup the corresponding fids if they're "uninteresting".
-    for my $fi ($profile->noneval_fileinfos) {
-        $profile->collapse_evals_in($fi);
+    if ($args->{skip_collapse_evals}) {
+        for my $fi ($profile->noneval_fileinfos) {
+            $profile->collapse_evals_in($fi);
+        }
     }
 
     $profile->_clear_caches;
