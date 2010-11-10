@@ -176,6 +176,7 @@ my $fmt_time_opt = $ENV{NYTPROF_FMT_TIME}; # e.g., '%f' for 'raw' times
 sub fmt_time {
     my ($sec, $width) = @_;
     $width = '' unless defined $width;
+    return undef if not defined $sec;
     return '-'.fmt_time(-$sec, $width) if $sec < 0; # negative value, can happen
     return sprintf $fmt_time_opt, $sec if $fmt_time_opt;
     return sprintf "%$width.0fs", 0    unless $sec;

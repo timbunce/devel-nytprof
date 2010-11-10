@@ -461,7 +461,7 @@ sub mk_report_source_line {
         "<tr>$l",
         determine_severity($stats_for_line->{'calls'},     $stats_for_file->{'calls'}),
         determine_severity($stats_for_line->{'time'},      $stats_for_file->{'time'}, 1,
-            \sprintf("Avg %s",fmt_time($stats_for_line->{'time/call'}))),
+            \sprintf("Avg %s", fmt_time($stats_for_line->{'time/call'})||'--' )),
         determine_severity($stats_for_line->{'subcall_count'}, $stats_for_file->{subcall_count}, 0),
         determine_severity($stats_for_line->{'subcall_time'},  $stats_for_file->{subcall_time}, 1),
         $s, "</tr>\n";
