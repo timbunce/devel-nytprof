@@ -1,11 +1,11 @@
 # test determination of subroutine caller in unusual cases
 
 {
-    package MyTie;
-    # this TIESCALAR call isn't seen by perl < 5.8.9 and 5.10.1
-    sub TIESCALAR { bless {}, shift; }
-    sub FETCH { }
-    sub STORE { }
+    my $a = time;
+    # calls to TIESCALAR aren't seen by perl < 5.8.9 and 5.10.1
+    sub MyTie::TIESCALAR { bless {}, shift; }
+    sub MyTie::FETCH { }
+    sub MyTie::STORE { }
 }
 
 tie my $tied, 'MyTie', 42;  # TIESCALAR

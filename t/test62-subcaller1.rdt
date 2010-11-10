@@ -13,7 +13,7 @@ attribute	total_stmts_duration	0
 attribute	total_stmts_measured	0
 attribute	total_sub_calls	0
 attribute	xs_version	0
-fid_block_time	1	4	[ 0 1 ]
+fid_block_time	1	4	[ 0 2 ]
 fid_block_time	1	6	[ 0 1 ]
 fid_block_time	1	7	[ 0 1 ]
 fid_block_time	1	8	[ 0 1 ]
@@ -68,7 +68,7 @@ fid_fileinfo	1	call	38	main::sub4	[ 2 0 0 0 0 0 0 main::RUNTIME ]
 fid_fileinfo	2	[ Devel/NYTProf/Test.pm   2 2 0 0 ]
 fid_fileinfo	2	sub	Devel::NYTProf::Test::example_sub	13-13
 fid_fileinfo	3	[ Exporter.pm   3 2 0 0 ]
-fid_line_time	1	4	[ 0 1 ]
+fid_line_time	1	4	[ 0 2 ]
 fid_line_time	1	6	[ 0 1 ]
 fid_line_time	1	7	[ 0 1 ]
 fid_line_time	1	8	[ 0 1 ]
@@ -93,7 +93,7 @@ fid_line_time	2	8	[ 0 1 ]
 fid_line_time	2	9	[ 0 1 ]
 fid_line_time	2	11	[ 0 1 ]
 fid_line_time	2	15	[ 0 1 ]
-fid_sub_time	1	4	[ 0 1 ]
+fid_sub_time	1	4	[ 0 2 ]
 fid_sub_time	1	6	[ 0 1 ]
 fid_sub_time	1	7	[ 0 1 ]
 fid_sub_time	1	8	[ 0 1 ]
