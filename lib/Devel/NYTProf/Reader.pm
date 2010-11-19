@@ -174,7 +174,19 @@ sub fname_for_fileinfo {
     confess "No fileinfo" unless $fi;
     $level ||= $self->current_level;
 
-    my $fname = html_safe_filename($fi->filename_without_inc);
+    my $fname = $fi->filename_without_inc;
+
+    # We want to have descriptive and unambiguous filename
+    # but we don't want to risk failure due to filenames being longer
+    # than MAXPATH (including the length of whatever dir we're writing
+    # the report files into). So we truncate to the last component if
+    # the filenames seems 'dangerously long'. XXX be smarter about this.
+    # This is safe from ambiguity because we add the fid to the filename below.
+    my $max_len = $ENV{NYTPROF_FNAME_TRIM} || 50;
+    $fname =~ s!/.*/!/.../! if length($fname) > $max_len; # remove dir path
+    $fname = "TOOLONG"      if length($fname) > $max_len; # just in case
+
+    $fname = html_safe_filename($fname);
     $fname .= "-".$fi->fid; # to ensure uniqueness and for info
     $fname .= "-$level" if $level;
 
