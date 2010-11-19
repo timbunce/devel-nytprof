@@ -588,6 +588,7 @@ sub normalize_variables {
     for my $attr (qw(
         basetime xs_version perl_version clock_id ticks_per_sec nv_size
         profiler_duration profiler_end_time profiler_start_time
+        cumulative_overhead_ticks profiler_active
         total_stmts_duration total_stmts_measured total_stmts_discounted
         total_sub_calls sawampersand_line
     )) {
