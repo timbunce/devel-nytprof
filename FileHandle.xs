@@ -904,6 +904,16 @@ NYTP_write_attribute_signed(NYTP_file ofile, const char *key,
     return NYTP_write_attribute_string(ofile, key, key_len, buffer, len);
 }
 
+size_t
+NYTP_write_attribute_nv(NYTP_file ofile, const char *key,
+                            size_t key_len, NV value)
+{
+    char buffer[NV_DIG+20]; /* see Perl_sv_2pv_flags */
+    const size_t len = my_snprintf(buffer, sizeof(buffer), "%g", value);
+
+    return NYTP_write_attribute_string(ofile, key, key_len, buffer, len);
+}
+
 #ifdef HAS_ZLIB
 
 size_t
