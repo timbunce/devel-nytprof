@@ -224,6 +224,21 @@ The C<goto> will be shown with a very short time because it's effectively just
 a C<return>. The C<&destination> sub will show a call I<not> from the location
 of the C<goto> but from the location of the call to the sub that performed the C<goto>.
 
+=head3 accept()
+
+The perl built-in accept() function waits listening for a connection on a
+socket, and so is a key part of pure-perl network service applications.
+
+The time spent waiting for a remotely initiated connection can be relatively
+high but is not relevant to the performance of the application. So the accept()
+function is treated as a special case. The subroutine profiler discounts the
+time spent in the accept() function. It does this in a way that also discounts
+that time from all the callers up the call stack. The effect on the reports is
+that all accept() calls appear to be instant.
+
+The I<statement> profiler still shows the time actually spent in the statement
+that executed the accept() call.
+
 =head2 Application Profiling
 
 NYTProf records extra information in the data file to capture details that may
