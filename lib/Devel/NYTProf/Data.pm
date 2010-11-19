@@ -104,6 +104,11 @@ sub new {
     (my $sub_class = $class) =~ s/\w+$/SubInfo/;
     $_ and bless $_ => $sub_class for values %$sub_subinfo;
 
+    # create profiler_active attribute by subtracting from profiler_duration
+    # currently we only subtract cumulative_overhead_ticks
+    my $attribute = $profile->{attribute};
+    my $overhead_time = $attribute->{cumulative_overhead_ticks} / $attribute->{ticks_per_sec};
+    $attribute->{profiler_active} = $attribute->{profiler_duration} - $overhead_time;
 
     # find subs that have calls but no fid
     my @homeless_subs = grep { $_->calls and not $_->fid } values %$sub_subinfo;
@@ -589,7 +594,7 @@ sub normalize_variables {
         $attributes->{$attr} = 0 if exists $attributes->{$attr};
     }
 
-    for my $attr (qw(PL_perldb)) {
+    for my $attr (qw(PL_perldb cumulative_overhead_ticks)) {
         delete $attributes->{$attr};
     }
 

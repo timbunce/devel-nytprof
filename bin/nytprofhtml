@@ -310,8 +310,7 @@ sub subroutine_table {
         </thead>
     };
 
-    # XXX may not be appropriate if profiling wasn't continuous
-    my $profiler_duration = $profile->{attribute}{profiler_duration};
+    my $profiler_active = $profile->{attribute}{profiler_active};
 
     my @rows;
     $sub_links .= "<tbody>\n";
@@ -323,10 +322,10 @@ sub subroutine_table {
         $sub_links .= determine_severity($sub->caller_count || 0, $dev_call_count);
         $sub_links .= determine_severity($sub->caller_fids  || 0, $dev_call_fids);
         $sub_links .= determine_severity($sub->excl_time    || 0, $dev_excl_time, 1,
-            sprintf("%.1f%%", $sub->excl_time/$profiler_duration*100)
+            sprintf("%.1f%%", $sub->excl_time/$profiler_active*100)
         );
         $sub_links .= determine_severity($sub->incl_time    || 0, $dev_incl_time, 1,
-            sprintf("%.1f%%", $sub->incl_time/$profiler_duration*100)
+            sprintf("%.1f%%", $sub->incl_time/$profiler_active*100)
         );
 
         my @hints;
@@ -734,8 +733,9 @@ sub output_index_page {
     # overall description
     my @all_fileinfos = $profile->all_fileinfos;
     my $eval_fileinfos = $profile->eval_fileinfos;
-    my $summary = sprintf "Profile of %s for %s,",
-        $application, fmt_time($profile->{attribute}{profiler_duration});
+    my $summary = sprintf "Profile of %s for %s (of %s),", $application,
+        fmt_time($profile->{attribute}{profiler_active}),
+        fmt_time($profile->{attribute}{profiler_duration});
     $summary .= sprintf " executing %d statements",
          $profile->{attribute}{total_stmts_measured}
         -$profile->{attribute}{total_stmts_discounted};

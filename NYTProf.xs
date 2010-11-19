@@ -1676,9 +1676,13 @@ open_output_file(pTHX_ char *filename)
 static void
 close_output_file(pTHX) {
     int result;
+    NV  timeofday;
 
     if (!out)
         return;
+
+    timeofday = gettimeofday_nv(); /* before write_*() calls */
+    NYTP_write_attribute_nv(out, STR_WITH_LEN("cumulative_overhead_ticks"), cumulative_overhead_ticks);
 
     write_src_of_files(aTHX);
     write_sub_line_ranges(aTHX);
@@ -1686,7 +1690,7 @@ close_output_file(pTHX) {
     /* mark end of profile data for last_pid pid
      * which is the pid that this file relates to
      */
-    NYTP_write_process_end(out, last_pid, gettimeofday_nv());
+    NYTP_write_process_end(out, last_pid, timeofday);
 
     if ((result = NYTP_close(out, 0)))
         logwarn("Error closing profile data file: %s\n", strerror(result));
@@ -1785,6 +1789,7 @@ struct subr_entry_st {
     const char   *called_subpkg_pv;
     SV           *called_subnam_sv;
     /* ensure all items are initialized in first phase of pp_subcall_profiler */
+    int           hide_subr_call_time;  /* eg for CORE:accept */
 };
 
 /* save stack index to the current subroutine entry structure */
@@ -1941,6 +1946,17 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         /* subtract statement measurement overheads */
         incl_subr_sec -= (overhead_ticks / CLOCKS_PER_TICK);
     }
+
+    if (subr_entry->hide_subr_call_time) {
+        /* account for the time spent in the sub as if it was statement
+         * profiler overhead. That has the effect of neatly subtracting
+         * the time from all the sub calls up the call stack.
+         */
+        cumulative_overhead_ticks += incl_subr_sec * CLOCKS_PER_TICK;
+        incl_subr_sec = 0;
+        called_sub_secs = 0;
+    }
+
     /* exclusive = inclusive - time spent in subroutines called by this subroutine */
     excl_subr_sec = incl_subr_sec - called_sub_secs;
 
@@ -2280,6 +2296,8 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
         }
         subr_entry->called_cv_depth = 1; /* an approximation for slowops */
         subr_entry->called_is_xs = "sop";
+        if (OP_ACCEPT == op_type)
+            subr_entry->hide_subr_call_time = 1;
     }
 
     /* These refer to the last perl statement executed, so aren't

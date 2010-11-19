@@ -8,10 +8,19 @@ Changes - List of significant changes to Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 4.06 (svn XXX) XXX
 
+TODO: check/update PostgreSQL-PLPerl-NYTProf
+
+  Fixed risk of nytprofhtml failure due to over-long filenames RT#62319
+
   Improved handling of Class::MOP/Moose generated methods.
   Improved handling of embedded filenames, e.g., "(eval N)[$path]"
   Updated and clarified usecputime=1 docs.
   Updated tests for new functionality in Sub::Name 0.06.
+  Updated tests for changes in perl 5.13.x.
+
+  Added special handling for the perl built-in accept()
+    Effectively the clock stops ticking while in accept().
+    This makes profiles of pure-perl web servers more useful.
   Added --no-mergeevals option to nytprofhtml.
   Added "If Statement and Subroutine Timings Don't Match" and
     "If Headline Subroutine Timings Don't Match the Called Subs"
