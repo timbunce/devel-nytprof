@@ -233,16 +233,8 @@ associated with the 'next;' within the loop. Fixed by perl change 33710?
 
 Investigate style.css problem when using --outfile=some/other/dir
 
-Sub profiler should avoid sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
-because it's expensive (Perl_sv_setpvf_nocontext accounts for 29% of pp_entersub_profiler).
-Use a two level hash: HvNAME(GvSTASH(gv)) then GvNAME(gv).
-Should then also be able to avoid newSV/free for subname_sv (which accounts for 50% of its time).
-
 Class::MOP should update %DB::sub (if $^P & 0x10 set) when it creates methods.
 Sub::Name should do same (extracting the file and line from the ANON[...:...])
-
-Add refs so a string eval fid can be related to its 'siblings' (other string
-eval fids from the same line in the 'parent' fid).
 
 Profile should report _both_ the 'raw original' filename (possibly relative)
 used by the application being profiled, plus an absolute filename determined
@@ -314,6 +306,8 @@ Any volunteers to explore writing an nytprofimport for SQLite?
 
 Option to add sub call and return events into the data file as they happen.
 Would enable a dprofpp -T like output. See https://rt.cpan.org/Ticket/Display.html?id=50766
+Especially relevant as DProf is being removed from the code and this is
+something NYTProf still doesn't do.
 
 String evals could/should be tied into the subroutine profiler.
 That would give inclusive timings which we don't have at the moment.
@@ -341,11 +335,17 @@ Add 'u' key to treemap to trigger moving 'up' a level.
 Add "calls N subs" to treemap mouseover box
 Upgrade treemap to JIT version 2 (which has transition animations).
 
+Sub profiler should avoid sv_setpvf(subname_sv, "%s::%s", stash_name, GvNAME(gv));
+because it's expensive (Perl_sv_setpvf_nocontext accounts for 29% of pp_entersub_profiler).
+Use a two level hash: HvNAME(GvSTASH(gv)) then GvNAME(gv).
+Should then also be able to avoid newSV/free for subname_sv (which accounts for 50% of its time).
+
 The subroutine profiler spends a lot of its time allocating the two
 calle[rd]_subname_sv SVs in subr_entry_setup and freeing them in subr_entry_destroy.
 If, instead of freeing the SVs they were chained into a freelist that
 subr_entry_setup could pull from, we'd get a significant boost in performance
-for the subroutine profiler.
+for the subroutine profiler. It would also greatly reduce the risk of
+NYTProf overwriting a recently freed but still on the stack SV.
 
 Would be good to be able to measure the time spent in require. The easy way
 would be to treat it as a slowop.  I recall enabling this in the early days
@@ -353,7 +353,7 @@ of slowop support but running into problems. It would be good to revisit.
 This would help with profiling issues like:
 http://blog.moose.perl.org/2010/08/moose-110-and-classmop-105-now-compiling-10-faster.html
 
-We need a start=begin option to start at the _end_ of any INIT subs.
+We need a start=runtime option to start at the _end_ of any INIT subs.
 (The current start=init option is the closest we have but it's not very
 useful if lots of other work is done in INIT blocks.)
 
@@ -362,3 +362,5 @@ pure-perl webservers spend waiting for the next request doesn't distort the
 profile. Possibly straight-forward to implement. The trick is to add the time
 spent in the sub to the statement profiler overhead time, thus getting it
 subtracted from the higher level sub time. Maybe.
+
+
