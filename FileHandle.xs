@@ -604,7 +604,7 @@ NYTP_close(NYTP_file file, int discard) {
         flush_output(file, Z_FINISH);
         fprintf(raw_file, "#\n"
                 "# Compressed %lu bytes to %lu, ratio %f:1, data shrunk by %f%%\n",
-                file->zs.total_in, file->zs.total_out, ratio,
+                (long)file->zs.total_in, (long)file->zs.total_out, ratio,
                 100 * (1 - 1 / ratio));
     }
 
