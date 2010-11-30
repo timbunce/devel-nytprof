@@ -355,6 +355,10 @@ may be rewritten as
 so the profile won't show a statement count for line 2 in your source code
 because the C<return> was merged into the C<if> statement on the preceding line.
 
+Also 'empty' statements like C<1;> are removed entirely.  Such statements are
+empty because the optimizer has already removed the pointless constant in void
+context. It then goes on to remove the now empty statement (in perl >= 5.13.7).
+
 Using the C<optimize=0> option disables the optimizer so you'll get lower
 overall performance but more accurately assigned statement counts.
 
