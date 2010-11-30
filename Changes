@@ -6,16 +6,14 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
-TODO: check/update PostgreSQL-PLPerl-NYTProf
-
-=head2 Changes in Devel::NYTProf 4.06 (svn r1402) 19th Nov 2010
+=head2 Changes in Devel::NYTProf 4.06 (svn r1406) 30th Nov 2010
 
   Fixed risk of nytprofhtml failure due to over-long filenames RT#62319
 
   Improved handling of Class::MOP/Moose generated methods.
   Improved handling of embedded filenames, e.g., "(eval N)[$path]"
   Updated and clarified usecputime=1 docs.
-  Updated tests for new functionality in Sub::Name 0.06.
+  Updated tests for (expected) new functionality in Sub::Name.
   Updated tests for changes in perl 5.13.x.
 
   Added special handling for the perl built-in accept()
