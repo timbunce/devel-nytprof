@@ -1516,7 +1516,7 @@ DB_leave(pTHX_ OP *op, OP *prev_op)
     prev_last_executed_fid  = last_executed_fid;
     prev_last_executed_line = last_executed_line;
 
-#ifdef CxMULTICALL && 0 /* disabled for now */
+#if defined(CxMULTICALL) && 0 /* disabled for now */
     /* pp_return, pp_leavesub and pp_leavesublv
      * return a NULL op when returning from a MULTICALL.
      * See Lightweight Callbacks in perlcall.
