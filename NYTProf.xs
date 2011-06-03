@@ -2639,8 +2639,10 @@ pp_subcall_profiler(pTHX_ int is_slowop)
                 logwarn("NYTProf is confused about CV %p called as %s at %s line %d (please report as a bug)\n",
                     (void*)called_cv, SvPV_nolen(sub_sv), OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
                 /* looks like Class::MOP doesn't give the CV GV stash a name */
-                if (trace_level >= 2)
+                if (trace_level >= 2) {
                     sv_dump((SV*)called_cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP wierdo sub */
+                    sv_dump((SV*)gv);
+                }
             }
         }
 
