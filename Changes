@@ -6,6 +6,10 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 4.07
+
+  Added and clarified some notes in the troubleshooting docs.
+
 =head2 Changes in Devel::NYTProf 4.06 (svn r1406) 30th Nov 2010
 
   Fixed risk of nytprofhtml failure due to over-long filenames RT#62319

@@ -1126,12 +1126,19 @@ If the sudden death was due to a signal then L</sigexit=1> may help.
 If the sudden death was due to calling C<POSIX::_exit($status)> then you'll
 need to call L</finish_profile> before calling C<POSIX::_exit>.
 
+You'll also get this error if the code trying to read the profile is itself
+being profiled. That's most likely to happen if you enable profiling via the
+C<PERL5OPT> environment variable and have forgotten to unset it.
+
 =head2 Some files don't have profile information
 
-This is usually due to NYTProf being loaded after the other files, for example
+This is usually due to NYTProf being initialized after some perl files have
+already been compiled.
 
 If you can't alter the command line to add "C<-d:NYTProf>" you could try using
 the C<PERL5OPT> environment variable. See L</PROFILING>.
+
+You could also try using the L</use_db_sub=1> option.
 
 =head1 AUTHORS AND CONTRIBUTORS
 
