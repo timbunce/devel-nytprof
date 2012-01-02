@@ -9,6 +9,7 @@ Changes - List of significant changes to Devel::NYTProf
 =head2 Changes in Devel::NYTProf 4.07
 
   Added and clarified some notes in the troubleshooting docs.
+  Fixed html generation to be valid RT70207 (H.Merijn Brand).
 
 =head2 Changes in Devel::NYTProf 4.06 (svn r1406) 30th Nov 2010
 

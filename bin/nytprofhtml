@@ -357,7 +357,7 @@ sub subroutine_table {
                 $recdepth, fmt_time($sub->recur_incl_time);
         }
 
-        $sub_links .= sprintf qq{%*s<a %s>%s</a>%s</span></td>},
+        $sub_links .= sprintf qq{%*s<a %s>%s</a>%s</td>},
             $max_pkg_name_len+2, $pkg,
             $reporter->href_for_sub($subname),
             $subr,
