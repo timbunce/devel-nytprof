@@ -87,4 +87,8 @@ Other profile/memory visualization tools
     http://netjam.org/spoon/viz/
     http://java.dzone.com/announcements/visualvm-12-great-java
 
+http://blogs.perl.org/users/alex_balhatchet/2012/01/debugging-memory-use-in-perl---help.html
+
+http://stackoverflow.com/questions/8715611/can-i-use-dtrace-on-os-x-10-5-to-determine-which-of-my-perl-subs-is-causing-the§
+
 =cut
