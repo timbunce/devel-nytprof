@@ -1635,7 +1635,7 @@ open_output_file(pTHX_ char *filename)
     char filename_buf[MAXPATHLEN];
     /* 'x' is a GNU C lib extension for O_EXCL which gives us a little
      * extra protection, but it isn't POSIX compliant */
-    const char *mode = "wbx";
+    const char *mode = (strnEQ(filename, "/dev/", 4) ? "wb" : "wbx");
     /* most systems that don't support it will silently ignore it
      * but for some we need to remove it to avoid an error */
 #ifdef WIN32
