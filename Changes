@@ -13,6 +13,7 @@ Changes - List of significant changes to Devel::NYTProf
   Added and clarified some notes in the troubleshooting docs.
   Added warning for Apache2::SizeLimit in ::Apache, RT#75912.
   Updated ::Apache docs including troubleshooting, RT#75912.
+  nytprofmerge no longer dies on some errors, RT#75918.
 
 =head2 Changes in Devel::NYTProf 4.06 (svn r1406) 30th Nov 2010
 

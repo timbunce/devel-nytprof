@@ -215,14 +215,20 @@ foreach $input (@ARGV) {
 	    if($eval_fid) {
 		# Generally, treat every eval as distinct, even at the same location
 		$new_eval_fid = $fids{$eval_fid};
-		confess("unknown eval_fid $eval_fid") unless defined $new_eval_fid;
+
+		# Sanity check. Should never happen except that
+		# if $eval_fid < $fid then this is a known problem
+		# with evals fids getting profiled/output before the parent fid
+		warn("unknown eval_fid $eval_fid in $input fid $fid\n")
+		    unless defined $new_eval_fid;
 
 		$new_fid = $next_fid++;
 		$fids{$fid} = $new_fid;
 
 		# But also track the first fid to be allocated at that line of the eval
 		my $folded_fid = $fids_folded{$eval_fid};
-		confess("unknown folded eval_fid $eval_fid") unless defined $folded_fid;
+		Carp::cluck("unknown folded eval_fid $eval_fid in $input fid $fid")
+		    unless defined $folded_fid;
 
 		my $corresponding_eval = $eval_to_fid{"$folded_fid,$eval_line"};
 		if (!defined $corresponding_eval) {
