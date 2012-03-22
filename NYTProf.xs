@@ -2296,6 +2296,10 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
         }
         subr_entry->called_cv_depth = 1; /* an approximation for slowops */
         subr_entry->called_is_xs = "sop";
+        /* XXX make configurable eg for wait(), and maybe even subs like FCGI::Accept
+         * so perhaps use $hide_sub_calls->{$package}{$subname} to make it general.
+         * Then the logic would have to move out of this block.
+         */
         if (OP_ACCEPT == op_type)
             subr_entry->hide_subr_call_time = 1;
     }
