@@ -16,6 +16,7 @@ Changes - List of significant changes to Devel::NYTProf
   nytprofmerge no longer dies on some errors, RT#75918.
   nytprofmerge now sums cumulative_overhead_ticks, RT#75909.
   nytprofmerge now gets in man page installed, RT#75911.
+  Note Devel::NYTProf::Data is undocumented and why, RT#75914.
 
 =head2 Changes in Devel::NYTProf 4.06 (svn r1406) 30th Nov 2010
 

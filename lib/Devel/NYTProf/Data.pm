@@ -32,8 +32,13 @@ Access to the data should be via methods in this class to avoid breaking
 encapsulation (and thus breaking your code when the data structures change in
 future versions).
 
-XXX Currently the documentation is out of date as this module is evolving
-rapidly.
+B<NOTE> the documentation is out of date and may not be updated soon.
+It's also likely that the API will change drastically in future.
+It's possible, for example, that the data model will switch to use SQLite
+and the http://search.cpan.org/perldoc?ORLite ORM.
+
+Let me know if you come to depend on a particular API and I'll try to preserve
+it if practical.
 
 =head1 METHODS
 
