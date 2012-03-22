@@ -30,6 +30,7 @@ if ($ENV{PERL_CORE}) {
 } else {
     @man = ( MAN1PODS  => {
         'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
+        'bin/nytprofmerge'=> '$(INST_MAN1DIR)/nytprofmerge.1',
         'bin/nytprofcsv'  => '$(INST_MAN1DIR)/nytprofcsv.1',
         'bin/nytprofcg'   => '$(INST_MAN1DIR)/nytprofcg.1',
     } );
