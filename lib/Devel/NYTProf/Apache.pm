@@ -53,6 +53,9 @@ sub trace {
 
 sub child_init {
     trace("child_init(@_)") if TRACE;
+    warn "Apache2::SizeLimit is loaded and will corrupt NYTProf profile if it terminates the process\n"
+        if $Apache2::SizeLimit::VERSION # doubled just to avoid typo warning
+        && $Apache2::SizeLimit::VERSION;
     DB::enable_profile() unless $ENV{NYTPROF} =~ m/\b start = (?: no | end ) \b/x;
 }
 
@@ -113,16 +116,22 @@ If the NYTPROF environment variable isn't set I<at the time
 Devel::NYTProf::Apache is loaded> then Devel::NYTProf::Apache will issue a
 warning and default it to:
 
-  file=/tmp/nytprof.$$.out
+  file=/tmp/nytprof.$$.out:addpid=1:endatexit=1
 
 The file actually created by NTProf will also have the process id appended to
 it because the C<addpid> option is enabled by default.
 
 See L<Devel::NYTProf/"ENVIRONMENT VARIABLES"> for 
 more details on the settings effected by this environment variable.
-Try using C<PerlPassEnv> so you can set the NYTPROF environment variable externally.
 
-Each profiled mod_perl process will need to have terminated before you can
+Try using C<PerlPassEnv> in your httpd.conf if you can set the NYTPROF
+environment variable externally.  Note that if you set the NYTPROF environment
+variable externally then the file name obviously can't include the parent
+process id. For example, to set stmts=0 externally, use:
+
+    NYTPROF=file=/tmp/nytprof.out:out:addpid=1:endatexit=1:stmts=0
+
+Each profiled mod_perl process will need to have terminated cleanly before you can
 successfully read the profile data file. The simplest approach is to start the
 httpd, make some requests (e.g., 100 of the same request), then stop it and
 process the profile data.
@@ -133,8 +142,12 @@ for you ready for more profiling.
 
 =head2 Example httpd.conf
 
-It's often a good idea to use just one child process when profiling, which you
+It's usually a good idea to use just one child process when profiling, which you
 can do by setting the C<MaxClients> to 1 in httpd.conf.
+
+Set C<MaxRequestsPerChild> to 0 to avoid worker processes exiting and
+restarting during the profiling, which would split the profile data across
+multiple files.
 
 Using an C<IfDefine> blocks lets you leave the profile configuration in place
 and enable it whenever it's needed by adding C<-D NYTPROF> to the httpd startup
@@ -142,8 +155,12 @@ command line.
 
   <IfDefine NYTPROF>
       MaxClients 1
+      MaxRequestsPerChild 0
       PerlModule Devel::NYTProf::Apache
   </IfDefine>
+
+With that configuration you should get two profile files, one for the parent
+process and one for the worker.
 
 
 =head1 VIRTUAL HOSTS
@@ -173,6 +190,18 @@ a C<Perl> directive instead, like this:
 Profiling mod_perl on Windows is not supported because NYTProf currently
 doesn't support threads.
 
+=head1 TROUBLESHOOTING
+
+Truncated profile: Profiles for large applications can take a while to write to
+the disk. Allow sufficient time after stopping apache, or check the process has
+actually exited, before trying to read the profile.
+
+Truncated profile: The mod_perl child_terminate() function terminates the child
+without giving perl an opportunity to cleanup. Since C<Devel::NYTProf::Apache>
+doesn't intercept the mod_perl child_terminate() function (yet) the profile
+will be corrupted if it's called. You're most likely to encounter this when
+using L<Apache::SizeLimit>, so you may want to disable it while profiling.
+
 =head1 SEE ALSO
 
 L<Devel::NYTProf>
@@ -187,7 +216,7 @@ B<Steve Peters>, C<< <steve at fisharerojo.org> >>
 
   Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
   Copyright (C) 2008 by Steve Peters.
-  Copyright (C) 2008 by Tim Bunce.
+  Copyright (C) 2008-2012 by Tim Bunce.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
