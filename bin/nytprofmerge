@@ -16,7 +16,7 @@ use strict;
 use Devel::NYTProf::Core;
 require Devel::NYTProf::FileHandle;
 require Devel::NYTProf::Data;
-use List::Util qw(min);
+use List::Util qw(min sum);
 
 our $VERSION = '4.06';
     
@@ -313,10 +313,12 @@ foreach my $fid_line (sort keys %callers) {
 
 foreach my $key (sort grep {!$identical{$_}} keys %attributes) {
     my @values = @{$attributes{$key}};
+
     if ($key eq 'basetime') {
         my $value = min(@values);
         $out->write_attribute($key, $value);
-    } elsif ($key eq 'application') {
+    }
+    elsif ($key eq 'application') { # "merge" the application names
         my %counts;
         $counts{$_}++ foreach @values;
         my @grouped;
@@ -328,8 +330,13 @@ foreach my $key (sort grep {!$identical{$_}} keys %attributes) {
         my $last = pop @grouped;
         my $value = @grouped ? join (', ', @grouped) . " and $last" : $last;
         $out->write_attribute($key, $value);
-    } else {
-        warn "Unknown attribute $key\n";
+    }
+    elsif ($key eq 'cumulative_overhead_ticks') { # sum cumulative_overhead_ticks
+        $out->write_attribute($key, sum(@values));
+    }
+    else {
+        warn sprintf "Unknown attribute %s has %d values passed through unmerged\n",
+            $key, scalar @values;
         $out->write_attribute($key, $_) foreach @values;
     }
 }

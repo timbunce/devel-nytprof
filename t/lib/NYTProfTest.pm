@@ -318,6 +318,7 @@ sub run_test {
         if ($opts{mergerdt}) { # run the file through nytprofmerge
             my $merged = "$profile_datafile.merged";
             my $merge_cmd = "$nytprofmerge -v --out=$merged $test_datafile";
+            warn "$merge_cmd\n";
             system($merge_cmd) == 0
                 or die "Error running $merge_cmd\n";
             verify_data($test, "$tag (merged)", $merged);
