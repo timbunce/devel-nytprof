@@ -13,6 +13,7 @@ use warnings;
 use strict;
 
 use Carp;
+use Config qw(%Config);
 use Getopt::Long;
 use List::Util qw(sum max);
 use File::Copy;
@@ -71,6 +72,7 @@ GetOptions(
     'minimal|m!'=> \my $opt_minimal,
     'mergeevals!'=> \(my $opt_mergeevals = 1),
     'profself!'     => sub { }, # handled in BEGIN above
+    'debug!'        => \my $opt_debug,
 ) or do { exit usage(); };
 
 
@@ -82,6 +84,7 @@ usage: [perl] nytprofhtml [opts]
  --file <file>, -f <file>  Read profile data from the specified file [default: nytprof.out]
  --out <dir>,   -o <dir>   Write report files to this directory [default: nytprof]
  --delete,      -d         Delete any old report files in <dir> first
+ --open                    Open the generated report in a web browser
  --lib <lib>,   -l <lib>   Add <lib> to the beginning of \@INC
  --minimal,     -m         Don't generate graphviz .dot files or block/sub-level reports
  --no-mergeevals           Disable merging of string evals
@@ -1226,57 +1229,58 @@ sub _copy_dir {
 
 sub open_browser_on {
     my $index = shift;
-    if (eval { require ActiveState::Browser; 1 }) {
-        ActiveState::Browser::open($index);
+
+    return if eval { require Browser::Open; Browser::Open::open_browser($index, 1); };
+    warn "$@\n" if $@ && $opt_debug;
+
+    return if eval { require ActiveState::Browser; ActiveState::Browser::open($index); 1 };
+    warn "$@\n" if $@ && $opt_debug && $^O eq "MSWin32";
+
+
+    my $BROWSER;
+    if ($^O eq "MSWin32") {
+        $BROWSER = "start %s";
+    }
+    elsif ($^O eq "darwin") {
+        $BROWSER = "/usr/bin/open %s";
     }
     else {
-        my $BROWSER;
-        if ($^O eq "MSWin32") {
-            $BROWSER = "start %s";
-        }
-        elsif ($^O eq "darwin") {
-            $BROWSER = "/usr/bin/open %s";
+        my @try = qw(xdg-open);
+        if ($ENV{BROWSER}) {
+            push(@try, split(/:/, $ENV{BROWSER}));
         }
         else {
-            my @try = qw(xdg-open);
-            if ($ENV{BROWSER}) {
-                push(@try, split(/:/, $ENV{BROWSER}));
+            push(@try, qw(firefox galeon mozilla opera netscape));
+        }
+        unshift(@try, "kfmclient") if $ENV{KDE_FULL_SESSION};
+        unshift(@try, "gnome-open") if $ENV{GNOME_DESKTOP_SESSION_ID};
+        for (grep { have_prog($_) } @try) {
+            if ($_ eq "kfmclient") {
+                $BROWSER .= " openURL %s";
+            }
+            elsif ($_ eq "gnome-open" || $_ eq "opera") {
+                $BROWSER = "$_ %s";
             }
             else {
-                push(@try, qw(firefox galeon mozilla opera netscape));
+                $BROWSER = "$_ %s &";
             }
-            unshift(@try, "kfmclient") if $ENV{KDE_FULL_SESSION};
-            unshift(@try, "gnome-open") if $ENV{GNOME_DESKTOP_SESSION_ID};
-            for (@try) {
-                if (have_prog($_)) {
-                    if ($_ eq "kfmclient") {
-                        $BROWSER .= " openURL %s";
-                    }
-                    elsif ($_ eq "gnome-open" || $_ eq "opera") {
-                        $BROWSER = "$_ %s";
-                    }
-                    else {
-                        $BROWSER = "$_ %s &";
-                    }
-                    last;
-                }
-            }
+            last;
         }
-        if ($BROWSER) {
-            (my $cmd = $BROWSER) =~ s/%s/"$index"/;
-            #warn "Running $cmd\n";
-            system($cmd);
-        }
-        else {
-            warn "Don't know how to invoke your web browser.\nPlease visit $index yourself!\n";
-        }
+    }
+    if ($BROWSER) {
+        (my $cmd = $BROWSER) =~ s/%s/"$index"/;
+        warn "Running $cmd\n" if $opt_debug;
+        system($cmd);
+    }
+    else {
+        warn "Don't know how to invoke your web browser.\nPlease visit $index yourself!\n";
     }
 }
 
 
 sub have_prog {
     my $prog = shift;
-    for (split(":", $ENV{PATH})) {
+    for (split($Config{path_sep}, $ENV{PATH})) {
         return 1 if -x "$_/$prog";
     }
     return 0;
@@ -1897,6 +1901,8 @@ used by the code. Should not be needed in practice.
 =item --open
 
 Make your web browser visit the report after it has been generated.
+
+If this doesn't work well for you, try installing the L<Browser::Open> module.
 
 =item -h, --help
 
