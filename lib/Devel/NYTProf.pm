@@ -1108,7 +1108,7 @@ file as a stream of chunks of data.
 
 =head1 TROUBLESHOOTING
 
-=head2 "Profile data incomplete, ..."
+=head2 "Profile data incomplete, ..." or "File format error: ..."
 
 This error message means the file doesn't contain all the expected data.
 That may be because it was truncated (perhaps the filesystem was full) or,
@@ -1130,7 +1130,7 @@ You'll also get this error if the code trying to read the profile is itself
 being profiled. That's most likely to happen if you enable profiling via the
 C<PERL5OPT> environment variable and have forgotten to unset it.
 
-=head2 Some files don't have profile information
+=head2 Some source files don't have profile information
 
 This is usually due to NYTProf being initialized after some perl files have
 already been compiled.
@@ -1139,6 +1139,19 @@ If you can't alter the command line to add "C<-d:NYTProf>" you could try using
 the C<PERL5OPT> environment variable. See L</PROFILING>.
 
 You could also try using the L</use_db_sub=1> option.
+
+=head2 Eval ... has unknown invoking fid
+
+When using the statement profiler you may see a warning message like this:
+
+  Eval '(eval 2)' (fid 9, flags:viastmt,savesrc) has unknown invoking fid 10
+ 
+Notice that the eval file id (fid 9 in this case) is lower than the file id
+that invoked the eval (fid 10 in this case). This is a known problem caused by
+the way perl works and how the profiler assigns and outputs the file ids.
+The invoking fid is known but gets assigned a fid and output after the fid for
+the eval, and that causes the warning when the file is read.
+
 
 =head1 AUTHORS AND CONTRIBUTORS
 
