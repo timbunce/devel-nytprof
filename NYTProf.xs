@@ -3473,7 +3473,7 @@ write_sub_callers(pTHX)
         }
     }
     if (negative_time_calls) {
-        logwarn("Warning: %d subroutine calls had negative time! The clock being used (%d) is probably unstable, so the results will be as well.\n",
+        logwarn("Warning: %d subroutine calls had negative time! See TROUBLESHOOTING in the documentation. (Clock %d)\n",
             negative_time_calls, profile_clock);
     }
 }

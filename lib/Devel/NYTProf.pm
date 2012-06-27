@@ -1152,6 +1152,32 @@ the way perl works and how the profiler assigns and outputs the file ids.
 The invoking fid is known but gets assigned a fid and output after the fid for
 the eval, and that causes the warning when the file is read.
 
+=head2 Warning: %d subroutine calls had negative time
+
+There are two likely causes for this: clock instability, or accumulated timing
+errors.
+
+Clock instability, if present on your system, is most likely to be noticable on
+very small/fast subroutines that are called very few times.
+
+Accumulated timing errors can arise because the subroutine profiler uses
+floating point values (NVs) to store the times.  They are most likely to be
+noticed on subroutines that are called a few times but which make a large
+number of calls to very fast subroutines (such as opcodes). In this case the
+accumulated time apparently spent making those calls can be greater than the
+time spent in the calling subroutine.
+
+If you rerun nytprofhtml (etc.) with the L</trace=N> option set >0 you'll see
+trace messages like  "%s call has negative time: incl %fs, excl %fs" for each
+affected subroutine.
+
+Try profiling with the L</slowops=N> option set to 0 to disable the profiling
+of opcodes. Since opcodes often execute in a few microseconds they are a common
+cause of this warning.
+
+You could also try recompiling perl to use 'long doubles' for the NV floating
+point type (use Configure -Duselongdouble). If you try this please let me know.
+I'd also happily take a patch to use long doubles, if available, by default.
 
 =head1 AUTHORS AND CONTRIBUTORS
 

@@ -9,14 +9,17 @@ Changes - List of significant changes to Devel::NYTProf
 =head2 Changes in Devel::NYTProf 4.07
 
   Fixed html generation to be valid, RT#70207 (H.Merijn Brand).
-  Enable file=/dev/null to work as fix for RT#74565.
-  Added and clarified some notes in the troubleshooting docs.
-  Added warning for Apache2::SizeLimit in ::Apache, RT#75912.
-  Updated ::Apache docs including troubleshooting, RT#75912.
   nytprofmerge no longer dies on some errors, RT#75918.
   nytprofmerge now sums cumulative_overhead_ticks, RT#75909.
   nytprofmerge now gets in man page installed, RT#75911.
+
+  Enable file=/dev/null to work as fix for RT#74565.
+  Updated ::Apache docs including troubleshooting, RT#75912.
   Note Devel::NYTProf::Data is undocumented and why, RT#75914.
+  Use Browser::Open if installed for nytprofhtml --open.
+
+  Added and clarified some notes in the troubleshooting docs.
+  Added warning for Apache2::SizeLimit in ::Apache, RT#75912.
 
 =head2 Changes in Devel::NYTProf 4.06 (svn r1406) 30th Nov 2010
 
