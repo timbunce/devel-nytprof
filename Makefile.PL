@@ -209,7 +209,7 @@ package MY;
 sub post_constants {
     q{
 
-prove:: pure_all
+ptest prove:: pure_all
 	time nice prove -b -j 9 --shuffle
 
 # not require because it confuses the call-graph
