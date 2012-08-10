@@ -1825,7 +1825,7 @@ append_linenum_to_begin(pTHX_ subr_entry_t *subr_entry) {
     DBsv = hv_delete(GvHV(PL_DBsub), SvPVX(fullnamesv), (I32)total_len, 1);
 
     if (DBsv && parse_DBsub_value(aTHX_ DBsv, NULL, &line, NULL, SvPVX(fullnamesv))) {
-        SvREFCNT_inc(DBsv); /* was made mortal by hv_delete */
+        (void)SvREFCNT_inc(DBsv); /* was made mortal by hv_delete */
         sv_catpvf(fullnamesv,                   "@%u", (unsigned int)line);
         if (hv_fetch(GvHV(PL_DBsub), SvPV_nolen(fullnamesv), (I32)SvCUR(fullnamesv), 0)) {
             static unsigned int dup_begin_seqn;
@@ -2551,9 +2551,9 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
         /* XXX if the goto op or goto'd xsub croaks then this'll leak */
         /* we can't mortalize here because we're about to leave scope */
-        SvREFCNT_inc(goto_subr_entry.caller_subnam_sv);
-        SvREFCNT_inc(goto_subr_entry.called_subnam_sv);
-        SvREFCNT_inc(sub_sv);
+        (void)SvREFCNT_inc(goto_subr_entry.caller_subnam_sv);
+        (void)SvREFCNT_inc(goto_subr_entry.called_subnam_sv);
+        (void)SvREFCNT_inc(sub_sv);
 
         /* grab the CvSTART of the called sub since it's available */
         called_cv = (CV*)SvRV(sub_sv);
