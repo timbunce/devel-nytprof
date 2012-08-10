@@ -11,7 +11,7 @@ print "Moose $Moose::VERSION $INC{'Moose.pm'}\n";
 
 plan skip_all => "Currently a developer-only test" unless -d '.svn';
 
-warn "Incomplete test";
+warn "This test script needs more work\n";
 
 use Devel::NYTProf::Run qw(profile_this);
 

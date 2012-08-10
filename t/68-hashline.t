@@ -10,7 +10,7 @@ use Devel::NYTProf::Run qw(profile_this);
 
 plan skip_all => "Currently a developer-only test" unless -d '.svn';
 
-warn "Incomplete test";
+warn "This test script needs more work\n";
 
 my $src_code = join("", <DATA>);
 
@@ -46,5 +46,5 @@ eval qq{#line 303 "hash-line-eval"
 sub d { 3 }
 1} or die;
 a(); b(); c(); d();
-print "File: $_\n" for sort grep { m/_</ } keys %{'main::'};
-print "Sub:  $_ => $DB::sub{$_}\n" for sort keys %DB::sub;
+print "# File: $_\n" for sort grep { m/_</ } keys %{'main::'};
+print "# Sub:  $_ => $DB::sub{$_}\n" for sort keys %DB::sub;
