@@ -248,7 +248,8 @@ ranges of all the subroutines.
 NYTProf can profile applications that fork, and does so with no loss of
 performance.
 NYTProf detects the fork and starts writing a new profile file with the pid
-appended to the filename.
+appended to the filename. Since L<nytprofhtml> only works with a single profile
+file you may want to merge multiple files using L<nytprofmerge>.
 
 =head2 Fast Profiling
 
