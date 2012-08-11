@@ -41,14 +41,14 @@ use Devel::NYTProf::Util qw(
 );
 use Devel::NYTProf::Constants qw(NYTP_SCi_CALLING_SUB);
 
-my $json_any = eval { require JSON::Any; JSON::Any->import; JSON::Any->new }
-    or warn "Can't load JSON::Any module - HTML visualizations skipped.\n";
-
-our $VERSION = '4.06';
+our $VERSION = '4.08';
 
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
 }
+
+my $json_any = eval { require JSON::Any; JSON::Any->import; JSON::Any->new }
+    or warn "Can't load JSON::Any module - HTML visualizations skipped.\n";
 
 my @treemap_colors = (0,2,4,6,8,10,1,3,5,7,9);
 
@@ -93,7 +93,7 @@ usage: [perl] nytprofhtml [opts]
 This script of part of the Devel::NYTProf distribution.
 See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
 END
-    return 1;
+    return 0;
 }
 
 

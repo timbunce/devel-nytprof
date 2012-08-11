@@ -6,6 +6,10 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 4.08 (svn 1427) 11th Aug 2012
+
+  Fixed version numbers in nytprofhtml and nytprofmerge.
+
 =head2 Changes in Devel::NYTProf 4.07 (svn 1419) 10th Aug 2012
 
   Fixed html generation to be valid, RT#70207 (H.Merijn Brand).

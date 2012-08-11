@@ -18,7 +18,7 @@ require Devel::NYTProf::FileHandle;
 require Devel::NYTProf::Data;
 use List::Util qw(min sum);
 
-our $VERSION = '4.06';
+our $VERSION = '4.08';
     
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
@@ -354,7 +354,7 @@ usage: [perl] nytprofmerge [opts] nytprof-file [...]
 This script of part of the Devel::NYTProf distribution.
 See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
 END
-    exit 1;
+    exit 0;
 }
 
 __END__
