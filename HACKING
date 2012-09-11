@@ -363,4 +363,5 @@ profile. Possibly straight-forward to implement. The trick is to add the time
 spent in the sub to the statement profiler overhead time, thus getting it
 subtracted from the higher level sub time. Maybe.
 
-
+Generate Flame Graphs from the subroutine profiler data:
+http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/
