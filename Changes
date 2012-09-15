@@ -6,7 +6,7 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
-=head2 Changes in Devel::NYTProf 4.09
+=head2 Changes in Devel::NYTProf 4.09 (svn 1431) 15th Sep 2012
 
   Fixed to work for perl v5.17.3+ thanks to David Mitchell.
 
