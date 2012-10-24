@@ -6,6 +6,13 @@ Changes - List of significant changes to Devel::NYTProf
 
 =cut
 
+TODO: study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
+and reference in our docs.
+
+=head2 Changes in Devel::NYTProf 4.10
+
+  Corrected spelling thanks to Alessandro Ghedini @debian RT80370
+
 =head2 Changes in Devel::NYTProf 4.09 (svn 1431) 15th Sep 2012
 
   Fixed to work for perl v5.17.3+ thanks to David Mitchell.

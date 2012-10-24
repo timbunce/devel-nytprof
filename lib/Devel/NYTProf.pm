@@ -469,7 +469,7 @@ by Cusecputime=1> also has the severe disadvantage of having typically I<far>
 less accurate timings.
 
 Most systems have a 0.01 second granularity in the results from the C<times()>
-sytem call.  With modern processors having multi- gigahertz clocks, 0.01
+system call.  With modern processors having multi- gigahertz clocks, 0.01
 seconds is like a lifetime. The 'ticks' of this CPU time clock
 happen so rarely relative to the activity of a most applications that you'd
 have to run the code for many hours to have any hope of reasonably useful results.
@@ -1158,7 +1158,7 @@ the eval, and that causes the warning when the file is read.
 There are two likely causes for this: clock instability, or accumulated timing
 errors.
 
-Clock instability, if present on your system, is most likely to be noticable on
+Clock instability, if present on your system, is most likely to be noticeable on
 very small/fast subroutines that are called very few times.
 
 Accumulated timing errors can arise because the subroutine profiler uses
