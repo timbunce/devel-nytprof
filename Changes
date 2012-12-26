@@ -18,6 +18,9 @@ and reference in our docs.
   Fixed to sort tables with microsecond values in non-utf8
     encodings, RT#77843
 
+  Deprecate the usecputime=1 option and document that it
+    will be removed in a future version.
+
   Corrected spelling thanks to Alessandro Ghedini @debian RT80370
 
 =head2 Changes in Devel::NYTProf 4.09 (svn 1431) 15th Sep 2012

@@ -460,6 +460,9 @@ likely to change in future.
 
 =head2 usecputime=1
 
+This option is deprecated and will be removed in a future version.
+See the L</clock=N> option.
+
 Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
 time (which is the default). But there are better ways to do this, read on.
 
