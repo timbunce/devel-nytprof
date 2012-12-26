@@ -13,6 +13,8 @@ and reference in our docs.
 
   Fixed to work with perl v5.17+, specifically string eval
     changes and hash randomization.
+  Fixed so tests ignore sitecustomize.pl, RT#79784
+    thanks to JACOB@cpan.org.
 
   Corrected spelling thanks to Alessandro Ghedini @debian RT80370
 

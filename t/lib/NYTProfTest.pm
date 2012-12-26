@@ -379,7 +379,8 @@ sub run_perl_command {
 sub profile {
     my ($test, $profile_datafile) = @_;
 
-    my $cmd = "$perl $opts{profperlopts} $test";
+    my @perl = perl_command_words(skip_sitecustomize => 1);
+    my $cmd = "@perl $opts{profperlopts} $test";
     return ok run_command($cmd), "$test runs ok under the profiler";
 }
 
