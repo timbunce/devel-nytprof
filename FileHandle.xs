@@ -1230,9 +1230,7 @@ NYTP_file handle
         SV *guts;
     CODE:
 	guts = SvRV(ST(0));
-        if (ix == ix) {
-            /* Unused argument.  */
-        }
+        PERL_UNUSED_VAR(ix);
         RETVAL = NYTP_close(handle, 0);
         SvPV_set(guts, NULL);
         SvLEN_set(guts, 0);
