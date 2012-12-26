@@ -9,7 +9,7 @@ Changes - List of significant changes to Devel::NYTProf
 TODO: study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
 and reference in our docs.
 
-=head2 Changes in Devel::NYTProf 4.11 (svn 1437) 26th Dec 2012
+=head2 Changes in Devel::NYTProf 4.11 (svn 1442) 26th Dec 2012
 
   Fixed to work with perl v5.17+, specifically string eval
     changes and hash randomization.
