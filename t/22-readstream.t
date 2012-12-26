@@ -18,7 +18,7 @@ my $out = 'nytprof_readstream.out';
 $ENV{NYTPROF} = "file=$out";
 unlink $out;
 
-run_perl_command(q{-d:NYTProf -e "sub A { };" -e "1;" -e "A()"});
+run_perl_command(qq{-d:NYTProf -e "sub A { };" -e "1;" -e "A() $Devel::NYTProf::StrEvalTestPad"});
 
 my %prof;
 my @seqn;
@@ -66,10 +66,11 @@ is $attr{nv_size}, $Config{nvsize}, 'nv_size';
 cmp_ok $attr{xs_version}, '>=', 2.1, 'xs_version';
 cmp_ok $attr{basetime}, '>=', $^T, 'basetime';
 
-is_deeply $prof{SUB_INFO}, [
-    [ 1, 1, 1, 'main::A' ],
-    [ 1, 0, 0, 'main::BEGIN' ],
-    [ 1, 1, 1, 'main::RUNTIME' ]
+my @sub_info_sorted = sort { $a->[3] cmp $b->[3] } @{$prof{SUB_INFO}};
+is_deeply \@sub_info_sorted, [
+    [1, 1, 1, "main::A"],
+    [1, 0, 0, "main::BEGIN"],
+    [1, 1, 1, "main::RUNTIME"],
 ];
 
 $prof{SUB_CALLERS}[0][$_] = 0 for (3,4);

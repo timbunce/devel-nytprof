@@ -571,7 +571,7 @@ sub dump {
 
             for my $subname (sort keys %$subs_called) {
                 my @sc = @{$subs_called->{$subname}};
-                $sc[NYTP_SCi_CALLING_SUB] = join "|", keys %{ $sc[NYTP_SCi_CALLING_SUB] };
+                $sc[NYTP_SCi_CALLING_SUB] = join "|", sort keys %{ $sc[NYTP_SCi_CALLING_SUB] };
 
                 printf $fh "%s%s%s%s%s%s%s[ %s ]\n", 
                     $prefix, 'call', $separator,

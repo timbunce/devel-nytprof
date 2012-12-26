@@ -11,6 +11,9 @@ and reference in our docs.
 
 =head2 Changes in Devel::NYTProf 4.10
 
+  Fixed to work with perl v5.17+, specifically string eval
+    changes and hash randomization.
+
   Corrected spelling thanks to Alessandro Ghedini @debian RT80370
 
 =head2 Changes in Devel::NYTProf 4.09 (svn 1431) 15th Sep 2012

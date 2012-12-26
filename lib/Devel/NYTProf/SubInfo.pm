@@ -393,7 +393,7 @@ sub dump {
     for my $cp (@caller_places) {
         my ($fid, $line, $sc) = @$cp;
         my @sc = @$sc;
-        $sc[NYTP_SCi_CALLING_SUB] = join "|", keys %{ $sc[NYTP_SCi_CALLING_SUB] };
+        $sc[NYTP_SCi_CALLING_SUB] = join "|", sort keys %{ $sc[NYTP_SCi_CALLING_SUB] };
         printf $fh "%s%s%s%d:%d%s[ %s ]\n",
             $prefix,
             'called_by', $separator,

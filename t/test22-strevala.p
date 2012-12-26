@@ -1,6 +1,6 @@
 # test merging of anon subs from evals
 
-my $code = 'sub { print "sub called\n" }';
+my $code = qq{ sub { print "sub called\n" } $Devel::NYTProf::StrEvalTestPad};
 
 # call once from particular line
 eval($code)->();

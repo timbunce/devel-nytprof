@@ -18,6 +18,9 @@ our $VERSION = '4.09';    # increment with XS changes too
 
 XSLoader::load('Devel::NYTProf', $VERSION);
 
+# Fudging for https://rt.cpan.org/Ticket/Display.html?id=82256
+$Devel::NYTProf::StrEvalTestPad = ($] <= 5.017003) ? ";\n" : "";
+
 if (my $NYTPROF = $ENV{NYTPROF}) {
     for my $optval ( $NYTPROF =~ /((?:[^\\:]+|\\.)+)/g) {
         my ($opt, $val) = $optval =~ /^((?:[^\\=]+|\\.)+)=((?:[^\\=]+|\\.)+)\z/;
