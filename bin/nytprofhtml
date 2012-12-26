@@ -1567,16 +1567,17 @@ EOD
         }, 
         format: function(orig) { // format data for normalization 
             // console.log(orig);
-            val = orig.replace(/ns/,'');
+            var val = orig.replace(/ns/,'');
             if (val != orig) { return val / (1000*1000*1000); } 
-            val = orig.replace(/µs/,''); /* XXX use &micro; ? */
+            val = orig.replace(/[µ\xB5]s/,''); /* allow for browser encoding XXX use &micro; ? */
             if (val != orig) { return val / (1000*1000); } 
-            var val = orig.replace(/ms/,'');
+            val = orig.replace(/ms/,'');
             if (val != orig) { return val / (1000); }
-            var val = orig.replace(/s/,'');
+            val = orig.replace(/([0-9])s/,"\$1");
             if (val != orig) { return val; }
             if (orig == '0') { return orig; } 
-            console.log('no match for fmt_time of '.concat(orig));
+            var non_number = orig.replace(/^[-+]?[0-9.]+/, '', 'g');
+            console.log('no match for fmt_time of '+orig+' (units:'+non_number+' charCodeAt0:'+non_number.charCodeAt(0)+')');
             return orig;
         },
         type: 'numeric' // set type, either numeric or text 
