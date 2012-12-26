@@ -9,7 +9,7 @@ Changes - List of significant changes to Devel::NYTProf
 TODO: study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
 and reference in our docs.
 
-=head2 Changes in Devel::NYTProf 4.10
+=head2 Changes in Devel::NYTProf 4.11 (svn 1437) 26th Dec 2012
 
   Fixed to work with perl v5.17+, specifically string eval
     changes and hash randomization.
@@ -18,10 +18,10 @@ and reference in our docs.
   Fixed to sort tables with microsecond values in non-utf8
     encodings, RT#77843
 
-  Deprecate the usecputime=1 option and document that it
+  Deprecated the usecputime=1 option and documented that it
     will be removed in a future version.
 
-  Corrected spelling thanks to Alessandro Ghedini @debian RT80370
+  Corrected spelling thanks to Alessandro Ghedini @debian RT#80370
 
 =head2 Changes in Devel::NYTProf 4.09 (svn 1431) 15th Sep 2012
 
