@@ -1242,7 +1242,7 @@ Statement-level profilers:
 Devel::NYTProf is a (now distant) fork of Devel::FastProf, which was itself an
 evolution of Devel::SmallProf.
 
-Adam Kaplan took Devel::FastProf and added html report generation (based on
+Adam Kaplan forked Devel::FastProf and added html report generation (based on
 Devel::Cover) and a test suite - a tricky thing to do for a profiler.
 Meanwhile Tim Bunce had been extending Devel::FastProf to add novel
 per-sub and per-block timing, plus subroutine caller tracking.
@@ -1251,7 +1251,7 @@ When Devel::NYTProf was released Tim switched to working on Devel::NYTProf
 because the html report would be a good way to show the extra profile data, and
 the test suite made development much easier and safer.
 
-Then he went a little crazy and added a slew of new features, in addition to
+Then Tim went a little crazy and added a slew of new features, in addition to
 per-sub and per-block timing and subroutine caller tracking. These included the
 'opcode interception' method of profiling, ultra-fast and robust inclusive
 subroutine timing, doubling performance, plus major changes to html reporting
@@ -1263,7 +1263,14 @@ keep NYTProf working with the latest development perl versions. Nicholas Clark
 added zip compression, many optimizations, and C<nytprofmerge>.
 Jan Dubois contributed Windows support.
 
-Adam's work is sponsored by The New York Times Co. L<http://open.nytimes.com>.
-Tim's work was partly sponsored by Shopzilla L<http://www.shopzilla.com> during 2008.
+Adam's work was sponsored by The New York Times Co. L<http://open.nytimes.com>.
+Tim's work was partly sponsored by Shopzilla L<http://www.shopzilla.com> during 2008
+but hasn't been sponsored since then.
+
+For the record, Tim has never worked for the New York Times nor has he received any
+kind of sponsorship or support from them in relation to NYTProf. The name of
+this module is simply result of the history outlined above, which can be
+summarised as: Adam forked an existing module when he added his enhancements
+and Tim didn't.
 
 =cut
