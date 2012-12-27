@@ -50,7 +50,7 @@ __END__
 
 =head1 NAME
 
-Devel::NYTProf - Powerful fast feature-rich perl source code profiler
+Devel::NYTProf - Powerful fast feature-rich Perl source code profiler
 
 =head1 SYNOPSIS
 
