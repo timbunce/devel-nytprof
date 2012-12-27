@@ -1,0 +1,46 @@
+An experimental patch I wrote but never applied. May be useful in future.
+Probably worth applying, but needs a test case first.
+
+Index: NYTProf.xs
+===================================================================
+--- NYTProf.xs	(revision 1053)
++++ NYTProf.xs	(working copy)
+@@ -798,6 +798,7 @@
+      * filename, and associate that fid with this eval fid
+      */
+     if ('(' == file_name[0]) {                      /* first char is '(' */
++        int saved_next_fid = next_fid;
+         if (']' == file_name[file_name_len-1]) {    /* last char is ']' */
+             char *start = strchr(file_name, '[');
+             const char *colon = ":";
+@@ -810,6 +811,7 @@
+             }
+             ++start;                                /* move past [ */
+             /* recurse */
++            next_fid--;
+             found->eval_fid = get_file_id(aTHX_ start, end - start, created_via);
+             found->eval_line_num = atoi(end+1);
+         }
+@@ -818,11 +820,22 @@
+             /* seen in mod_perl, possibly from eval_sv(sv) api call */
+             /* also when nameevals=0 option is in effect */
+             char eval_file[] = "/unknown-eval-invoker";
++            next_fid--;
+             found->eval_fid = get_file_id(aTHX_ eval_file, sizeof(eval_file) - 1,
+                 NYTP_FIDf_IS_FAKE | created_via
+             );
+             found->eval_line_num = 1;
+         }
++        /* if get_file_id allocated a new fid then, because of the next_fid-- above,
++         * it would have reused the same fid as found->id (and output it).
++         * So we now adopt ++next_fid as our found->id.
++         */
++        if (next_fid != saved_next_fid)) {
++            found->id = ++next_fid;
++        }
++        else {
++            next_fid = saved_next_fid;
++        }
+     }
+ 
+     /* is the file is an autosplit, e.g., has a file_name like
