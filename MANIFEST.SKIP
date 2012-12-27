@@ -1,8 +1,9 @@
-\B\.svn\b
+\B\.git\b
 ^MANIFEST\.
-^Makefile$
+^Makefile$/
+^Makefile.old$/
 \.DS_Store$
 ~$
 ^blib/
-^info/
+^devstuff/
 ^Devel-NYTProf-\d
