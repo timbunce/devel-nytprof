@@ -1,0 +1,10 @@
+# /
+# /t/
+/t/*.new
+/t/*.newp
+/t/*.out
+/t/nytprof_t.out
+/t/nytprof-test51-*.out
+/t/nytprof_test30-fork-*.out.*
+/t/*_outdir
+/t/auto
