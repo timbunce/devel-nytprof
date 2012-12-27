@@ -4,6 +4,7 @@ MYMETA.json
 MYMETA.yml
 Makefile
 Makefile.old
+blib/
 # /t/
 /t/*.new
 /t/*.newp
