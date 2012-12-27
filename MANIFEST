@@ -70,7 +70,6 @@ t/42-global.t
 t/44-model.t
 t/50-errno.t
 t/60-forkdepth.t
-t/61-cputime.t
 t/68-hashline.t
 t/70-subname.t
 t/71-moose.t
@@ -202,6 +201,7 @@ t/test81-swash.t
 t/test82-version.t
 t/zzz.t
 typemap
+xt/61-cputime.t
 xt/test23-strevalxs.p
 xt/test23-strevalxs.rdt
 xt/test23-strevalxs.t
