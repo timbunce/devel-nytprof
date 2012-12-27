@@ -460,26 +460,11 @@ likely to change in future.
 
 =head2 usecputime=1
 
-This option is deprecated and will be removed in a future version.
-See the L</clock=N> option.
+This option has been removed. Profiling won't be enabled if set.
 
-Measure user CPU + system CPU time instead of the real elapsed 'wall clock'
-time (which is the default). But there are better ways to do this, read on.
-
-Measuring CPU time has the advantage of making the measurements independent of
-time spent blocked waiting for the cpu or network i/o etc. But the method used
-by Cusecputime=1> also has the severe disadvantage of having typically I<far>
-less accurate timings.
-
-Most systems have a 0.01 second granularity in the results from the C<times()>
-system call.  With modern processors having multi- gigahertz clocks, 0.01
-seconds is like a lifetime. The 'ticks' of this CPU time clock
-happen so rarely relative to the activity of a most applications that you'd
-have to run the code for many hours to have any hope of reasonably useful results.
-
-A much better alternative is to use the L</clock=N> option to select a
-high-resolution CPU time clock, if available on your system, because that'll
-give you higher resolution and work for the subroutine profiler as well.
+Use the L</clock=N> option to select a high-resolution CPU time clock, if
+available on your system, instead. That will give you higher resolution and work
+for the subroutine profiler as well.
 
 =head2 file=...
 
@@ -1075,10 +1060,6 @@ You could also try using the C<clock=N> option to select a high-resolution
 I<cpu-time> clock instead of a real-time one. That should be much less
 noisy, though you will lose visibility of wait-times due to network
 and disk I/O, for example.
-
-If your system doesn't support the C<clock=N> option then you could try
-using the C<usecputime=1> option. That will give you cpu-time measurements
-but only at a very low 1/100th of a second resolution.
 
 =head1 BUGS
 

@@ -1386,16 +1386,8 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 
     saved_errno = errno;
 
-    if (profile_usecputime) {
-        times(&end_ctime);
-        overflow = 0;                             /* XXX */
-        elapsed = end_ctime.tms_utime - start_ctime.tms_utime
-                + end_ctime.tms_stime - start_ctime.tms_stime;
-    }
-    else {
-        get_time_of_day(end_time);
-        get_ticks_between(start_time, end_time, elapsed, overflow);
-    }
+    get_time_of_day(end_time);
+    get_ticks_between(start_time, end_time, elapsed, overflow);
 
     reinit_if_forked(aTHX);
 
@@ -1474,17 +1466,11 @@ DB_stmt(pTHX_ COP *cop, OP *op)
         if (!last_sub_line)   last_sub_line   = last_executed_line;
     }
 
-    if (profile_usecputime) {
-        times(&start_ctime);
-        /* insufficient accuracy for cumulative_overhead_ticks */
-    }
-    else {
-        get_time_of_day(start_time);
+    get_time_of_day(start_time);
 
-        /* measure time we've spent measuring so we can discount it */
-        get_ticks_between(end_time, start_time, elapsed, overflow);
-        cumulative_overhead_ticks += elapsed;
-    }
+    /* measure time we've spent measuring so we can discount it */
+    get_ticks_between(end_time, start_time, elapsed, overflow);
+    cumulative_overhead_ticks += elapsed;
 
     SETERRNO(saved_errno, 0);
     return;
@@ -1924,28 +1910,16 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* seconds spent in subroutines called by this subroutine */
     called_sub_secs = (cumulative_subr_secs - subr_entry->initial_subr_secs);
 
-    if (profile_usecputime) {
-        struct tms call_end_ctime;
-        long ticks;
+    time_of_day_t sub_end_time;
+    long ticks, overflow;
 
-        times(&call_end_ctime);
-        ticks = (call_end_ctime.tms_utime - subr_entry->initial_call_cputimes.tms_utime)
-              + (call_end_ctime.tms_stime - subr_entry->initial_call_cputimes.tms_stime);
-        /* ignore overhead_ticks when using cputime because the resolution is so poor */
-        incl_subr_sec = (ticks / (NV)PL_clocktick);
-    }
-    else {
-        time_of_day_t sub_end_time;
-        long ticks, overflow;
+    /* calculate ticks since we entered the sub */
+    get_time_of_day(sub_end_time);
+    get_ticks_between(subr_entry->initial_call_timeofday, sub_end_time, ticks, overflow);
 
-        /* calculate ticks since we entered the sub */
-        get_time_of_day(sub_end_time);
-        get_ticks_between(subr_entry->initial_call_timeofday, sub_end_time, ticks, overflow);
-
-        incl_subr_sec = overflow + (ticks / (NV)CLOCKS_PER_TICK);
-        /* subtract statement measurement overheads */
-        incl_subr_sec -= (overhead_ticks / CLOCKS_PER_TICK);
-    }
+    incl_subr_sec = overflow + (ticks / (NV)CLOCKS_PER_TICK);
+    /* subtract statement measurement overheads */
+    incl_subr_sec -= (overhead_ticks / CLOCKS_PER_TICK);
 
     if (subr_entry->hide_subr_call_time) {
         /* account for the time spent in the sub as if it was statement
@@ -2232,10 +2206,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     subr_entry->subr_prof_depth = (caller_subr_entry)
         ? caller_subr_entry->subr_prof_depth+1 : 1;
 
-    if (profile_usecputime)
-        times(&subr_entry->initial_call_cputimes);
-    else
-        get_time_of_day(subr_entry->initial_call_timeofday);
+    get_time_of_day(subr_entry->initial_call_timeofday);
     subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
     subr_entry->initial_subr_secs      = cumulative_subr_secs;
     subr_entry->subr_call_seqn         = (unsigned long)(++cumulative_subr_seqn);
@@ -2782,6 +2753,11 @@ enable_profile(pTHX_ char *file)
     }
 #endif
 
+    if (profile_usecputime) {
+        warn("The NYTProf usecputime option has been removed (try using clock=N if possible)");
+        return 0;
+    }
+
     if (trace_level)
         logwarn("~ enable_profile (previously %s) to %s\n",
             prev_is_profiling ? "enabled" : "disabled",
@@ -2805,12 +2781,7 @@ enable_profile(pTHX_ char *file)
         sv_setiv(PL_DBsingle, 1);
 
     /* discard time spent since profiler was disabled */
-    if (profile_usecputime) {
-        times(&start_ctime);
-    }
-    else {
-        get_time_of_day(start_time);
-    }
+    get_time_of_day(start_time);
 
     return prev_is_profiling;
 }
@@ -2903,7 +2874,7 @@ _init_profiler_clock(pTHX)
         profile_clock = -1;
     }
 #endif
-    ticks_per_sec = (profile_usecputime) ? PL_clocktick : CLOCKS_PER_TICK;
+    ticks_per_sec = CLOCKS_PER_TICK;
 }
 
 
@@ -3049,12 +3020,7 @@ init_profiler(pTHX)
     }
 
     /* seed first run time */
-    if (profile_usecputime) {
-        times(&start_ctime);
-    }
-    else {
-        get_time_of_day(start_time);
-    }
+    get_time_of_day(start_time);
 
     if (trace_level >= 1)
         logwarn("~ init_profiler done\n");

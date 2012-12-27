@@ -11,8 +11,11 @@ and reference in our docs.
 
 =head2 Changes in Devel::NYTProf
 
-  Moved main repo to git (on github).
+  Moved main repo to git (and https://github.com/timbunce/devel-nytprof)
+
   Fixed some doc typos thanks to Jesse Sheidlower.
+
+  Removed the usecputime=1 option. Use clock=N instead if possible.
 
 =head2 Changes in Devel::NYTProf 4.11 (svn 1442) 26th Dec 2012
 

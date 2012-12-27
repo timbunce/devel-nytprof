@@ -31,7 +31,7 @@ Generalize the concepts of probes. Have a structure defining a 'probe' with
 pointers to functions to get the values, subtract values to get relative ticks,
 return the tick units etc. Give them names and attributes (cpu, realtime etc).
 User could then pick a probe by name. By default we'd pick the best available
-realtime probe (or best available cputime probe if usecputime=1 option set).
+realtime probe.
 Use the subtraction logic where we currently handle times in the statement and
 subroutine profilers.
 
