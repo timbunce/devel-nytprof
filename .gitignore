@@ -1,4 +1,9 @@
 # /
+MANIFEST.bak
+MYMETA.json
+MYMETA.yml
+Makefile
+Makefile.old
 # /t/
 /t/*.new
 /t/*.newp
