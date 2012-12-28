@@ -2,12 +2,12 @@
 
 Changes - List of significant changes to Devel::NYTProf
 
-(As of $Date$ $Revision$)
-
 =cut
 
 TODO: study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
 and reference in our docs.
+
+TODO: change sub profiler to use NV ticks not secs
 
 =head2 Changes in Devel::NYTProf
 
@@ -16,6 +16,11 @@ and reference in our docs.
   Fixed some doc typos thanks to Jesse Sheidlower.
 
   Removed the usecputime=1 option. Use clock=N instead if possible.
+
+=head2 Changes in Devel::NYTProf 4.12 - 28th Dec 2012
+
+  Fixed the perl v5.17+ fix to do-the-right-thing for 5.17.4.
+  Fixed pod encoding issues.
 
 =head2 Changes in Devel::NYTProf 4.11 (svn 1442) 26th Dec 2012
 
