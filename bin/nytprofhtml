@@ -6,9 +6,27 @@
 ## at the bottom of this file, or by going to:
 ## http://search.cpan.org/~akaplan/Devel-NYTProf
 ##
-##########################################################
-# $Id$
 ###########################################################
+
+=head1 NAME
+
+nytprofhtml - Generate reports from Devel::NYTProf data
+
+=head1 SYNOPSIS
+
+Typical usage:
+
+ $ perl -d:NYTProf some_perl_app.pl
+ $ nytprofhtml --open
+
+Options synopsis:
+
+ $ nytprofhtml [-h] [-d] [-m] [-o <output directory>] [-f <input file>] [--open]
+
+=encoding ISO8859-1
+
+=cut
+
 use warnings;
 use strict;
 
@@ -1841,21 +1859,6 @@ EOD
 }
 
 __END__
-
-=head1 NAME
-
-nytprofhtml - Generate reports from Devel::NYTProf data
-
-=head1 SYNOPSIS
-
-Typical usage:
-
- $ perl -d:NYTProf some_perl_app.pl
- $ nytprofhtml --open
-
-Options synopsis:
-
- $ nytprofhtml [-h] [-d] [-o <output directory>] [-f <input file>] [--open]
 
 =head1 DESCRIPTION
 
