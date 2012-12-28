@@ -262,7 +262,6 @@ static struct NYTP_int_options_t options[] = {
 };
 
 /* time tracking */
-static struct tms start_ctime, end_ctime;
 
 #ifdef HAS_CLOCK_GETTIME
 /* http://www.freebsd.org/cgi/man.cgi?query=clock_gettime
