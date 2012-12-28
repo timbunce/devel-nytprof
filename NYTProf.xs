@@ -1916,16 +1916,16 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     get_time_of_day(sub_end_time);
     get_ticks_between(subr_entry->initial_call_timeofday, sub_end_time, ticks, overflow);
 
-    incl_subr_sec = overflow + (ticks / (NV)TICKS_PER_SEC);
+    incl_subr_sec = overflow + (ticks / (NV)ticks_per_sec);
     /* subtract statement measurement overheads */
-    incl_subr_sec -= (overhead_ticks / TICKS_PER_SEC);
+    incl_subr_sec -= (overhead_ticks / ticks_per_sec);
 
     if (subr_entry->hide_subr_call_time) {
         /* account for the time spent in the sub as if it was statement
          * profiler overhead. That has the effect of neatly subtracting
          * the time from all the sub calls up the call stack.
          */
-        cumulative_overhead_ticks += incl_subr_sec * TICKS_PER_SEC;
+        cumulative_overhead_ticks += incl_subr_sec * ticks_per_sec;
         incl_subr_sec = 0;
         called_sub_secs = 0;
     }
@@ -4945,7 +4945,7 @@ ticks_for_usleep(long u_seconds)
     EXTEND(SP, 4);
     PUSHs(sv_2mortal(newSVnv(elapsed)));
     PUSHs(sv_2mortal(newSVnv(overflow)));
-    PUSHs(sv_2mortal(newSVnv(TICKS_PER_SEC)));
+    PUSHs(sv_2mortal(newSVnv(ticks_per_sec)));
     PUSHs(sv_2mortal(newSViv(profile_clock)));
 
 
