@@ -272,11 +272,11 @@ static struct NYTP_int_options_t options[] = {
  */
 typedef struct timespec time_of_day_t;
 #  define CLOCK_GETTIME(ts) clock_gettime(profile_clock, ts)
-#  define CLOCKS_PER_TICK 10000000                /* 10 million - 100ns */
+#  define TICKS_PER_SEC 10000000                /* 10 million - 100ns */
 #  define get_time_of_day(into) CLOCK_GETTIME(&into)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
     overflow = 0; \
-    ticks = ((e.tv_sec - s.tv_sec) * CLOCKS_PER_TICK + (e.tv_nsec / 100) - (s.tv_nsec / 100)); \
+    ticks = ((e.tv_sec - s.tv_sec) * TICKS_PER_SEC + (e.tv_nsec / 100) - (s.tv_nsec / 100)); \
 } STMT_END
 
 #else                                             /* !HAS_CLOCK_GETTIME */
@@ -289,7 +289,7 @@ typedef struct timespec time_of_day_t;
 mach_timebase_info_data_t  our_timebase;
 typedef uint64_t time_of_day_t;
 
-#  define CLOCKS_PER_TICK 10000000                /* 10 million - 100ns */
+#  define TICKS_PER_SEC 10000000                /* 10 million - 100ns */
 #  define get_time_of_day(into) into = mach_absolute_time()
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
     overflow = 0; \
@@ -301,20 +301,20 @@ typedef uint64_t time_of_day_t;
 
 #ifdef HAS_GETTIMEOFDAY
 typedef struct timeval time_of_day_t;
-#  define CLOCKS_PER_TICK 1000000                 /* 1 million */
+#  define TICKS_PER_SEC 1000000                 /* 1 million */
 #  define get_time_of_day(into) gettimeofday(&into, NULL)
 #  define get_ticks_between(s, e, ticks, overflow) STMT_START { \
     overflow = 0; \
-    ticks = ((e.tv_sec - s.tv_sec) * CLOCKS_PER_TICK + e.tv_usec - s.tv_usec); \
+    ticks = ((e.tv_sec - s.tv_sec) * TICKS_PER_SEC + e.tv_usec - s.tv_usec); \
 } STMT_END
 #else
 static int (*u2time)(pTHX_ UV *) = 0;
 typedef UV time_of_day_t[2];
-#  define CLOCKS_PER_TICK 1000000                 /* 1 million */
+#  define TICKS_PER_SEC 1000000                 /* 1 million */
 #  define get_time_of_day(into) (*u2time)(aTHX_ into)
 #  define get_ticks_between(s, e, ticks, overflow)  STMT_START { \
     overflow = 0; \
-    ticks = ((e[0] - s[0]) * CLOCKS_PER_TICK + e[1] - s[1]); \
+    ticks = ((e[0] - s[0]) * TICKS_PER_SEC + e[1] - s[1]); \
 } STMT_END
 #endif
 #endif
@@ -1916,16 +1916,16 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     get_time_of_day(sub_end_time);
     get_ticks_between(subr_entry->initial_call_timeofday, sub_end_time, ticks, overflow);
 
-    incl_subr_sec = overflow + (ticks / (NV)CLOCKS_PER_TICK);
+    incl_subr_sec = overflow + (ticks / (NV)TICKS_PER_SEC);
     /* subtract statement measurement overheads */
-    incl_subr_sec -= (overhead_ticks / CLOCKS_PER_TICK);
+    incl_subr_sec -= (overhead_ticks / TICKS_PER_SEC);
 
     if (subr_entry->hide_subr_call_time) {
         /* account for the time spent in the sub as if it was statement
          * profiler overhead. That has the effect of neatly subtracting
          * the time from all the sub calls up the call stack.
          */
-        cumulative_overhead_ticks += incl_subr_sec * CLOCKS_PER_TICK;
+        cumulative_overhead_ticks += incl_subr_sec * TICKS_PER_SEC;
         incl_subr_sec = 0;
         called_sub_secs = 0;
     }
@@ -2873,7 +2873,7 @@ _init_profiler_clock(pTHX)
         profile_clock = -1;
     }
 #endif
-    ticks_per_sec = CLOCKS_PER_TICK;
+    ticks_per_sec = TICKS_PER_SEC;
 }
 
 
@@ -4945,7 +4945,7 @@ ticks_for_usleep(long u_seconds)
     EXTEND(SP, 4);
     PUSHs(sv_2mortal(newSVnv(elapsed)));
     PUSHs(sv_2mortal(newSVnv(overflow)));
-    PUSHs(sv_2mortal(newSVnv(CLOCKS_PER_TICK)));
+    PUSHs(sv_2mortal(newSVnv(TICKS_PER_SEC)));
     PUSHs(sv_2mortal(newSViv(profile_clock)));
 
 
