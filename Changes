@@ -13,9 +13,8 @@ and reference in our docs.
     especially for frequent calls to very fast subs/ops.
 
   Fixed some doc typos thanks to Jesse Sheidlower.
-
+  Improved nytprofmerge behaviour with inconsistent attributes.
   Removed the usecputime=1 option. Use clock=N instead if possible.
-
   Moved main repo to git (and https://github.com/timbunce/devel-nytprof)
 
 =head2 Changes in Devel::NYTProf 4.12 - 28th Dec 2012
