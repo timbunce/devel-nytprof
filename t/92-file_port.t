@@ -5,11 +5,8 @@ use warnings;
 
 use Test::More;
 
-plan skip_all => "Currently a developer-only test"
-    unless -d '.svn';
-
 eval "require Test::Portability::Files;";
-plan skip_all => "Test::Portability::Files required for testing filename portability. ${ $@=~s/ \(\@INC contains.*//, \$@ }"
+plan skip_all => "Test::Portability::Files required for testing filename portability. ${ $@=~s/\.pm .*/.pm/, \$@ }"
     if $@;
 
 plan skip_all => "Set NYTPROF_TEST_PORTABILITY_FILES env var to enable test"

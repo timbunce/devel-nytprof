@@ -4,14 +4,12 @@ use Test::More;
 use lib qw(t/lib);
 use NYTProfTest;
 
-eval "use Moose 1.14; 1"
-    or plan skip_all => "Moose 1.14 required";
+eval "use Moose 2.0; 1"
+    or plan skip_all => "Moose 2.0 required";
 
 print "Moose $Moose::VERSION $INC{'Moose.pm'}\n";
 
-plan skip_all => "Currently a developer-only test" unless -d '.svn';
-
-warn "This test script needs more work\n";
+plan skip_all => "Test is incomplete (has no results defined yet)";# unless -d '.svn';
 
 use Devel::NYTProf::Run qw(profile_this);
 
