@@ -7,10 +7,10 @@ Changes - List of significant changes to Devel::NYTProf
 TODO: study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
 and reference in our docs.
 
-=head2 Changes in Devel::NYTProf
+=head2 Changes in Devel::NYTProf 4.23 - 29th Dec 2012
 
   Significant improvement in the accuracy of the subroutine profiler,
-    especially for frequent calls to very fast subs/ops.
+    especially for frequent calls to very short duration subs/ops.
 
   Fixed some doc typos thanks to Jesse Sheidlower.
   Improved nytprofmerge behaviour with inconsistent attributes.
