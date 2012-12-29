@@ -1884,7 +1884,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     int subr_call_key_len;
     NV  overhead_ticks, called_sub_ticks;
     SV *incl_time_sv, *excl_time_sv;
-    NV  incl_subr_ticks, excl_subr_sec;
+    NV  incl_subr_ticks, excl_subr_ticks;
     SV *sv_tmp;
     AV *subr_call_av;
 
@@ -1931,7 +1931,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
 
     /* exclusive = inclusive - time spent in subroutines called by this subroutine */
-    excl_subr_sec = (incl_subr_ticks - called_sub_ticks) / ticks_per_sec;
+    excl_subr_ticks = incl_subr_ticks - called_sub_ticks;
 
     subr_call_key_len = sprintf(subr_call_key, "%s::%s[%u:%d]",
         subr_entry->caller_subpkg_pv,
@@ -2022,7 +2022,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         logwarn("%2d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%"NVff"-%"NVff"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
             subr_entry->subr_prof_depth,
             called_subname_pv,
-            excl_subr_sec, incl_subr_ticks/ticks_per_sec,
+            excl_subr_ticks/ticks_per_sec,
+            incl_subr_ticks/ticks_per_sec,
             called_sub_ticks/ticks_per_sec,
             cumulative_subr_ticks/ticks_per_sec,
             subr_entry->initial_subr_ticks/ticks_per_sec,
@@ -2047,11 +2048,11 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             sv_setiv(max_depth_sv, subr_entry->called_cv_depth-1);
     }
     excl_time_sv = *av_fetch(subr_call_av, NYTP_SCi_EXCL_RTIME, 1);
-    sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_sec);
+    sv_setnv(excl_time_sv, SvNV(excl_time_sv)+(excl_subr_ticks/ticks_per_sec)); /* TODO store as ticks */
 
     subr_entry_destroy(aTHX_ subr_entry);
 
-    cumulative_subr_ticks += (excl_subr_sec * ticks_per_sec);
+    cumulative_subr_ticks += excl_subr_ticks;
     SETERRNO(saved_errno, 0);
 }
 
