@@ -1884,7 +1884,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     int subr_call_key_len;
     NV  overhead_ticks, called_sub_ticks;
     SV *incl_time_sv, *excl_time_sv;
-    NV  incl_subr_sec, excl_subr_sec;
+    NV  incl_subr_ticks, excl_subr_sec;
     SV *sv_tmp;
     AV *subr_call_av;
 
@@ -1916,22 +1916,22 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     get_time_of_day(sub_end_time);
     get_ticks_between(subr_entry->initial_call_timeofday, sub_end_time, ticks, overflow);
 
-    incl_subr_sec = overflow + (ticks / (NV)ticks_per_sec);
+    incl_subr_ticks = (overflow*ticks_per_sec) + ticks;
     /* subtract statement measurement overheads */
-    incl_subr_sec -= (overhead_ticks / ticks_per_sec);
+    incl_subr_ticks -= overhead_ticks;
 
     if (subr_entry->hide_subr_call_time) {
         /* account for the time spent in the sub as if it was statement
          * profiler overhead. That has the effect of neatly subtracting
          * the time from all the sub calls up the call stack.
          */
-        cumulative_overhead_ticks += incl_subr_sec * ticks_per_sec;
-        incl_subr_sec = 0;
+        cumulative_overhead_ticks += incl_subr_ticks;
+        incl_subr_ticks = 0;
         called_sub_ticks = 0;
     }
 
     /* exclusive = inclusive - time spent in subroutines called by this subroutine */
-    excl_subr_sec = incl_subr_sec - (called_sub_ticks/ticks_per_sec);
+    excl_subr_sec = (incl_subr_ticks - called_sub_ticks) / ticks_per_sec;
 
     subr_call_key_len = sprintf(subr_call_key, "%s::%s[%u:%d]",
         subr_entry->caller_subpkg_pv,
@@ -2022,7 +2022,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         logwarn("%2d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%"NVff"-%"NVff"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
             subr_entry->subr_prof_depth,
             called_subname_pv,
-            excl_subr_sec, incl_subr_sec,
+            excl_subr_sec, incl_subr_ticks/ticks_per_sec,
             called_sub_ticks/ticks_per_sec,
             cumulative_subr_ticks/ticks_per_sec,
             subr_entry->initial_subr_ticks/ticks_per_sec,
@@ -2034,14 +2034,14 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* only count inclusive time for the outer-most calls */
     if (subr_entry->called_cv_depth <= 1) {
         incl_time_sv = *av_fetch(subr_call_av, NYTP_SCi_INCL_RTIME, 1);
-        sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_sec);
+        sv_setnv(incl_time_sv, SvNV(incl_time_sv)+(incl_subr_ticks/ticks_per_sec)); /* TODO store as ticks */
     }
     else {
         /* recursing into an already entered sub */
         /* measure max depth and accumulate incl time separately */
         SV *reci_time_sv = *av_fetch(subr_call_av, NYTP_SCi_RECI_RTIME, 1);
         SV *max_depth_sv = *av_fetch(subr_call_av, NYTP_SCi_REC_DEPTH, 1);
-        sv_setnv(reci_time_sv, (SvOK(reci_time_sv)) ? SvNV(reci_time_sv)+incl_subr_sec : incl_subr_sec);
+        sv_setnv(reci_time_sv, (SvOK(reci_time_sv)) ? SvNV(reci_time_sv)+(incl_subr_ticks/ticks_per_sec) : (incl_subr_ticks/ticks_per_sec));
         /* we track recursion depth here, which is called_cv_depth-1 */
         if (!SvOK(max_depth_sv) || subr_entry->called_cv_depth-1 > SvIV(max_depth_sv))
             sv_setiv(max_depth_sv, subr_entry->called_cv_depth-1);
