@@ -1882,7 +1882,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     char *called_subname_pv_end = called_subname_pv;
     char subr_call_key[500]; /* XXX */
     int subr_call_key_len;
-    NV  overhead_ticks, called_sub_secs;
+    NV  overhead_ticks, called_sub_ticks;
     SV *incl_time_sv, *excl_time_sv;
     NV  incl_subr_sec, excl_subr_sec;
     SV *sv_tmp;
@@ -1907,7 +1907,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* statement overheads we've accumulated since we entered the sub */
     overhead_ticks = cumulative_overhead_ticks - subr_entry->initial_overhead_ticks;
     /* seconds spent in subroutines called by this subroutine */
-    called_sub_secs = (cumulative_subr_ticks - subr_entry->initial_subr_ticks) / ticks_per_sec;
+    called_sub_ticks = cumulative_subr_ticks - subr_entry->initial_subr_ticks;
 
     time_of_day_t sub_end_time;
     long ticks, overflow;
@@ -1927,11 +1927,11 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
          */
         cumulative_overhead_ticks += incl_subr_sec * ticks_per_sec;
         incl_subr_sec = 0;
-        called_sub_secs = 0;
+        called_sub_ticks = 0;
     }
 
     /* exclusive = inclusive - time spent in subroutines called by this subroutine */
-    excl_subr_sec = incl_subr_sec - called_sub_secs;
+    excl_subr_sec = incl_subr_sec - (called_sub_ticks/ticks_per_sec);
 
     subr_call_key_len = sprintf(subr_call_key, "%s::%s[%u:%d]",
         subr_entry->caller_subpkg_pv,
@@ -2022,7 +2022,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         logwarn("%2d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%"NVff"-%"NVff"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
             subr_entry->subr_prof_depth,
             called_subname_pv,
-            excl_subr_sec, incl_subr_sec, called_sub_secs,
+            excl_subr_sec, incl_subr_sec,
+            called_sub_ticks/ticks_per_sec,
             cumulative_subr_ticks/ticks_per_sec,
             subr_entry->initial_subr_ticks/ticks_per_sec,
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
