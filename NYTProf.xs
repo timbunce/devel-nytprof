@@ -148,7 +148,7 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_FIDi_SUBS_CALLED   11
 #define NYTP_FIDi_elements      12   /* highest index, plus 1 */
 
-/* indices to elements of the sub call info array */
+/* indices to elements of the sub info array (report-side only) */
 #define NYTP_SIi_FID             0   /* fid of file sub was defined in */
 #define NYTP_SIi_FIRST_LINE      1   /* line number of first line of sub */    
 #define NYTP_SIi_LAST_LINE       2   /* line number of last line of sub */    
@@ -163,11 +163,18 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_SIi_elements       11   /* highest index, plus 1 */
 
 /* indices to elements of the sub call info array */
+/* XXX currently ticks are accumulated into NYTP_SCi_*_TICKS during profiling
+ * and then NYTP_SCi_*_RTIME are calculated and output. This avoids float noise
+ * during profiling but we should really output ticks so the reporting side
+ * can also be more accurate when merging subs, for example.
+ * That'll probably need a file format bump and thus also a major version bump.
+ * Will need coresponding changes to NYTP_SIi_* as well.
+ */
 #define NYTP_SCi_CALL_COUNT      0   /* count of calls to sub */    
-#define NYTP_SCi_INCL_RTIME      1    /* inclusive real time in sub */    
-#define NYTP_SCi_EXCL_RTIME      2   /* exclusive real time in sub */    
-#define NYTP_SCi_spare_3         3   /* */
-#define NYTP_SCi_spare_4         4   /* */
+#define NYTP_SCi_INCL_RTIME      1   /* inclusive real time in sub (set from NYTP_SCi_INCL_TICKS) */
+#define NYTP_SCi_EXCL_RTIME      2   /* exclusive real time in sub (set from NYTP_SCi_EXCL_TICKS) */
+#define NYTP_SCi_INCL_TICKS      3   /* inclusive ticks in sub */
+#define NYTP_SCi_EXCL_TICKS      4   /* exclusive ticks in sub */
 #define NYTP_SCi_RECI_RTIME      5   /* recursive incl real time in sub */
 #define NYTP_SCi_REC_DEPTH       6   /* max recursion call depth */
 #define NYTP_SCi_CALLING_SUB     7   /* name of calling sub */
@@ -1744,6 +1751,8 @@ new_sub_call_info_av(pTHX)
     av_store(av, NYTP_SCi_CALL_COUNT, newSVuv(1));
     av_store(av, NYTP_SCi_INCL_RTIME, newSVnv(0.0));
     av_store(av, NYTP_SCi_EXCL_RTIME, newSVnv(0.0));
+    av_store(av, NYTP_SCi_INCL_TICKS, newSVnv(0.0));
+    av_store(av, NYTP_SCi_EXCL_TICKS, newSVnv(0.0));
     /* others allocated when needed */
     return av;
 }
@@ -2034,11 +2043,10 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     /* only count inclusive time for the outer-most calls */
     if (subr_entry->called_cv_depth <= 1) {
-        incl_time_sv = *av_fetch(subr_call_av, NYTP_SCi_INCL_RTIME, 1);
-        sv_setnv(incl_time_sv, SvNV(incl_time_sv)+(incl_subr_ticks/ticks_per_sec)); /* TODO store as ticks */
+        incl_time_sv = *av_fetch(subr_call_av, NYTP_SCi_INCL_TICKS, 1);
+        sv_setnv(incl_time_sv, SvNV(incl_time_sv)+incl_subr_ticks);
     }
-    else {
-        /* recursing into an already entered sub */
+    else { /* recursing into an already entered sub */
         /* measure max depth and accumulate incl time separately */
         SV *reci_time_sv = *av_fetch(subr_call_av, NYTP_SCi_RECI_RTIME, 1);
         SV *max_depth_sv = *av_fetch(subr_call_av, NYTP_SCi_REC_DEPTH, 1);
@@ -2047,8 +2055,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         if (!SvOK(max_depth_sv) || subr_entry->called_cv_depth-1 > SvIV(max_depth_sv))
             sv_setiv(max_depth_sv, subr_entry->called_cv_depth-1);
     }
-    excl_time_sv = *av_fetch(subr_call_av, NYTP_SCi_EXCL_RTIME, 1);
-    sv_setnv(excl_time_sv, SvNV(excl_time_sv)+(excl_subr_ticks/ticks_per_sec)); /* TODO store as ticks */
+    excl_time_sv = *av_fetch(subr_call_av, NYTP_SCi_EXCL_TICKS, 1);
+    sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_ticks);
 
     subr_entry_destroy(aTHX_ subr_entry);
 
@@ -3402,8 +3410,8 @@ write_sub_callers(pTHX)
 
             count = uv_from_av(aTHX_ av, NYTP_SCi_CALL_COUNT, 0);
             sc[NYTP_SCi_CALL_COUNT] = count * 1.0;
-            sc[NYTP_SCi_INCL_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_INCL_RTIME, 0.0);
-            sc[NYTP_SCi_EXCL_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_EXCL_RTIME, 0.0);
+            sc[NYTP_SCi_INCL_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_INCL_TICKS, 0.0) / ticks_per_sec;
+            sc[NYTP_SCi_EXCL_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_EXCL_TICKS, 0.0) / ticks_per_sec;
             sc[NYTP_SCi_RECI_RTIME] = nv_from_av(aTHX_ av, NYTP_SCi_RECI_RTIME, 0.0);
             depth = uv_from_av(aTHX_ av, NYTP_SCi_REC_DEPTH , 0);
             sc[NYTP_SCi_REC_DEPTH]  = depth * 1.0;
@@ -4060,9 +4068,9 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
         sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + incl_time : incl_time);
         sv = *av_fetch(av, NYTP_SCi_EXCL_RTIME, 1);
         sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + excl_time : excl_time);
-        sv = *av_fetch(av, NYTP_SCi_spare_3, 1);
+        sv = *av_fetch(av, NYTP_SCi_INCL_TICKS, 1);
         sv_setnv(sv, 0.0);
-        sv = *av_fetch(av, NYTP_SCi_spare_4, 1);
+        sv = *av_fetch(av, NYTP_SCi_EXCL_TICKS, 1);
         sv_setnv(sv, 0.0);
         sv = *av_fetch(av, NYTP_SCi_RECI_RTIME, 1);
         sv_setnv(sv, (SvOK(sv)) ? SvNV(sv) + reci_time : reci_time);
@@ -4844,6 +4852,8 @@ static struct int_constants_t int_constants[] = {
     {"NYTP_SCi_CALL_COUNT",   NYTP_SCi_CALL_COUNT},
     {"NYTP_SCi_INCL_RTIME",   NYTP_SCi_INCL_RTIME},
     {"NYTP_SCi_EXCL_RTIME",   NYTP_SCi_EXCL_RTIME},
+    {"NYTP_SCi_INCL_TICKS",   NYTP_SCi_INCL_TICKS},
+    {"NYTP_SCi_EXCL_TICKS",   NYTP_SCi_EXCL_TICKS},
     {"NYTP_SCi_RECI_RTIME",   NYTP_SCi_RECI_RTIME},
     {"NYTP_SCi_REC_DEPTH",    NYTP_SCi_REC_DEPTH},
     {"NYTP_SCi_CALLING_SUB",  NYTP_SCi_CALLING_SUB},

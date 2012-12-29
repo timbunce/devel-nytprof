@@ -7,15 +7,16 @@ Changes - List of significant changes to Devel::NYTProf
 TODO: study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
 and reference in our docs.
 
-TODO: change sub profiler to use NV ticks not secs
-
 =head2 Changes in Devel::NYTProf
 
-  Moved main repo to git (and https://github.com/timbunce/devel-nytprof)
+  Significant improvement in the accuracy of the subroutine profiler,
+    especially for frequent calls to very fast subs/ops.
 
   Fixed some doc typos thanks to Jesse Sheidlower.
 
   Removed the usecputime=1 option. Use clock=N instead if possible.
+
+  Moved main repo to git (and https://github.com/timbunce/devel-nytprof)
 
 =head2 Changes in Devel::NYTProf 4.12 - 28th Dec 2012
 
