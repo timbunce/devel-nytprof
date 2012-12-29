@@ -332,7 +332,7 @@ static U8           last_sawampersand;
 static unsigned int is_profiling;       /* disable_profile() & enable_profile() */
 static Pid_t last_pid = 0;
 static NV cumulative_overhead_ticks = 0.0;
-static NV cumulative_subr_secs = 0.0;
+static NV cumulative_subr_ticks = 0.0;
 static UV cumulative_subr_seqn = 0;
 static int main_runtime_used = 0;
 static SV *DB_CHECK_cv;
@@ -1907,7 +1907,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* statement overheads we've accumulated since we entered the sub */
     overhead_ticks = cumulative_overhead_ticks - subr_entry->initial_overhead_ticks;
     /* seconds spent in subroutines called by this subroutine */
-    called_sub_secs = (cumulative_subr_secs - subr_entry->initial_subr_secs);
+    called_sub_secs = ((cumulative_subr_ticks/ticks_per_sec) - subr_entry->initial_subr_secs);
 
     time_of_day_t sub_end_time;
     long ticks, overflow;
@@ -2023,7 +2023,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             subr_entry->subr_prof_depth,
             called_subname_pv,
             excl_subr_sec, incl_subr_sec, called_sub_secs,
-            cumulative_subr_secs, subr_entry->initial_subr_secs,
+            cumulative_subr_ticks/ticks_per_sec, subr_entry->initial_subr_secs,
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
             (int)subr_entry->called_cv_depth,
             subr_entry->caller_fid, subr_entry->caller_line,
@@ -2049,7 +2049,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     subr_entry_destroy(aTHX_ subr_entry);
 
-    cumulative_subr_secs += excl_subr_sec;
+    cumulative_subr_ticks += (excl_subr_sec * ticks_per_sec);
     SETERRNO(saved_errno, 0);
 }
 
@@ -2207,7 +2207,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
 
     get_time_of_day(subr_entry->initial_call_timeofday);
     subr_entry->initial_overhead_ticks = cumulative_overhead_ticks;
-    subr_entry->initial_subr_secs      = cumulative_subr_secs;
+    subr_entry->initial_subr_secs      = cumulative_subr_ticks / ticks_per_sec;
     subr_entry->subr_call_seqn         = (unsigned long)(++cumulative_subr_seqn);
 
     /* try to work out what sub's being called in advance
@@ -2839,7 +2839,7 @@ finish_profile(pTHX)
     hv_clear(sub_callers_hv);
     /* reset other state */
     cumulative_overhead_ticks = 0;
-    cumulative_subr_secs = 0;
+    cumulative_subr_ticks = 0;
 
     SETERRNO(saved_errno, 0);
 }
