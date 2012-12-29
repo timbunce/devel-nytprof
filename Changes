@@ -7,6 +7,8 @@ Changes - List of significant changes to Devel::NYTProf
 TODO: study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
 and reference in our docs.
 
+http://stackoverflow.com/questions/4132270/how-to-ignore-some-subroutine-calls-in-nytprof-reporting/14085984#14085984
+
 =head2 Changes in Devel::NYTProf 4.23 - 29th Dec 2012
 
   Significant improvement in the accuracy of the subroutine profiler,

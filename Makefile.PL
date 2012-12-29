@@ -18,7 +18,7 @@ use ExtUtils::MakeMaker;
 use Getopt::Long;
 use Config;
 
-my $is_developer = (-d '.svn');
+my $is_developer = (-d '.git');
 
 # This lets perl developers build under ext/Devel, and profile parts of the core in place
 unless($ENV{PERL_CORE}) {
@@ -111,9 +111,18 @@ if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
     $mm_opts{META_MERGE} = {
         resources => {
             license     => 'http://dev.perl.org/licenses/',
-            homepage    => 'http://perl-devel-nytprof.googlecode.com',
-            bugtracker  => 'http://rt.cpan.org/Public/Dist/Display.html?Name=Devel-NYTProf',
-            repository  => 'http://perl-devel-nytprof.googlecode.com/svn',
+            homepage    => 'https://code.google.com/p/perl-devel-nytprof/',
+            bugtracker  => {
+                web    => 'https://github.com/timbunce/devel-nytprof/issues',
+                # old => 'http://rt.cpan.org/Public/Dist/Display.html?Name=Devel-NYTProf',
+                mailto => 'bug-devel-nytprof@rt.cpan.org',
+            },
+            repository  => {
+                url  => 'git://github.com/timbunce/devel-nytprof.git',
+                web  => 'https://github.com/timbunce/devel-nytprof',
+                type => 'git',
+            },
+            # not a valid key:
             MailingList => 'http://groups.google.com/group/develnytprof-dev',
         }
     }
@@ -137,7 +146,8 @@ WriteMakefile(
     NAME          => 'Devel::NYTProf',
     VERSION_FROM  => 'lib/Devel/NYTProf/Core.pm',    # finds $VERSION
     ABSTRACT_FROM => 'lib/Devel/NYTProf.pm',         # retrieve abstract from module
-    AUTHOR    => 'Adam Kaplan <akaplan@cpan.org>, Tim Bunce <timb@cpan.org>',
+    AUTHOR    => 'Tim Bunce <timb@cpan.org>',
+    LICENSE => 'perl',
     PREREQ_PM => {
         'List::Util'   => 0,
         'Test::More'   => '0.84',
