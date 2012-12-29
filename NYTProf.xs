@@ -817,7 +817,8 @@ find_autosplit_parent(pTHX_ char* file_name)
 }
 
 
-static Hash_entry * /* currently unused */
+#if 0 /* currently unused */
+static Hash_entry *
 lookup_file_entry(pTHX_ char* file_name, STRLEN file_name_len) {
     Hash_entry entry, *found;
 
@@ -828,6 +829,7 @@ lookup_file_entry(pTHX_ char* file_name, STRLEN file_name_len) {
 
     return NULL;
 }
+#endif
 
 
 /**
@@ -3627,6 +3629,7 @@ store_attrib_sv(pTHX_ HV *attr_hv, const char *text, I32 text_len, SV *value_sv)
         logwarn(": %.*s = '%s'\n", (int) text_len, text, SvPV_nolen(value_sv));
 }
 
+#if 0 /* not used at the moment */
 static int
 eval_outer_fid(pTHX_
     AV *fid_fileinfo_av,
@@ -3656,6 +3659,7 @@ eval_outer_fid(pTHX_
         eval_outer_fid(aTHX_ fid_fileinfo_av, outer_fid, recurse, eval_file_num_ptr, eval_line_num_ptr);
     return 1;
 }
+#endif
 
 typedef struct loader_state_base {
     unsigned long input_chunk_seqn;
