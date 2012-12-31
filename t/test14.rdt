@@ -8,8 +8,6 @@ attribute	profiler_active	0
 attribute	profiler_duration	0
 attribute	profiler_end_time	0
 attribute	profiler_start_time	0
-attribute	sawampersand_fid	3
-attribute	sawampersand_line	0
 attribute	ticks_per_sec	0
 attribute	total_stmts_discounted	0
 attribute	total_stmts_duration	0

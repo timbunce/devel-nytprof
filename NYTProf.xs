@@ -335,7 +335,6 @@ static unsigned int last_executed_fid;
 static        char *last_executed_fileptr;
 static unsigned int last_block_line;
 static unsigned int last_sub_line;
-static U8           last_sawampersand;
 static unsigned int is_profiling;       /* disable_profile() & enable_profile() */
 static Pid_t last_pid = 0;
 static NV cumulative_overhead_ticks = 0.0;
@@ -382,14 +381,24 @@ static OP *pp_leave_profiler(pTHX);
 static HV *sub_callers_hv;
 static HV *pkg_fids_hv;     /* currently just package names */
 
+/* PL_sawampersand is disabled in 5.17.7+ 1a904fc */
+#if (PERL_VERSION < 17) || ((PERL_VERSION == 17) && (PERL_SUBVERSION < 7)) || defined(PERL_SAWAMPERSAND)
+static U8 last_sawampersand;
 #define CHECK_SAWAMPERSAND(fid,line) STMT_START { \
     if ((U8)PL_sawampersand != last_sawampersand) { \
         if (trace_level >= 1) \
-            logwarn("Slow regex match variable seen (first noted at %u:%u)\n", fid, line); \
-        NYTP_write_sawampersand(out, fid, line); \
+            logwarn("Slow regex match variable seen (0x%x->0x%x at %u:%u)\n", PL_sawampersand, last_sawampersand, fid, line); \
+        /* XXX this is a hack used by test14 to avoid different behaviour \
+         * pre/post perl 5.17.7 since it's not relevant to the test, which is really \
+         * about AutoSplit */ \
+        if (!getenv("DISABLE_NYTPROF_SAWAMPERSAND")) \
+            NYTP_write_sawampersand(out, fid, line); \
         last_sawampersand = (U8)PL_sawampersand; \
     } \
 } STMT_END
+#else
+#define CHECK_SAWAMPERSAND(fid,line) (void)0
+#endif
 
 /* macros for outputing profile data */
 #ifndef HAS_GETPPID

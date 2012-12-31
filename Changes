@@ -14,6 +14,7 @@ http://stackoverflow.com/questions/4132270/how-to-ignore-some-subroutine-calls-i
   Significant improvement in the accuracy of the subroutine profiler,
     especially for frequent calls to very short duration subs/ops.
 
+  Fixed tests to work with perl 5.17.7+ (PL_sawampersand gone).
   Fixed some doc typos thanks to Jesse Sheidlower.
   Improved nytprofmerge behaviour with inconsistent attributes.
   Removed the usecputime=1 option. Use clock=N instead if possible.
