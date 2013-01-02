@@ -12,7 +12,8 @@ http://stackoverflow.com/questions/4132270/how-to-ignore-some-subroutine-calls-i
 =head2 Changes in Devel::NYTProf 4.23 - 31st Dec 2012
 
   Significant improvement in the accuracy of the subroutine profiler,
-    especially for frequent calls to very short duration subs/ops.
+    especially for frequent calls to very short duration subs/ops,
+    and more so for POSIX and OSX systems with sub-microsecond clocks.
 
   Fixed tests to work with perl 5.17.7+ (PL_sawampersand gone).
   Fixed some doc typos thanks to Jesse Sheidlower.
