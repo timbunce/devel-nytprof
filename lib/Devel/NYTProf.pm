@@ -496,9 +496,10 @@ When perl exits normally it runs any code defined in C<END> blocks.
 NYTProf defines an END block that finishes profiling and writes out the final
 profile data.
 
-If the process ends due to a signal then END blocks are not executed.
-The C<sigexit> option tells NYTProf to catch some signals (e.g. INT, HUP, PIPE,
-SEGV, BUS) and ensure a usable by executing:
+If the process ends due to a signal then END blocks are not executed so the
+profile will be incomplete and unusable.  The C<sigexit> option tells NYTProf
+to catch some signals (e.g. INT, HUP, PIPE, SEGV, BUS) and ensure a usable
+profile by executing:
 
     DB::finish_profile();
     exit 1;
