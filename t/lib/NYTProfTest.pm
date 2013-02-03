@@ -103,6 +103,7 @@ my @test_opt_leave      = (defined $opts{leave})      ? ($opts{leave})      : (0
 my @test_opt_use_db_sub = (defined $opts{use_db_sub}) ? ($opts{use_db_sub}) : (0, 1);
 my @test_opt_savesrc    = (defined $opts{savesrc})    ? ($opts{savesrc})    : (0, 1);
 my @test_opt_compress   = (defined $opts{compress})   ? ($opts{compress})   : (0, 1);
+my @test_opt_calls      = (defined $opts{calls})      ? ($opts{calls})      : (0, 1);
 
 sub mk_opt_combinations {
     my ($overrides) = @_;
@@ -120,6 +121,9 @@ sub mk_opt_combinations {
                         use_db_sub => $use_db_sub,
                         savesrc    => $savesrc,
                         compress   => $compress,
+                        # we don't need to test the 'calls' opt with all other combinations
+                        # so we fudge it here to be on most, but not all, of the time
+                        calls      => ($savesrc || $compress) ? 1 : 0,
                         ($overrides) ? %$overrides : (),
                     };
                     my $key = join "\t", map { "$_=>$o->{$_}" } sort keys %$o;
@@ -165,7 +169,7 @@ sub do_foreach_opt_combination {
         # did any tests fail?
         my $failed = (count_of_failed_tests() - $prev_failures) ? 1 : 0;
         # record what env settings may have influenced the failure
-        ++$env_influence{$_}{$env->{$_}}{$failed ? 'fail' : 'pass'}
+        ++$env_influence{$_}{$env->{$_}}{$failed ? 'FAIL' : 'pass'}
             for keys %$env;
         $env_failed{ $ENV{NYTPROF} } = $failed;
     }
@@ -181,15 +185,21 @@ sub report_env_influence {
     my @env_influence;
     for my $envvar (sort keys %env_influence) {
         my $variants = $env_influence{$envvar};
+
         local $Data::Dumper::Indent   = 0;
         local $Data::Dumper::Sortkeys = 1;
         local $Data::Dumper::Terse    = 1;
         local $Data::Dumper::Quotekeys= 0;
         local $Data::Dumper::Pair     = ' ';
         $variants->{$_} = Dumper($variants->{$_}) for keys %$variants;
+
+        # was there at least one failure?
+        next unless grep { /FAIL/ } values %$variants;
+
         my $v = (values %$variants)[0]; # use one as a reference
         # all the same?
         next if keys %$variants == grep { $_ eq $v } values %$variants;
+
         push @env_influence, sprintf "%15s: %s\n", $envvar,
             join ', ', map { "$_ => $variants->{$_}" } sort keys %$variants;
     }
