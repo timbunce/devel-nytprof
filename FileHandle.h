@@ -58,6 +58,8 @@ const char *NYTP_type_of_offset(NYTP_file file);
 #define NYTP_TAG_STRING          '\'' 
 #define NYTP_TAG_STRING_UTF8     '"' 
 #define NYTP_TAG_START_DEFLATE   'z' 
+#define NYTP_TAG_SUB_ENTRY       '>'
+#define NYTP_TAG_SUB_RETURN      '<'
 /* also add new items to nytp_tax_index below */
 
 typedef enum {
@@ -77,7 +79,9 @@ typedef enum {
     nytp_string,
     nytp_string_utf8,
     nytp_start_deflate,
-    nytp_tag_max
+    nytp_sub_entry,
+    nytp_sub_return,
+    nytp_tag_max /* keep last */
 } nytp_tax_index;
 
 void NYTProf_croak_if_not_stdio(NYTP_file file, const char *function);
@@ -113,6 +117,11 @@ size_t NYTP_write_sub_callers(NYTP_file ofile, U32 fid, U32 line,
 size_t NYTP_write_src_line(NYTP_file ofile, U32 fid,
                         U32 line, const char *text, I32 text_len);
 size_t NYTP_write_discount(NYTP_file ofile);
+size_t NYTP_write_call_entry(NYTP_file ofile, U32 subr_prof_depth,
+                        const char *called_subpkg_pv, const char *called_subnam_pv);
+size_t NYTP_write_call_return(NYTP_file ofile, U32 subr_prof_depth,
+                        const char *called_subpkg_pv, const char *called_subnam_pv,
+                        NV incl_subr_ticks, NV excl_subr_ticks);
 
 
 /* XXX

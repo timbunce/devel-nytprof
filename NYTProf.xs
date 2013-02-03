@@ -110,7 +110,7 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define ZLIB_VERSION "0"
 #endif
 
-#define NYTP_FILE_MAJOR_VERSION 4
+#define NYTP_FILE_MAJOR_VERSION 5
 #define NYTP_FILE_MINOR_VERSION 0
 
 #define NYTP_START_NO            0
@@ -264,7 +264,9 @@ static struct NYTP_int_options_t options[] = {
     { "nameevals", 1 },                          /* change $^P 0x100 bit */
 #define opt_nameanonsubs options[15].option_value
     { "nameanonsubs", 1 },                       /* change $^P 0x200 bit */
-#define opt_evals options[16].option_value
+#define opt_calls options[16].option_value
+    { "calls", 0 },                              /* output call/return event stream */
+#define opt_evals options[17].option_value
     { "evals", 0 }                               /* handling of string evals - TBD XXX */
 };
 
@@ -1775,7 +1777,7 @@ new_sub_call_info_av(pTHX)
 typedef struct subr_entry_st subr_entry_t;
 struct subr_entry_st {
     unsigned int  already_counted;
-    unsigned int  subr_prof_depth;
+    U32  subr_prof_depth;
     long unsigned subr_call_seqn;
     I32 prev_subr_entry_ix; /* ix to callers subr_entry */
 
@@ -2069,6 +2071,13 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
     excl_time_sv = *av_fetch(subr_call_av, NYTP_SCi_EXCL_TICKS, 1);
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_ticks);
+
+    if (opt_calls) {
+        NYTP_write_call_return(out, subr_entry->subr_prof_depth,
+            subr_entry->called_subpkg_pv, SvPV_nolen(subr_entry->called_subnam_sv),
+            incl_subr_ticks, excl_subr_ticks
+        );
+    }
 
     subr_entry_destroy(aTHX_ subr_entry);
 
@@ -2420,6 +2429,12 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
      * mainly to catch exceptions thrown from xs subs and slowops.
      */
     save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)subr_entry_ix));
+
+    if (opt_calls) {
+        NYTP_write_call_entry(out, subr_entry->subr_prof_depth,
+            subr_entry->caller_subpkg_pv, SvPV_nolen(subr_entry->caller_subnam_sv)
+        );
+    }
 
     SETERRNO(saved_errno, 0);
 
