@@ -47,3 +47,5 @@ DB::finish_profile();
 
 # This can be removed once we have a better test harness
 -f $_ or die "$_ should exist" for ($file_b, $file_c);
+
+# TODO should test for enable/disable within subs

@@ -50,3 +50,5 @@
 0,0,0,
 0,0,0,# This can be removed once we have a better test harness
 0,0,0,-f $_ or die "$_ should exist" for ($file_b, $file_c);
+0,0,0,
+0,0,0,# TODO should test for enable/disable within subs
