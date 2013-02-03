@@ -118,7 +118,7 @@ size_t NYTP_write_src_line(NYTP_file ofile, U32 fid,
                         U32 line, const char *text, I32 text_len);
 size_t NYTP_write_discount(NYTP_file ofile);
 size_t NYTP_write_call_entry(NYTP_file ofile, U32 caller_fid, U32 caller_line);
-size_t NYTP_write_call_return(NYTP_file ofile, const char *called_subname_pv,
+size_t NYTP_write_call_return(NYTP_file ofile, U32 prof_depth, const char *called_subname_pv,
                         NV incl_subr_ticks, NV excl_subr_ticks);
 
 

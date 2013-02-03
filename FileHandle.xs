@@ -1112,13 +1112,13 @@ NYTP_write_call_entry(NYTP_file ofile, U32 caller_fid, U32 caller_line)
 }
 
 size_t
-NYTP_write_call_return(NYTP_file ofile, const char *called_subname_pv,
+NYTP_write_call_return(NYTP_file ofile, U32 prof_depth, const char *called_subname_pv,
     NV incl_subr_ticks, NV excl_subr_ticks)
 {
     size_t total;
     size_t retval;
 
-    total = retval = output_tag_u32(ofile, NYTP_TAG_SUB_RETURN, 0); /* XXX spare U32 */
+    total = retval = output_tag_u32(ofile, NYTP_TAG_SUB_RETURN, prof_depth);
     if (retval < 1)
         return retval;
 
@@ -1393,8 +1393,9 @@ U32 caller_fid
 U32 caller_line
 
 size_t
-NYTP_write_call_return(handle, called_subname_pv, incl_subr_ticks, excl_subr_ticks)
+NYTP_write_call_return(handle, prof_depth, called_subname_pv, incl_subr_ticks, excl_subr_ticks)
 NYTP_file handle
+U32 prof_depth
 const char *called_subname_pv
 NV incl_subr_ticks
 NV excl_subr_ticks

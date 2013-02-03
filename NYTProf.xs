@@ -1911,6 +1911,9 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     SV *sv_tmp;
     AV *subr_call_av;
 
+    time_of_day_t sub_end_time;
+    long ticks, overflow;
+
     if (subr_entry->called_subnam_sv == &PL_sv_undef) {
         if (trace_level)
             logwarn("Don't know name of called sub, assuming xsub/builtin exited via an exception (which isn't handled yet)\n");
@@ -1931,9 +1934,6 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     overhead_ticks = cumulative_overhead_ticks - subr_entry->initial_overhead_ticks;
     /* seconds spent in subroutines called by this subroutine */
     called_sub_ticks = cumulative_subr_ticks - subr_entry->initial_subr_ticks;
-
-    time_of_day_t sub_end_time;
-    long ticks, overflow;
 
     /* calculate ticks since we entered the sub */
     get_time_of_day(sub_end_time);
@@ -2072,8 +2072,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     excl_time_sv = *av_fetch(subr_call_av, NYTP_SCi_EXCL_TICKS, 1);
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_ticks);
 
-    if (opt_calls) {
-        NYTP_write_call_return(out, called_subname_pv, incl_subr_ticks, excl_subr_ticks);
+    if (opt_calls && out) {
+        NYTP_write_call_return(out, subr_entry->subr_prof_depth, called_subname_pv, incl_subr_ticks, excl_subr_ticks);
     }
 
     subr_entry_destroy(aTHX_ subr_entry);
@@ -2427,7 +2427,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
      */
     save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)subr_entry_ix));
 
-    if (opt_calls) {
+    if (opt_calls >= 2 && out) {
         NYTP_write_call_entry(out, subr_entry->caller_fid, subr_entry->caller_line);
     }
 
@@ -4269,7 +4269,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("[string utf8]"), NULL},
     {STR_WITH_LEN("START_DEFLATE"), ""},
     {STR_WITH_LEN("SUB_ENTRY"), "uu"},
-    {STR_WITH_LEN("SUB_RETURN"), "nns"}
+    {STR_WITH_LEN("SUB_RETURN"), "unns"}
 };
 
 static void
@@ -4545,19 +4545,20 @@ load_profile_data_from_stream(loader_callback *callbacks,
                 unsigned int file_num = read_u32(in);
                 unsigned int line_num = read_u32(in);
 
-                callbacks[nytp_sub_entry](state, nytp_sub_entry, file_num, line_num);
+                if (callbacks[nytp_sub_entry])
+                    callbacks[nytp_sub_entry](state, nytp_sub_entry, file_num, line_num);
                 break;
             }
 
             case NYTP_TAG_SUB_RETURN:
             {
-                unsigned int spare = read_u32(in);
+                unsigned int depth = read_u32(in);
                 NV incl_time       = read_nv(in);
                 NV excl_time       = read_nv(in);
                 SV *subname = read_str(aTHX_ in, NULL);
-                PERL_UNUSED_VAR(spare);
 
-                callbacks[nytp_sub_return](state, nytp_sub_return, incl_time, excl_time, subname);
+                if (callbacks[nytp_sub_return])
+                    callbacks[nytp_sub_return](state, nytp_sub_return, depth, incl_time, excl_time, subname);
                 break;
             }
 

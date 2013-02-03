@@ -13,7 +13,7 @@ my $pre589 = ($] < 5.008009 or $] eq "5.010000");
 
 # generate an nytprof out file
 my $out = 'nytprof_readstream.out';
-$ENV{NYTPROF} = "calls=1:file=$out";
+$ENV{NYTPROF} = "calls=2:file=$out";
 unlink $out;
 
 run_perl_command(qq{-d:NYTProf -e "sub A { };" -e "1;" -e "A() $Devel::NYTProf::StrEvalTestPad"});
@@ -79,7 +79,7 @@ is_deeply $prof{SUB_CALLERS}, [
 
 is_deeply $prof{SUB_ENTRY}, [ [ 1, 3 ] ], 'SUB_ENTRY args';
 
-$prof{SUB_RETURN}[0][$_] = 0 for (0,1);
-is_deeply $prof{SUB_RETURN}, [ [ 0, 0, 'main::A' ] ], 'SUB_RETURN args';
+$prof{SUB_RETURN}[0][$_] = 0 for (1,2);
+is_deeply $prof{SUB_RETURN}, [ [ 1, 0, 0, 'main::A' ] ], 'SUB_RETURN args';
 
 done_testing();
