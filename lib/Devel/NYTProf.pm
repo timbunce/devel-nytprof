@@ -204,8 +204,8 @@ For each subroutine called, separate counts and durations are stored I<for each
 location that called the subroutine>.
 
 Subroutine entry is detected by intercepting the C<entersub> opcode. Subroutine
-exit is detected via perl's internal save stack. The result is both extremely
-fast and very robust.
+exit is detected via perl's internal save stack. As a result the subroutine
+profiler is both fast and robust.
 
 =head3 Subroutine Recursion
 
@@ -386,6 +386,19 @@ The reports won't contain any statement timing detail.
 This significantly reduces the overhead of the profiler and can also be useful
 for profiling large applications that would normally generate a very large
 profile data file.
+
+=head2 calls=1
+
+Emit subroutine call entry and return events into the event stream.
+This option is I<new and experimental> and so likely to change.
+
+The subroutine profiler normally gathers data in memory and outputs a summary
+when the profile data is being finalized, usually when the program has finished.
+The summary contains aggregate information for all the calls from one location
+to another, but the details of individual calls have been lost.
+
+The calls=1 option enables the recording of individual call events and thus
+more detailed analysis and reporting of that data.
 
 =head2 leave=0
 
