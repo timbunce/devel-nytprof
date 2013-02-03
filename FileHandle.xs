@@ -1093,6 +1093,53 @@ NYTP_write_time_line(NYTP_file ofile, I32 elapsed, U32 overflow,
     return write_time_common(ofile, NYTP_TAG_TIME_LINE, elapsed, overflow, fid, line);
 }
 
+
+size_t
+NYTP_write_call_entry(NYTP_file ofile, U32 caller_fid, U32 caller_line)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_u32(ofile, NYTP_TAG_SUB_ENTRY, caller_fid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_u32(ofile, caller_line);
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
+size_t
+NYTP_write_call_return(NYTP_file ofile, const char *called_subname_pv,
+    NV incl_subr_ticks, NV excl_subr_ticks)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_u32(ofile, NYTP_TAG_SUB_RETURN, 0); /* XXX spare U32 */
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, incl_subr_ticks);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_nv(ofile, excl_subr_ticks);
+    if (retval < 1)
+        return retval;
+
+    if (!called_subname_pv)
+        called_subname_pv = "(null)";
+    total += retval = output_str(ofile, called_subname_pv, strlen(called_subname_pv));
+    if (retval < 1)
+        return retval;
+
+    return total;
+}
+
+
 size_t
 NYTP_write_sub_info(NYTP_file ofile, U32 fid,
                     const char *name, I32 len,
@@ -1338,6 +1385,19 @@ U32 elapsed
 U32 overflow
 U32 fid
 U32 line
+
+size_t
+NYTP_write_call_entry(handle, caller_fid, caller_line)
+NYTP_file handle
+U32 caller_fid
+U32 caller_line
+
+size_t
+NYTP_write_call_return(handle, called_subname_pv, incl_subr_ticks, excl_subr_ticks)
+NYTP_file handle
+const char *called_subname_pv
+NV incl_subr_ticks
+NV excl_subr_ticks
 
 size_t
 NYTP_write_sub_info(handle, fid, name, first_line, last_line)

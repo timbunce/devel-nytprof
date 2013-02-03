@@ -2073,10 +2073,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_ticks);
 
     if (opt_calls) {
-        NYTP_write_call_return(out, subr_entry->subr_prof_depth,
-            subr_entry->called_subpkg_pv, SvPV_nolen(subr_entry->called_subnam_sv),
-            incl_subr_ticks, excl_subr_ticks
-        );
+        NYTP_write_call_return(out, called_subname_pv, incl_subr_ticks, excl_subr_ticks);
     }
 
     subr_entry_destroy(aTHX_ subr_entry);
@@ -2431,9 +2428,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     save_destructor_x(incr_sub_inclusive_time_ix, INT2PTR(void *, (IV)subr_entry_ix));
 
     if (opt_calls) {
-        NYTP_write_call_entry(out, subr_entry->subr_prof_depth,
-            subr_entry->caller_subpkg_pv, SvPV_nolen(subr_entry->caller_subnam_sv)
-        );
+        NYTP_write_call_entry(out, subr_entry->caller_fid, subr_entry->caller_line);
     }
 
     SETERRNO(saved_errno, 0);
@@ -4272,7 +4267,9 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("PID_END"), "un"},
     {STR_WITH_LEN("[string]"), NULL},
     {STR_WITH_LEN("[string utf8]"), NULL},
-    {STR_WITH_LEN("START_DEFLATE"), ""}
+    {STR_WITH_LEN("START_DEFLATE"), ""},
+    {STR_WITH_LEN("SUB_ENTRY"), "uu"},
+    {STR_WITH_LEN("SUB_RETURN"), "nns"}
 };
 
 static void
@@ -4396,6 +4393,8 @@ static loader_callback perl_callbacks[nytp_tag_max] =
     load_perl_callback,
     load_perl_callback,
     load_perl_callback,
+    load_perl_callback,
+    load_perl_callback,
     load_perl_callback
 };
 static loader_callback processing_callbacks[nytp_tag_max] =
@@ -4415,6 +4414,8 @@ static loader_callback processing_callbacks[nytp_tag_max] =
     load_pid_end_callback,
     0, /* string */
     0, /* string utf8 */
+    0, /* sub entry */
+    0, /* sub return */
     0  /* start deflate */
 };
 
@@ -4536,6 +4537,27 @@ load_profile_data_from_stream(loader_callback *callbacks,
 
                 callbacks[nytp_src_line](state, nytp_src_line, file_num,
                                          line_num, src);
+                break;
+            }
+
+            case NYTP_TAG_SUB_ENTRY:
+            {
+                unsigned int file_num = read_u32(in);
+                unsigned int line_num = read_u32(in);
+
+                callbacks[nytp_sub_entry](state, nytp_sub_entry, file_num, line_num);
+                break;
+            }
+
+            case NYTP_TAG_SUB_RETURN:
+            {
+                unsigned int spare = read_u32(in);
+                NV incl_time       = read_nv(in);
+                NV excl_time       = read_nv(in);
+                SV *subname = read_str(aTHX_ in, NULL);
+                PERL_UNUSED_VAR(spare);
+
+                callbacks[nytp_sub_return](state, nytp_sub_return, incl_time, excl_time, subname);
                 break;
             }
 

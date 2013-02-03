@@ -9,6 +9,10 @@ and reference in our docs.
 
 http://stackoverflow.com/questions/4132270/how-to-ignore-some-subroutine-calls-in-nytprof-reporting/14085984#14085984
 
+=head2 Changes in Devel::NYTProf 5.00 - XXX
+
+  Added subroutine entry and return event stream.
+
 =head2 Changes in Devel::NYTProf 4.23 - 31st Dec 2012
 
   Significant improvement in the accuracy of the subroutine profiler,

@@ -5,8 +5,6 @@ use lib qw(t/lib);
 use Config;
 use NYTProfTest;
 
-plan tests => 20;
-
 use Devel::NYTProf::ReadStream qw(for_chunks);
 
 my $pre589 = ($] < 5.008009 or $] eq "5.010000");
@@ -15,7 +13,7 @@ my $pre589 = ($] < 5.008009 or $] eq "5.010000");
 
 # generate an nytprof out file
 my $out = 'nytprof_readstream.out';
-$ENV{NYTPROF} = "file=$out";
+$ENV{NYTPROF} = "calls=1:file=$out";
 unlink $out;
 
 run_perl_command(qq{-d:NYTProf -e "sub A { };" -e "1;" -e "A() $Devel::NYTProf::StrEvalTestPad"});
@@ -49,6 +47,7 @@ for my $tag (qw(
         COMMENT ATTRIBUTE DISCOUNT TIME_BLOCK
         SUB_INFO SUB_CALLERS
         PID_START PID_END NEW_FID
+        SUB_ENTRY SUB_RETURN
 )) {
     is ref $prof{$tag}[0], 'ARRAY', $tag;
 }
@@ -77,3 +76,10 @@ $prof{SUB_CALLERS}[0][$_] = 0 for (3,4);
 is_deeply $prof{SUB_CALLERS}, [
     [ 1, 3, 1, 0, 0, '0', 0, 'main::A', 'main::RUNTIME' ]
 ];
+
+is_deeply $prof{SUB_ENTRY}, [ [ 1, 3 ] ], 'SUB_ENTRY args';
+
+$prof{SUB_RETURN}[0][$_] = 0 for (0,1);
+is_deeply $prof{SUB_RETURN}, [ [ 0, 0, 'main::A' ] ], 'SUB_RETURN args';
+
+done_testing();
