@@ -321,9 +321,9 @@ static int (*u2time)(pTHX_ UV *) = 0;
 typedef UV time_of_day_t[2];
 #  define TICKS_PER_SEC 1000000                 /* 1 million */
 #  define get_time_of_day(into) (*u2time)(aTHX_ into)
-#  define get_ticks_between(s, e, ticks, overflow)  STMT_START { \
+#  define get_ticks_between(typ, s, e, ticks, overflow)  STMT_START { \
     overflow = 0; \
-    ticks = ((e[0] - s[0]) * TICKS_PER_SEC + e[1] - s[1]); \
+    ticks = ((e[0] - s[0]) * (typ)TICKS_PER_SEC + e[1] - s[1]); \
 } STMT_END
 
 #endif
