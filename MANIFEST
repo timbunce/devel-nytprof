@@ -49,16 +49,13 @@ lib/Devel/NYTProf/SubCallInfo.pm
 lib/Devel/NYTProf/SubInfo.pm
 lib/Devel/NYTProf/Test.pm
 lib/Devel/NYTProf/Util.pm
-Makefile
 Makefile.PL
 MANIFEST			This list of files
 MemoryProfiling.pod
-MYMETA.json
-MYMETA.yml
 NYTProf.h
 NYTProf.xs
 ppport.h
-README
+README.md
 slowops.h
 t/00-load.t
 t/10-run.t
