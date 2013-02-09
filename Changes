@@ -13,6 +13,15 @@ http://stackoverflow.com/questions/4132270/how-to-ignore-some-subroutine-calls-i
 
   Added subroutine entry and return event stream.
 
+=head2 Changes in Devel::NYTProf 4.25 - 6th Feb 2013
+
+  Fix u2time clock (ie Time::HiRes, used by Windows)
+
+=head2 Changes in Devel::NYTProf 4.24 - 3rd Feb 2013
+
+  Clarify sigexit option docs.
+  Loosen test timing constraints (for slow cpantester VMs).
+
 =head2 Changes in Devel::NYTProf 4.23 - 31st Dec 2012
 
   Significant improvement in the accuracy of the subroutine profiler,
