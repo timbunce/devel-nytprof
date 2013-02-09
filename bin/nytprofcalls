@@ -1,0 +1,146 @@
+#!/usr/bin/perl
+##########################################################
+# This script is part of the Devel::NYTProf distribution
+#
+# Copyright, contact and other information can be found
+# at the bottom of this file, or by going to:
+# http://search.cpan.org/dist/Devel-NYTProf/
+#
+##########################################################
+
+use warnings;
+use strict;
+
+use Devel::NYTProf::Core;
+require Devel::NYTProf::Data;
+
+our $VERSION = '4.23';
+    
+if ($VERSION != $Devel::NYTProf::Core::VERSION) {
+    die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
+}
+
+use Getopt::Long;
+use Carp;
+
+GetOptions(
+    'help|h'    => \&usage,
+    'verbose|v' => \my $opt_verbose,
+) or usage();
+
+usage() unless @ARGV;
+
+# We're building a tree structure from a stream of "subroutine returned" events.
+# (We use these because the subroutine entry events don't have reliable
+# value for the subroutine name, and obviously don't have timings.)
+#
+# Building a call tree from return events is a little ticky because they don't
+# appear in natural order. The code can return from a call at any depth
+# deeper than the last seen depth.
+#
+# Our primary data structure is an array of arrays where the outer array is
+# indexed by call depth. The inner arrays are call frames at that depth
+# and they hold a ref to the parent call frame.
+my @depthstacks = (); # depth stacks
+# [
+#   [
+#       [ undef, sub1, ... ]        <= ref1
+#   ]
+#   [
+#       [ ref1, sub2, ... ]         <= ref2
+#   ]
+#   [
+#       [ ref2, ]                   <= ref3 = crnt_node, eg
+#   ]
+#   [
+#       [ ref4, sub3, ... ]         <= ref3
+#   ]
+# ]
+my $crnt_depth = 0;
+my $crnt_node;
+
+foreach my $input (@ARGV) {
+    warn "Reading $input...\n" if $opt_verbose;
+    Devel::NYTProf::Data->new({filename => $input, callback => {
+        '' => sub {
+            warn "Unknown tag '$_[0]' in $input\n"
+            if $opt_verbose and not our $_warn_once_unknown_tag->{$_[0]}++;
+        },
+        SUB_ENTRY => sub {
+            my (undef, $fid, $line) = @_;
+            #print "> at $fid:$line\n";
+        },
+        SUB_RETURN => sub {
+            # $retn_depth is the call stack depth of the sub call we're returning from
+            my (undef, $retn_depth, $incl_time, $excl_time, $subname) = @_;
+            warn sprintf "< %2d %-10s %s %s\n", $retn_depth, $subname, $incl_time, $excl_time
+                if $opt_verbose;
+
+            die "return from depth $retn_depth while at depth $crnt_depth implies missing data ($subname)"
+                if $crnt_depth > $retn_depth;
+
+            while ($crnt_depth < $retn_depth) { # build out the tree if needed
+                my $x = $depthstacks[$crnt_depth] ||= [undef,undef,undef,undef];
+                $crnt_node->[1]++ if $crnt_node; # kids
+                $crnt_node = [ $crnt_node ];
+                push @$x, $crnt_node;
+                $crnt_depth++;
+            }
+
+            die "panic: depth" unless $retn_depth == $crnt_depth; # return to caller
+            die "panic: returning to a non-empty node" if $crnt_node->[2];
+
+            my $parent = $crnt_node->[0];
+            @$crnt_node = ($parent, $crnt_node->[1], $subname, $incl_time, $excl_time);
+            $crnt_node = $parent;
+            $crnt_depth = $retn_depth - 1;
+        },
+
+        VERSION => sub {},
+        COMMENT => sub {},
+        ATTRIBUTE => sub {},
+        START_DEFLATE => sub {},
+        PID_START => sub {},
+    }});
+}
+
+for my $ds (@depthstacks) {
+    # generate "sub1;sub2;sub3 count\n" where count is the ticks spent with that call stack
+    for my $n (@$ds) {
+        my @subs;
+        my $ticks;
+        while ($n) {
+            my ($parent, $kids, $subname, $incl_time, $excl_time) = @$n;
+            push @subs, $subname;
+            $ticks += $excl_time;
+            $n = $parent;
+        }
+        my $path = join ";", reverse @subs;
+        print "$path $ticks\n";
+    }
+}
+
+warn "Done.\n" if $opt_verbose;
+exit 0;
+
+sub usage {
+    print <<END;
+usage: [perl] nytprofcalls [opts] nytprof-file [...]
+
+ --help,        -h         Print this message
+ --verbose,     -v         Be more verbose
+
+This script of part of the Devel::NYTProf distribution.
+See https://metacpan.org/release/Devel-NYTProf for details and copyright.
+END
+    exit 0;
+}
+
+__END__
+
+=head1 NAME
+
+nytprofcalls - experimental
+
+=cut
+# vim:ts=8:sw=4:et
