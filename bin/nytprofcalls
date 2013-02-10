@@ -62,13 +62,9 @@ my $crnt_node;
 foreach my $input (@ARGV) {
     warn "Reading $input...\n" if $opt_verbose;
     Devel::NYTProf::Data->new({filename => $input, callback => {
-        '' => sub {
-            warn "Unknown tag '$_[0]' in $input\n"
-            if $opt_verbose and not our $_warn_once_unknown_tag->{$_[0]}++;
-        },
         SUB_ENTRY => sub {
             my (undef, $fid, $line) = @_;
-            #print "> at $fid:$line\n";
+            print "> at $fid:$line\n" if $opt_verbose;
         },
         SUB_RETURN => sub {
             # $retn_depth is the call stack depth of the sub call we're returning from
@@ -80,27 +76,25 @@ foreach my $input (@ARGV) {
                 if $crnt_depth > $retn_depth;
 
             while ($crnt_depth < $retn_depth) { # build out the tree if needed
-                my $x = $depthstacks[$crnt_depth] ||= [undef,undef,undef,undef];
-                $crnt_node->[1]++ if $crnt_node; # kids
-                $crnt_node = [ $crnt_node ];
+                my $x = $depthstacks[$crnt_depth] ||= [];
+                # XXX get smarter here about reusing an existing child node if it
+                # has the same name. Perhaps optional since it might be useful to
+                # not do that in some cases.
+                $crnt_node = [ $crnt_node, undef, undef, undef ];
                 push @$x, $crnt_node;
                 $crnt_depth++;
             }
 
             die "panic: depth" unless $retn_depth == $crnt_depth; # return to caller
-            die "panic: returning to a non-empty node" if $crnt_node->[2];
+            die "panic: returning to a non-empty node" if $crnt_node->[1];
 
-            my $parent = $crnt_node->[0];
-            @$crnt_node = ($parent, $crnt_node->[1], $subname, $incl_time, $excl_time);
-            $crnt_node = $parent;
+            $crnt_node->[1] ||= $subname;
+            $crnt_node->[2] += $incl_time;
+            $crnt_node->[3] += $excl_time;
+
+            $crnt_node = $crnt_node->[0];
             $crnt_depth = $retn_depth - 1;
         },
-
-        VERSION => sub {},
-        COMMENT => sub {},
-        ATTRIBUTE => sub {},
-        START_DEFLATE => sub {},
-        PID_START => sub {},
     }});
 }
 
@@ -110,11 +104,13 @@ for my $ds (@depthstacks) {
         my @subs;
         my $ticks;
         while ($n) {
-            my ($parent, $kids, $subname, $incl_time, $excl_time) = @$n;
+            my ($parent, $subname, $incl_time, $excl_time) = @$n;
             push @subs, $subname;
             $ticks += $excl_time;
             $n = $parent;
         }
+        # ensure we don't have any characters flamegraph.pl relies on for parsing
+        s/[ ;]/?/g for @subs;
         my $path = join ";", reverse @subs;
         print "$path $ticks\n";
     }
