@@ -26,7 +26,10 @@ use Carp;
 GetOptions(
     'help|h'    => \&usage,
     'verbose|v' => \my $opt_verbose,
+    'debug|d' => \my $opt_debug,
 ) or usage();
+$opt_verbose ||= 1
+    if $opt_debug;
 
 usage() unless @ARGV;
 
@@ -57,45 +60,101 @@ my @depthstacks = (); # depth stacks
 #   ]
 # ]
 my $crnt_depth = 0;
-my $crnt_node;
+my $crnt_node = undef;
+
+my $callbacks = {
+    SUB_ENTRY => sub {
+        my (undef, $fid, $line) = @_;
+        print "> at $fid:$line\n" if $opt_verbose;
+    },
+    SUB_RETURN => sub {
+        # $retn_depth is the call stack depth of the sub call we're returning from
+        my (undef, $retn_depth, $incl_time, $excl_time, $subname) = @_;
+        warn sprintf "< %2d %-10s %s %s\n", $retn_depth, $subname, $incl_time, $excl_time
+            if $opt_verbose;
+
+        # $crnt_node is the node representing the sub we're returning out of.
+        # Either...
+        # a) we're returning from some sub deeper than the last one we saw
+        #    in which case we build out the tree and set $crnt_node to the last node
+        #    and then fall through to:
+        # b) we're returning from the last sub we saw and update @$crnt_node
+
+        die "return from depth $retn_depth while at depth $crnt_depth implies missing data ($subname)"
+            if $crnt_depth > $retn_depth;
+
+        while ($crnt_depth < $retn_depth) { # build out the tree if needed
+            my $x = $depthstacks[$crnt_depth] ||= do {
+                warn "added depth $crnt_depth\n";
+                [];
+            };
+            # XXX get smarter here about reusing an existing child node if it
+            # has the same name. Perhaps optional since it might be useful to
+            # not do that in some cases.
+            $crnt_node = [ $crnt_node, undef, undef, undef ];
+            push @$crnt_node, $crnt_depth; # debug
+            push @$x, $crnt_node;
+            $crnt_depth++;
+        }
+
+        die "panic: depth" unless $retn_depth == $crnt_depth; # return to caller
+        die "panic: returning to a non-empty node" if $crnt_node->[1];
+
+    if (0) {
+        # optimization: if we have a node at this depth with the same parent and name
+        # then reuse that one and discard the
+        # do we have a node with this name and parent at this level?
+        die "panic" if $crnt_depth <= 0;
+        my $depthstack = $depthstacks[$crnt_depth-1];
+        warn "depthstack[$crnt_depth-1]: @$depthstack\n" if $opt_debug;
+        use Data::Dumper;
+        #warn Dumper($depthstack);
+
+        my @reuse = grep {
+warn "grep: ".dump_node($_,99)."\n" if $opt_debug;
+            $_->[0] && $_->[0] == $crnt_node->[0] &&
+            $_->[1] && $_->[1] eq $subname
+        } @$depthstack;
+warn "reuse: ".dump_node($_)."\n" for (@reuse);
+        #die "crnt_node not found" unless grep { $_ == $crnt_node } @reuse;
+        die "crnt_node matched more than once" if @reuse > 2;
+        if (@reuse) {
+            my $reuse = shift @reuse;
+            warn "found $subname" if $opt_debug;
+            pop @$depthstack if not defined $depthstack->[-1][1];
+            $crnt_node = $reuse;
+        }
+    }
+
+        $crnt_node->[1] ||= $subname;
+        $crnt_node->[2] += $incl_time;
+        $crnt_node->[3] += $excl_time;
+
+#        warn "RETURN FROM: ".dump_node($crnt_node, 1)."\n" if $opt_debug;
+        # move up to parent node
+        $crnt_node = $crnt_node->[0];
+        $crnt_depth = $retn_depth - 1;
+    },
+};
+
+sub dump_node {
+    my ($n, $show_parents) = @_;
+    return ""  if not ref $n;
+    my ($parent, @f) = @$n;
+    defined $_ or $_ = "undef" for (@f);
+    my $node_dump = sprintf "[ %s ]%s", join(",", @f), $n;
+    $node_dump .= " < ".dump_node($parent, --$show_parents)
+        if ref $parent and $show_parents;
+    return $node_dump;
+}
 
 foreach my $input (@ARGV) {
     warn "Reading $input...\n" if $opt_verbose;
-    Devel::NYTProf::Data->new({filename => $input, callback => {
-        SUB_ENTRY => sub {
-            my (undef, $fid, $line) = @_;
-            print "> at $fid:$line\n" if $opt_verbose;
-        },
-        SUB_RETURN => sub {
-            # $retn_depth is the call stack depth of the sub call we're returning from
-            my (undef, $retn_depth, $incl_time, $excl_time, $subname) = @_;
-            warn sprintf "< %2d %-10s %s %s\n", $retn_depth, $subname, $incl_time, $excl_time
-                if $opt_verbose;
-
-            die "return from depth $retn_depth while at depth $crnt_depth implies missing data ($subname)"
-                if $crnt_depth > $retn_depth;
-
-            while ($crnt_depth < $retn_depth) { # build out the tree if needed
-                my $x = $depthstacks[$crnt_depth] ||= [];
-                # XXX get smarter here about reusing an existing child node if it
-                # has the same name. Perhaps optional since it might be useful to
-                # not do that in some cases.
-                $crnt_node = [ $crnt_node, undef, undef, undef ];
-                push @$x, $crnt_node;
-                $crnt_depth++;
-            }
-
-            die "panic: depth" unless $retn_depth == $crnt_depth; # return to caller
-            die "panic: returning to a non-empty node" if $crnt_node->[1];
-
-            $crnt_node->[1] ||= $subname;
-            $crnt_node->[2] += $incl_time;
-            $crnt_node->[3] += $excl_time;
-
-            $crnt_node = $crnt_node->[0];
-            $crnt_depth = $retn_depth - 1;
-        },
-    }});
+    Devel::NYTProf::Data->new({
+        filename => $input,
+        quiet => 1,
+        callback => $callbacks
+    });
 }
 
 for my $ds (@depthstacks) {
