@@ -69,8 +69,8 @@ my $callbacks = {
     },
     SUB_RETURN => sub {
         # $retn_depth is the call stack depth of the sub call we're returning from
-        my (undef, $retn_depth, $incl_time, $excl_time, $subname) = @_;
-        warn sprintf "< %2d %-10s %s %s\n", $retn_depth, $subname, $incl_time, $excl_time
+        my (undef, $retn_depth, undef, $excl_time, $subname) = @_;
+        warn sprintf "< %2d %-10s %s\n", $retn_depth, $subname, $excl_time
             if $opt_verbose;
 
         # $crnt_node is the node representing the sub we're returning out of.
@@ -85,52 +85,25 @@ my $callbacks = {
 
         while ($crnt_depth < $retn_depth) { # build out the tree if needed
             my $x = $depthstacks[$crnt_depth] ||= do {
-                warn "added depth $crnt_depth\n";
+                warn "added depth $crnt_depth\n" if $opt_debug;
                 [];
             };
-            # XXX get smarter here about reusing an existing child node if it
-            # has the same name. Perhaps optional since it might be useful to
-            # not do that in some cases.
-            $crnt_node = [ $crnt_node, undef, undef, undef ];
-            push @$crnt_node, $crnt_depth; # debug
+            # Sadly, getting smarter here about reusing an existing child node
+            # is non-trivial. We could use a hash but we'd have to have logic
+            # for merging the trees below the hashes.
+            $crnt_node = [ $crnt_node, undef, undef ];
+            #push @$crnt_node, $crnt_depth; # debug
             push @$x, $crnt_node;
             $crnt_depth++;
         }
 
-        die "panic: depth" unless $retn_depth == $crnt_depth; # return to caller
+        # now $retn_depth == $crnt_depth
         die "panic: returning to a non-empty node" if $crnt_node->[1];
 
-    if (0) {
-        # optimization: if we have a node at this depth with the same parent and name
-        # then reuse that one and discard the
-        # do we have a node with this name and parent at this level?
-        die "panic" if $crnt_depth <= 0;
-        my $depthstack = $depthstacks[$crnt_depth-1];
-        warn "depthstack[$crnt_depth-1]: @$depthstack\n" if $opt_debug;
-        use Data::Dumper;
-        #warn Dumper($depthstack);
-
-        my @reuse = grep {
-warn "grep: ".dump_node($_,99)."\n" if $opt_debug;
-            $_->[0] && $_->[0] == $crnt_node->[0] &&
-            $_->[1] && $_->[1] eq $subname
-        } @$depthstack;
-warn "reuse: ".dump_node($_)."\n" for (@reuse);
-        #die "crnt_node not found" unless grep { $_ == $crnt_node } @reuse;
-        die "crnt_node matched more than once" if @reuse > 2;
-        if (@reuse) {
-            my $reuse = shift @reuse;
-            warn "found $subname" if $opt_debug;
-            pop @$depthstack if not defined $depthstack->[-1][1];
-            $crnt_node = $reuse;
-        }
-    }
-
         $crnt_node->[1] ||= $subname;
-        $crnt_node->[2] += $incl_time;
-        $crnt_node->[3] += $excl_time;
+        $crnt_node->[2] += $excl_time;
 
-#        warn "RETURN FROM: ".dump_node($crnt_node, 1)."\n" if $opt_debug;
+        warn "RETURN FROM: ".dump_node($crnt_node, 1)."\n" if $opt_debug;
         # move up to parent node
         $crnt_node = $crnt_node->[0];
         $crnt_depth = $retn_depth - 1;
@@ -163,7 +136,7 @@ for my $ds (@depthstacks) {
         my @subs;
         my $ticks;
         while ($n) {
-            my ($parent, $subname, $incl_time, $excl_time) = @$n;
+            my ($parent, $subname, $excl_time) = @$n;
             push @subs, $subname;
             $ticks += $excl_time;
             $n = $parent;
