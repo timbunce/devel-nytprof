@@ -182,7 +182,6 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 
 #define MAX_HASH_SIZE 512
 
-static unsigned int next_fid = 1;         /* 0 is reserved */
 
 /* we're not thread-safe (or even multiplicity safe) yet, so detect and bail */
 #ifdef MULTIPLICITY
@@ -214,10 +213,10 @@ typedef struct hash_table
     Hash_entry* first_inserted;
     Hash_entry* prior_inserted; /* = last_inserted before the last insertion */
     Hash_entry* last_inserted;
+    unsigned int next_id;       /* starts at 1, 0 is reserved */
 } Hash_table;
 
-static Hash_table hashtable_struct = { NULL, MAX_HASH_SIZE, sizeof(Hash_entry), NULL, NULL, NULL };
-static Hash_table *fidhash = &hashtable_struct;
+static Hash_table fidhash = { NULL, MAX_HASH_SIZE, sizeof(Hash_entry), NULL, NULL, NULL, 1 };
 /* END Hash table definitions */
 
 
@@ -631,7 +630,7 @@ hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool inser
 
                 Hash_entry* e;
                 Newz(0, e, 1, Hash_entry);
-                e->id = next_fid++;
+                e->id = hashtable->next_id++;
                 e->next_entry = NULL;
                 e->key_len = entry.key_len;
                 e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
@@ -654,7 +653,7 @@ hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool inser
     if (insert) {
         Hash_entry* e;
         Newz(0, e, 1, Hash_entry);
-        e->id = next_fid++;
+        e->id = hashtable->next_id++;
         e->next_entry = NULL;
         e->key_len = entry.key_len;
         e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
@@ -774,7 +773,7 @@ fmt_fid_flags(pTHX_ int fid_flags, char *buf, Size_t len) {
 static void
 write_cached_fids()
 {
-    Hash_entry *e = fidhash->first_inserted;
+    Hash_entry *e = fidhash.first_inserted;
     while (e) {
         if ( !(e->fid_flags & NYTP_FIDf_IS_ALIAS) )
             emit_fid(e);
@@ -789,7 +788,7 @@ find_autosplit_parent(pTHX_ char* file_name)
     /* extract basename from file_name, then search for most recent entry
      * in fidhash that has the same basename
      */
-    Hash_entry *e = fidhash->first_inserted;
+    Hash_entry *e = fidhash.first_inserted;
     Hash_entry *match = NULL;
     const char *sep = "/";
     char *base_end   = strstr(file_name, " (autosplit");
@@ -868,7 +867,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     entry.key = file_name;
     entry.key_len = (unsigned int)file_name_len;
 
-    if (1 != hash_op(fidhash, entry, &found, (bool)(created_via ? 1 : 0))) {
+    if (1 != hash_op(&fidhash, entry, &found, (bool)(created_via ? 1 : 0))) {
         /* found existing entry or else didn't but didn't create new one either */
         if (trace_level >= 7) {
             if (found)
@@ -878,8 +877,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         return (found) ? found->id : 0;
     }
     /* inserted new entry */
-    if (fidhash->prior_inserted)
-        fidhash->prior_inserted->next_inserted = fidhash->last_inserted;
+    if (fidhash.prior_inserted)
+        fidhash.prior_inserted->next_inserted = fidhash.last_inserted;
 
     /* if this is a synthetic filename for a string eval
      * ie "(eval 42)[/some/filename.pl:line]"
@@ -958,7 +957,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         /* prevent write_cached_fids() from writing this fid */
         found->fid_flags |= NYTP_FIDf_IS_ALIAS;
         /* avoid a gap in the fid sequence */
-        --next_fid;
+        --fidhash.next_id;
         /* write a log message if tracing */
         if (trace_level >= 2)
             logwarn("Use fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s\n",
@@ -2584,7 +2583,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
 
     /* detect wierdness/corruption */
-    assert(subr_entry->caller_fid < next_fid);
+    assert(subr_entry->caller_fid < fidhash.next_id);
 
     /* Check if this call has already been counted because the op performed
      * a leave_scope(). E.g., OP_SUBSTCONT at end of s/.../\1/
@@ -2986,8 +2985,8 @@ init_profiler(pTHX)
 #endif
 
     /* create file id mapping hash */
-    fidhash->table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * fidhash->size);
-    memset(fidhash->table, 0, sizeof(Hash_entry*) * fidhash->size);
+    fidhash.table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * fidhash.size);
+    memset(fidhash.table, 0, sizeof(Hash_entry*) * fidhash.size);
 
     open_output_file(aTHX_ PROF_output_file);
 
@@ -3315,7 +3314,7 @@ write_sub_line_ranges(pTHX)
         /* get name of file that contained first profiled sub in 'main::' */
         SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ runtime, runtime_len);
         if (!pkg_filename_sv) { /* no subs in main, so guess */
-            sv_setpvn(sv, fidhash->first_inserted->key, fidhash->first_inserted->key_len);
+            sv_setpvn(sv, fidhash.first_inserted->key, fidhash.first_inserted->key_len);
         }
         else if (SvOK(pkg_filename_sv)) {
             sv_setsv(sv, pkg_filename_sv);
@@ -3494,7 +3493,7 @@ write_src_of_files(pTHX)
     if (trace_level >= 1)
         logwarn("~ writing file source code\n");
 
-    for (e = fidhash->first_inserted; e; e = (Hash_entry *)e->next_inserted) {
+    for (e = fidhash.first_inserted; e; e = (Hash_entry *)e->next_inserted) {
         I32 lines;
         int line;
         AV *src_av = GvAV(gv_fetchfile_flags(e->key, e->key_len, 0));
