@@ -213,7 +213,8 @@ typedef struct hash_table
     Hash_entry* last_inserted;
 } Hash_table;
 
-static Hash_table hashtable = { NULL, MAX_HASH_SIZE, NULL, NULL };
+static Hash_table hashtable_struct = { NULL, MAX_HASH_SIZE, NULL, NULL };
+static Hash_table *hashtable = &hashtable_struct;
 /* END Hash table definitions */
 
 
@@ -608,11 +609,11 @@ filename_is_eval(const char *filename, STRLEN filename_len)
  * hash_entry in table, insert IGNORED: returns pointer to the actual hash entry
  */
 static char
-hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
+hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool insert)
 {
-    unsigned long h = hash(entry.key, entry.key_len) % hashtable.size;
+    unsigned long h = hash(entry.key, entry.key_len) % hashtable->size;
 
-    Hash_entry* found = hashtable.table[h];
+    Hash_entry* found = hashtable->table[h];
     while(NULL != found) {
 
         if (found->key_len == entry.key_len
@@ -635,9 +636,9 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
                 memcpy(e->key, entry.key, e->key_len);
                 found->next_entry = e;
                 *retval = (Hash_entry*)found->next_entry;
-                if (hashtable.last_inserted)
-                    hashtable.last_inserted->next_inserted = e;
-                hashtable.last_inserted = e;
+                if (hashtable->last_inserted)
+                    hashtable->last_inserted->next_inserted = e;
+                hashtable->last_inserted = e;
                 return 1;
             }
             else {
@@ -658,13 +659,13 @@ hash_op (Hash_entry entry, Hash_entry** retval, bool insert)
         e->key[e->key_len] = '\0';
         memcpy(e->key, entry.key, e->key_len);
 
-        *retval =   hashtable.table[h] = e;
+        *retval =   hashtable->table[h] = e;
 
-        if (!hashtable.first_inserted)
-            hashtable.first_inserted = e;
-        if (hashtable.last_inserted)
-            hashtable.last_inserted->next_inserted = e;
-        hashtable.last_inserted = e;
+        if (!hashtable->first_inserted)
+            hashtable->first_inserted = e;
+        if (hashtable->last_inserted)
+            hashtable->last_inserted->next_inserted = e;
+        hashtable->last_inserted = e;
 
         return 1;
     }
@@ -771,7 +772,7 @@ fmt_fid_flags(pTHX_ int fid_flags, char *buf, Size_t len) {
 static void
 write_cached_fids()
 {
-    Hash_entry *e = hashtable.first_inserted;
+    Hash_entry *e = hashtable->first_inserted;
     while (e) {
         if ( !(e->fid_flags & NYTP_FIDf_IS_ALIAS) )
             emit_fid(e);
@@ -786,7 +787,7 @@ find_autosplit_parent(pTHX_ char* file_name)
     /* extract basename from file_name, then search for most recent entry
      * in hashtable that has the same basename
      */
-    Hash_entry *e = hashtable.first_inserted;
+    Hash_entry *e = hashtable->first_inserted;
     Hash_entry *match = NULL;
     const char *sep = "/";
     char *base_end   = strstr(file_name, " (autosplit");
@@ -836,7 +837,7 @@ lookup_file_entry(pTHX_ char* file_name, STRLEN file_name_len) {
 
     entry.key = file_name;
     entry.key_len = (unsigned int)file_name_len;
-    if (hash_op(entry, &found, 0) == 0)
+    if (hash_op(hashtable, entry, &found, 0) == 0)
         return found;
 
     return NULL;
@@ -865,7 +866,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     entry.key = file_name;
     entry.key_len = (unsigned int)file_name_len;
 
-    if (1 != hash_op(entry, &found, (bool)(created_via ? 1 : 0))) {
+    if (1 != hash_op(hashtable, entry, &found, (bool)(created_via ? 1 : 0))) {
         /* found existing entry or else didn't but didn't create new one either */
         if (trace_level >= 7) {
             if (found)
@@ -2981,8 +2982,8 @@ init_profiler(pTHX)
 #endif
 
     /* create file id mapping hash */
-    hashtable.table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * hashtable.size);
-    memset(hashtable.table, 0, sizeof(Hash_entry*) * hashtable.size);
+    hashtable->table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * hashtable->size);
+    memset(hashtable->table, 0, sizeof(Hash_entry*) * hashtable->size);
 
     open_output_file(aTHX_ PROF_output_file);
 
@@ -3310,7 +3311,7 @@ write_sub_line_ranges(pTHX)
         /* get name of file that contained first profiled sub in 'main::' */
         SV *pkg_filename_sv = sub_pkg_filename_sv(aTHX_ runtime, runtime_len);
         if (!pkg_filename_sv) { /* no subs in main, so guess */
-            sv_setpvn(sv, hashtable.first_inserted->key, hashtable.first_inserted->key_len);
+            sv_setpvn(sv, hashtable->first_inserted->key, hashtable->first_inserted->key_len);
         }
         else if (SvOK(pkg_filename_sv)) {
             sv_setsv(sv, pkg_filename_sv);
@@ -3489,7 +3490,7 @@ write_src_of_files(pTHX)
     if (trace_level >= 1)
         logwarn("~ writing file source code\n");
 
-    for (e = hashtable.first_inserted; e; e = (Hash_entry *)e->next_inserted) {
+    for (e = hashtable->first_inserted; e; e = (Hash_entry *)e->next_inserted) {
         I32 lines;
         int line;
         AV *src_av = GvAV(gv_fetchfile_flags(e->key, e->key_len, 0));
