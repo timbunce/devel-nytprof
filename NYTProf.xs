@@ -194,6 +194,8 @@ typedef struct hash_entry
     unsigned int id;
     void* next_entry;
     char* key;
+    void* next_inserted;  /* linked list in insertion order */
+
     unsigned int key_len;
     unsigned int eval_fid;
     unsigned int eval_line_num;
@@ -201,7 +203,6 @@ typedef struct hash_entry
     unsigned int file_mtime;
     unsigned int fid_flags;
     char *key_abs;
-    void* next_inserted;                          /* linked list in insertion order */
     /* update autosplit logic in get_file_id if fields are added or changed */
 } Hash_entry;
 
@@ -209,11 +210,13 @@ typedef struct hash_table
 {
     Hash_entry** table;
     unsigned int size;
+    unsigned int entry_struct_size;
     Hash_entry* first_inserted;
+    Hash_entry* prior_inserted; /* = last_inserted before the last insertion */
     Hash_entry* last_inserted;
 } Hash_table;
 
-static Hash_table hashtable_struct = { NULL, MAX_HASH_SIZE, NULL, NULL };
+static Hash_table hashtable_struct = { NULL, MAX_HASH_SIZE, sizeof(Hash_entry), NULL, NULL, NULL };
 static Hash_table *fidhash = &hashtable_struct;
 /* END Hash table definitions */
 
@@ -636,8 +639,7 @@ hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool inser
                 memcpy(e->key, entry.key, e->key_len);
                 found->next_entry = e;
                 *retval = (Hash_entry*)found->next_entry;
-                if (hashtable->last_inserted)
-                    hashtable->last_inserted->next_inserted = e;
+                hashtable->prior_inserted = hashtable->last_inserted;
                 hashtable->last_inserted = e;
                 return 1;
             }
@@ -876,6 +878,8 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         return (found) ? found->id : 0;
     }
     /* inserted new entry */
+    if (fidhash->prior_inserted)
+        fidhash->prior_inserted->next_inserted = fidhash->last_inserted;
 
     /* if this is a synthetic filename for a string eval
      * ie "(eval 42)[/some/filename.pl:line]"
