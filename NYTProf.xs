@@ -666,8 +666,7 @@ hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool inse
 
         if (!hashtable->first_inserted)
             hashtable->first_inserted = e;
-        if (hashtable->last_inserted)
-            hashtable->last_inserted->next_inserted = e;
+        hashtable->prior_inserted = hashtable->last_inserted;
         hashtable->last_inserted = e;
 
         return 1;
