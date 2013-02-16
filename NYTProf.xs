@@ -611,15 +611,15 @@ filename_is_eval(const char *filename, STRLEN filename_len)
  * hash_entry in table, insert IGNORED: returns pointer to the actual hash entry
  */
 static char
-hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool insert)
+hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool insert)
 {
-    unsigned long h = hash(entry.key, entry.key_len) % hashtable->size;
+    unsigned long h = hash(entry->key, entry->key_len) % hashtable->size;
 
     Hash_entry* found = hashtable->table[h];
     while(NULL != found) {
 
-        if (found->key_len == entry.key_len
-        && memEQ(found->key, entry.key, entry.key_len)
+        if (found->key_len == entry->key_len
+        && memEQ(found->key, entry->key, entry->key_len)
         ) {
             *retval = found;
             return 0;
@@ -633,10 +633,10 @@ hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool inser
                 memzero(e, hashtable->entry_struct_size);
                 e->id = hashtable->next_id++;
                 e->next_entry = NULL;
-                e->key_len = entry.key_len;
+                e->key_len = entry->key_len;
                 e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
                 e->key[e->key_len] = '\0';
-                memcpy(e->key, entry.key, e->key_len);
+                memcpy(e->key, entry->key, e->key_len);
                 found->next_entry = e;
                 *retval = (Hash_entry*)found->next_entry;
                 hashtable->prior_inserted = hashtable->last_inserted;
@@ -657,10 +657,10 @@ hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool inser
         memzero(e, hashtable->entry_struct_size);
         e->id = hashtable->next_id++;
         e->next_entry = NULL;
-        e->key_len = entry.key_len;
+        e->key_len = entry->key_len;
         e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
         e->key[e->key_len] = '\0';
-        memcpy(e->key, entry.key, e->key_len);
+        memcpy(e->key, entry->key, e->key_len);
 
         *retval =   hashtable->table[h] = e;
 
@@ -840,7 +840,7 @@ lookup_file_entry(pTHX_ char* file_name, STRLEN file_name_len) {
 
     entry.key = file_name;
     entry.key_len = (unsigned int)file_name_len;
-    if (hash_op(fidhash, entry, &found, 0) == 0)
+    if (hash_op(fidhash, &entry, &found, 0) == 0)
         return found;
 
     return NULL;
@@ -869,7 +869,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     entry.key = file_name;
     entry.key_len = (unsigned int)file_name_len;
 
-    if (1 != hash_op(&fidhash, entry, &found, (bool)(created_via ? 1 : 0))) {
+    if (1 != hash_op(&fidhash, &entry, &found, (bool)(created_via ? 1 : 0))) {
         /* found existing entry or else didn't but didn't create new one either */
         if (trace_level >= 7) {
             if (found)
