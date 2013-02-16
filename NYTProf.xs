@@ -629,7 +629,8 @@ hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool inser
             if (insert) {
 
                 Hash_entry* e;
-                Newz(0, e, 1, Hash_entry);
+                Newc(0, e, hashtable->entry_struct_size, char, Hash_entry);
+                memzero(e, hashtable->entry_struct_size);
                 e->id = hashtable->next_id++;
                 e->next_entry = NULL;
                 e->key_len = entry.key_len;
@@ -652,7 +653,8 @@ hash_op(Hash_table *hashtable, Hash_entry entry, Hash_entry** retval, bool inser
 
     if (insert) {
         Hash_entry* e;
-        Newz(0, e, 1, Hash_entry);
+        Newc(0, e, hashtable->entry_struct_size, char, Hash_entry);
+        memzero(e, hashtable->entry_struct_size);
         e->id = hashtable->next_id++;
         e->next_entry = NULL;
         e->key_len = entry.key_len;
