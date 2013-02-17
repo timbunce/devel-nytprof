@@ -16,10 +16,6 @@ require Devel::NYTProf::Data;
 
 our $VERSION = '4.23';
     
-if ($VERSION != $Devel::NYTProf::Core::VERSION) {
-    die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
-}
-
 use Getopt::Long;
 use Carp;
 
@@ -28,8 +24,9 @@ GetOptions(
     'verbose|v' => \my $opt_verbose,
     'debug|d' => \my $opt_debug,
 ) or usage();
-$opt_verbose ||= 1
-    if $opt_debug;
+
+$opt_verbose++ if $opt_debug;
+$|++ if $opt_verbose;
 
 usage() unless @ARGV;
 
@@ -42,89 +39,57 @@ usage() unless @ARGV;
 # appear in natural order. The code can return from a call at any depth
 # deeper than the last seen depth.
 #
-# Our primary data structure is an array of arrays where the outer array is
-# indexed by call depth. The inner arrays are call frames at that depth
-# and they hold a ref to the parent call frame.
-my @depthstacks = (); # depth stacks
-# [
-#   [
-#       [ undef, sub1, ... ]        <= ref1
-#   ]
-#   [
-#       [ ref1, sub2, ... ]         <= ref2
-#   ]
-#   [
-#       [ ref2, ]                   <= ref3 = crnt_node, eg
-#   ]
-#   [
-#       [ ref4, sub3, ... ]         <= ref3
-#   ]
-# ]
-my $crnt_depth = 0;
-my $crnt_node = undef;
+my $root = {};
+my @stack = ($root);
 
 my $last_subid = 0;
 my %subname2id;
 
+
 my $callbacks = {
+
     SUB_ENTRY => sub {
         my (undef, $fid, $line) = @_;
         print "> at $fid:$line\n" if $opt_verbose;
     },
+
     SUB_RETURN => sub {
         # $retn_depth is the call stack depth of the sub call we're returning from
         my (undef, $retn_depth, undef, $excl_time, $subname) = @_;
-        warn sprintf "< %2d %-10s %s\n", $retn_depth, $subname, $excl_time
+
+        warn sprintf "< %2d %-10s %s (stack %d)\n", $retn_depth, $subname, $excl_time, scalar @stack
             if $opt_verbose;
         my $subid = $subname2id{$subname} ||= ++$last_subid;
 
-        # $crnt_node is the node representing the sub we're returning out of.
         # Either...
         # a) we're returning from some sub deeper than the last one we saw
-        #    in which case we build out the tree and set $crnt_node to the last node
-        #    and then fall through to:
+        #    in which case we build out the tree from $crnt_node setting $crnt_node
+        #    to the last sub node we created, and then fall through to:
         # b) we're returning from the last sub we saw and update @$crnt_node
+        #    then move $crnt_node back to the parent
 
-        die "return from depth $retn_depth while at depth $crnt_depth implies missing data ($subname)"
-            if $crnt_depth > $retn_depth;
-
-        while ($crnt_depth < $retn_depth) { # build out the tree if needed
-            my $x = $depthstacks[$crnt_depth] ||= do {
-                warn "added depth $crnt_depth\n" if $opt_debug;
-                [];
-            };
-            # Sadly, getting smarter here about reusing an existing child node
-            # is non-trivial. We could use a hash but we'd have to have logic
-            # for merging the trees below the hashes.
-            $crnt_node = [ $crnt_node, undef, undef ];
-            #push @$crnt_node, $crnt_depth; # debug
-            push @$x, $crnt_node;
-            $crnt_depth++;
+        while (@stack <= $retn_depth) { # build out the tree if needed
+            my $crnt_node = $stack[-1];
+            die "panic" if $crnt_node->{0};
+            push @stack, ($crnt_node = $crnt_node->{0} = {});
         }
 
-        # now $retn_depth == $crnt_depth
-        die "panic: returning to a non-empty node" if $crnt_node->[1];
+        # pop the stack for this sub return and increment the time
+        my $crnt_node = pop @stack;
+        $crnt_node->{excl} += $excl_time;
 
-        $crnt_node->[1] ||= $subid;
-        $crnt_node->[2] += $excl_time;
+        # now we know the subname (subid), move the dummy name '0' entry onto
+        # the list of calls for our subname.
+        my $caller = $stack[-1] || die "panic";
+        my $unnamed = delete $caller->{0} || die "panic";
+        $unnamed == $crnt_node or die "panic";
+        my $siblings = $caller->{$subid} ||= [];
 
-        warn "RETURN FROM: ".dump_node($crnt_node, 1)."\n" if $opt_debug;
-        # move up to parent node - ie do the "return"
-        $crnt_node = $crnt_node->[0];
-        $crnt_depth = $retn_depth - 1;
+        # XXX we should be smarter here about merging an X->Y call into an
+        # existing X->Y call. That's only tricky if both have kids.
+        push @$siblings, $unnamed;
     },
 };
-
-sub dump_node {
-    my ($n, $show_parents) = @_;
-    return ""  if not ref $n;
-    my ($parent, @f) = @$n;
-    defined $_ or $_ = "undef" for (@f);
-    my $node_dump = sprintf "[ %s ]%s", join(",", @f), $n;
-    $node_dump .= " < ".dump_node($parent, --$show_parents)
-        if ref $parent and $show_parents;
-    return $node_dump;
-}
 
 foreach my $input (@ARGV) {
     warn "Reading $input...\n" if $opt_verbose;
@@ -135,29 +100,52 @@ foreach my $input (@ARGV) {
     });
 }
 
+
+# transform tree into a simple hash of call paths "subid;subid;subid" => value
+my %subidpaths;
+visit_node($root, [], sub {
+    my ($node, $path) = @_;
+    $subidpaths{ join(";", @$path) } += $node->{excl}
+        if @$path;
+});
+
+
+# ensure subnames don't contain ";" or " "
+tr/; /??/ for values %subname2id;
 my %subid2name = reverse %subname2id;
 
-for my $ds (@depthstacks) {
-    # generate "sub1;sub2;sub3 count\n" where count is the ticks spent with that call stack
-    for my $n (@$ds) {
-        my @subs;
-        my $ticks;
-        while ($n) {
-            my ($parent, $subid, $excl_time) = @$n;
-            my $subname = $subid2name{$subid} || $subid;
-            push @subs, $subname;
-            $ticks += $excl_time;
-            $n = $parent;
-        }
-        # ensure we don't have any characters flamegraph.pl relies on for parsing
-        s/[ ;]/?/g for @subs;
-        my $path = join ";", reverse @subs;
-        print "$path $ticks\n";
-    }
+# output the subidpaths hash using subroutine names
+for my $subidpath (keys %subidpaths) {
+    my @path = map { $subid2name{$_} } split ";", $subidpath;
+    my $path = join(";", @path);
+    printf "%s %g\n", join(";", @path), $subidpaths{$subidpath};
 }
 
 warn "Done.\n" if $opt_verbose;
 exit 0;
+
+
+sub visit_node {
+    my $node = shift;
+    my $path = shift;
+    my $sub  = shift;
+
+    warn "visit_node: @{[ %$node ]}\n" if $opt_debug;
+
+    push @$path, undef;
+    for (keys %$node) {
+        next unless /^[0-9]/;
+        warn "> $_\n" if $opt_debug;
+        $path->[-1] = $_;
+        visit_node($_, $path, $sub) for @{ $node->{$_} };
+    }
+    pop @$path;
+
+    $sub->($node, $path);
+
+    %$node = (); # reclaim memory as we go
+}
+
 
 sub usage {
     print <<END;
