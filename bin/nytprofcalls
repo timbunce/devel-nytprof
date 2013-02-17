@@ -33,6 +33,7 @@ $opt_verbose ||= 1
 
 usage() unless @ARGV;
 
+
 # We're building a tree structure from a stream of "subroutine returned" events.
 # (We use these because the subroutine entry events don't have reliable
 # value for the subroutine name, and obviously don't have timings.)
@@ -62,6 +63,9 @@ my @depthstacks = (); # depth stacks
 my $crnt_depth = 0;
 my $crnt_node = undef;
 
+my $last_subid = 0;
+my %subname2id;
+
 my $callbacks = {
     SUB_ENTRY => sub {
         my (undef, $fid, $line) = @_;
@@ -72,6 +76,7 @@ my $callbacks = {
         my (undef, $retn_depth, undef, $excl_time, $subname) = @_;
         warn sprintf "< %2d %-10s %s\n", $retn_depth, $subname, $excl_time
             if $opt_verbose;
+        my $subid = $subname2id{$subname} ||= ++$last_subid;
 
         # $crnt_node is the node representing the sub we're returning out of.
         # Either...
@@ -100,11 +105,11 @@ my $callbacks = {
         # now $retn_depth == $crnt_depth
         die "panic: returning to a non-empty node" if $crnt_node->[1];
 
-        $crnt_node->[1] ||= $subname;
+        $crnt_node->[1] ||= $subid;
         $crnt_node->[2] += $excl_time;
 
         warn "RETURN FROM: ".dump_node($crnt_node, 1)."\n" if $opt_debug;
-        # move up to parent node
+        # move up to parent node - ie do the "return"
         $crnt_node = $crnt_node->[0];
         $crnt_depth = $retn_depth - 1;
     },
@@ -130,13 +135,16 @@ foreach my $input (@ARGV) {
     });
 }
 
+my %subid2name = reverse %subname2id;
+
 for my $ds (@depthstacks) {
     # generate "sub1;sub2;sub3 count\n" where count is the ticks spent with that call stack
     for my $n (@$ds) {
         my @subs;
         my $ticks;
         while ($n) {
-            my ($parent, $subname, $excl_time) = @$n;
+            my ($parent, $subid, $excl_time) = @$n;
+            my $subname = $subid2name{$subid} || $subid;
             push @subs, $subname;
             $ticks += $excl_time;
             $n = $parent;
