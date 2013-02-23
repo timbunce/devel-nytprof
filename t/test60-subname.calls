@@ -1,0 +1,4 @@
+Devel::NYTProf::Test::example_xsub 7
+main::launch 1
+main::CORE:wait 1
+main::CORE:open 1

@@ -60,10 +60,11 @@ for my $opt (qw(trace)) {
 }
 
 
-my $tests_per_extn = {
-    p   => 1,
-    rdt => ($opts{mergerdt}) ? 2 : 1,
-    x   => 3
+my $text_extn_info = {
+    p     => { order => 10, tests => 1, },
+    rdt   => { order => 20, tests => ($opts{mergerdt}) ? 2 : 1, },
+    x     => { order => 30, tests => 3, },
+    calls => { order => 40, tests => 1, },
 };
 
 chdir('t') if -d 't';
@@ -77,9 +78,10 @@ my $bindir      = (grep {-d} qw(./blib/script ../blib/script))[0] || do {
     warn "Couldn't find blib/script directory, so using $bin";
     $bin;
 };
-my $nytprofcsv  = "$bindir/nytprofcsv";
-my $nytprofhtml = "$bindir/nytprofhtml";
-my $nytprofmerge= "$bindir/nytprofmerge";
+my $nytprofcsv   = "$bindir/nytprofcsv";
+my $nytprofcalls = "$bindir/nytprofcalls";
+my $nytprofhtml  = "$bindir/nytprofhtml";
+my $nytprofmerge = "$bindir/nytprofmerge";
 
 my $path_sep = $Config{path_sep} || ':';
 my $perl5lib = $opts{I} || join($path_sep, @INC);
@@ -94,6 +96,7 @@ if ($opts{one}) {           # for one quick test
     $opts{use_db_sub} = 0;
     $opts{savesrc}    = 1;
     $opts{compress}   = 1;
+    $opts{calls}      = 2;
 }
 
 # force savesrc off for perl 5.11.2 due to perl bug RT#70804
@@ -103,7 +106,7 @@ my @test_opt_leave      = (defined $opts{leave})      ? ($opts{leave})      : (0
 my @test_opt_use_db_sub = (defined $opts{use_db_sub}) ? ($opts{use_db_sub}) : (0, 1);
 my @test_opt_savesrc    = (defined $opts{savesrc})    ? ($opts{savesrc})    : (0, 1);
 my @test_opt_compress   = (defined $opts{compress})   ? ($opts{compress})   : (0, 1);
-my @test_opt_calls      = (defined $opts{calls})      ? ($opts{calls})      : (0, 1);
+my @test_opt_calls      = (defined $opts{calls})      ? ($opts{calls})      : (0, 1, 2);
 
 sub mk_opt_combinations {
     my ($overrides) = @_;
@@ -123,7 +126,7 @@ sub mk_opt_combinations {
                         compress   => $compress,
                         # we don't need to test the 'calls' opt with all other combinations
                         # so we fudge it here to be on most, but not all, of the time
-                        calls      => ($savesrc || $compress) ? 1 : 0,
+                        calls      => (!!$savesrc + !!$compress), # 0|1|2
                         ($overrides) ? %$overrides : (),
                     };
                     my $key = join "\t", map { "$_=>$o->{$_}" } sort keys %$o;
@@ -239,14 +242,17 @@ sub run_test_group {
         croak "Can't determine test group";
     }
 
-    my @tests = grep { -f $_ } map { "$group.$_" } sort keys %$tests_per_extn;
-    unlink <$group.*_new{,p}>; # delete _new and _newp files from previous run
+    my @tests = grep { -f $_ }
+        map { "$group.$_" }
+        sort { $text_extn_info->{$a}{order} <=> $text_extn_info->{$b}{order} }
+        keys %$text_extn_info;
+    unlink <$group.*_new*>; # delete _new* files from previous run
 
     if ($opts{v}) {
         print "tests: @tests\n";
         print "perl: $perl\n";
         print "perl5lib: $perl5lib\n";
-        print "nytprofcvs: $nytprofcsv\n";
+        print "nytprofbin: $bindir\n";
     }
 
     plan skip_all => "No '$group.*' test files and no extra_test_code"
@@ -335,6 +341,14 @@ sub run_test {
             unlink $merged;
         }
     }
+    elsif ($type eq 'calls') {
+        if ($env->{calls}) {
+            verify_calls_report($test, $tag, $test_datafile, $outdir);
+        }
+        else {
+            pass("no calls");
+        }
+    }
     elsif ($type eq 'x') {
         mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
         unlink <$outdir/*>;
@@ -386,7 +400,7 @@ sub run_perl_command {
 }
 
 
-sub profile {
+sub profile { # TODO refactor to use run_perl_command()?
     my ($test, $profile_datafile) = @_;
 
     my @perl = perl_command_words(skip_sitecustomize => 1);
@@ -410,12 +424,19 @@ sub verify_data {
             if $^O eq 'VMS' and $test =~ m/test60|test14/i;
         $profile->normalize_variables;
         dump_profile_to_file($profile, $test.'_new', $test.'_newp');
-        my @got      = slurp_file($test.'_new'); chomp @got;
-        my @expected = slurp_file($test);        chomp @expected;
-        is_deeply(\@got, \@expected, "$test match generated profile data for $tag")
-            ? unlink($test.'_new')
-            : diff_files($test, $test.'_new', $test.'_newp');
+        is_file_content_same($test.'_new', $test, "$test match generated profile data for $tag");
     }
+}
+
+sub is_file_content_same {
+    my ($got_file, $exp_file, $testname) = @_;
+
+    my @got = slurp_file($got_file); chomp @got;
+    my @exp = slurp_file($exp_file); chomp @exp;
+
+    is_deeply(\@got, \@exp, $testname)
+        ? unlink($got_file)
+        : diff_files($exp_file, $got_file, $got_file."_patch");
 }
 
 
@@ -453,6 +474,15 @@ sub diff_files {
     # we don't care if this fails, it's just an aid to debug test failures
     my @opts = split / /, $ENV{NYTPROF_DIFF_OPTS} || $diff_opts;    # e.g. '-y'
     system("cmp -s $new_file $newp_file || diff @opts $old_file $new_file 1>&2");
+}
+
+
+sub verify_calls_report {
+    my ($test, $tag, $profile_datafile, $outdir) = @_;
+    my $got_file = "${test}_new";
+    note "generating $got_file";
+    run_command("$nytprofcalls $profile_datafile -stable --calls > $got_file");
+    is_file_content_same($got_file, $test, "$test match generated calls data for $tag");
 }
 
 
@@ -572,7 +602,7 @@ sub number_of_tests {
     my $total_tests = 0;
     for (@_) {
         next unless m/\.(\w+)$/;
-        my $tests = $tests_per_extn->{$1};
+        my $tests = $text_extn_info->{$1}{tests};
         warn "Unknown test type '$1' for test file '$_'\n" if not defined $tests;
         $total_tests += $tests if $tests;
     }

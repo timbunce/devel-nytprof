@@ -1,0 +1,10 @@
+test14::pre 1
+test14::bar 1
+AutoLoader::AUTOLOAD 2
+AutoLoader::AUTOLOAD;AutoLoader::find_filename 1
+AutoLoader::AUTOLOAD;AutoLoader::find_filename;AutoLoader::CORE:match 2
+AutoLoader::AUTOLOAD;AutoLoader::find_filename;AutoLoader::CORE:subst 2
+AutoLoader::AUTOLOAD;AutoLoader::find_filename;AutoLoader::CORE:regcomp 1
+AutoLoader::AUTOLOAD;AutoLoader::find_filename;AutoLoader::CORE:substcont 2
+AutoLoader::AUTOLOAD;AutoLoader::find_filename;AutoLoader::CORE:fteread 1
+test14::foo 1

@@ -22,7 +22,9 @@ use Carp;
 GetOptions(
     'help|h'    => \&usage,
     'verbose|v' => \my $opt_verbose,
-    'debug|d' => \my $opt_debug,
+    'calls!'    => \my $opt_calls, # sum calls instead of time
+    'debug|d'   => \my $opt_debug,
+    'stable'    => \my $opt_stable, # used for testing (stabilty)
 ) or usage();
 
 $opt_verbose++ if $opt_debug;
@@ -82,15 +84,17 @@ my $callbacks = {
         delete $sub_caller->{0} or die "panic"; # == $sub_return
         my $siblings = $sub_caller->{$subid} ||= [];
 
+        my $v = ($opt_calls) ? 1 : $excl_time;
+
         # optimization: if this node has no children, and the parent already has
         # a node for this subname (@$siblings) then just increment a sibling.
         if (keys %$sub_return == 1 and @$siblings) {
-            $siblings->[-1]{excl} += $excl_time;
+            $siblings->[-1]{v} += $v;
             ++$sibling_avoided;
         }
         else {
             # XXX we should get smarter here about merging instead of pushing
-            $sub_return->{excl} += $excl_time;
+            $sub_return->{v} += $v;
             push @$siblings, $sub_return;
             $siblings_max = @$siblings if @$siblings > $siblings_max;
         }
@@ -112,7 +116,7 @@ foreach my $input (@ARGV) {
 my %subidpaths;
 visit_node($root, [], sub {
     my ($node, $path) = @_;
-    $subidpaths{ join(";", @$path) } += $node->{excl}
+    $subidpaths{ join(";", @$path) } += $node->{v}
         if @$path;
 });
 
@@ -122,10 +126,12 @@ tr/; /??/ for values %subname2id;
 my %subid2name = reverse %subname2id;
 
 # output the subidpaths hash using subroutine names
-for my $subidpath (keys %subidpaths) {
+my @subidpaths = keys %subidpaths;
+@subidpaths = sort @subidpaths if $opt_stable;
+for my $subidpath (@subidpaths) {
     my @path = map { $subid2name{$_} } split ";", $subidpath;
     my $path = join(";", @path);
-    printf "%s %g\n", join(";", @path), $subidpaths{$subidpath};
+    printf "%s %d\n", join(";", @path), $subidpaths{$subidpath};
 }
 
 warn sprintf "Done. (siblings: avoided $sibling_avoided, max $siblings_max)\n" if $opt_verbose;
