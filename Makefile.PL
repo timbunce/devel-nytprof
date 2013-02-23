@@ -32,6 +32,7 @@ if ($ENV{PERL_CORE}) {
         'bin/nytprofhtml' => '$(INST_MAN1DIR)/nytprofhtml.1',
         'bin/nytprofmerge'=> '$(INST_MAN1DIR)/nytprofmerge.1',
         'bin/nytprofcsv'  => '$(INST_MAN1DIR)/nytprofcsv.1',
+        'bin/nytprofcalls'=> '$(INST_MAN1DIR)/nytprofcalls.1',
         'bin/nytprofcg'   => '$(INST_MAN1DIR)/nytprofcg.1',
     } );
 }
@@ -157,7 +158,7 @@ WriteMakefile(
     },
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
-    EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv', 'bin/nytprofcg', 'bin/nytprofmerge'],
+    EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv', 'bin/nytprofcalls', 'bin/nytprofcg', 'bin/nytprofmerge'],
     @man,
     INC   => $INCLUDE,
     clean => {
