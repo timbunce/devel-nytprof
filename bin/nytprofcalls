@@ -45,12 +45,15 @@ my @stack = ($root);
 my $last_subid = 0;
 my %subname2id;
 
+my $sibling_avoided = 0;
+my $siblings_max = 0;
+
 
 my $callbacks = {
 
     SUB_ENTRY => sub {
         my (undef, $fid, $line) = @_;
-        print "> at $fid:$line\n" if $opt_verbose;
+        warn "> at $fid:$line\n" if $opt_verbose;
     },
 
     SUB_RETURN => sub {
@@ -71,25 +74,29 @@ my $callbacks = {
         while (@stack <= $retn_depth) { # build out the tree if needed
             my $crnt_node = $stack[-1];
             die "panic" if $crnt_node->{0};
-            push @stack, ($crnt_node = $crnt_node->{0} = {});
+            push @stack, ($crnt_node->{0} = {});
         }
 
-        # pop the stack for this sub return and increment the time
-        my $crnt_node = pop @stack;
-        $crnt_node->{excl} += $excl_time;
+        my $sub_return = pop @stack;
+        my $sub_caller = $stack[-1] || die "panic";
+        delete $sub_caller->{0} or die "panic"; # == $sub_return
+        my $siblings = $sub_caller->{$subid} ||= [];
 
-        # now we know the subname (subid), move the dummy name '0' entry onto
-        # the list of calls for our subname.
-        my $caller = $stack[-1] || die "panic";
-        my $unnamed = delete $caller->{0} || die "panic";
-        $unnamed == $crnt_node or die "panic";
-        my $siblings = $caller->{$subid} ||= [];
-
-        # XXX we should be smarter here about merging an X->Y call into an
-        # existing X->Y call. That's only tricky if both have kids.
-        push @$siblings, $unnamed;
+        # optimization: if this node has no children, and the parent already has
+        # a node for this subname (@$siblings) then just increment a sibling.
+        if (keys %$sub_return == 1 and @$siblings) {
+            $siblings->[-1]{excl} += $excl_time;
+            ++$sibling_avoided;
+        }
+        else {
+            # XXX we should get smarter here about merging instead of pushing
+            $sub_return->{excl} += $excl_time;
+            push @$siblings, $sub_return;
+            $siblings_max = @$siblings if @$siblings > $siblings_max;
+        }
     },
 };
+
 
 foreach my $input (@ARGV) {
     warn "Reading $input...\n" if $opt_verbose;
@@ -121,7 +128,7 @@ for my $subidpath (keys %subidpaths) {
     printf "%s %g\n", join(";", @path), $subidpaths{$subidpath};
 }
 
-warn "Done.\n" if $opt_verbose;
+warn sprintf "Done. (siblings: avoided $sibling_avoided, max $siblings_max)\n" if $opt_verbose;
 exit 0;
 
 
