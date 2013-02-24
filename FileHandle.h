@@ -45,6 +45,7 @@ const char *NYTP_type_of_offset(NYTP_file file);
 
 #define NYTP_TAG_NO_TAG          '\0'   /* Used as a flag to mean "no tag" */
 #define NYTP_TAG_ATTRIBUTE       ':'    /* :name=value\n */
+#define NYTP_TAG_OPTION          '!'    /* !name=value\n */
 #define NYTP_TAG_COMMENT         '#'    /* till newline */
 #define NYTP_TAG_TIME_BLOCK      '*'
 #define NYTP_TAG_TIME_LINE       '+'
@@ -66,6 +67,7 @@ typedef enum {
     nytp_no_tag,
     nytp_version,   /* Not actually a tag, but needed by the perl callback */
     nytp_attribute,
+    nytp_option,
     nytp_comment,
     nytp_time_block,
     nytp_time_line,
@@ -97,6 +99,9 @@ size_t NYTP_write_attribute_unsigned(NYTP_file ofile, const char *key,
                                      size_t key_len, unsigned long value);
 size_t NYTP_write_attribute_nv(NYTP_file ofile, const char *key,
                                      size_t key_len, NV value);
+size_t NYTP_write_option_pv(NYTP_file ofile, const char *key,
+                                    const char *value, size_t value_len);
+size_t NYTP_write_option_iv(NYTP_file ofile, const char *key, IV value);
 size_t NYTP_start_deflate_write_tag_comment(NYTP_file ofile, int compression_level);
 size_t NYTP_write_process_start(NYTP_file ofile, U32 pid, U32 ppid, NV time_of_day);
 size_t NYTP_write_process_end(NYTP_file ofile, U32 pid, NV time_of_day);

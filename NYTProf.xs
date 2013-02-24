@@ -228,50 +228,63 @@ static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static unsigned int profile_opts = NYTP_OPTf_OPTIMIZE | NYTP_OPTf_SAVESRC;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
 
-struct NYTP_int_options_t {
-  const char *option_name;
-  int option_value;
+struct NYTP_options_t {
+    const char *option_name;
+    IV    option_iv;
+    char *option_pv;    /* strdup'd */
 };
 
 /* XXX boolean options should be moved into profile_opts */
-static struct NYTP_int_options_t options[] = {
-#define profile_usecputime options[0].option_value
-    { "usecputime", 0 },
-#define profile_subs options[1].option_value
-    { "subs", 1 },                                /* subroutine times */
-#define profile_blocks options[2].option_value
-    { "blocks", 1 },                              /* block and sub *exclusive* times */
-#define profile_leave options[3].option_value
-    { "leave", 1 },                               /* correct block end timing */
-#define embed_fid_line options[4].option_value
-    { "expand", 0 },
-#define trace_level options[5].option_value
-    { "trace", 0 },
-#define opt_use_db_sub options[6].option_value
-    { "use_db_sub", 0 },
-#define compression_level options[7].option_value
-    { "compress", default_compression_level },
-#define profile_clock options[8].option_value
-    { "clock", -1 },
-#define profile_stmts options[9].option_value
-    { "stmts", 1 },                              /* statement exclusive times */
-#define profile_slowops options[10].option_value
-    { "slowops", 2 },                            /* slow opcodes, typically system calls */
-#define profile_findcaller options[11].option_value
-    { "findcaller", 0 },                         /* find sub caller instead of trusting outer */
-#define profile_forkdepth options[12].option_value
-    { "forkdepth", -1 },                         /* how many generations of kids to profile */
-#define opt_perldb options[13].option_value
-    { "perldb", 0 },                             /* force certain PL_perldb value */
-#define opt_nameevals options[14].option_value
-    { "nameevals", 1 },                          /* change $^P 0x100 bit */
-#define opt_nameanonsubs options[15].option_value
-    { "nameanonsubs", 1 },                       /* change $^P 0x200 bit */
-#define opt_calls options[16].option_value
-    { "calls", 0 },                              /* output call/return event stream */
-#define opt_evals options[17].option_value
-    { "evals", 0 }                               /* handling of string evals - TBD XXX */
+static struct NYTP_options_t options[] = {
+#define profile_usecputime options[0].option_iv
+    { "usecputime", 0, NULL },
+#define profile_subs options[1].option_iv
+    { "subs", 1, NULL },                                /* subroutine times */
+#define profile_blocks options[2].option_iv
+    { "blocks", 1, NULL },                              /* block and sub *exclusive* times */
+#define profile_leave options[3].option_iv
+    { "leave", 1, NULL },                               /* correct block end timing */
+#define embed_fid_line options[4].option_iv
+    { "expand", 0, NULL },
+#define trace_level options[5].option_iv
+    { "trace", 0, NULL },
+#define opt_use_db_sub options[6].option_iv
+    { "use_db_sub", 0, NULL },
+#define compression_level options[7].option_iv
+    { "compress", default_compression_level, NULL },
+#define profile_clock options[8].option_iv
+    { "clock", -1, NULL },
+#define profile_stmts options[9].option_iv
+    { "stmts", 1, NULL },                              /* statement exclusive times */
+#define profile_slowops options[10].option_iv
+    { "slowops", 2, NULL },                            /* slow opcodes, typically system calls */
+#define profile_findcaller options[11].option_iv
+    { "findcaller", 0, NULL },                         /* find sub caller instead of trusting outer */
+#define profile_forkdepth options[12].option_iv
+    { "forkdepth", -1, NULL },                         /* how many generations of kids to profile */
+#define opt_perldb options[13].option_iv
+    { "perldb", 0, NULL },                             /* force certain PL_perldb value */
+#define opt_nameevals options[14].option_iv
+    { "nameevals", 1, NULL },                          /* change $^P 0x100 bit */
+#define opt_nameanonsubs options[15].option_iv
+    { "nameanonsubs", 1, NULL },                       /* change $^P 0x200 bit */
+#define opt_calls options[16].option_iv
+    { "calls", 0, NULL },                              /* output call/return event stream */
+#define opt_evals options[17].option_iv
+    { "evals", 0, NULL }                               /* handling of string evals - TBD XXX */
 };
+/* XXX TODO: add these to options:
+    if (strEQ(option, "file")) {
+        strncpy(PROF_output_file, value, MAXPATHLEN);
+    else if (strEQ(option, "log")) {
+    else if (strEQ(option, "start")) {
+    else if (strEQ(option, "addpid")) {
+    else if (strEQ(option, "optimize") || strEQ(option, "optimise")) {
+    else if (strEQ(option, "savesrc")) {
+    else if (strEQ(option, "endatexit")) {
+and write the options to the stream when profiling starts.
+*/
+
 
 /* time tracking */
 
@@ -483,15 +496,27 @@ output_header(pTHX)
 
     /* XXX add options, $0, etc, but beware of embedded newlines */
     /* XXX would be good to adopt a proper charset & escaping for these */
-    /* $^T */
-    NYTP_write_attribute_unsigned(out, STR_WITH_LEN("basetime"), (unsigned long)PL_basetime);
-    NYTP_write_attribute_string(out, STR_WITH_LEN("xs_version"), STR_WITH_LEN(XS_VERSION));
+    NYTP_write_attribute_unsigned(out, STR_WITH_LEN("basetime"), (unsigned long)PL_basetime); /* $^T */
+    NYTP_write_attribute_string(out, STR_WITH_LEN("application"), argv0, len);
+    /* perl constants: */
     NYTP_write_attribute_string(out, STR_WITH_LEN("perl_version"), version, sizeof(version) - 1);
+    NYTP_write_attribute_unsigned(out, STR_WITH_LEN("nv_size"), sizeof(NV));
+    /* sanity checks: */
+    NYTP_write_attribute_string(out, STR_WITH_LEN("xs_version"), STR_WITH_LEN(XS_VERSION));
+    NYTP_write_attribute_unsigned(out, STR_WITH_LEN("PL_perldb"), PL_perldb);
+    /* these are really options: */
     NYTP_write_attribute_signed(out, STR_WITH_LEN("clock_id"), profile_clock);
     NYTP_write_attribute_unsigned(out, STR_WITH_LEN("ticks_per_sec"), ticks_per_sec);
-    NYTP_write_attribute_unsigned(out, STR_WITH_LEN("nv_size"), sizeof(NV));
-    NYTP_write_attribute_unsigned(out, STR_WITH_LEN("PL_perldb"), PL_perldb);
-    NYTP_write_attribute_string(out, STR_WITH_LEN("application"), argv0, len);
+
+    if (0) {
+        struct NYTP_options_t *opt_p = options;
+        const struct NYTP_options_t *const opt_end
+            = options + sizeof(options) / sizeof (struct NYTP_options_t);
+        do {
+            NYTP_write_option_iv(out, opt_p->option_name, opt_p->option_iv);
+        } while (++opt_p < opt_end);
+    }
+
 
 #ifdef HAS_ZLIB
     if (compression_level) {
@@ -1575,6 +1600,10 @@ DB_leave(pTHX_ OP *op, OP *prev_op)
 static void
 set_option(pTHX_ const char* option, const char* value)
 {
+    if (!value || !*value)
+        croak("%s: invalid option", "NYTProf set_option");
+    if (!value || !*value)
+        croak("%s: '%s' has no value", "NYTProf set_option", option);
 
     if (strEQ(option, "file")) {
         strncpy(PROF_output_file, value, MAXPATHLEN);
@@ -1615,13 +1644,14 @@ set_option(pTHX_ const char* option, const char* value)
             PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
     }
     else {
-        struct NYTP_int_options_t *opt_p = options;
-        const struct NYTP_int_options_t *const opt_end
-            = options + sizeof(options) / sizeof (struct NYTP_int_options_t);
+
+        struct NYTP_options_t *opt_p = options;
+        const struct NYTP_options_t *const opt_end
+            = options + sizeof(options) / sizeof (struct NYTP_options_t);
         bool found = FALSE;
         do {
             if (strEQ(option, opt_p->option_name)) {
-                opt_p->option_value = strtol(value, NULL, 0);
+                opt_p->option_iv = (IV)strtol(value, NULL, 0);
                 found = TRUE;
                 break;
             }
@@ -1722,7 +1752,7 @@ reinit_if_forked(pTHX)
 
     /* we're now the child process */
     if (trace_level >= 1)
-        logwarn("~ new pid %d (was %d) forkdepth %d\n", getpid(), last_pid, profile_forkdepth);
+        logwarn("~ new pid %d (was %d) forkdepth %ld\n", getpid(), last_pid, profile_forkdepth);
 
     /* reset state */
     last_pid = getpid();
@@ -2843,7 +2873,7 @@ disable_profile(pTHX)
         is_profiling = 0;
     }
     if (trace_level)
-        logwarn("~ disable_profile (previously %s, pid %d, trace %d)\n",
+        logwarn("~ disable_profile (previously %s, pid %d, trace %ld)\n",
             prev_is_profiling ? "enabled" : "disabled", getpid(), trace_level);
     return prev_is_profiling;
 }
@@ -2907,7 +2937,7 @@ _init_profiler_clock(pTHX)
     }
 #else
     if (profile_clock != -1) {  /* user tried to select different clock */
-        logwarn("clock %d not available (clock_gettime not supported on this system)\n", profile_clock);
+        logwarn("clock %ld not available (clock_gettime not supported on this system)\n", profile_clock);
         profile_clock = -1;
     }
 #endif
@@ -2967,7 +2997,7 @@ init_profiler(pTHX)
     _init_profiler_clock(aTHX);
 
     if (trace_level)
-        logwarn("~ init_profiler for pid %d, clock %d, start %d, perldb 0x%lx, exitf 0x%lx\n",
+        logwarn("~ init_profiler for pid %d, clock %ld, start %d, perldb 0x%lx, exitf 0x%lx\n",
             last_pid, profile_clock, profile_start,
             (long unsigned)PL_perldb, (long unsigned)PL_exit_flags);
 
@@ -3476,7 +3506,7 @@ write_sub_callers(pTHX)
         }
     }
     if (negative_time_calls) {
-        logwarn("Warning: %d subroutine calls had negative time! See TROUBLESHOOTING in the documentation. (Clock %d)\n",
+        logwarn("Warning: %d subroutine calls had negative time! See TROUBLESHOOTING in the documentation. (Clock %ld)\n",
             negative_time_calls, profile_clock);
     }
 }
@@ -4260,6 +4290,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("[no tag]"), NULL},
     {STR_WITH_LEN("VERSION"), "uu"},
     {STR_WITH_LEN("ATTRIBUTE"), "33"},
+    {STR_WITH_LEN("OPTION"), "33"},
     {STR_WITH_LEN("COMMENT"), "3"},
     {STR_WITH_LEN("TIME_BLOCK"), "iuuuu"},
     {STR_WITH_LEN("TIME_LINE"),  "iuu"},
@@ -4400,6 +4431,7 @@ static loader_callback perl_callbacks[nytp_tag_max] =
     load_perl_callback,
     load_perl_callback,
     load_perl_callback,
+    load_perl_callback,
     load_perl_callback
 };
 static loader_callback processing_callbacks[nytp_tag_max] =
@@ -4407,6 +4439,7 @@ static loader_callback processing_callbacks[nytp_tag_max] =
     0,
     0, /* version */
     load_attribute_callback,
+    0, /* attribute */
     0, /* comment */
     load_time_callback,
     load_time_callback,
@@ -4647,6 +4680,27 @@ load_profile_data_from_stream(loader_callback *callbacks,
                             atoi(value), (int)sizeof(NV));
                 }
                     
+                break;
+            }
+
+            case NYTP_TAG_OPTION:
+            {
+                char *value, *key_end;
+                char *end = NYTP_gets(in, &buffer, &buffer_len);
+                if (NULL == end)
+                    /* probably EOF */
+                    croak("Profile format error reading attribute");
+                --end; /* end, as returned, points 1 after the \n  */
+                if ((NULL == (value = (char *)memchr(buffer, '=', end - buffer)))) {
+                    logwarn("option malformed '%s'\n", buffer);
+                    continue;
+                }
+                key_end = value++;
+break;
+                callbacks[nytp_option](state, nytp_attribute, buffer,
+                                          (unsigned long)(key_end - buffer),
+                                          0, value,
+                                          (unsigned long)(end - value), 0);
                 break;
             }
 

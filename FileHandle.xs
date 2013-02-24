@@ -846,15 +846,15 @@ NYTP_write_comment(NYTP_file ofile, const char *format, ...) {
     return retval + 2;
 }
 
-size_t
-NYTP_write_attribute_string(NYTP_file ofile,
+static size_t
+NYTP_write_plain_kv(NYTP_file ofile, const char prefix,
                             const char *key, size_t key_len,
                             const char *value, size_t value_len)
 {
     size_t total;
     size_t retval;
 
-    total = retval = NYTP_write(ofile, ":", 1);
+    total = retval = NYTP_write(ofile, &prefix, 1);
     if (retval != 1)
         return retval;
 
@@ -875,6 +875,14 @@ NYTP_write_attribute_string(NYTP_file ofile,
         return retval;
 
     return total;
+}
+
+size_t
+NYTP_write_attribute_string(NYTP_file ofile,
+                            const char *key, size_t key_len,
+                            const char *value, size_t value_len)
+{
+    return NYTP_write_plain_kv(ofile, ':', key, key_len, value, value_len);
 }
 
 #ifndef CHAR_BIT
@@ -913,6 +921,28 @@ NYTP_write_attribute_nv(NYTP_file ofile, const char *key,
 
     return NYTP_write_attribute_string(ofile, key, key_len, buffer, len);
 }
+
+/* options */
+
+size_t
+NYTP_write_option_pv(NYTP_file ofile,
+                    const char *key,
+                    const char *value, size_t value_len)
+{
+    return NYTP_write_plain_kv(ofile, '!', key, strlen(key), value, value_len);
+}
+
+size_t
+NYTP_write_option_iv(NYTP_file ofile, const char *key, IV value)
+{
+    /* 3: 1 for rounding errors, 1 for the sign, 1 for the '\0'  */
+    char buffer[(int)(sizeof (IV) * CHAR_BIT * LOG_2_OVER_LOG_10 + 3)];
+    const size_t len = my_snprintf(buffer, sizeof(buffer), "%ld", value);
+
+    return NYTP_write_option_pv(ofile, key, buffer, len);
+}
+
+/* other */
 
 #ifdef HAS_ZLIB
 

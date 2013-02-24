@@ -780,6 +780,10 @@ sub output_index_page {
         print $fh "</select></form></div>\n";
     }
 
+    if (calls enabled) {
+        print $fh flamegraph($profile, undef, $max_subs, undef);
+    }
+
     # Show top subs across all files
     my $max_subs = 15; # keep it less than a page so users can see the file table
     my $all_subs = keys %{$profile->{sub_subinfo}};
