@@ -64,16 +64,17 @@ my $callbacks = {
 
         warn sprintf "< %2d %-10s %s (stack %d)\n", $retn_depth, $subname, $excl_time, scalar @stack
             if $opt_verbose;
+
         # normalize and merge sibling string evals by setting eval seqn to 0
         $subname =~ s/\( (\w*eval)\s\d+ \) (?= \[ .+? :\d+ \] )/($1 0)/gx;
+        # assign an id to the subname for memory efficiency
         my $subid = $subname2id{$subname} ||= ++$last_subid;
 
         # Either...
-        # a) we're returning from some sub deeper than the last one we saw
-        #    in which case we build out the tree from $crnt_node setting $crnt_node
-        #    to the last sub node we created, and then fall through to:
-        # b) we're returning from the last sub we saw and update @$crnt_node
-        #    then move $crnt_node back to the parent
+        # a) we're returning from some sub deeper than the current stack
+        #    in which case we push unnamed sub calls ("0") onto the stack
+        #    till we get to the right depth, then fall through to:
+        # b) we're returning from the sub on top of the stack.
 
         while (@stack <= $retn_depth) { # build out the tree if needed
             my $crnt_node = $stack[-1];

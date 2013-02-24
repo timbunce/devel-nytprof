@@ -389,15 +389,20 @@ profile data file.
 
 =head2 calls=1
 
-Emit subroutine call entry and return events into the event stream.
 This option is I<new and experimental> and so likely to change.
+
+With calls=1 subroutine call I<return> events are emitted into the data stream
+as they happen.  With calls=2 subroutine call I<entry> events are also emitted.
+
+The L<nytprofcalls> utility can be used to process this data. It too is I<new
+and experimental> and so likely to change.
 
 The subroutine profiler normally gathers data in memory and outputs a summary
 when the profile data is being finalized, usually when the program has finished.
 The summary contains aggregate information for all the calls from one location
 to another, but the details of individual calls have been lost.
 
-The calls=1 option enables the recording of individual call events and thus
+The calls option enables the recording of individual call events and thus
 more detailed analysis and reporting of that data.
 
 =head2 leave=0
