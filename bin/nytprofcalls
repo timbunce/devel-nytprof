@@ -64,6 +64,8 @@ my $callbacks = {
 
         warn sprintf "< %2d %-10s %s (stack %d)\n", $retn_depth, $subname, $excl_time, scalar @stack
             if $opt_verbose;
+        # normalize and merge sibling string evals by setting eval seqn to 0
+        $subname =~ s/\( (\w*eval)\s\d+ \) (?= \[ .+? :\d+ \] )/($1 0)/gx;
         my $subid = $subname2id{$subname} ||= ++$last_subid;
 
         # Either...
