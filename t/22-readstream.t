@@ -44,12 +44,12 @@ is_deeply $prof{VERSION}, [ [ 5, 0 ] ];
 # but not START_DEFLATE as that'll be missing if there's no zlib
 # and not SRC_LINE as old perl's 
 for my $tag (qw(
-        COMMENT ATTRIBUTE DISCOUNT TIME_BLOCK
+        COMMENT ATTRIBUTE OPTION DISCOUNT TIME_BLOCK
         SUB_INFO SUB_CALLERS
         PID_START PID_END NEW_FID
         SUB_ENTRY SUB_RETURN
 )) {
-    is ref $prof{$tag}[0], 'ARRAY', $tag;
+    is ref $prof{$tag}[0], 'ARRAY', "raw $tag array seen";
 }
 
 SKIP: {

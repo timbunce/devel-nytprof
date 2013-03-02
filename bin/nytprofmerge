@@ -82,9 +82,11 @@ my %attr_should_be_identical = map {$_, 1} qw(
     PL_perldb clock_id nv_size perl_version ticks_per_sec xs_version
 );
 
+
 # Effectively, these are global variables. Sorry.
 our $input;
 our %attributes;
+our %options;
 our $deflating;
 
 my %dispatcher =
@@ -112,6 +114,7 @@ my %dispatcher =
          return if $text =~ /\ACompressed at level \d with zlib [0-9.]+\z/;
          $out->write_comment($text)
      },
+
      ATTRIBUTE => sub {
          my (undef, $key, $value) = @_;
          if ($attr_should_be_identical{$key}) {
@@ -127,6 +130,19 @@ my %dispatcher =
              push @{$attributes{$key}}, $value;
          }
      },
+
+     OPTION => sub {
+         my (undef, $key, $value) = @_;
+
+        if (exists $options{$key}) {
+            if ($options{$key} ne $value) {
+                warn("Option '$key' has value '$value' in $input which differs from the previous value '$options{$key}'; this implies inconsistent profiles and thus garbage results\n");
+            }
+        } else {
+            $options{$key} = $value;
+            $out->write_option($key, $value);
+        }
+    },
 
      START_DEFLATE => sub {
          if (!$deflating && $out->can('start_deflate_write_tag_comment')) {
@@ -209,6 +225,7 @@ foreach $input (@ARGV) {
     @pending_fids = ();
     %pending_subs = ();
 
+    # first pass
     Devel::NYTProf::Data->new({filename => $input, callback => {
         NEW_FID => sub {
             my (undef, $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
@@ -294,6 +311,7 @@ foreach $input (@ARGV) {
         }
     }});
 
+    # second pass
     print "Re-reading $input...\n" if $opt_verbose;
     Devel::NYTProf::Data->new({filename => $input, callback => \%dispatcher});
 }
@@ -340,11 +358,13 @@ foreach my $key (sort grep {!$attr_should_be_identical{$_}} keys %attributes) {
         $out->write_attribute($key, $values[0]);
     }
     else {
-        warn sprintf "Unknown attribute %s has %d values passed through unmerged\n",
-            $key, scalar @values;
+        warn sprintf "Attribute %s has %d distinct values passed through unmerged\n",
+                $key, scalar @values;
+            if @values > 1;
         $out->write_attribute($key, $_) foreach @values;
     }
 }
+
 
 print "Done.\n" if $opt_verbose;
 exit 0;

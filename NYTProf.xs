@@ -508,7 +508,7 @@ output_header(pTHX)
     NYTP_write_attribute_signed(out, STR_WITH_LEN("clock_id"), profile_clock);
     NYTP_write_attribute_unsigned(out, STR_WITH_LEN("ticks_per_sec"), ticks_per_sec);
 
-    if (0) {
+    if (1) {
         struct NYTP_options_t *opt_p = options;
         const struct NYTP_options_t *const opt_end
             = options + sizeof(options) / sizeof (struct NYTP_options_t);
@@ -3753,6 +3753,7 @@ typedef struct loader_state_profiler {
     HV *sub_subinfo_hv;
     HV *live_pids_hv;
     HV *attr_hv;
+    HV *option_hv;
     HV *file_info_stash;
     /* these times don't reflect profile_enable & profile_disable calls */
     NV profiler_start_time;
@@ -4279,6 +4280,38 @@ load_attribute_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ..
                                    value_utf8 ? SVf_UTF8 : 0));
 }
 
+static void
+load_option_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+{
+    Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
+    dTHXa(state->interp);
+    va_list args;
+    char *key;
+    unsigned long key_len;
+    unsigned int key_utf8;
+    char *value;
+    unsigned long value_len;
+    unsigned int value_utf8;
+    SV *value_sv;
+
+    va_start(args, tag);
+
+    key = va_arg(args, char *);
+    key_len = va_arg(args, unsigned long);
+    key_utf8 = va_arg(args, unsigned int);
+
+    value = va_arg(args, char *);
+    value_len = va_arg(args, unsigned long);
+    value_utf8 = va_arg(args, unsigned int);
+
+    va_end(args);
+
+    value_sv = newSVpvn_flags(value, value_len, value_utf8 ? SVf_UTF8 : 0);
+    (void)hv_store(state->option_hv, key, key_utf8 ? -(I32)key_len : key_len, value_sv, 0);
+    if (trace_level >= 1)
+        logwarn("! %.*s = '%s'\n", (int) key_len, key, SvPV_nolen(value_sv));
+}
+
 struct perl_callback_info_t {
     const char *description;
     STRLEN len;
@@ -4439,7 +4472,7 @@ static loader_callback processing_callbacks[nytp_tag_max] =
     0,
     0, /* version */
     load_attribute_callback,
-    0, /* attribute */
+    load_option_callback,
     0, /* comment */
     load_time_callback,
     load_time_callback,
@@ -4696,8 +4729,8 @@ load_profile_data_from_stream(loader_callback *callbacks,
                     continue;
                 }
                 key_end = value++;
-break;
-                callbacks[nytp_option](state, nytp_attribute, buffer,
+
+                callbacks[nytp_option](state, nytp_option, buffer,
                                           (unsigned long)(key_end - buffer),
                                           0, value,
                                           (unsigned long)(end - value), 0);
@@ -4767,6 +4800,7 @@ load_profile_to_hv(pTHX_ NYTP_file in)
     state.sub_subinfo_hv = newHV();
     state.live_pids_hv = newHV();
     state.attr_hv = newHV();
+    state.option_hv = newHV();
     state.file_info_stash = gv_stashpv("Devel::NYTProf::FileInfo", GV_ADDWARN);
 
     av_extend(state.fid_fileinfo_av, 64);   /* grow them up front. */
@@ -4826,6 +4860,8 @@ load_profile_to_hv(pTHX_ NYTP_file in)
     profile_modes = newHV();
     (void)hv_stores(profile_hv, "attribute",         
                     newRV_noinc((SV*)state.attr_hv));
+    (void)hv_stores(profile_hv, "option",         
+                    newRV_noinc((SV*)state.option_hv));
     (void)hv_stores(profile_hv, "fid_fileinfo",
                     newRV_noinc((SV*)state.fid_fileinfo_av));
     (void)hv_stores(profile_hv, "fid_srclines",

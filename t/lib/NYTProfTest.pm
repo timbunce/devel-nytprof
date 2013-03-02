@@ -422,7 +422,7 @@ sub verify_data {
     SKIP: {
         skip 'Expected profile data does not have VMS paths', 1
             if $^O eq 'VMS' and $test =~ m/test60|test14/i;
-        $profile->normalize_variables;
+        $profile->normalize_variables(1); # and options
         dump_profile_to_file($profile, $test.'_new', $test.'_newp');
         is_file_content_same($test.'_new', $test, "$test match generated profile data for $tag");
     }

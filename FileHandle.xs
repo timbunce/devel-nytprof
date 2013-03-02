@@ -1366,6 +1366,21 @@ SV *value
         RETVAL
 
 size_t
+NYTP_write_option(handle, key, value)
+NYTP_file handle
+SV *key
+SV *value
+    PREINIT:
+        STRLEN key_len;
+        const char *const key_p = SvPVbyte(key, key_len);
+        STRLEN value_len;
+        const char *const value_p = SvPVbyte(value, value_len);
+    CODE:
+        RETVAL = NYTP_write_option_pv(handle, key_p, value_p, value_len);
+    OUTPUT:
+        RETVAL
+
+size_t
 NYTP_write_process_start(handle, pid, ppid, time_of_day)
 NYTP_file handle
 U32 pid
