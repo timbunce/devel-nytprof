@@ -780,8 +780,23 @@ sub output_index_page {
         print $fh "</select></form></div>\n";
     }
 
-    if (calls enabled) {
-        print $fh flamegraph($profile, undef, $max_subs, undef);
+    my $call_stacks_file = "all_stacks_by_time.calls";
+    my $call_stacks_svg  = "all_stacks_by_time.svg";
+    if ($profile->{option}{calls}) {
+        my $mk_flamegraph = sub {
+            warn "Extracting subroutine calls data ...\n";
+            system("nytprofcalls $opt_file > $opt_out/$call_stacks_file") == 0
+                or die "Generating $opt_out/$call_stacks_file failed\n";
+            warn "Generating subroutine calls flame graph ...\n";
+            system("flamegraph.pl --nametype=Subroutine: --countname=microseconds $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
+                or die "Generating $opt_out/$call_stacks_svg failed\n";
+            print $fh qq{<div class="flamegraph">\n};
+            print $fh qq{<object data="$call_stacks_svg" width="1200" type="image/svg+xml" >SVG not supported</object>\n};
+            print $fh qq{</div>\n};
+            1;
+        };
+        eval { $mk_flamegraph->() }
+            or warn $@;
     }
 
     # Show top subs across all files
@@ -1857,6 +1872,10 @@ pre,.s {
     text-align:center;
     font-style: italic;
     padding-top: 5px; color: gray;
+}
+
+.flamegraph {
+    margin: 20px 0px;
 }
 
 EOD
