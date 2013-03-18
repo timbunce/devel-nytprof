@@ -64,6 +64,7 @@ my $minwidth = 0.1;		# min function width, pixels
 my $titletext = "Flame Graph";  # centered heading
 my $nametype = "Function:";     # what are the names in the data?
 my $countname = "samples";      # what are the counts in the data?
+my $nameattrfile;               # file holding function attributes
 
 GetOptions(
     'fonttype=s'   => \$fonttype,
@@ -74,6 +75,7 @@ GetOptions(
     'title=s'      => \$titletext,
     'nametype=s'   => \$nametype,
     'countname=s'  => \$countname,
+    'nameattr=s'   => \$nameattrfile,
 ) or exit 1;
 
 
@@ -84,6 +86,19 @@ my $xpad = 10;			# pad lefm and right
 my $timemax = 0;
 my $depthmax = 0;
 my %Events;
+my %nameattr;
+
+if ($nameattrfile) {
+    # The name-attribute file format is a function name followed by a tab then
+    # a sequence of tab separated name=value pairs.
+    open my $attrfh, $nameattrfile or die "Can't read $nameattrfile: $!\n";
+    while (<$attrfh>) {
+        chomp;
+        my ($funcname, $attrstr) = split /\t/, $_, 2;
+        die "Invalid format in $nameattrfile" unless defined $attrstr;
+        $nameattr{$funcname} = { map { split /=/, $_, 2 } split /\t/, $attrstr };
+    }
+}
 
 # SVG functions
 { package SVG;
@@ -99,7 +114,7 @@ my %Events;
 		$self->{svg} .= <<SVG;
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" width="$w" height="$h" onload="init(evt)" viewBox="0 0 $w $h" xmlns="http://www.w3.org/2000/svg" >
+<svg version="1.1" width="$w" height="$h" onload="init(evt)" viewBox="0 0 $w $h" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 SVG
 	}
 
@@ -111,6 +126,34 @@ SVG
 	sub colorAllocate {
 		my ($self, $r, $g, $b) = @_;
 		return "rgb($r,$g,$b)";
+	}
+
+	sub group_start {
+		my ($self, $attr) = @_;
+
+		my @g_attr = map {
+			exists $attr->{$_} ? sprintf(qq/$_="%s"/, $attr->{$_}) : ()
+		} qw(class style onmouseover onmouseout);
+		push @g_attr, $attr->{g_extra} if $attr->{g_extra};
+		$self->{svg} .= sprintf qq/<g %s>\n/, join(' ', @g_attr);
+
+		$self->{svg} .= sprintf qq/<title>%s<\/title>/, $attr->{title}
+			if $attr->{title}; # should be first element within g container
+
+		if ($attr->{href}) {
+			my @a_attr;
+			push @a_attr, sprintf qq/xlink:href="%s"/, $attr->{href} if $attr->{href};
+                        # default target=_top else links will open within SVG <object>
+			push @a_attr, sprintf qq/target="%s"/, $attr->{target} || "_top";
+			push @a_attr, $attr->{a_extra}                           if $attr->{a_extra};
+			$self->{svg} .= sprintf qq/<a %s>/, join(' ', @a_attr);
+		}
+	}
+
+	sub group_end {
+		my ($self, $attr) = @_;
+		$self->{svg} .= qq/<\/a>\n/ if $attr->{href};
+		$self->{svg} .= qq/<\/g>\n/;
 	}
 
 	sub filledRectangle {
@@ -152,53 +195,54 @@ my %Node;
 my %Tmp;
 
 sub flow {
-	my ($a, $b, $v) = @_;
-	my @A = split ";", $a;
-	my @B = split ";", $b;
+	my ($last, $this, $v) = @_;
 
-	my $len_a = $#A;
-	my $len_b = $#B;
+	my $len_a = @$last - 1;
+	my $len_b = @$this - 1;
 	$depthmax = $len_b if $len_b > $depthmax;
 
 	my $i = 0;
-	my $len_same = 0;
+	my $len_same;
 	for (; $i <= $len_a; $i++) {
 		last if $i > $len_b;
-		last if $A[$i] ne $B[$i];
+		last if $last->[$i] ne $this->[$i];
 	}
 	$len_same = $i;
 
 	for ($i = $len_a; $i >= $len_same; $i--) {
-		my $k = "$A[$i]--$i";
+		my $k = "$last->[$i]--$i";
 		# a unique ID is constructed from func--depth--etime;
 		# func-depth isn't unique, it may be repeated later.
-		$Node{"$k--$v"}->{stime} = $Tmp{$k}->{stime};
-		delete $Tmp{$k}->{stime};
+		$Node{"$k--$v"}->{stime} = delete $Tmp{$k}->{stime};
 		delete $Tmp{$k};
 	}
 
 	for ($i = $len_same; $i <= $len_b; $i++) {
-		my $k = "$B[$i]--$i";
+		my $k = "$this->[$i]--$i";
 		$Tmp{$k}->{stime} = $v;
 	}
+
+        return $this;
 }
 
 # Parse input
 my @Data = <>;
-my $last = "";
+my $last = [];
 my $time = 0;
+my $ignored = 0;
 foreach (sort @Data) {
 	chomp;
 	my ($stack, $samples) = (/^(.*)\s+(\d+)$/);
-	$stack =~ s/</(/g;
-	$stack =~ s/>/)/g;
-	$stack = ";$stack";
-	next unless defined $samples;
-	flow($last, $stack, $time);
+	unless (defined $samples) {
+            ++$ignored;
+            next;
+        }
+	$stack =~ tr/<>/()/;
+	$last = flow($last, [ '', split ";", $stack ], $time);
 	$time += $samples;
-	$last = $stack;
 }
-flow($last, "", $time);
+flow($last, [], $time);
+warn "Ignored $ignored lines with invalid format\n" if $ignored;
 $timemax = $time or die "ERROR: No stack counts found\n";
 
 # Draw canvas
@@ -214,8 +258,7 @@ my $inc = <<INC;
 	</linearGradient>
 </defs>
 <style type="text/css">
-	rect[rx]:hover { stroke:black; stroke-width:1; }
-	text:hover { stroke:black; stroke-width:1; stroke-opacity:0.35; }
+	.func_g:hover { stroke:black; stroke-width:0.5; }
 </style>
 <script type="text/ecmascript">
 <![CDATA[
@@ -266,7 +309,14 @@ foreach my $id (keys %Node) {
 		$escaped_func =~ s/>/&gt;/g;
 		$info = "$escaped_func ($samples_txt $countname, $pct%)";
 	}
-	$im->filledRectangle($x1, $y1, $x2, $y2, color("hot"), 'rx="2" ry="2" onmouseover="s(' . "'$info'" . ')" onmouseout="c()"');
+
+        my $nameattr = $nameattr{$func} || {};
+        $nameattr->{class}       ||= "func_g";
+        $nameattr->{onmouseover} ||= "s('".$info."')";
+        $nameattr->{onmouseout}  ||= "c()";
+        $im->group_start($nameattr);
+
+	$im->filledRectangle($x1, $y1, $x2, $y2, color("hot"), 'rx="2" ry="2"');
 
 	if ($width > 50) {
 		my $chars = int($width / (0.7 * $fontsize));
@@ -275,9 +325,10 @@ foreach my $id (keys %Node) {
 		$text =~ s/&/&amp;/g;
 		$text =~ s/</&lt;/g;
 		$text =~ s/>/&gt;/g;
-		$im->stringTTF($black, $fonttype, $fontsize, 0.0, $x1 + 3, 3 + ($y1 + $y2) / 2, $text, "",
-		    'onmouseover="s(' . "'$info'" . ')" onmouseout="c()"');
+		$im->stringTTF($black, $fonttype, $fontsize, 0.0, $x1 + 3, 3 + ($y1 + $y2) / 2, $text, "");
 	}
+
+        $im->group_end($nameattr);
 }
 
 print $im->svg;
