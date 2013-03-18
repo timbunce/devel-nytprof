@@ -784,14 +784,31 @@ sub output_index_page {
     my $call_stacks_svg  = "all_stacks_by_time.svg";
     if ($profile->{option}{calls}) {
         my $mk_flamegraph = sub {
-            warn "Extracting subroutine calls data ...\n";
+
+            warn "Extracting subroutine call data ...\n";
             system("nytprofcalls $opt_file > $opt_out/$call_stacks_file") == 0
                 or die "Generating $opt_out/$call_stacks_file failed\n";
-            warn "Generating subroutine calls flame graph ...\n";
-            system("flamegraph.pl --nametype=Subroutine: --countname=microseconds $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
+
+            my %subname_subinfo_map = %{ $profile->subname_subinfo_map };
+            warn "Extracting subroutine links\n";
+            my $subattr = "$opt_out/flamegraph_subattr.txt";
+            open my $subattrfh, ">", $subattr
+                or die "Error creating $subattr: $!\n";
+            while ( my ($subname, $si) = each %subname_subinfo_map ) {
+                next unless $si->incl_time;
+                print $subattrfh join("\t", $subname,
+                    q{href=}.$reporter->url_for_sub($subname),
+                )."\n";
+            }
+            close $subattrfh or die "Error writing $subattr: $!\n";
+
+            warn "Generating subroutine stack frames flame graph ...\n";
+            system("flamegraph.pl --nameattr=$subattr --nametype=sub --countname=microseconds $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
                 or die "Generating $opt_out/$call_stacks_svg failed\n";
+
             print $fh qq{<div class="flamegraph">\n};
             print $fh qq{<object data="$call_stacks_svg" width="1200" type="image/svg+xml" >SVG not supported</object>\n};
+            print $fh qq{<p>This <a href="http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/">Flame Graph</a> is a visualization of the inclusive time spent in distinct call stacks. The colors and x-axis position are not meaningful.</p>\n};
             print $fh qq{</div>\n};
             1;
         };
