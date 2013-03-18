@@ -243,7 +243,7 @@ modules.</p>
 
 </div>\n}
     }
-);
+) if $] < 5.017008;
 
 $reporter->set_param(
     'merged_fids',
@@ -1392,7 +1392,10 @@ sub output_file_table {
             $eval_time  = sum(map { $_->sum_of_stmts_time  } @has_evals);
         }
         # is this file one where we sawampersand (or contains an eval that is)?
-        if ($sawampersand_fi && $fi == ($sawampersand_fi->outer || $sawampersand_fi)) {
+        if ($sawampersand_fi
+            && $] < 5.017008
+            && $fi == ($sawampersand_fi->outer || $sawampersand_fi)
+        ) {
             my $in_eval = ($fi == $sawampersand_fi)
                 ? 'here'
                 : sprintf q{<a %s>in eval here</a>}, $reporter->href_for_file($sawampersand_fi, undef, 'line');
