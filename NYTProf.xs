@@ -241,7 +241,7 @@ static struct NYTP_options_t options[] = {
 #define profile_subs options[1].option_iv
     { "subs", 1, NULL },                                /* subroutine times */
 #define profile_blocks options[2].option_iv
-    { "blocks", 1, NULL },                              /* block and sub *exclusive* times */
+    { "blocks", 0, NULL },                              /* block and sub *exclusive* times */
 #define profile_leave options[3].option_iv
     { "leave", 1, NULL },                               /* correct block end timing */
 #define embed_fid_line options[4].option_iv
@@ -269,7 +269,7 @@ static struct NYTP_options_t options[] = {
 #define opt_nameanonsubs options[15].option_iv
     { "nameanonsubs", 1, NULL },                       /* change $^P 0x200 bit */
 #define opt_calls options[16].option_iv
-    { "calls", 0, NULL },                              /* output call/return event stream */
+    { "calls", 1, NULL },                              /* output call/return event stream */
 #define opt_evals options[17].option_iv
     { "evals", 0, NULL }                               /* handling of string evals - TBD XXX */
 };
@@ -4570,8 +4570,7 @@ load_profile_data_from_stream(loader_callback *callbacks,
                 if (c == NYTP_TAG_TIME_BLOCK) {
                     block_line_num = read_u32(in);
                     sub_line_num = read_u32(in);
-                    if (profile_blocks)
-                        tag = nytp_time_block;
+                    tag = nytp_time_block;
                 }
 
                 /* Because it happens that the two "optional" arguments are
