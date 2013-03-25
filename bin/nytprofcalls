@@ -16,6 +16,7 @@ require Devel::NYTProf::Data;
 
 our $VERSION = '4.23';
     
+use Data::Dumper;
 use Getopt::Long;
 use Carp;
 
@@ -50,8 +51,14 @@ my %subname2id;
 my $sibling_avoided = 0;
 my $siblings_max = 0;
 
+my %option;
+my %attribute;
+
 
 my $callbacks = {
+
+    OPTION    => sub { my (undef, $k, $v) = @_; $option{$k} = $v },
+    ATTRIBUTE => sub { my (undef, $k, $v) = @_; $attribute{$k} = $v },
 
     SUB_ENTRY => sub {
         my (undef, $fid, $line) = @_;
@@ -123,6 +130,9 @@ visit_node($root, [], sub {
         if @$path;
 });
 
+my $val_scale_factor = ($opt_calls) ? 1 : 1_000_000 / $attribute{ticks_per_sec};
+# XXX could be smarter here
+my $val_format = ($opt_calls || $val_scale_factor==1) ? "%s %d\n" : "%s %.1f\n";
 
 # ensure subnames don't contain ";" or " "
 tr/; /??/ for values %subname2id;
@@ -134,7 +144,7 @@ my @subidpaths = keys %subidpaths;
 for my $subidpath (@subidpaths) {
     my @path = map { $subid2name{$_} } split ";", $subidpath;
     my $path = join(";", @path);
-    printf "%s %d\n", join(";", @path), $subidpaths{$subidpath};
+    printf $val_format, join(";", @path), $subidpaths{$subidpath} * $val_scale_factor;
 }
 
 warn sprintf "Done. (siblings: avoided $sibling_avoided, max $siblings_max)\n" if $opt_verbose;
