@@ -209,6 +209,18 @@ my %dispatcher =
                  };
          }
      },
+
+    SUB_ENTRY => sub {
+        my (undef, $fid, $line) = @_;
+        confess("No mapping for $fid") unless defined $fids{$fid};
+        $fid = $fids{$fid};
+        $out->write_call_entry($fid, $line);
+    },
+    SUB_RETURN => sub {
+        my (undef, $retn_depth, $incl_time, $excl_time, $subname) = @_;
+        $out->write_call_return($retn_depth, $subname, $incl_time, $excl_time);
+    },
+
      SRC_LINE => sub {
          my (undef, $fid, $line, $text) = @_;
          confess("No mapping for $fid") unless defined $fids{$fid};
@@ -218,7 +230,7 @@ my %dispatcher =
          $fid = $mapped_fid if defined $mapped_fid;
          $out->write_src_line($fid, $line, $text);
      },
-    );
+);
 
 foreach $input (@ARGV) {
     print "Reading $input...\n" if $opt_verbose;
@@ -359,7 +371,7 @@ foreach my $key (sort grep {!$attr_should_be_identical{$_}} keys %attributes) {
     }
     else {
         warn sprintf "Attribute %s has %d distinct values passed through unmerged\n",
-                $key, scalar @values;
+                $key, scalar @values
             if @values > 1;
         $out->write_attribute($key, $_) foreach @values;
     }
