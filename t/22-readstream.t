@@ -37,11 +37,11 @@ for_chunks {
 
 my %option    = map { @$_ } @{$prof{OPTION}};
 cmp_ok scalar keys %option, '>=', 17, 'enough options';
-diag Dumper(\%option);
+#diag Dumper(\%option);
 
 my %attribute = map { @$_ } @{$prof{ATTRIBUTE}};
 cmp_ok scalar keys %attribute, '>=', 9, 'enough attribute';
-diag Dumper(\%attribute);
+#diag Dumper(\%attribute);
 
 ok scalar @seqn, 'should have read chunks';
 is_deeply(\@seqn, [0..@seqn-1], "chunk seq");
