@@ -16,8 +16,6 @@ demo/demo-code.pl
 demo/demo-run.pl
 demo/exclusive-sub-time.pl
 demo/README
-FlameGraph/README
-FlameGraph/flamegraph.pl
 FileHandle.h
 FileHandle.xs
 HACKING
