@@ -52,6 +52,8 @@ run_test_group( {
     },
 } );
 
+exit 0;
+
 __END__
 my $code = 'sub { print "sub called\n" }';
 eval($code)->();
