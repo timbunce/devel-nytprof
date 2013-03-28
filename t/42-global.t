@@ -48,7 +48,7 @@ run_test_group( {
 
         my $subs2 = $profile->subs_defined_in_file($fid);
 
-        eq_or_diff [ keys %$subs2 ], [ keys %$subs1 ],
+        eq_or_diff [ sort keys %$subs2 ], [ sort keys %$subs1 ],
             'keys from subname_subinfo_map and subs_defined_in_file should match';
 
         my @begins = grep { $_->subname =~ /\bBEGIN\b/ } values %$subs2;
