@@ -23,7 +23,7 @@
 # program, which visualized function entry and return trace events.  As Neel
 # wrote: "The output displayed is inspired by Roch's CallStackAnalyzer which
 # was in turn inspired by the work on vftrace by Jan Boerhout".  See:
-# http://blogs.sun.com/realneel/entry/visualizing_callstacks_via_dtrace_and
+# https://blogs.oracle.com/realneel/entry/visualizing_callstacks_via_dtrace_and
 #
 # Copyright 2011 Joyent, Inc.  All rights reserved.
 # Copyright 2011 Brendan Gregg.  All rights reserved.
@@ -319,7 +319,7 @@ foreach my $id (keys %Node) {
 		$info = "$escaped_func ($samples_txt $countname, $pct%)";
 	}
 
-        my $nameattr = { %{ $nameattr{$func}||{} } }; # shallow clone
+        my $nameattr = $nameattr{$func} || {};
         $nameattr->{class}       ||= "func_g";
         $nameattr->{onmouseover} ||= "s('".$info."')";
         $nameattr->{onmouseout}  ||= "c()";
