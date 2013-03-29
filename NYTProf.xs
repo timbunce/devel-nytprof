@@ -1967,7 +1967,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 
     /* statement overheads we've accumulated since we entered the sub */
     overhead_ticks = cumulative_overhead_ticks - subr_entry->initial_overhead_ticks;
-    /* seconds spent in subroutines called by this subroutine */
+    /* ticks spent in subroutines called by this subroutine */
     called_sub_ticks = cumulative_subr_ticks - subr_entry->initial_subr_ticks;
 
     /* calculate ticks since we entered the sub */
@@ -2076,19 +2076,17 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         sv_inc(AvARRAY(subr_call_av)[NYTP_SCi_CALL_COUNT]);
     }
 
-    if (trace_level >= 5)
-        logwarn("%2d <-     %s %"NVff"s excl = %"NVff"s incl - %"NVff"s (%"NVff"-%"NVff"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
-            subr_entry->subr_prof_depth,
-            called_subname_pv,
-            excl_subr_ticks/ticks_per_sec,
-            incl_subr_ticks/ticks_per_sec,
-            called_sub_ticks/ticks_per_sec,
-            cumulative_subr_ticks/ticks_per_sec,
-            subr_entry->initial_subr_ticks/ticks_per_sec,
+    if (trace_level >= 5) {
+        logwarn("%2d <-     %s %"NVgf" excl = %"NVgf"t incl - %"NVgf"t (%"NVgf"-%"NVgf"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
+            subr_entry->subr_prof_depth, called_subname_pv,
+            excl_subr_ticks, incl_subr_ticks,
+            called_sub_ticks,
+            cumulative_subr_ticks, subr_entry->initial_subr_ticks,
             cumulative_overhead_ticks, subr_entry->initial_overhead_ticks, overhead_ticks,
             (int)subr_entry->called_cv_depth,
             subr_entry->caller_fid, subr_entry->caller_line,
             subr_entry->subr_call_seqn, (void*)subr_entry);
+    }
 
     /* only count inclusive time for the outer-most calls */
     if (subr_entry->called_cv_depth <= 1) {
