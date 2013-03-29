@@ -44,6 +44,7 @@ usage() unless @ARGV;
 #
 my $root = {};
 my @stack = ($root);
+my $total_in = 0;
 
 my $last_subid = 0;
 my %subname2id;
@@ -72,6 +73,9 @@ my $callbacks = {
         warn sprintf "< %2d %-10s %s (stack %d)\n", $retn_depth, $subname, $excl_time, scalar @stack
             if $opt_verbose;
 
+        my $v = ($opt_calls) ? 1 : $excl_time;
+        $total_in += $v;
+
         # normalize and merge sibling string evals by setting eval seqn to 0
         $subname =~ s/\( (\w*eval)\s\d+ \) (?= \[ .+? :\d+ \] )/($1 0)/gx;
         # assign an id to the subname for memory efficiency
@@ -89,16 +93,26 @@ my $callbacks = {
             push @stack, ($crnt_node->{0} = {});
         }
 
+        # top of stack:  sub we're returning from
+        # next on stack: sub that was the caller
         my $sub_return = pop @stack;
         my $sub_caller = $stack[-1] || die "panic";
-        delete $sub_caller->{0} or die "panic"; # == $sub_return
-        my $siblings = $sub_caller->{$subid} ||= [];
 
-        my $v = ($opt_calls) ? 1 : $excl_time;
+        die "panic" unless $sub_return == $sub_caller->{0};
+        delete $sub_caller->{0} or die "panic"; # == $sub_return
+
+        # {
+        #   0 - as-yet un-returned subs
+        #   'v' - cumulative excl_time in this sub
+        #   $subid1 => [ {...}, ... ] # calls to $subid1 made by this sub
+        #   $subid2 => [ {...}, ... ]
+        # }
+
+        my $siblings = $sub_caller->{$subid} ||= [];
 
         # optimization: if this node has no children, and the parent already has
         # a node for this subname (@$siblings) then just increment a sibling.
-        if (keys %$sub_return == 1 and @$siblings) {
+        if (0 and keys %$sub_return == 1 and @$siblings) { # XXX buggy
             $siblings->[-1]{v} += $v;
             ++$sibling_avoided;
         }
@@ -131,8 +145,9 @@ visit_node($root, [], sub {
 });
 
 my $val_scale_factor = ($opt_calls) ? 1 : 1_000_000 / $attribute{ticks_per_sec};
-# XXX could be smarter here
+# XXX could be smarter here about the precision
 my $val_format = ($opt_calls || $val_scale_factor==1) ? "%s %d\n" : "%s %.1f\n";
+my $total_out = 0;
 
 # ensure subnames don't contain ";" or " "
 tr/; /??/ for values %subname2id;
@@ -144,14 +159,21 @@ my @subidpaths = keys %subidpaths;
 for my $subidpath (@subidpaths) {
     my @path = map { $subid2name{$_} } split ";", $subidpath;
     my $path = join(";", @path);
-    printf $val_format, join(";", @path), $subidpaths{$subidpath} * $val_scale_factor;
+    my $v = $subidpaths{$subidpath};
+    printf $val_format, join(";", @path), $v * $val_scale_factor;
+    $total_out += $v;
 }
 
-warn sprintf "Done. (siblings: avoided $sibling_avoided, max $siblings_max)\n" if $opt_verbose;
+warn "nytprofcalls inconsistency: total in $total_in doesn't match total out $total_out\n"
+    if $total_in != $total_out;
+
+warn sprintf "Done Total $total_in (siblings: avoided $sibling_avoided, max $siblings_max)\n"
+    if $opt_verbose;
+
 exit 0;
 
 
-sub visit_node {
+sub visit_node { # depth first
     my $node = shift;
     my $path = shift;
     my $sub  = shift;
@@ -159,11 +181,13 @@ sub visit_node {
     warn "visit_node: @{[ %$node ]}\n" if $opt_debug;
 
     push @$path, undef;
-    for (keys %$node) {
-        next unless /^[0-9]/;
-        warn "> $_\n" if $opt_debug;
-        $path->[-1] = $_;
-        visit_node($_, $path, $sub) for @{ $node->{$_} };
+    for my $subid (keys %$node) {
+        next if $subid eq 'v';
+        die "panic" if $subid eq '0';
+
+        $path->[-1] = $subid;
+        warn "node @$path: @{ $node->{$subid} }\n" if $opt_debug;
+        visit_node($_, $path, $sub) for @{ $node->{$subid} };
     }
     pop @$path;
 
