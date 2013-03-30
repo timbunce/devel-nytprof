@@ -5,7 +5,7 @@
 # code using a command like
 # make && NYTPROF_TEST=trace=3 perl -Mblib test.pl -leave=1 -use_db_sub=0 t/test70-subexcl.*
 
-my $T = 0.2;
+my $T = $ENV{NYTPROF_TEST_PAUSE_TIME} || 0.2;
 
 sub A {     # inclusive ~= $T, exclusive ~= $T
     select undef, undef, undef, $T;

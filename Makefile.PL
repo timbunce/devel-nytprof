@@ -152,13 +152,14 @@ WriteMakefile(
     PREREQ_PM => {
         'List::Util'   => 0,
         'Test::More'   => '0.84',
+        'Test::Differences' => '0.60',
         'XSLoader'     => 0,
         'Getopt::Long' => 0,
         'JSON::Any'    => 0,
     },
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
-    EXE_FILES => ['bin/nytprofhtml', 'bin/nytprofcsv', 'bin/nytprofcalls', 'bin/nytprofcg', 'bin/nytprofmerge'],
+    EXE_FILES => ['bin/nytprofhtml', 'bin/flamegraph.pl', 'bin/nytprofcsv', 'bin/nytprofcalls', 'bin/nytprofcg', 'bin/nytprofmerge'],
     @man,
     INC   => $INCLUDE,
     clean => {

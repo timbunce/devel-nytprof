@@ -27,6 +27,8 @@ B<Note:> The documentation for this module is currently incomplete and out of da
 
 =head1 FUNCTIONS
 
+=encoding ISO8859-1
+
 =cut
 
 
@@ -181,7 +183,7 @@ sub fmt_time {
     return sprintf $fmt_time_opt, $sec if $fmt_time_opt;
     return sprintf "%$width.0fs", 0    unless $sec;
     return sprintf "%$width.0fns",                              $sec * 1e9 if $sec < 1e-6;
-    return sprintf "%$width.0f&micro;s",                        $sec * 1e6 if $sec < 1e-3;
+    return sprintf "%$width.0fµs",                              $sec * 1e6 if $sec < 1e-3;
     return sprintf "%$width.*fms", 3 - length(int($sec * 1e3)), $sec * 1e3 if $sec < 1;
     return sprintf "%$width.*fs",  3 - length(int($sec      )), $sec       if $sec < 100;
     return sprintf "%$width.0fs", $sec;

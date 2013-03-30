@@ -223,6 +223,10 @@ sub attributes {
     return shift->{attribute} || {};
 }
 
+sub options {
+    return shift->{option} || {};
+}
+
 sub subname_subinfo_map {
     return { %{ shift->{sub_subinfo} } }; # shallow copy
 }
@@ -587,7 +591,12 @@ filenames: eval sequence numbers, like "(re_eval 2)" are changed to 0
 
 
 sub normalize_variables {
-    my $self       = shift;
+    my ($self, $normalize_options) = @_;
+
+    if ($normalize_options) {
+        %{ $self->options } = ();
+    }
+
     my $attributes = $self->attributes;
 
     for my $attr (qw(

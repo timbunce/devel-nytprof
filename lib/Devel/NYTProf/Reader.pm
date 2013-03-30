@@ -552,15 +552,15 @@ sub _generate_report {
 sub url_for_file {
     my ($self, $file, $anchor, $level) = @_;
     confess "No file specified" unless $file;
+    $level ||= '';
 
-    my $fi = $self->{profile}->fileinfo_of($file);
-    #return "" if $fi->is_fake;
-    $level = 'line' if $fi->is_eval;
+    my $url = $self->{_cache}{"url_for_file,$file,$level"} ||= do {
+        my $fi = $self->{profile}->fileinfo_of($file);
+        $level = 'line' if $fi->is_eval;
+        $self->fname_for_fileinfo($fi, $level) . ".html";
+    };
 
-    my $url = $self->fname_for_fileinfo($fi, $level);
-    $url .= '.html';
     $url .= "#$anchor" if defined $anchor;
-
     return $url;
 }
 

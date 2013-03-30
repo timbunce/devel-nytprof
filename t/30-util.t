@@ -6,7 +6,7 @@ use Devel::NYTProf::Util qw(
     trace_level
 );
 
-my $us = "&micro;s";
+my $us = "µs";
 
 is(fmt_time(0), "0s");
 

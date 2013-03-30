@@ -243,7 +243,7 @@ modules.</p>
 
 </div>\n}
     }
-);
+) if $] < 5.017008;
 
 $reporter->set_param(
     'merged_fids',
@@ -757,10 +757,12 @@ sub output_index_page {
     my $summary = sprintf "Profile of %s for %s (of %s),", $application,
         fmt_time($profile->{attribute}{profiler_active}),
         fmt_time($profile->{attribute}{profiler_duration});
-    $summary .= sprintf " executing %d statements",
+    $summary .= " executing";
+    $summary .= sprintf " %d statements and",
          $profile->{attribute}{total_stmts_measured}
-        -$profile->{attribute}{total_stmts_discounted};
-    $summary .= sprintf " and %d subroutine calls",
+        -$profile->{attribute}{total_stmts_discounted}
+        if $profile->{option}{stmts};
+    $summary .= sprintf " %d subroutine calls",
          $profile->{attribute}{total_sub_calls};
     $summary .= sprintf " in %d source files",
         @all_fileinfos - $eval_fileinfos;
@@ -778,6 +780,43 @@ sub output_index_page {
                 $fi->fid, _escape_html($fi->filename);
         }
         print $fh "</select></form></div>\n";
+    }
+
+    my $call_stacks_file = "all_stacks_by_time.calls";
+    my $call_stacks_svg  = "all_stacks_by_time.svg";
+    if ($profile->{option}{calls}) {
+        my $mk_flamegraph = sub {
+
+            warn "Extracting subroutine call data ...\n";
+            system("nytprofcalls $opt_file > $opt_out/$call_stacks_file") == 0
+                or die "Generating $opt_out/$call_stacks_file failed\n";
+
+            my %subname_subinfo_map = %{ $profile->subname_subinfo_map };
+            warn "Extracting subroutine links\n";
+            my $subattr = "$opt_out/flamegraph_subattr.txt";
+            open my $subattrfh, ">", $subattr
+                or die "Error creating $subattr: $!\n";
+            while ( my ($subname, $si) = each %subname_subinfo_map ) {
+                next unless $si->incl_time;
+                print $subattrfh join("\t", $subname,
+                    q{href=}.$reporter->url_for_sub($subname),
+                )."\n";
+            }
+            close $subattrfh or die "Error writing $subattr: $!\n";
+
+            warn "Generating subroutine stack frames flame graph ...\n";
+            my $run_us = $profile->{attribute}{profiler_duration} * 1_000_000;
+            system("flamegraph.pl --nameattr=$subattr --nametype=sub --countname=microseconds --total=$run_us $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
+                or die "Generating $opt_out/$call_stacks_svg failed\n";
+
+            print $fh qq{<div class="flamegraph">\n};
+            print $fh qq{<object data="$call_stacks_svg" width="1200" type="image/svg+xml" >SVG not supported</object>\n};
+            print $fh qq{<p>The <a href="http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/">Flame Graph</a> above is a visualization of the inclusive time spent in distinct call stacks. The colors and x-axis position are not meaningful.</p>\n};
+            print $fh qq{</div>\n};
+            1;
+        };
+        eval { $mk_flamegraph->() }
+            or warn $@;
     }
 
     # Show top subs across all files
@@ -1356,7 +1395,10 @@ sub output_file_table {
             $eval_time  = sum(map { $_->sum_of_stmts_time  } @has_evals);
         }
         # is this file one where we sawampersand (or contains an eval that is)?
-        if ($sawampersand_fi && $fi == ($sawampersand_fi->outer || $sawampersand_fi)) {
+        if ($sawampersand_fi
+            && $] < 5.017008
+            && $fi == ($sawampersand_fi->outer || $sawampersand_fi)
+        ) {
             my $in_eval = ($fi == $sawampersand_fi)
                 ? 'here'
                 : sprintf q{<a %s>in eval here</a>}, $reporter->href_for_file($sawampersand_fi, undef, 'line');
@@ -1587,7 +1629,7 @@ EOD
             // console.log(orig);
             var val = orig.replace(/ns/,'');
             if (val != orig) { return val / (1000*1000*1000); } 
-            val = orig.replace(/[µ\xB5]s/,''); /* allow for browser encoding XXX use &micro; ? */
+            val = orig.replace(/[µ\xB5]s/,''); /* micro */
             if (val != orig) { return val / (1000*1000); } 
             val = orig.replace(/ms/,'');
             if (val != orig) { return val / (1000); }
@@ -1853,6 +1895,10 @@ pre,.s {
     text-align:center;
     font-style: italic;
     padding-top: 5px; color: gray;
+}
+
+.flamegraph {
+    margin: 20px 0px;
 }
 
 EOD

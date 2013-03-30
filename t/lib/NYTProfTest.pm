@@ -34,7 +34,7 @@ my %opts = (
     html         => $ENV{NYTPROF_TEST_HTML},
     mergerdt     => $ENV{NYTPROF_TEST_MERGERDT}, # overkill, but handy
 );
-GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s leave=i use_db_sub=i savesrc=i compress=i one abort/)
+GetOptions(\%opts, qw/p=s I=s v|verbose d|debug html open profperlopts=s blocks=i leave=i use_db_sub=i savesrc=i compress=i one abort/)
     or exit 1;
 
 $opts{v}    ||= $opts{d};
@@ -97,11 +97,13 @@ if ($opts{one}) {           # for one quick test
     $opts{savesrc}    = 1;
     $opts{compress}   = 1;
     $opts{calls}      = 2;
+    $opts{blocks}     = 1;
 }
 
 # force savesrc off for perl 5.11.2 due to perl bug RT#70804
 $opts{savesrc} = 0 if $] eq "5.011002";
 
+my @test_opt_blocks     = (defined $opts{blocks})     ? ($opts{blocks})     : (1);
 my @test_opt_leave      = (defined $opts{leave})      ? ($opts{leave})      : (0, 1);
 my @test_opt_use_db_sub = (defined $opts{use_db_sub}) ? ($opts{use_db_sub}) : (0, 1);
 my @test_opt_savesrc    = (defined $opts{savesrc})    ? ($opts{savesrc})    : (0, 1);
@@ -113,29 +115,32 @@ sub mk_opt_combinations {
 
     my @opt_combinations;
     my %seen;
+
+    for my $blocks (@test_opt_blocks) {
     for my $leave (@test_opt_leave) {
-        for my $use_db_sub (@test_opt_use_db_sub) {
-            for my $savesrc (@test_opt_savesrc) {
-                for my $compress (@test_opt_compress) {
-                    my $o = {
-                        start      => 'init',
-                        slowops    => 2,
-                        leave      => $leave,
-                        use_db_sub => $use_db_sub,
-                        savesrc    => $savesrc,
-                        compress   => $compress,
-                        # we don't need to test the 'calls' opt with all other combinations
-                        # so we fudge it here to be on most, but not all, of the time
-                        calls      => (!!$savesrc + !!$compress), # 0|1|2
-                        ($overrides) ? %$overrides : (),
-                    };
-                    my $key = join "\t", map { "$_=>$o->{$_}" } sort keys %$o;
-                    next if $seen{$key}++;
-                    push @opt_combinations, $o;
-                }
-            }
-        }
-    }
+    for my $use_db_sub (@test_opt_use_db_sub) {
+    for my $savesrc (@test_opt_savesrc) {
+    for my $compress (@test_opt_compress) {
+
+            my $o = {
+                start      => 'init',
+                slowops    => 2,
+                blocks     => $blocks,
+                leave      => $leave,
+                use_db_sub => $use_db_sub,
+                savesrc    => $savesrc,
+                compress   => $compress,
+                # we don't need to test the 'calls' opt with all other combinations
+                # so we fudge it here to be on most, but not all, of the time
+                calls      => (!!$savesrc + !!$compress), # 0|1|2
+                ($overrides) ? %$overrides : (),
+            };
+            my $key = join "\t", map { "$_=>$o->{$_}" } sort keys %$o;
+            next if $seen{$key}++;
+            push @opt_combinations, $o;
+
+    } } } } }
+
     @opt_combinations = shuffle @opt_combinations;
     return \@opt_combinations;
 }
@@ -422,7 +427,7 @@ sub verify_data {
     SKIP: {
         skip 'Expected profile data does not have VMS paths', 1
             if $^O eq 'VMS' and $test =~ m/test60|test14/i;
-        $profile->normalize_variables;
+        $profile->normalize_variables(1); # and options
         dump_profile_to_file($profile, $test.'_new', $test.'_newp');
         is_file_content_same($test.'_new', $test, "$test match generated profile data for $tag");
     }

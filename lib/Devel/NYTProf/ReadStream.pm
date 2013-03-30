@@ -144,6 +144,12 @@ The path to the program that ran; same as C<$0> in the program itself.
 
 =back
 
+=item OPTION => $key, $value
+
+This chunk type is repeated at the beginning of the file and used to record the
+options, e.g. set via the NYTPROF env var, that were effect during the
+profiling run.
+
 =item START_DEFLATE
 
 This chunk just say that from now on all chunks have been compressed

@@ -23,7 +23,7 @@
 # program, which visualized function entry and return trace events.  As Neel
 # wrote: "The output displayed is inspired by Roch's CallStackAnalyzer which
 # was in turn inspired by the work on vftrace by Jan Boerhout".  See:
-# http://blogs.sun.com/realneel/entry/visualizing_callstacks_via_dtrace_and
+# https://blogs.oracle.com/realneel/entry/visualizing_callstacks_via_dtrace_and
 #
 # Copyright 2011 Joyent, Inc.  All rights reserved.
 # Copyright 2011 Brendan Gregg.  All rights reserved.
@@ -47,10 +47,13 @@
 #
 # CDDL HEADER END
 #
+# 17-Mar-2013   Tim Bunce       Added options and more tunables.
 # 15-Dec-2011	Dave Pacheco	Support for frames with whitespace.
 # 10-Sep-2011	Brendan Gregg	Created this.
 
 use strict;
+
+use Getopt::Long;
 
 # tunables
 my $fonttype = "Verdana";
@@ -58,14 +61,45 @@ my $imagewidth = 1200;		# max width, pixels
 my $frameheight = 16;		# max height is dynamic
 my $fontsize = 12;		# base text size
 my $minwidth = 0.1;		# min function width, pixels
+my $titletext = "Flame Graph";  # centered heading
+my $nametype = "Function:";     # what are the names in the data?
+my $countname = "samples";      # what are the counts in the data?
+my $nameattrfile;               # file holding function attributes
+my $timemax;                    # (override the) sum of the counts
+
+GetOptions(
+    'fonttype=s'   => \$fonttype,
+    'width=i'      => \$imagewidth,
+    'height=i'     => \$frameheight,
+    'fontsize=i'   => \$fontsize,
+    'minwidth=f'   => \$minwidth,
+    'title=s'      => \$titletext,
+    'nametype=s'   => \$nametype,
+    'countname=s'  => \$countname,
+    'nameattr=s'   => \$nameattrfile,
+    'total=s'      => \$timemax,
+) or exit 1;
+
 
 # internals
 my $ypad1 = $fontsize * 4;	# pad top, include title
 my $ypad2 = $fontsize * 2 + 10;	# pad bottom, include labels
 my $xpad = 10;			# pad lefm and right
-my $timemax = 0;
 my $depthmax = 0;
 my %Events;
+my %nameattr;
+
+if ($nameattrfile) {
+    # The name-attribute file format is a function name followed by a tab then
+    # a sequence of tab separated name=value pairs.
+    open my $attrfh, $nameattrfile or die "Can't read $nameattrfile: $!\n";
+    while (<$attrfh>) {
+        chomp;
+        my ($funcname, $attrstr) = split /\t/, $_, 2;
+        die "Invalid format in $nameattrfile" unless defined $attrstr;
+        $nameattr{$funcname} = { map { split /=/, $_, 2 } split /\t/, $attrstr };
+    }
+}
 
 # SVG functions
 { package SVG;
@@ -81,7 +115,7 @@ my %Events;
 		$self->{svg} .= <<SVG;
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" width="$w" height="$h" onload="init(evt)" viewBox="0 0 $w $h" xmlns="http://www.w3.org/2000/svg" >
+<svg version="1.1" width="$w" height="$h" onload="init(evt)" viewBox="0 0 $w $h" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 SVG
 	}
 
@@ -93,6 +127,34 @@ SVG
 	sub colorAllocate {
 		my ($self, $r, $g, $b) = @_;
 		return "rgb($r,$g,$b)";
+	}
+
+	sub group_start {
+		my ($self, $attr) = @_;
+
+		my @g_attr = map {
+			exists $attr->{$_} ? sprintf(qq/$_="%s"/, $attr->{$_}) : ()
+		} qw(class style onmouseover onmouseout);
+		push @g_attr, $attr->{g_extra} if $attr->{g_extra};
+		$self->{svg} .= sprintf qq/<g %s>\n/, join(' ', @g_attr);
+
+		$self->{svg} .= sprintf qq/<title>%s<\/title>/, $attr->{title}
+			if $attr->{title}; # should be first element within g container
+
+		if ($attr->{href}) {
+			my @a_attr;
+			push @a_attr, sprintf qq/xlink:href="%s"/, $attr->{href} if $attr->{href};
+                        # default target=_top else links will open within SVG <object>
+			push @a_attr, sprintf qq/target="%s"/, $attr->{target} || "_top";
+			push @a_attr, $attr->{a_extra}                           if $attr->{a_extra};
+			$self->{svg} .= sprintf qq/<a %s>/, join(' ', @a_attr);
+		}
+	}
+
+	sub group_end {
+		my ($self, $attr) = @_;
+		$self->{svg} .= qq/<\/a>\n/ if $attr->{href};
+		$self->{svg} .= qq/<\/g>\n/;
 	}
 
 	sub filledRectangle {
@@ -134,54 +196,61 @@ my %Node;
 my %Tmp;
 
 sub flow {
-	my ($a, $b, $v) = @_;
-	my @A = split ";", $a;
-	my @B = split ";", $b;
+	my ($last, $this, $v) = @_;
 
-	my $len_a = $#A;
-	my $len_b = $#B;
+	my $len_a = @$last - 1;
+	my $len_b = @$this - 1;
 	$depthmax = $len_b if $len_b > $depthmax;
 
 	my $i = 0;
-	my $len_same = 0;
+	my $len_same;
 	for (; $i <= $len_a; $i++) {
 		last if $i > $len_b;
-		last if $A[$i] ne $B[$i];
+		last if $last->[$i] ne $this->[$i];
 	}
 	$len_same = $i;
 
 	for ($i = $len_a; $i >= $len_same; $i--) {
-		my $k = "$A[$i]--$i";
-		# a unique ID is constructed from func--depth--etime;
+		my $k = "$last->[$i];$i";
+		# a unique ID is constructed from "func;depth;etime";
 		# func-depth isn't unique, it may be repeated later.
-		$Node{"$k--$v"}->{stime} = $Tmp{$k}->{stime};
-		delete $Tmp{$k}->{stime};
+		$Node{"$k;$v"}->{stime} = delete $Tmp{$k}->{stime};
 		delete $Tmp{$k};
 	}
 
 	for ($i = $len_same; $i <= $len_b; $i++) {
-		my $k = "$B[$i]--$i";
+		my $k = "$this->[$i];$i";
 		$Tmp{$k}->{stime} = $v;
 	}
+
+        return $this;
 }
 
 # Parse input
 my @Data = <>;
-my $last = "";
+my $last = [];
 my $time = 0;
+my $ignored = 0;
 foreach (sort @Data) {
 	chomp;
-	my ($stack, $samples) = (/^(.*)\s+(\d+)$/);
-	$stack =~ s/</(/g;
-	$stack =~ s/>/)/g;
-	$stack = ";$stack";
-	next unless defined $samples;
-	flow($last, $stack, $time);
+	my ($stack, $samples) = (/^(.*)\s+(\d+(?:\.\d*)?)$/);
+	unless (defined $samples) {
+            ++$ignored;
+            next;
+        }
+	$stack =~ tr/<>/()/;
+	$last = flow($last, [ '', split ";", $stack ], $time);
 	$time += $samples;
-	$last = $stack;
 }
-flow($last, "", $time);
-$timemax = $time or die "ERROR: No stack counts found\n";
+flow($last, [], $time);
+warn "Ignored $ignored lines with invalid format\n" if $ignored;
+die "ERROR: No stack counts found\n" unless $time;
+
+if ($timemax and $timemax < $time) {
+    warn "Specified --total $timemax is less than actual total $time, so ignored\n";
+    undef $timemax;
+}
+$timemax ||= $time;
 
 # Draw canvas
 my $widthpertime = ($imagewidth - 2 * $xpad) / $timemax;
@@ -196,14 +265,13 @@ my $inc = <<INC;
 	</linearGradient>
 </defs>
 <style type="text/css">
-	rect[rx]:hover { stroke:black; stroke-width:1; }
-	text:hover { stroke:black; stroke-width:1; stroke-opacity:0.35; }
+	.func_g:hover { stroke:black; stroke-width:0.5; }
 </style>
 <script type="text/ecmascript">
 <![CDATA[
 	var details;
 	function init(evt) { details = document.getElementById("details").firstChild; }
-	function s(info) { details.nodeValue = info; }
+	function s(info) { details.nodeValue = "$nametype " + info; }
 	function c() { details.nodeValue = ' '; }
 ]]>
 </script>
@@ -216,16 +284,16 @@ my ($white, $black, $vvdgrey, $vdgrey) = (
 	$im->colorAllocate(40, 40, 40),
 	$im->colorAllocate(160, 160, 160),
     );
-$im->stringTTF($black, $fonttype, $fontsize + 5, 0.0, int($imagewidth / 2), $fontsize * 2, "Flame Graph", "middle");
-$im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad, $imageheight - ($ypad2 / 2), 'Function:');
-$im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad + 60, $imageheight - ($ypad2 / 2), " ", "", 'id="details"');
+$im->stringTTF($black, $fonttype, $fontsize + 5, 0.0, int($imagewidth / 2), $fontsize * 2, $titletext, "middle");
+$im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad, $imageheight - ($ypad2 / 2), " ", "", 'id="details"');
 
 # Draw frames
 foreach my $id (keys %Node) {
-	my ($func, $depth, $etime) = split "--", $id;
+	my ($func, $depth, $etime) = split ";", $id;
 	die "missing start for $id" if !defined $Node{$id}->{stime};
 	my $stime = $Node{$id}->{stime};
-	my $samples = $etime - $stime;
+
+	$etime = $timemax if $func eq "" and $depth == 0;
 
 	my $x1 = $xpad + $stime * $widthpertime;
 	my $x2 = $xpad + $etime * $widthpertime;
@@ -235,18 +303,29 @@ foreach my $id (keys %Node) {
 	my $y1 = $imageheight - $ypad2 - ($depth + 1) * $frameheight + 1;
 	my $y2 = $imageheight - $ypad2 - $depth * $frameheight;
 
+	my $samples = sprintf "%.0f", $etime - $stime;
+        (my $samples_txt = $samples) # add commas per perlfaq5
+            =~ s/(^[-+]?\d+?(?=(?>(?:\d{3})+)(?!\d))|\G\d{3}(?=\d))/$1,/g;
+
 	my $info;
 	if ($func eq "" and $depth == 0) {
-		$info = "all samples ($samples samples, 100%)";
+		$info = "all ($samples_txt $countname, 100%)";
 	} else {
 		my $pct = sprintf "%.2f", ((100 * $samples) / $timemax);
 		my $escaped_func = $func;
 		$escaped_func =~ s/&/&amp;/g;
 		$escaped_func =~ s/</&lt;/g;
 		$escaped_func =~ s/>/&gt;/g;
-		$info = "$escaped_func ($samples samples, $pct%)";
+		$info = "$escaped_func ($samples_txt $countname, $pct%)";
 	}
-	$im->filledRectangle($x1, $y1, $x2, $y2, color("hot"), 'rx="2" ry="2" onmouseover="s(' . "'$info'" . ')" onmouseout="c()"');
+
+        my $nameattr = $nameattr{$func} || {};
+        $nameattr->{class}       ||= "func_g";
+        $nameattr->{onmouseover} ||= "s('".$info."')";
+        $nameattr->{onmouseout}  ||= "c()";
+        $im->group_start($nameattr);
+
+	$im->filledRectangle($x1, $y1, $x2, $y2, color("hot"), 'rx="2" ry="2"');
 
 	if ($width > 50) {
 		my $chars = int($width / (0.7 * $fontsize));
@@ -255,9 +334,10 @@ foreach my $id (keys %Node) {
 		$text =~ s/&/&amp;/g;
 		$text =~ s/</&lt;/g;
 		$text =~ s/>/&gt;/g;
-		$im->stringTTF($black, $fonttype, $fontsize, 0.0, $x1 + 3, 3 + ($y1 + $y2) / 2, $text, "",
-		    'onmouseover="s(' . "'$info'" . ')" onmouseout="c()"');
+		$im->stringTTF($black, $fonttype, $fontsize, 0.0, $x1 + 3, 3 + ($y1 + $y2) / 2, $text, "");
 	}
+
+        $im->group_end($nameattr);
 }
 
 print $im->svg;

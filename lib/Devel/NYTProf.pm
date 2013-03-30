@@ -370,13 +370,12 @@ If you find any other examples of the effect of optimizer on NYTProf output
 
 Set to 0 to disable the collection of subroutine caller and timing details.
 
-=head2 blocks=0
+=head2 blocks=1
 
-Set to 0 to disable the determination of block and subroutine location per statement.
-This makes the profiler about 50% faster (as of July 2008) and produces smaller
-output files, but you lose some valuable information. The extra cost is likely
-to be reduced in later versions anyway, as little optimization has been done on
-that part of the code.
+Set to 1 to enable the determination of block and subroutine location per statement.
+This makes the profiler about 50% slower (as of July 2008) and produces larger
+output files, but you gain some valuable insight in where time is spent in the
+blocks within large subroutines and scripts.
 
 =head2 stmts=0
 
@@ -387,17 +386,24 @@ This significantly reduces the overhead of the profiler and can also be useful
 for profiling large applications that would normally generate a very large
 profile data file.
 
-=head2 calls=1
+=head2 calls=N
 
-Emit subroutine call entry and return events into the event stream.
 This option is I<new and experimental> and so likely to change.
+
+With calls=1 (the default) subroutine call I<return> events are emitted into
+the data stream as they happen.  With calls=2 subroutine call I<entry> events
+are also emitted. With calls=0 no subroutine call events are produced.
+This option depends on the C<subs> option being enabled, which it is by default.
+
+The L<nytprofcalls> utility can be used to process this data. It too is I<new
+and experimental> and so likely to change.
 
 The subroutine profiler normally gathers data in memory and outputs a summary
 when the profile data is being finalized, usually when the program has finished.
 The summary contains aggregate information for all the calls from one location
 to another, but the details of individual calls have been lost.
 
-The calls=1 option enables the recording of individual call events and thus
+The calls option enables the recording of individual call events and thus
 more detailed analysis and reporting of that data.
 
 =head2 leave=0
