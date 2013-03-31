@@ -144,8 +144,8 @@ visit_node($root, [], sub {
         if @$path;
 });
 
-my $val_scale_factor = ($opt_calls) ? 1 : 1_000_000 / $attribute{ticks_per_sec};
-# XXX could be smarter here about the precision
+# output the totals without scaling, so they're in ticks_per_sec units
+my $val_scale_factor = 1; # ($opt_calls) ? 1 : 1_000_000 / $attribute{ticks_per_sec};
 my $val_format = ($opt_calls || $val_scale_factor==1) ? "%s %d\n" : "%s %.1f\n";
 my $total_out = 0;
 
