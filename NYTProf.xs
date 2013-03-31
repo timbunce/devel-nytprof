@@ -2995,8 +2995,8 @@ init_profiler(pTHX)
     _init_profiler_clock(aTHX);
 
     if (trace_level)
-        logwarn("~ init_profiler for pid %d, clock %ld, start %d, perldb 0x%lx, exitf 0x%lx\n",
-            last_pid, profile_clock, profile_start,
+        logwarn("~ init_profiler for pid %d, clock %ld, tps %d, start %d, perldb 0x%lx, exitf 0x%lx\n",
+            last_pid, profile_clock, ticks_per_sec, profile_start,
             (long unsigned)PL_perldb, (long unsigned)PL_exit_flags);
 
     if (get_hv("DB::sub", 0) == NULL) {
