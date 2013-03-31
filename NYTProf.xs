@@ -1708,7 +1708,7 @@ open_output_file(pTHX_ char *filename)
             filename, fopen_errno, strerror(fopen_errno), hint);
     }
     if (trace_level >= 1)
-        logwarn("~ opened %s\n", filename);
+        logwarn("~ opened %s at %.6f\n", filename, gettimeofday_nv());
 
     output_header(aTHX);
 }
@@ -1738,7 +1738,7 @@ close_output_file(pTHX) {
     out = NULL;
 
     if (trace_level >= 1)
-        logwarn("~ closed file.\n");
+        logwarn("~ closed file at %.6f\n", timeofday);
 }
 
 
@@ -2890,8 +2890,8 @@ finish_profile(pTHX)
 #endif
 
     if (trace_level >= 1)
-        logwarn("~ finish_profile (overhead %"NVff"s, is_profiling %d)\n",
-            cumulative_overhead_ticks/ticks_per_sec, is_profiling);
+        logwarn("~ finish_profile (overhead %gt, is_profiling %d)\n",
+            cumulative_overhead_ticks, is_profiling);
 
     /* write data for final statement, unless DB_leave has already */
     if (!profile_leave || opt_use_db_sub)
@@ -4241,7 +4241,7 @@ load_pid_end_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 
     store_attrib_sv(aTHX_ state->attr_hv, STR_WITH_LEN("profiler_end_time"),
                     newSVnv(end_time));
-    state->profiler_duration += end_time - state->profiler_start_time;
+    state->profiler_duration += state->profiler_end_time - state->profiler_start_time;
     store_attrib_sv(aTHX_ state->attr_hv, STR_WITH_LEN("profiler_duration"),
                     newSVnv(state->profiler_duration));
 
