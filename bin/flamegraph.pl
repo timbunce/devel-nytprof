@@ -202,6 +202,7 @@ sub flow {
 
 	my $len_a = @$last - 1;
 	my $len_b = @$this - 1;
+	$depthmax = $len_b if $len_b > $depthmax;
 
 	my $i = 0;
 	my $len_same;
@@ -248,28 +249,14 @@ warn "Ignored $ignored lines with invalid format\n" if $ignored;
 die "ERROR: No stack counts found\n" unless $time;
 
 if ($timemax and $timemax < $time) {
-    warn "Specified --total $timemax is less than actual total $time, so ignored\n";
+    warn "Specified --total $timemax is less than actual total $time, so ignored\n"
+        if $timemax/$time > 0.02; # only warn is significant (e.g., not rounding etc)
     undef $timemax;
 }
 $timemax ||= $time;
 
-my $widthpertime = ($imagewidth - 2 * $xpad) / $timemax;
-my $minwidth_time = $minwidth / $widthpertime;
-
-# prune blocks that are too narrow and determine max depth
-while (my ($id, $node) = each %Node) {
-	my ($func, $depth, $etime) = split ";", $id;
-	my $stime = $node->{stime};
-	die "missing start for $id" if not defined $stime;
-
-	if (($etime-$stime) < $minwidth_time) {
-	    delete $Node{$id};
-	    next;
-	}
-	$depthmax = $depth if $depth > $depthmax;
-}
-
 # Draw canvas
+my $widthpertime = ($imagewidth - 2 * $xpad) / $timemax;
 my $imageheight = ($depthmax * $frameheight) + $ypad1 + $ypad2;
 my $im = SVG->new();
 $im->header($imagewidth, $imageheight);
@@ -304,15 +291,18 @@ $im->stringTTF($black, $fonttype, $fontsize + 5, 0.0, int($imagewidth / 2), $fon
 $im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad, $imageheight - ($ypad2 / 2), " ", "", 'id="details"');
 
 # Draw frames
-
-while (my ($id, $node) = each %Node) {
+foreach my $id (keys %Node) {
 	my ($func, $depth, $etime) = split ";", $id;
-	my $stime = $node->{stime};
+	die "missing start for $id" if !defined $Node{$id}->{stime};
+	my $stime = $Node{$id}->{stime};
 
 	$etime = $timemax if $func eq "" and $depth == 0;
 
 	my $x1 = $xpad + $stime * $widthpertime;
 	my $x2 = $xpad + $etime * $widthpertime;
+	my $width = $x2 - $x1;
+	next if $width < $minwidth;
+
 	my $y1 = $imageheight - $ypad2 - ($depth + 1) * $frameheight + 1;
 	my $y2 = $imageheight - $ypad2 - $depth * $frameheight;
 
@@ -340,7 +330,6 @@ while (my ($id, $node) = each %Node) {
 
 	$im->filledRectangle($x1, $y1, $x2, $y2, color("hot"), 'rx="2" ry="2"');
 
-	my $width = $x2 - $x1;
 	if ($width > 50) {
 		my $chars = int($width / (0.7 * $fontsize));
 		my $text = substr $func, 0, $chars;
