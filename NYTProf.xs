@@ -188,14 +188,18 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 static PerlInterpreter *orig_my_perl;
 #endif
 
-typedef struct hash_entry
-{
-    unsigned int id;
-    void* next_entry;
-    char* key;
-    void* next_inserted;  /* linked list in insertion order */
+typedef struct hash_entry Hash_entry;
 
+struct hash_entry {
+    unsigned int id;
+    Hash_entry* next_entry;
+    char* key;
+    Hash_entry* next_inserted;  /* linked list in insertion order */
     unsigned int key_len;
+};
+
+typedef struct {
+    Hash_entry he;
     unsigned int eval_fid;
     unsigned int eval_line_num;
     unsigned int file_size;
@@ -203,7 +207,7 @@ typedef struct hash_entry
     unsigned int fid_flags;
     char *key_abs;
     /* update autosplit logic in get_file_id if fields are added or changed */
-} Hash_entry;
+} fid_hash_entry;
 
 typedef struct hash_table
 {
@@ -216,7 +220,7 @@ typedef struct hash_table
     unsigned int next_id;       /* starts at 1, 0 is reserved */
 } Hash_table;
 
-static Hash_table fidhash = { NULL, MAX_HASH_SIZE, sizeof(Hash_entry), NULL, NULL, NULL, 1 };
+static Hash_table fidhash = { NULL, MAX_HASH_SIZE, sizeof(fid_hash_entry), NULL, NULL, NULL, 1 };
 /* END Hash table definitions */
 
 
@@ -650,7 +654,7 @@ hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool inse
             return 0;
         }
 
-        if (NULL == (Hash_entry*)found->next_entry) {
+        if (NULL == found->next_entry) {
             if (insert) {
 
                 Hash_entry* e;
@@ -663,7 +667,7 @@ hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool inse
                 e->key[e->key_len] = '\0';
                 memcpy(e->key, entry->key, e->key_len);
                 found->next_entry = e;
-                *retval = (Hash_entry*)found->next_entry;
+                *retval = found->next_entry;
                 hashtable->prior_inserted = hashtable->last_inserted;
                 hashtable->last_inserted = e;
                 return 1;
@@ -673,7 +677,7 @@ hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool inse
                 return -1;
             }
         }
-        found = (Hash_entry*)found->next_entry;
+        found = found->next_entry;
     }
 
     if (insert) {
@@ -703,10 +707,10 @@ hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool inse
 
 
 static void
-emit_fid (Hash_entry *fid_info)
+emit_fid (fid_hash_entry *fid_info)
 {
-    char  *file_name     = fid_info->key;
-    STRLEN file_name_len = fid_info->key_len;
+    char  *file_name     = fid_info->he.key;
+    STRLEN file_name_len = fid_info->he.key_len;
     if (fid_info->key_abs) {
         file_name = fid_info->key_abs;
         file_name_len = strlen(file_name);
@@ -730,7 +734,7 @@ emit_fid (Hash_entry *fid_info)
     }
 #endif
 
-    NYTP_write_new_fid(out, fid_info->id, fid_info->eval_fid,
+    NYTP_write_new_fid(out, fid_info->he.id, fid_info->eval_fid,
                        fid_info->eval_line_num, fid_info->fid_flags,
                        fid_info->file_size, fid_info->file_mtime,
                        file_name, (I32)file_name_len);
@@ -739,11 +743,11 @@ emit_fid (Hash_entry *fid_info)
 
 /* return true if file is a .pm that was actually loaded as a .pmc */
 static int
-fid_is_pmc(pTHX_ Hash_entry *fid_info)
+fid_is_pmc(pTHX_ fid_hash_entry *fid_info)
 {
     int is_pmc = 0;
-    char  *file_name     = fid_info->key;
-    STRLEN len = fid_info->key_len;
+    char  *file_name     = fid_info->he.key;
+    STRLEN len = fid_info->he.key_len;
     if (fid_info->key_abs) {
         file_name = fid_info->key_abs;
         len = strlen(file_name);
@@ -799,23 +803,23 @@ fmt_fid_flags(pTHX_ int fid_flags, char *buf, Size_t len) {
 static void
 write_cached_fids()
 {
-    Hash_entry *e = fidhash.first_inserted;
+    fid_hash_entry *e = (fid_hash_entry*)fidhash.first_inserted;
     while (e) {
         if ( !(e->fid_flags & NYTP_FIDf_IS_ALIAS) )
             emit_fid(e);
-        e = (Hash_entry *)e->next_inserted;
+        e = (fid_hash_entry*)e->he.next_inserted;
     }
 }
 
 
-static Hash_entry *
+static fid_hash_entry *
 find_autosplit_parent(pTHX_ char* file_name)
 {
     /* extract basename from file_name, then search for most recent entry
      * in fidhash that has the same basename
      */
-    Hash_entry *e = fidhash.first_inserted;
-    Hash_entry *match = NULL;
+    fid_hash_entry *e = (fid_hash_entry*)fidhash.first_inserted;
+    fid_hash_entry *match = NULL;
     const char *sep = "/";
     char *base_end   = strstr(file_name, " (autosplit");
     char *base_start = rninstr(file_name, base_end, sep, sep+1);
@@ -827,28 +831,28 @@ find_autosplit_parent(pTHX_ char* file_name)
         logwarn("find_autosplit_parent of '%.*s' (%s)\n",
             (int)base_len, base_start, file_name);
 
-    for ( ; e; e = (Hash_entry *)e->next_inserted) {
+    for ( ; e; e = (fid_hash_entry*)e->he.next_inserted) {
         char *e_name;
 
         if (e->fid_flags & NYTP_FIDf_IS_AUTOSPLIT)
             continue;
         if (trace_level >= 4)
-            logwarn("find_autosplit_parent: checking '%.*s'\n", e->key_len, e->key);
+            logwarn("find_autosplit_parent: checking '%.*s'\n", e->he.key_len, e->he.key);
 
         /* skip if key is too small to match */
-        if (e->key_len < base_len)
+        if (e->he.key_len < base_len)
             continue;
         /* skip if the last base_len bytes don't match the base name */
-        e_name = e->key + e->key_len - base_len;
+        e_name = e->he.key + e->he.key_len - base_len;
         if (memcmp(e_name, base_start, base_len) != 0)
             continue;
         /* skip if the char before the matched key isn't a separator */
-        if (e->key_len > base_len && *(e_name-1) != *sep)
+        if (e->he.key_len > base_len && *(e_name-1) != *sep)
             continue;
 
         if (trace_level >= 3)
             logwarn("matched autosplit '%.*s' to parent fid %d '%.*s' (%c|%c)\n",
-                (int)base_len, base_start, e->id, e->key_len, e->key, *(e_name-1),*sep);
+                (int)base_len, base_start, e->he.id, e->he.key_len, e->he.key, *(e_name-1),*sep);
         match = e;
         /* keep looking, so we'll return the most recently profiled match */
     }
@@ -886,21 +890,21 @@ static unsigned int
 get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 {
 
-    Hash_entry entry, *found, *parent_entry;
+    fid_hash_entry entry, *found, *parent_entry;
     AV *src_av = Nullav;
 
     if (0) memset(&entry, 0, sizeof(entry)); /* handy if debugging */
-    entry.key = file_name;
-    entry.key_len = (unsigned int)file_name_len;
+    entry.he.key = file_name;
+    entry.he.key_len = (unsigned int)file_name_len;
 
-    if (1 != hash_op(&fidhash, &entry, &found, (bool)(created_via ? 1 : 0))) {
+    if (1 != hash_op(&fidhash, (Hash_entry*)&entry, (Hash_entry**)&found, (bool)(created_via ? 1 : 0))) {
         /* found existing entry or else didn't but didn't create new one either */
         if (trace_level >= 7) {
             if (found)
-                 logwarn("fid %d: %.*s\n",  found->id, found->key_len, found->key);
-            else logwarn("fid -: %.*s not profiled\n",  entry.key_len,  entry.key);
+                 logwarn("fid %d: %.*s\n",  found->he.id, found->he.key_len, found->he.key);
+            else logwarn("fid -: %.*s not profiled\n",  entry.he.key_len,  entry.he.key);
         }
-        return (found) ? found->id : 0;
+        return (found) ? found->he.id : 0;
     }
     /* inserted new entry */
     if (fidhash.prior_inserted)
@@ -974,7 +978,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         && (parent_entry = find_autosplit_parent(aTHX_ file_name))
     ) {
         /* copy some details from parent_entry to found */
-        found->id            = parent_entry->id;
+        found->he.id         = parent_entry->he.id;
         found->eval_fid      = parent_entry->eval_fid;
         found->eval_line_num = parent_entry->eval_line_num;
         found->file_size     = parent_entry->file_size;
@@ -987,11 +991,11 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         /* write a log message if tracing */
         if (trace_level >= 2)
             logwarn("Use fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s\n",
-                found->id, last_executed_fid, last_executed_line,
+                found->he.id, last_executed_fid, last_executed_line,
                 found->fid_flags, found->eval_fid, found->eval_line_num,
-                found->key_len, found->key, (found->key_abs) ? found->key_abs : "");
+                found->he.key_len, found->he.key, (found->key_abs) ? found->key_abs : "");
         /* bail out without calling emit_fid() */
-        return found->id;
+        return found->he.id;
     }
 
     /* determine absolute path if file_name is relative */
@@ -1050,13 +1054,13 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     /* is source code available? */
     /* source only available if PERLDB_LINE or PERLDB_SAVESRC is true */
     /* which we set if savesrc option is enabled */
-    if ( (src_av = GvAV(gv_fetchfile_flags(found->key, found->key_len, 0))) )
+    if ( (src_av = GvAV(gv_fetchfile_flags(found->he.key, found->he.key_len, 0))) )
         if (av_len(src_av) > -1)
             found->fid_flags |= NYTP_FIDf_HAS_SRC;
 
     /* flag "perl -e '...'" and "perl -" as string evals */
-    if (found->key[0] == '-' && (found->key_len == 1 ||
-                                (found->key[1] == 'e' && found->key_len == 2)))
+    if (found->he.key[0] == '-' && (found->he.key_len == 1 ||
+                                   (found->he.key[1] == 'e' && found->he.key_len == 2)))
         found->fid_flags |= NYTP_FIDf_IS_EVAL;
 
     /* if it's a string eval or a synthetic filename from CODE ref in @INC,
@@ -1065,7 +1069,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
     if (found->eval_fid
     || (found->fid_flags & NYTP_FIDf_IS_EVAL)
     || (profile_opts & NYTP_OPTf_SAVESRC)
-    || (found->key_len > 10 && found->key[9] == 'x' && strnEQ(found->key, "/loader/0x", 10))
+    || (found->he.key_len > 10 && found->he.key[9] == 'x' && strnEQ(found->he.key, "/loader/0x", 10))
     ) {
         found->fid_flags |= NYTP_FIDf_SAVE_SRC;
     }
@@ -1077,14 +1081,14 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         /* including last_executed_fid can be handy for tracking down how
             * a file got loaded */
         logwarn("New fid %2u (after %2u:%-4u) 0x%02x e%u:%u %.*s %s %s\n",
-            found->id, last_executed_fid, last_executed_line,
+            found->he.id, last_executed_fid, last_executed_line,
             found->fid_flags, found->eval_fid, found->eval_line_num,
-            found->key_len, found->key, (found->key_abs) ? found->key_abs : "",
+            found->he.key_len, found->he.key, (found->key_abs) ? found->key_abs : "",
             fmt_fid_flags(aTHX_ found->fid_flags, buf, sizeof(buf))
         );
     }
 
-    return found->id;
+    return found->he.id;
 }
 
 static UV
@@ -3513,7 +3517,7 @@ write_sub_callers(pTHX)
 static void
 write_src_of_files(pTHX)
 {
-    Hash_entry *e;
+    fid_hash_entry *e;
     int t_has_src  = 0;
     int t_save_src = 0;
     int t_no_src = 0;
@@ -3522,10 +3526,10 @@ write_src_of_files(pTHX)
     if (trace_level >= 1)
         logwarn("~ writing file source code\n");
 
-    for (e = fidhash.first_inserted; e; e = (Hash_entry *)e->next_inserted) {
+    for (e = (fid_hash_entry*)fidhash.first_inserted; e; e = (fid_hash_entry*)e->he.next_inserted) {
         I32 lines;
         int line;
-        AV *src_av = GvAV(gv_fetchfile_flags(e->key, e->key_len, 0));
+        AV *src_av = GvAV(gv_fetchfile_flags(e->he.key, e->he.key_len, 0));
 
         if ( !(e->fid_flags & NYTP_FIDf_HAS_SRC) ) {
             char *hint = "";
@@ -3534,13 +3538,13 @@ write_src_of_files(pTHX)
                 hint = " (NYTP_FIDf_HAS_SRC not set but src available!)";
             if (trace_level >= 3 || *hint)
                 logwarn("fid %d has no src saved for %.*s%s\n",
-                    e->id, e->key_len, e->key, hint);
+                    e->he.id, e->he.key_len, e->he.key, hint);
             continue;
         }
         if (!src_av) { /* sanity check */
             ++t_no_src;
             logwarn("fid %d has no src but NYTP_FIDf_HAS_SRC is set! (%.*s)\n",
-                e->id, e->key_len, e->key);
+                e->he.id, e->he.key_len, e->he.key);
             continue;
         }
         ++t_has_src;
@@ -3553,16 +3557,16 @@ write_src_of_files(pTHX)
         lines = av_len(src_av); /* -1 is empty, 1 is 1 line etc, 0 shouldn't happen */
         if (trace_level >= 3)
             logwarn("fid %d has %ld src lines for %.*s\n",
-                e->id, (long)lines, e->key_len, e->key);
+                e->he.id, (long)lines, e->he.key_len, e->he.key);
         for (line = 1; line <= lines; ++line) { /* lines start at 1 */
             SV **svp = av_fetch(src_av, line, 0);
             STRLEN len = 0;
             const char *src = (svp) ? SvPV(*svp, len) : "";
             /* outputting the tag and fid for each (non empty) line
              * is a little inefficient, but not enough to worry about */
-            NYTP_write_src_line(out, e->id, line, src, (I32)len);    /* includes newline */
+            NYTP_write_src_line(out, e->he.id, line, src, (I32)len);    /* includes newline */
             if (trace_level >= 8) {
-                logwarn("fid %d src line %d: %s%s", e->id, line, src,
+                logwarn("fid %d src line %d: %s%s", e->he.id, line, src,
                     (len && src[len-1]=='\n') ? "" : "\n");
             }
             ++t_lines;
