@@ -180,23 +180,35 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_SCi_CALLING_SUB     7   /* name of calling sub */
 #define NYTP_SCi_elements        8   /* highest index, plus 1 */
 
-#define MAX_HASH_SIZE 512
-
 
 /* we're not thread-safe (or even multiplicity safe) yet, so detect and bail */
 #ifdef MULTIPLICITY
 static PerlInterpreter *orig_my_perl;
 #endif
 
+
+#define MAX_HASH_SIZE 512
+
 typedef struct hash_entry Hash_entry;
 
 struct hash_entry {
     unsigned int id;
-    Hash_entry* next_entry;
     char* key;
-    Hash_entry* next_inserted;  /* linked list in insertion order */
     unsigned int key_len;
+    Hash_entry* next_entry;
+    Hash_entry* next_inserted;  /* linked list in insertion order */
 };
+
+typedef struct hash_table {
+    Hash_entry** table;
+    char *name;
+    unsigned int size;
+    unsigned int entry_struct_size;
+    Hash_entry* first_inserted;
+    Hash_entry* prior_inserted; /* = last_inserted before the last insertion */
+    Hash_entry* last_inserted;
+    unsigned int next_id;       /* starts at 1, 0 is reserved */
+} Hash_table;
 
 typedef struct {
     Hash_entry he;
@@ -209,18 +221,8 @@ typedef struct {
     /* update autosplit logic in get_file_id if fields are added or changed */
 } fid_hash_entry;
 
-typedef struct hash_table
-{
-    Hash_entry** table;
-    unsigned int size;
-    unsigned int entry_struct_size;
-    Hash_entry* first_inserted;
-    Hash_entry* prior_inserted; /* = last_inserted before the last insertion */
-    Hash_entry* last_inserted;
-    unsigned int next_id;       /* starts at 1, 0 is reserved */
-} Hash_table;
-
-static Hash_table fidhash = { NULL, MAX_HASH_SIZE, sizeof(fid_hash_entry), NULL, NULL, NULL, 1 };
+static Hash_table fidhash = { NULL, "fid", MAX_HASH_SIZE, sizeof(fid_hash_entry), NULL, NULL, NULL, 1 };
+static Hash_table strhash = { NULL, "str", MAX_HASH_SIZE, sizeof(Hash_entry), NULL, NULL, NULL, 1 };
 /* END Hash table definitions */
 
 
@@ -703,6 +705,42 @@ hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool inse
 
     *retval = NULL;
     return -1;
+}
+
+static void
+hash_stats(Hash_table *hashtable, int verbosity)
+{
+    int idx = 0;
+    int max_chain_len = 0;
+    int buckets = 0;
+    int items = 0;
+
+    if (verbosity)
+        warn("%s hash: size %d\n", hashtable->name, hashtable->size);
+    if (!hashtable->table)
+        return;
+
+    for (idx=0; idx < hashtable->size; ++idx) {
+        int chain_len = 0;
+
+        Hash_entry *found = hashtable->table[idx];
+        if (!found)
+            continue;
+
+        ++buckets;
+        while (NULL != found) {
+            ++chain_len;
+            ++items;
+            found = found->next_entry;
+        }
+        if (verbosity)
+            warn("%s hash[%3d]: %d items\n", hashtable->name, idx, chain_len);
+        if (chain_len > max_chain_len)
+            max_chain_len = chain_len;
+    }
+    /* XXX would be nice to show a histogram of chain lenths */
+    warn("%s hash: %d of %d buckets used, %d items, max chain %d\n",
+        hashtable->name, buckets, hashtable->size, items, max_chain_len);
 }
 
 
@@ -2904,6 +2942,11 @@ finish_profile(pTHX)
     disable_profile(aTHX);
 
     close_output_file(aTHX);
+
+    if (trace_level >= 2) {
+        hash_stats(&fidhash, 0);
+        hash_stats(&strhash, 0);
+    }
 
     /* reset sub profiler data  */
     hv_clear(sub_callers_hv);
