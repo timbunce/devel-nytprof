@@ -194,7 +194,7 @@ typedef struct hash_entry Hash_entry;
 struct hash_entry {
     unsigned int id;
     char* key;
-    unsigned int key_len;
+    int key_len;
     Hash_entry* next_entry;
     Hash_entry* next_inserted;  /* linked list in insertion order */
 };
@@ -222,7 +222,11 @@ typedef struct {
 } fid_hash_entry;
 
 static Hash_table fidhash = { NULL, "fid", MAX_HASH_SIZE, sizeof(fid_hash_entry), NULL, NULL, NULL, 1 };
-static Hash_table strhash = { NULL, "str", MAX_HASH_SIZE, sizeof(Hash_entry), NULL, NULL, NULL, 1 };
+
+typedef struct {
+    Hash_entry he;
+} str_hash_entry;
+static Hash_table strhash = { NULL, "str", MAX_HASH_SIZE, sizeof(str_hash_entry), NULL, NULL, NULL, 1 };
 /* END Hash table definitions */
 
 
@@ -642,15 +646,15 @@ filename_is_eval(const char *filename, STRLEN filename_len)
  * hash_entry in table, insert IGNORED: returns pointer to the actual hash entry
  */
 static char
-hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool insert)
+hash_op(Hash_table *hashtable, char *key, int key_len, Hash_entry** retval, bool insert)
 {
-    unsigned long h = hash(entry->key, entry->key_len) % hashtable->size;
+    unsigned long h = hash(key, key_len) % hashtable->size;
 
     Hash_entry* found = hashtable->table[h];
     while(NULL != found) {
 
-        if (found->key_len == entry->key_len
-        && memEQ(found->key, entry->key, entry->key_len)
+        if (found->key_len == key_len
+        && memEQ(found->key, key, key_len)
         ) {
             *retval = found;
             return 0;
@@ -664,10 +668,10 @@ hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool inse
                 memzero(e, hashtable->entry_struct_size);
                 e->id = hashtable->next_id++;
                 e->next_entry = NULL;
-                e->key_len = entry->key_len;
-                e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
-                e->key[e->key_len] = '\0';
-                memcpy(e->key, entry->key, e->key_len);
+                e->key_len = key_len;
+                e->key = (char*)safemalloc(sizeof(char) * key_len + 1);
+                e->key[key_len] = '\0';
+                memcpy(e->key, key, key_len);
                 found->next_entry = e;
                 *retval = found->next_entry;
                 hashtable->prior_inserted = hashtable->last_inserted;
@@ -688,10 +692,10 @@ hash_op(Hash_table *hashtable, Hash_entry *entry, Hash_entry** retval, bool inse
         memzero(e, hashtable->entry_struct_size);
         e->id = hashtable->next_id++;
         e->next_entry = NULL;
-        e->key_len = entry->key_len;
+        e->key_len = key_len;
         e->key = (char*)safemalloc(sizeof(char) * e->key_len + 1);
         e->key[e->key_len] = '\0';
-        memcpy(e->key, entry->key, e->key_len);
+        memcpy(e->key, key, key_len);
 
         *retval =   hashtable->table[h] = e;
 
@@ -928,19 +932,15 @@ static unsigned int
 get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 {
 
-    fid_hash_entry entry, *found, *parent_entry;
+    fid_hash_entry *found, *parent_entry;
     AV *src_av = Nullav;
 
-    if (0) memset(&entry, 0, sizeof(entry)); /* handy if debugging */
-    entry.he.key = file_name;
-    entry.he.key_len = (unsigned int)file_name_len;
-
-    if (1 != hash_op(&fidhash, (Hash_entry*)&entry, (Hash_entry**)&found, (bool)(created_via ? 1 : 0))) {
+    if (1 != hash_op(&fidhash, file_name, file_name_len, (Hash_entry**)&found, (bool)(created_via ? 1 : 0))) {
         /* found existing entry or else didn't but didn't create new one either */
         if (trace_level >= 7) {
             if (found)
-                 logwarn("fid %d: %.*s\n",  found->he.id, found->he.key_len, found->he.key);
-            else logwarn("fid -: %.*s not profiled\n",  entry.he.key_len,  entry.he.key);
+                 logwarn("fid %d: %.*s\n", found->he.id, found->he.key_len, found->he.key);
+            else logwarn("fid -: %.*s not profiled\n", (int)file_name_len, file_name);
         }
         return (found) ? found->he.id : 0;
     }
@@ -1126,6 +1126,18 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         );
     }
 
+    return found->he.id;
+}
+
+
+/**
+ * Return a unique persistent id number for a string.
+ */
+static unsigned int
+get_str_id(pTHX_ char* str, STRLEN len)
+{
+    str_hash_entry *found;
+    hash_op(&strhash, str, len, (Hash_entry**)&found, 1);
     return found->he.id;
 }
 
