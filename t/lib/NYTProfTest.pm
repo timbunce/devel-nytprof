@@ -9,6 +9,7 @@ use ExtUtils::testlib;
 use Getopt::Long;
 use Test::More;
 use Data::Dumper;
+use File::Spec;
 use File::Temp qw(tempfile);
 use List::Util qw(shuffle);
 
@@ -78,10 +79,10 @@ my $bindir      = (grep {-d} qw(./blib/script ../blib/script))[0] || do {
     warn "Couldn't find blib/script directory, so using $bin";
     $bin;
 };
-my $nytprofcsv   = "$bindir/nytprofcsv";
-my $nytprofcalls = "$bindir/nytprofcalls";
-my $nytprofhtml  = "$bindir/nytprofhtml";
-my $nytprofmerge = "$bindir/nytprofmerge";
+my $nytprofcsv   = File::Spec->catfile($bindir, "nytprofcsv");
+my $nytprofcalls = File::Spec->catfile($bindir, "nytprofcalls");
+my $nytprofhtml  = File::Spec->catfile($bindir, "nytprofhtml");
+my $nytprofmerge = File::Spec->catfile($bindir, "nytprofmerge");
 
 my $path_sep = $Config{path_sep} || ':';
 my $perl5lib = $opts{I} || join($path_sep, @INC);
