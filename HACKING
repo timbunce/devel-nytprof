@@ -357,8 +357,22 @@ We need a start=runtime option to start at the _end_ of any INIT subs.
 (The current start=init option is the closest we have but it's not very
 useful if lots of other work is done in INIT blocks.)
 
-We need an option to discount the time spent in CORE:accept so that time
-pure-perl webservers spend waiting for the next request doesn't distort the
-profile. Possibly straight-forward to implement. The trick is to add the time
-spent in the sub to the statement profiler overhead time, thus getting it
-subtracted from the higher level sub time. Maybe.
+We need an option to discount the time spent in specific subs, like we do for
+CORE:accept so that time pure-perl webservers spend waiting for the next
+request doesn't distort the profile. Probably just needs a hash lookup.
+http://stackoverflow.com/questions/4132270/how-to-ignore-some-subroutine-calls-in-nytprof-reporting/14085984#14085984
+
+Remove nytprofcsv
+
+Add "goto skip_sub_profile;" to this?: (and/or figure out why already_counted++ isn't enough)
+    /* catch profile_subs being turned off by disable_profile call */
+    if (!profile_subs)
+        subr_entry->already_counted++;
+
+study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
+See pg contrib/pg_test_timing/pg_test_timing.c
+
+Show /sys/devices/system/clocksource/clocksource0/available_clocksource
+and /sys/devices/system/clocksource/clocksource0/current_clocksource
+in the Makefile.PL and test output, if present
+
