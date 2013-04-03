@@ -54,12 +54,15 @@ my $siblings_max = 0;
 
 my %option;
 my %attribute;
+my %str;
 
 
 my $callbacks = {
 
     OPTION    => sub { my (undef, $k, $v) = @_; $option{$k} = $v },
     ATTRIBUTE => sub { my (undef, $k, $v) = @_; $attribute{$k} = $v },
+
+    NEW_SID => sub { $str{ $_[1] } = $_[2] },
 
     SUB_ENTRY => sub {
         my (undef, $fid, $line) = @_;
@@ -68,8 +71,9 @@ my $callbacks = {
 
     SUB_RETURN => sub {
         # $retn_depth is the call stack depth of the sub call we're returning from
-        my (undef, $retn_depth, undef, $excl_time, $subname) = @_;
+        my (undef, $retn_depth, undef, $excl_time, $called_subpkg_id, $called_subnam_id) = @_;
 
+        my $subname = "$str{$called_subpkg_id}::$str{$called_subnam_id}";
         warn sprintf "< %2d %-10s %s (stack %d)\n", $retn_depth, $subname, $excl_time, scalar @stack
             if $opt_verbose;
 

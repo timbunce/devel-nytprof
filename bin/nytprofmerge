@@ -47,6 +47,7 @@ my $next_fid = 1;
 my %fid_to_file;
 my %file_to_fid;
 my %fids = (0 => 0);
+my %sids;
 # Similar, but with all evals folded too
 my %fids_folded = (0 => 0);
 
@@ -217,8 +218,8 @@ my %dispatcher =
         $out->write_call_entry($fid, $line);
     },
     SUB_RETURN => sub {
-        my (undef, $retn_depth, $incl_time, $excl_time, $subname) = @_;
-        $out->write_call_return($retn_depth, $subname, $incl_time, $excl_time);
+        my (undef, $retn_depth, $incl_time, $excl_time, $called_subpkg_id, $called_subnam_id) = @_;
+        $out->write_call_return($retn_depth, $called_subpkg_id, $called_subnam_id, $incl_time, $excl_time);
     },
 
      SRC_LINE => sub {
@@ -232,13 +233,23 @@ my %dispatcher =
      },
 );
 
+my $last_sid = 0;
 foreach $input (@ARGV) {
     print "Reading $input...\n" if $opt_verbose;
+    %string_id = ();
     @pending_fids = ();
     %pending_subs = ();
 
     # first pass
     Devel::NYTProf::Data->new({filename => $input, callback => {
+
+        NEW_SID => sub {
+            my (undef, $sid, $str) = @_;
+            return if $string_id{$str};
+            $string_id{$str} = ++$last_sid;
+            $out->write_new_sid($last_sid, $str);
+        },
+
         NEW_FID => sub {
             my (undef, $fid, $eval_fid, $eval_line, $flags, $size, $mtime, $name) = @_;
             my ($new_fid, $new_eval_fid);

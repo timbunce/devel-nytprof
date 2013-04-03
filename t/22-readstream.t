@@ -1,4 +1,5 @@
 use Test::More;
+use Test::Differences;
 
 use strict;
 use Config;
@@ -57,7 +58,7 @@ my @expected_tags = qw(
     COMMENT ATTRIBUTE OPTION DISCOUNT
     SUB_INFO SUB_CALLERS
     PID_START PID_END NEW_FID
-    SUB_ENTRY SUB_RETURN
+    SUB_ENTRY SUB_RETURN NEW_SID
 );
 push @expected_tags, 'TIME_BLOCK' if $option{calls};
 for my $tag (@expected_tags) {
@@ -92,7 +93,9 @@ is_deeply $prof{SUB_CALLERS}, [
 
 is_deeply $prof{SUB_ENTRY}, [ [ 1, 3 ] ], 'SUB_ENTRY args';
 
+eq_or_diff $prof{NEW_SID}, [ [ 1, 'main' ], [ 2, 'A' ] ], 'NEW_SID args';
+
 $prof{SUB_RETURN}[0][$_] = 0 for (1,2);
-is_deeply $prof{SUB_RETURN}, [ [ 1, 0, 0, 'main::A' ] ], 'SUB_RETURN args';
+eq_or_diff $prof{SUB_RETURN}, [ [ 1, 0, 0, 1, 2 ] ], 'SUB_RETURN args';
 
 done_testing();

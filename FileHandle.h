@@ -61,6 +61,7 @@ const char *NYTP_type_of_offset(NYTP_file file);
 #define NYTP_TAG_START_DEFLATE   'z' 
 #define NYTP_TAG_SUB_ENTRY       '>'
 #define NYTP_TAG_SUB_RETURN      '<'
+#define NYTP_TAG_NEW_SID         '$'
 /* also add new items to nytp_tax_index below */
 
 typedef enum {      /* XXX keep in sync with various *_callback strucures */
@@ -83,6 +84,7 @@ typedef enum {      /* XXX keep in sync with various *_callback strucures */
     nytp_start_deflate,
     nytp_sub_entry,
     nytp_sub_return,
+    nytp_new_sid,
     nytp_tag_max /* keep last */
 } nytp_tax_index;
 
@@ -123,8 +125,10 @@ size_t NYTP_write_src_line(NYTP_file ofile, U32 fid,
                         U32 line, const char *text, I32 text_len);
 size_t NYTP_write_discount(NYTP_file ofile);
 size_t NYTP_write_call_entry(NYTP_file ofile, U32 caller_fid, U32 caller_line);
-size_t NYTP_write_call_return(NYTP_file ofile, U32 prof_depth, const char *called_subname_pv,
+size_t NYTP_write_call_return(NYTP_file ofile, U32 prof_depth,
+                        int called_subpkg_id, int called_subnam_id,
                         NV incl_subr_ticks, NV excl_subr_ticks);
+size_t NYTP_write_new_sid(NYTP_file ofile, U32 id, const char* str, I32 len);
 
 
 /* XXX

@@ -787,7 +787,7 @@ output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signif
  * Output a double precision float via a simple binary write of the memory.
  * (Minor portbility issues are seen as less important than speed and space.)
  */
-size_t
+static size_t
 output_nv(NYTP_file file, NV nv)
 {
     return NYTP_write(file, (unsigned char *)&nv, sizeof(NV));
@@ -1142,7 +1142,8 @@ NYTP_write_call_entry(NYTP_file ofile, U32 caller_fid, U32 caller_line)
 }
 
 size_t
-NYTP_write_call_return(NYTP_file ofile, U32 prof_depth, const char *called_subname_pv,
+NYTP_write_call_return(NYTP_file ofile, U32 prof_depth,
+    int called_subpkg_id, int called_subnam_id,
     NV incl_subr_ticks, NV excl_subr_ticks)
 {
     size_t total;
@@ -1160,9 +1161,11 @@ NYTP_write_call_return(NYTP_file ofile, U32 prof_depth, const char *called_subna
     if (retval < 1)
         return retval;
 
-    if (!called_subname_pv)
-        called_subname_pv = "(null)";
-    total += retval = output_str(ofile, called_subname_pv, strlen(called_subname_pv));
+    total += retval = output_u32(ofile, called_subpkg_id);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_u32(ofile, called_subnam_id);
     if (retval < 1)
         return retval;
 
@@ -1276,6 +1279,23 @@ NYTP_write_discount(NYTP_file ofile)
 {
     const unsigned char tag = NYTP_TAG_DISCOUNT;
     return NYTP_write(ofile, &tag, sizeof(tag));
+}
+
+size_t
+NYTP_write_new_sid(NYTP_file ofile, U32 sid, const char* str, I32 len)
+{
+    size_t total;
+    size_t retval;
+
+    total = retval = output_tag_u32(ofile, NYTP_TAG_NEW_SID, sid);
+    if (retval < 1)
+        return retval;
+
+    total += retval = output_str(ofile, str, len);
+    if (retval < 1)
+        return retval;
+
+    return total;
 }
 
 
@@ -1438,10 +1458,11 @@ U32 caller_fid
 U32 caller_line
 
 size_t
-NYTP_write_call_return(handle, prof_depth, called_subname_pv, incl_subr_ticks, excl_subr_ticks)
+NYTP_write_call_return(handle, prof_depth, called_subpkg_id, called_subnam_id, incl_subr_ticks, excl_subr_ticks)
 NYTP_file handle
 U32 prof_depth
-const char *called_subname_pv
+int called_subpkg_id
+int called_subnam_id
 NV incl_subr_ticks
 NV excl_subr_ticks
 
@@ -1513,3 +1534,15 @@ NYTP_file handle
 U32 major
 U32 minor
 
+size_t
+NYTP_write_new_sid(handle, sid, str)
+NYTP_file handle
+U32 sid
+SV *str
+    PREINIT:
+        STRLEN len;
+        const char *const p = SvPV(str, len);
+    CODE:
+        RETVAL = NYTP_write_new_sid(handle, sid, p, SvUTF8(str) ? -(I32)len : (I32)len);
+    OUTPUT:
+        RETVAL

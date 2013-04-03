@@ -589,9 +589,9 @@ read_str(pTHX_ NYTP_file ifile, SV *sv) {
  * An implementation of the djb2 hash function by Dan Bernstein.
  */
 static unsigned long
-hash (char* _str, unsigned int len)
+hash (const char* _str, unsigned int len)
 {
-    char* str = _str;
+    const char* str = _str;
     unsigned long hash = 5381;
 
     while (len--) {
@@ -646,7 +646,7 @@ filename_is_eval(const char *filename, STRLEN filename_len)
  * hash_entry in table, insert IGNORED: returns pointer to the actual hash entry
  */
 static char
-hash_op(Hash_table *hashtable, char *key, int key_len, Hash_entry** retval, bool insert)
+hash_op(Hash_table *hashtable, const char *key, int key_len, Hash_entry** retval, bool insert)
 {
     unsigned long h = hash(key, key_len) % hashtable->size;
 
@@ -1134,12 +1134,19 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
  * Return a unique persistent id number for a string.
  */
 static unsigned int
-get_str_id(pTHX_ char* str, STRLEN len)
+get_str_id(pTHX_ const char *str, STRLEN len)
 {
     str_hash_entry *found;
-    hash_op(&strhash, str, len, (Hash_entry**)&found, 1);
+    if (hash_op(&strhash, str, len, (Hash_entry**)&found, 1)) {
+        if (out)
+            NYTP_write_new_sid(out, found->he.id, str, len);
+        else if (trace_level)
+            logwarn("NYTProf profile closed so can't save string '%.*s' (id %d)\n",
+                    found->he.key_len, found->he.key, found->he.id);
+    }
     return found->he.id;
 }
+
 
 static UV
 uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
@@ -2052,6 +2059,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     if (subr_call_key_len >= sizeof(subr_call_key))
         croak("panic: NYTProf buffer overflow on %s\n", subr_call_key);
 
+int called_subpkg_id, called_subnam_id;
+
     /* compose called_subname_pv as "${pkg}::${sub}" avoiding sprintf */
     STMT_START {
         STRLEN len;
@@ -2071,6 +2080,9 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
             /* C string constants have a trailing '\0'.  */
             p = "(null)"; len = 6;
         }
+called_subpkg_id = get_str_id(subr_entry->called_subpkg_pv, strlen(subr_entry->called_subpkg_pv));
+called_subnam_id = get_str_id(p, len);
+
         memcpy(called_subname_pv_end, p, len + 1);
         called_subname_pv_end += len;
         if (called_subname_pv_end >= called_subname_pv+sizeof(called_subname_pv))
@@ -2160,7 +2172,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     sv_setnv(excl_time_sv, SvNV(excl_time_sv)+excl_subr_ticks);
 
     if (opt_calls && out) {
-        NYTP_write_call_return(out, subr_entry->subr_prof_depth, called_subname_pv, incl_subr_ticks, excl_subr_ticks);
+        NYTP_write_call_return(out, subr_entry->subr_prof_depth, called_subpkg_id, called_subnam_id, incl_subr_ticks, excl_subr_ticks);
     }
 
     subr_entry_destroy(aTHX_ subr_entry);
@@ -3075,6 +3087,10 @@ init_profiler(pTHX)
     /* create file id mapping hash */
     fidhash.table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * fidhash.size);
     memset(fidhash.table, 0, sizeof(Hash_entry*) * fidhash.size);
+
+    /* create string id mapping hash */
+    strhash.table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * strhash.size);
+    memset(strhash.table, 0, sizeof(Hash_entry*) * strhash.size);
 
     open_output_file(aTHX_ PROF_output_file);
 
@@ -4395,7 +4411,8 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
     {STR_WITH_LEN("[string utf8]"), NULL},
     {STR_WITH_LEN("START_DEFLATE"), ""},
     {STR_WITH_LEN("SUB_ENTRY"), "uu"},
-    {STR_WITH_LEN("SUB_RETURN"), "unns"}
+    {STR_WITH_LEN("SUB_RETURN"), "unnuu"},
+    {STR_WITH_LEN("NEW_SID"), "us"}
 };
 
 static void
@@ -4522,6 +4539,7 @@ static loader_callback perl_callbacks[nytp_tag_max] =
     load_perl_callback,
     load_perl_callback,
     load_perl_callback,
+    load_perl_callback,
     load_perl_callback
 };
 static loader_callback processing_callbacks[nytp_tag_max] =
@@ -4542,9 +4560,10 @@ static loader_callback processing_callbacks[nytp_tag_max] =
     load_pid_end_callback,
     0, /* string */
     0, /* string utf8 */
+    0, /* start deflate */
     0, /* sub entry */
     0, /* sub return */
-    0  /* start deflate */
+    0  /* new sid */
 };
 
 /**
@@ -4682,10 +4701,11 @@ load_profile_data_from_stream(loader_callback *callbacks,
                 unsigned int depth = read_u32(in);
                 NV incl_time       = read_nv(in);
                 NV excl_time       = read_nv(in);
-                SV *subname = read_str(aTHX_ in, NULL);
+                U32 called_subpkg_id = read_u32(in);
+                U32 called_subnam_id = read_u32(in);
 
                 if (callbacks[nytp_sub_return])
-                    callbacks[nytp_sub_return](state, nytp_sub_return, depth, incl_time, excl_time, subname);
+                    callbacks[nytp_sub_return](state, nytp_sub_return, depth, incl_time, excl_time, called_subpkg_id, called_subnam_id);
                 break;
             }
 
@@ -4819,6 +4839,16 @@ load_profile_data_from_stream(loader_callback *callbacks,
 #else
                 croak("File uses compression but compression is not supported by this build of NYTProf");
 #endif
+                break;
+            }
+
+            case NYTP_TAG_NEW_SID:                             /* string */
+            {
+                U32 sid = read_u32(in);
+                SV *str = read_str(aTHX_ in, tmp_str1_sv); /* (re)use tmp sv */
+
+                if (callbacks[nytp_new_sid])
+                    callbacks[nytp_new_sid](state, nytp_new_sid, sid, str);
                 break;
             }
 
