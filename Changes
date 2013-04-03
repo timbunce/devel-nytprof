@@ -4,43 +4,22 @@ Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
-TODO
-
-study http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
-and reference in our docs. See pg contrib/pg_test_timing/pg_test_timing.c
-
-http://stackoverflow.com/questions/4132270/how-to-ignore-some-subroutine-calls-in-nytprof-reporting/14085984#14085984
-
-Add "goto skip_sub_profile;" to this?: (and/or figure out why already_counted++ isn't enough)
-    /* catch profile_subs being turned off by disable_profile call */
-    if (!profile_subs)
-        subr_entry->already_counted++;
-
-Remove nytprofcsv (last, as one commit, so reinstatable if anyone shouts)
-
-Show /sys/devices/system/clocksource/clocksource0/available_clocksource
-and /sys/devices/system/clocksource/clocksource0/current_clocksource
-in the Makefile.PL and test output, if present
-
-Hide the SVG package in flamegraph.pl from the indexer
-
-Check performance calls=1 vs blocks=1
-
 =head2 Changes in Devel::NYTProf 5.00 - XXX
 
   Added subroutine entry and return event stream,
     controlled via the calls=N option. Default calls=1.
 
-  Added nytprofcalls command to process the call event stream to generate a
-    call tree.
+  Added nytprofcalls command to process the call event stream to
+    generate a call tree (experimental).
 
   Added Flame Graph visualization SVG using the generated call tree.
 
-  Fixed test for perl 5.17+ hash randomization.
-
   Changed blocks=N option to be 0 (disabled) by default.
 
+  Fixed test for perl 5.17+ hash randomization.
+  Fixed nytprofhtml for Windows thanks to Jan Dubois.
   No longer warn about $&, $` and $' being slow if $] >= 5.017008.
+  Deprecated nytprofcsv.
 
 =head2 Changes in Devel::NYTProf 4.25 - 6th Feb 2013
 
