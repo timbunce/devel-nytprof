@@ -388,7 +388,7 @@ profile data file.
 
 =head2 calls=N
 
-This option is I<new and experimental> and so likely to change.
+This option is I<new and experimental>.
 
 With calls=1 (the default) subroutine call I<return> events are emitted into
 the data stream as they happen.  With calls=2 subroutine call I<entry> events
@@ -402,7 +402,6 @@ The subroutine profiler normally gathers data in memory and outputs a summary
 when the profile data is being finalized, usually when the program has finished.
 The summary contains aggregate information for all the calls from one location
 to another, but the details of individual calls have been lost.
-
 The calls option enables the recording of individual call events and thus
 more detailed analysis and reporting of that data.
 
@@ -787,20 +786,20 @@ You can reduce the cost of profiling by adjusting some options. The trade-off
 is reduced detail and/or accuracy in reports.
 
 If you don't need statement-level profiling then you can disable it via L</stmts=0>.
-If you do want it but don't mind loosing block-level timings then set L</blocks=0>.
 To further boost statement-level profiling performance try L</leave=0> but note that
 I<will> apportion timings for some kinds of statements less accurate).
 
+If you don't need calls stacks or flamegrph then disable it via L</calls=0>.
 If you don't need subroutine profiling then you can disable it via L</subs=0>.
 If you do need it but don't need timings for perl opcodes then set L</slowops=0>.
 
-Generally speaking, setting blocks=0 and slowops=0 will give you a useful boost
+Generally speaking, setting calls=0 and slowops=0 will give you a useful boost
 with the least loss of detail.
 
 Another approach is to only enable NYTProf in the sections of code that
 interest you. See L</RUN-TIME CONTROL OF PROFILING> for more details.
 
-To speed up L<nytprofhtml> try using the --minimal (-m) option.
+To speed up L<nytprofhtml> try using the --minimal (-m) or --no-flame options.
 
 =head1 REPORTS
 
@@ -820,14 +819,14 @@ Creates attractive, richly annotated, and fully cross-linked html
 reports (including statistics, source code and color highlighting).
 This is the main report generation tool for NYTProf.
 
-=head2 nytprofcsv
-
-Creates comma delimited profile reports. Old and limited.
-
 =head2 nytprofcg
 
 Translates a profile into a format that can be loaded into KCachegrind
 L<http://kcachegrind.sourceforge.net>
+
+=head2 nytprofcalls
+
+Reads a profile and processes the calls events it contains.
 
 =head2 nytprofmerge
 
@@ -999,6 +998,10 @@ Relevant specifications and manual pages:
 Why 'realtime' can appear to go backwards:
 
   http://preview.tinyurl.com/5wawnn
+
+The PostgreSQL pg_test_timing utility documentation has a good summary of timing issues:
+
+  http://www.postgresql.org/docs/9.2/static/pgtesttiming.html
 
 =for comment
 http://preview.tinyurl.com/5wawnn redirects to:
