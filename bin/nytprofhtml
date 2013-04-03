@@ -88,6 +88,7 @@ GetOptions(
     'open!'     => \my $opt_open,
     'help|h'    => sub { exit usage() },
     'minimal|m!'=> \my $opt_minimal,
+    'flame!'    => \(my $opt_flame = 1),
     'mergeevals!'=> \(my $opt_mergeevals = 1),
     'profself!'     => sub { }, # handled in BEGIN above
     'debug!'        => \my $opt_debug,
@@ -104,6 +105,7 @@ usage: [perl] nytprofhtml [opts]
  --delete,      -d         Delete any old report files in <dir> first
  --open                    Open the generated report in a web browser
  --lib <lib>,   -l <lib>   Add <lib> to the beginning of \@INC
+ --no-flame                Disable flame graph (and call stacks processing)
  --minimal,     -m         Don't generate graphviz .dot files or block/sub-level reports
  --no-mergeevals           Disable merging of string evals
  --help,        -h         Print this message
@@ -784,7 +786,7 @@ sub output_index_page {
 
     my $call_stacks_file = "all_stacks_by_time.calls";
     my $call_stacks_svg  = "all_stacks_by_time.svg";
-    if ($profile->{option}{calls}) {
+    if ($profile->{option}{calls} && $opt_flame) {
         my $mk_flamegraph = sub {
 
             warn "Extracting subroutine call data ...\n";
@@ -1958,6 +1960,12 @@ used by the code. Should not be needed in practice.
 Make your web browser visit the report after it has been generated.
 
 If this doesn't work well for you, try installing the L<Browser::Open> module.
+
+=item --no-flame
+
+Disable generation of the framegraph on the index page.
+Also disables calculation of distinct call stacks that are used to produce the
+flamegraph.
 
 =item -h, --help
 
