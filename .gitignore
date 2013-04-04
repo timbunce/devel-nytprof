@@ -1,9 +1,14 @@
 # /
+FileHandle.c
+FileHandle.o
 MANIFEST.bak
 MYMETA.json
 MYMETA.yml
 Makefile
 Makefile.old
+NYTProf.bs
+NYTProf.c
+NYTProf.o
 blib/
 *.tar.gz
 *.o
@@ -11,6 +16,7 @@ blib/
 *.bs
 *.out
 .*.swp
+nytprof-50-errno.out
 /t/*.new
 /t/*.newp
 /t/*.out

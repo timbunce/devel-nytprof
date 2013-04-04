@@ -374,7 +374,7 @@ static SV *DB_CHECK_cv;
 static SV *DB_INIT_cv;
 static SV *DB_END_cv;
 static SV *DB_fin_cv;
-static char *class_mop_evaltag     = " defined at ";
+static const char *class_mop_evaltag     = " defined at ";
 static int   class_mop_evaltag_len = 12;
 
 static unsigned int ticks_per_sec = 0;            /* 0 forces error if not set */
@@ -572,7 +572,7 @@ read_str(pTHX_ NYTP_file ifile, SV *sv) {
 
     if (trace_level >= 19) {
         STRLEN len2 = len;
-        char *newline = "";
+        const char *newline = "";
         if (buf[len2-1] == '\n') {
             --len2;
             newline = "\\n";
@@ -1999,7 +1999,6 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     NV  incl_subr_ticks, excl_subr_ticks;
     SV *sv_tmp;
     AV *subr_call_av;
-
     time_of_day_t sub_end_time;
     long ticks, overflow;
 
@@ -3275,7 +3274,7 @@ parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *la
     if ('-' == *++last) { /* skip past dash, is next char a minus? */
         warn("Negative last line number in %%DB::sub entry '%s' for %s\n",
             filename, sub_name);
-        last = "0";
+        last = (char *)"0";
     }
     if (last_line_p)
         *last_line_p = atoi(last);
@@ -3587,7 +3586,7 @@ write_src_of_files(pTHX)
         AV *src_av = GvAV(gv_fetchfile_flags(e->he.key, e->he.key_len, 0));
 
         if ( !(e->fid_flags & NYTP_FIDf_HAS_SRC) ) {
-            char *hint = "";
+            const char *hint = "";
             ++t_no_src;
             if (src_av && av_len(src_av) > -1) /* sanity check */
                 hint = " (NYTP_FIDf_HAS_SRC not set but src available!)";
@@ -3822,6 +3821,7 @@ static void
 load_discount_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
+    PERL_UNUSED_ARG(tag);
 
     if (trace_level >= 8)
         logwarn("discounting next statement after %u:%d\n",

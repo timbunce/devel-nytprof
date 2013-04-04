@@ -17,7 +17,8 @@ Changes - History of significant changes in Devel::NYTProf
   Changed blocks=N option to be 0 (disabled) by default.
 
   Fixed test for perl 5.17+ hash randomization.
-  Fixed nytprofhtml for Windows thanks to Jan Dubois.
+  Fixed nytprofhtml for Windows thanks to Jan Dubois. PR#2
+  Fixed assorted nits thanks to Steve Peters. PR#1
   No longer warn about $&, $` and $' being slow if $] >= 5.017008.
   Deprecated nytprofcsv.
 
