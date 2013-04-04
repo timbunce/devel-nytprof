@@ -5,8 +5,10 @@
 benchmark.pl
 bin/nytprofcg
 bin/nytprofcsv
+bin/nytprofcalls
 bin/nytprofhtml
 bin/nytprofmerge
+bin/flamegraph.pl
 Changes
 demo/1m_stmts.pl
 demo/benchmark.pl

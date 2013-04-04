@@ -19,8 +19,8 @@ Changes - History of significant changes in Devel::NYTProf
   Fixed test for perl 5.17+ hash randomization.
   Fixed nytprofhtml for Windows thanks to Jan Dubois. PR#2
   Fixed assorted nits thanks to Steve Peters. PR#1
+  Deprecated nytprofcsv - speak up if you use it!
   No longer warn about $&, $` and $' being slow if $] >= 5.017008.
-  Deprecated nytprofcsv.
 
 =head2 Changes in Devel::NYTProf 4.25 - 6th Feb 2013
 
