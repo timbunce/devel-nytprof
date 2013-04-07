@@ -4682,7 +4682,7 @@ load_profile_data_from_stream(loader_callback *callbacks,
                 unsigned int depth = read_u32(in);
                 NV incl_time       = read_nv(in);
                 NV excl_time       = read_nv(in);
-                SV *subname = read_str(aTHX_ in, NULL);
+                SV *subname = read_str(aTHX_ in, tmp_str1_sv);
 
                 if (callbacks[nytp_sub_return])
                     callbacks[nytp_sub_return](state, nytp_sub_return, depth, incl_time, excl_time, subname);
