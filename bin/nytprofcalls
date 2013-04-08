@@ -104,24 +104,12 @@ my $callbacks = {
         # {
         #   0 - as-yet un-returned subs
         #   'v' - cumulative excl_time in this sub
-        #   $subid1 => [ {...}, ... ] # calls to $subid1 made by this sub
-        #   $subid2 => [ {...}, ... ]
+        #   $subid1 => {...} # calls to $subid1 made by this sub
+        #   $subid2 => {...}
         # }
 
-        my $siblings = $sub_caller->{$subid} ||= [];
-
-        # optimization: if this node has no children, and the parent already has
-        # a node for this subname (@$siblings) then just increment a sibling.
-        if (0 and keys %$sub_return == 1 and @$siblings) { # XXX buggy
-            $siblings->[-1]{v} += $v;
-            ++$sibling_avoided;
-        }
-        else {
-            # XXX we should get smarter here about merging instead of pushing
-            $sub_return->{v} += $v;
-            push @$siblings, $sub_return;
-            $siblings_max = @$siblings if @$siblings > $siblings_max;
-        }
+        $sub_return->{v} += $v;
+        _merge_sub_return_into_caller($sub_caller->{$subid} ||= {}, $sub_return);
     },
 };
 
@@ -173,6 +161,20 @@ warn sprintf "Done Total $total_in (siblings: avoided $sibling_avoided, max $sib
 exit 0;
 
 
+sub _merge_sub_return_into_caller {
+    my ($dest, $new, $recurse) = @_;
+    $dest->{v} += delete $new->{v};
+    while ( my ($new_called_subid, $new_called_node) = each %$new ) {
+        if ($dest->{$new_called_subid}) {
+            _merge_sub_return_into_caller($dest->{$new_called_subid}, $new_called_node);
+        }
+        else {
+            $dest->{$new_called_subid} = $new_called_node;
+        }
+    }
+}
+
+
 sub visit_node { # depth first
     my $node = shift;
     my $path = shift;
@@ -181,13 +183,13 @@ sub visit_node { # depth first
     warn "visit_node: @{[ %$node ]}\n" if $opt_debug;
 
     push @$path, undef;
-    for my $subid (keys %$node) {
+    while ( my ($subid, $childnode) = each %$node) {
         next if $subid eq 'v';
         die "panic" if $subid eq '0';
 
         $path->[-1] = $subid;
-        warn "node @$path: @{ $node->{$subid} }\n" if $opt_debug;
-        visit_node($_, $path, $sub) for @{ $node->{$subid} };
+        warn "node @$path: @{[ %$childnode ]}\n" if $opt_debug;
+        visit_node($childnode, $path, $sub);
     }
     pop @$path;
 
