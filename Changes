@@ -4,15 +4,15 @@ Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
-=head2 Changes in Devel::NYTProf 5.00 - XXX
+=head2 Changes in Devel::NYTProf 5.00 - 8th April 2013
 
   Added subroutine entry and return event stream,
     controlled via the calls=N option. Default calls=1.
 
   Added nytprofcalls command to process the call event stream to
-    generate a call tree (experimental).
+    generate timings for distinct call stacks (experimental).
 
-  Added Flame Graph visualization SVG using the generated call tree.
+  Added Flame Graph visualization SVG using the call stack data.
 
   Changed blocks=N option to be 0 (disabled) by default.
 
