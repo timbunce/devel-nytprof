@@ -789,7 +789,9 @@ sub output_index_page {
     if ($profile->{option}{calls} && $opt_flame) {
         my $mk_flamegraph = sub {
 
-            warn "Extracting subroutine call data ...\n";
+            warn sprintf "Extracting subroutine call data%s ...\n",
+                ($profile->{attribute}{total_sub_calls} <= 1_000_000) ? ""
+                : " (there were $profile->{attribute}{total_sub_calls} of them, so this may take some time)";
             system("nytprofcalls $opt_file > $opt_out/$call_stacks_file") == 0
                 or die "Generating $opt_out/$call_stacks_file failed\n";
 
@@ -806,7 +808,7 @@ sub output_index_page {
             }
             close $subattrfh or die "Error writing $subattr: $!\n";
 
-            warn "Generating subroutine stack frames flame graph ...\n";
+            warn "Generating subroutine stack flame graph ...\n";
             # factor to scale the values to microseconds
             my $factor = 1_000_000 / $profile->{attribute}{ticks_per_sec};
             # total (width) for flamegraph is profiler_active in ticks
@@ -817,7 +819,7 @@ sub output_index_page {
 
             print $fh qq{<div class="flamegraph">\n};
             print $fh qq{<object data="$call_stacks_svg" width="1200" type="image/svg+xml" >SVG not supported</object>\n};
-            print $fh qq{<p>The <a href="http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/">Flame Graph</a> above is a visualization of the time spent in distinct call stacks. The colors and x-axis position are not meaningful.</p>\n};
+            print $fh qq{<p>The <a href="http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/">Flame Graph</a> above is a visualization of the time spent in <em>distinct call stacks</em>. The colors and x-axis position are not meaningful.</p>\n};
             print $fh qq{</div>\n};
             1;
         };
