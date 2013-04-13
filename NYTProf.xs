@@ -414,7 +414,7 @@ static HV *pkg_fids_hv;     /* currently just package names */
 #if (PERL_VERSION < 17) || ((PERL_VERSION == 17) && (PERL_SUBVERSION < 7)) || defined(PERL_SAWAMPERSAND)
 static U8 last_sawampersand;
 #define CHECK_SAWAMPERSAND(fid,line) STMT_START { \
-    if ((U8)PL_sawampersand != last_sawampersand) { \
+    if (PL_sawampersand != last_sawampersand) { \
         if (trace_level >= 1) \
             logwarn("Slow regex match variable seen (0x%x->0x%x at %u:%u)\n", PL_sawampersand, last_sawampersand, fid, line); \
         /* XXX this is a hack used by test14 to avoid different behaviour \
