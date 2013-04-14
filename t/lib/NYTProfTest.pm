@@ -339,7 +339,7 @@ sub run_test {
 
         if ($opts{mergerdt}) { # run the file through nytprofmerge
             my $merged = "$profile_datafile.merged";
-            my $merge_cmd = "$nytprofmerge -v --out=$merged $test_datafile";
+            my $merge_cmd = "$perl $nytprofmerge -v --out=$merged $test_datafile";
             warn "$merge_cmd\n";
             system($merge_cmd) == 0
                 or die "Error running $merge_cmd\n";
@@ -487,7 +487,7 @@ sub verify_calls_report {
     my ($test, $tag, $profile_datafile, $outdir) = @_;
     my $got_file = "${test}_new";
     note "generating $got_file";
-    run_command("$nytprofcalls $profile_datafile -stable --calls > $got_file");
+    run_command("$perl $nytprofcalls $profile_datafile -stable --calls > $got_file");
     is_file_content_same($got_file, $test, "$test match generated calls data for $tag");
 }
 
