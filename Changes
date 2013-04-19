@@ -4,10 +4,13 @@ Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
-=head2 Changes in Devel::NYTProf
+=head2 Changes in Devel::NYTProf 5.01 - 19th April 2013
+
+  Fix Windows build RT#84738.
 
   Can't rely on #!-line to always work, PR#3
     thanks to Gisle Aas.
+
   Avoid triggering "gcc internal compiler error" PR#4
     thanks to Gisle Aas.
 
