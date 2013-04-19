@@ -753,6 +753,8 @@ emit_fid (fid_hash_entry *fid_info)
 {
     char  *file_name     = fid_info->he.key;
     STRLEN file_name_len = fid_info->he.key_len;
+    char *file_name_copy = NULL;
+
     if (fid_info->key_abs) {
         file_name = fid_info->key_abs;
         file_name_len = strlen(file_name);
@@ -762,17 +764,11 @@ emit_fid (fid_hash_entry *fid_info)
     /* Make sure we only use forward slashes in filenames */
     if (memchr(file_name, '\\', file_name_len)) {
         STRLEN i;
-        char *file_name_copy = (char*)safemalloc(file_name_len);
+        file_name_copy = (char*)safemalloc(file_name_len);
         for (i=0; i<file_name_len; ++i) {
             char ch = file_name[i];
             file_name_copy[i] = ch == '\\' ? '/' : ch;
         }
-        NYTP_write_new_fid(out, fid_info->id, fid_info->eval_fid,
-                           fid_info->eval_line_num, fid_info->fid_flags,
-                           fid_info->file_size, fid_info->file_mtime,
-                           file_name_copy, (I32)file_name_len);
-        Safefree(file_name_copy);
-        return;
     }
 #endif
 
@@ -780,6 +776,9 @@ emit_fid (fid_hash_entry *fid_info)
                        fid_info->eval_line_num, fid_info->fid_flags,
                        fid_info->file_size, fid_info->file_mtime,
                        file_name, (I32)file_name_len);
+
+    if (file_name_copy)
+        Safefree(file_name_copy);
 }
 
 
