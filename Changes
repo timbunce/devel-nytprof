@@ -4,6 +4,10 @@ Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 5.02 - 21st April 2013
+
+  Fix Windows build, properly RT#84738.
+
 =head2 Changes in Devel::NYTProf 5.01 - 19th April 2013
 
   Fix Windows build RT#84738.

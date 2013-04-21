@@ -769,6 +769,7 @@ emit_fid (fid_hash_entry *fid_info)
             char ch = file_name[i];
             file_name_copy[i] = ch == '\\' ? '/' : ch;
         }
+        file_name = file_name_copy;
     }
 #endif
 
