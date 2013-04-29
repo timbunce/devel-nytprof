@@ -178,6 +178,11 @@ WriteMakefile(
         COMPRESS     => 'gzip -v9',
         SUFFIX       => 'gz',
     },
+    META_MERGE => {
+      resources => {
+        repository => 'https://github.com/timbunce/devel-nytprof',
+      },
+    },
     %mm_opts,
 );
 
