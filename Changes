@@ -4,6 +4,11 @@ Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 5.03
+
+  Fix windows to use flamegraph.bat [Christian Walde]
+  Generates META.yml which mentions github repo [Christian Walde]
+
 =head2 Changes in Devel::NYTProf 5.02 - 21st April 2013
 
   Fix Windows build, properly RT#84738.

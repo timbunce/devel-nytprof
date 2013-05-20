@@ -813,7 +813,8 @@ sub output_index_page {
             my $factor = 1_000_000 / $profile->{attribute}{ticks_per_sec};
             # total (width) for flamegraph is profiler_active in ticks
             my $run_us = $profile->{attribute}{profiler_active} * $profile->{attribute}{ticks_per_sec};
-            my $fg_cmd = "flamegraph.pl --nametype=sub --countname=microseconds";
+            my $extension = $^O eq "MSWin32" ? "" : ".pl";
+            my $fg_cmd = "flamegraph$extension --nametype=sub --countname=microseconds";
             system("$fg_cmd --factor=$factor --nameattr=$subattr --total=$run_us $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
                 or die "Generating $opt_out/$call_stacks_svg failed\n";
 
