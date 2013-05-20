@@ -738,7 +738,7 @@ read_u32(NYTP_file ifile)
             newint = d & 0xF;
             length = 3;
         }
-        else if (d == 0xFF) {                    /* = 32 bits */
+        else { /* d == 0xFF */                   /* = 32 bits */
             newint = 0;
             length = 4;
         }
