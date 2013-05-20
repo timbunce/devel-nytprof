@@ -8,6 +8,7 @@ Changes - History of significant changes in Devel::NYTProf
 
   Fix windows to use flamegraph.bat [Christian Walde]
   Generates META.yml which mentions github repo [Christian Walde]
+  Add meta robots noindex to html pages [Tokuhiro Matsuno]
 
 =head2 Changes in Devel::NYTProf 5.02 - 21st April 2013
 
