@@ -1114,6 +1114,10 @@ it's very likely to be deprecated in a future release).
 L<Devel::NYTProf::ReadStream> is the module that lets you read a profile data
 file as a stream of chunks of data.
 
+Other tools:
+
+DTrace L<https://speakerdeck.com/mrallen1/perl-dtrace-and-you>
+
 =head1 TROUBLESHOOTING
 
 =head2 "Profile data incomplete, ..." or "File format error: ..."
@@ -1208,7 +1212,7 @@ For more details see L</HISTORY> below.
 =head1 COPYRIGHT AND LICENSE
 
   Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
-  Copyright (C) 2008-2010 by Tim Bunce, Ireland.
+  Copyright (C) 2008-2013 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
