@@ -1965,6 +1965,10 @@ Make your web browser visit the report after it has been generated.
 
 If this doesn't work well for you, try installing the L<Browser::Open> module.
 
+=item -m, --minimal
+
+Don't generate graphviz .dot files or block/sub-level reports.
+
 =item --no-flame
 
 Disable generation of the framegraph on the index page.
