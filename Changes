@@ -4,6 +4,10 @@ Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf
+
+  Add libcexit=1 option thanks to Zefram RT#75912
+
 =head2 Changes in Devel::NYTProf 5.03 - 20th May 2013
 
   Fix windows to use flamegraph.bat [Christian Walde]

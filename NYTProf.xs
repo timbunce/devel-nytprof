@@ -292,6 +292,7 @@ static struct NYTP_options_t options[] = {
     else if (strEQ(option, "optimize") || strEQ(option, "optimise")) {
     else if (strEQ(option, "savesrc")) {
     else if (strEQ(option, "endatexit")) {
+    else if (strEQ(option, "libcexit")) {
 and write the options to the stream when profiling starts.
 */
 
@@ -390,6 +391,7 @@ static void set_option(pTHX_ const char*, const char*);
 static int enable_profile(pTHX_ char *file);
 static int disable_profile(pTHX);
 static void finish_profile(pTHX);
+static void finish_profile_nocontext(void);
 static void open_output_file(pTHX_ char *);
 static int reinit_if_forked(pTHX);
 static int parse_DBsub_value(pTHX_ SV *sv, STRLEN *filename_len_p, UV *first_line_p, UV *last_line_p, char *sub_name);
@@ -1697,6 +1699,10 @@ set_option(pTHX_ const char* option, const char* value)
         if (atoi(value))
             PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
     }
+    else if (strEQ(option, "libcexit")) {
+        if (atoi(value))
+	    atexit(finish_profile_nocontext);
+    }
     else {
 
         struct NYTP_options_t *opt_p = options;
@@ -2966,6 +2972,14 @@ finish_profile(pTHX)
     cumulative_subr_ticks = 0;
 
     SETERRNO(saved_errno, 0);
+}
+
+
+static void
+finish_profile_nocontext()
+{
+    dTHX;
+    finish_profile(aTHX);
 }
 
 
