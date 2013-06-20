@@ -537,6 +537,19 @@ When using the C<subs=0> option to disable the subroutine profiler the
 C<posix_exit> option can be used to tell NYTProf to take other steps to arrange
 for C<DB::finish_profile()> to be called before C<POSIX::_exit()>.
 
+=head2 libcexit=1
+
+Arranges for L</finish_profile> to be called via the C library C<atexit()> function.
+This may help some tricky cases where the process may exit without perl
+executing the C<END> block that NYTProf uses to call /finish_profile().
+
+=head2 endatexit=1
+
+Sets the PERL_EXIT_DESTRUCT_END flag in the PL_exit_flags of the perl interpreter.
+This makes perl run C<END> blocks in perl_destruct() instead of perl_run()
+which may help in cases, like Apache, where perl is embedded but perl_run()
+isn't called.
+
 =head2 forkdepth=N
 
 When a perl process that is being profiled executes a fork() the child process
