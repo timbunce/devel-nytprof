@@ -6,8 +6,10 @@ Changes - History of significant changes in Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf
 
-  Add libcexit=1 option thanks to Zefram RT#75912
-  Add documentation for endatexit and libcexit options.
+  Added libcexit=1 option thanks to Zefram, RT#75912
+  Added documentation for endatexit and libcexit options.
+  Added documentation for nytprofhtml --minimal
+    thanks to Mike Doherty, RT#86039.
 
 =head2 Changes in Devel::NYTProf 5.03 - 20th May 2013
 
