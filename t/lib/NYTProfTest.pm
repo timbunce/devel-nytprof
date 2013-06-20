@@ -550,7 +550,8 @@ sub verify_csv_report {
 
         next if m/^# Version/;    # Ignore version numbers
 
-        s/^([0-9.]+),([0-9.]+),([0-9.]+),(.*)$/0,$2,0,$4/o;
+        # we allow negative numbers here re RT#85556
+        s/^(-?[0-9.]+),([0-9.]+),([0-9.]+),(.*)$/0,$2,0,$4/o;
         my $t0  = $1;
         my $c0  = $2;
         my $tc0 = $3;

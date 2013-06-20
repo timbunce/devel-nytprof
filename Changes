@@ -6,7 +6,9 @@ Changes - History of significant changes in Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf
 
-  Added libcexit=1 option thanks to Zefram, RT#75912
+  Allow negative times in tests for systems with unstable clocks
+    thanks to Gisle Aas, RT#85556.
+  Added libcexit=1 option thanks to Zefram, RT#75912.
   Added documentation for endatexit and libcexit options.
   Added documentation for nytprofhtml --minimal
     thanks to Mike Doherty, RT#86039.
