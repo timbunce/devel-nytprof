@@ -4,7 +4,7 @@ Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
-=head2 Changes in Devel::NYTProf
+=head2 Changes in Devel::NYTProf 5.04 - 20th June 2013
 
   Allow negative times in tests for systems with unstable clocks
     thanks to Gisle Aas, RT#85556.
