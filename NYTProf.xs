@@ -13,8 +13,6 @@
  * Steve Peters, steve at fisharerojo.org
  *
  * ************************************************************************
- * $Id$
- * ************************************************************************
  */
 #ifndef WIN32
 #define PERL_NO_GET_CONTEXT                       /* we want efficiency */
