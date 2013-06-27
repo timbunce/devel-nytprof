@@ -5,8 +5,6 @@
 ## See http://search.cpan.org/dist/Devel-NYTProf/
 ##
 ##########################################################
-# $Id: /mirror/devel-nytprof/bin/nytprofhtml 13295 2009-04-06T20:34:49.946854Z tim.bunce  $
-###########################################################
 use warnings;
 use strict;
 
