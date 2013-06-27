@@ -7,8 +7,6 @@
 # http://search.cpan.org/dist/Devel-NYTProf/
 #
 ###########################################################
-# $Id$
-###########################################################
 package Devel::NYTProf::Apache;
 
 our $VERSION = '4.00';
