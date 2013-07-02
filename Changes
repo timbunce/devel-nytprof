@@ -9,6 +9,7 @@ Changes - History of significant changes in Devel::NYTProf
   Fixed crash on "Can't use string as a subroutine ref" error,
     and probably other die-at-pp_entersub cases,
     with thanks to Zefram. RT#86638
+  Fixed crash with libcexit=1, thanks to Zefram. RT#86548
 
 =head2 Changes in Devel::NYTProf 5.04 - 20th June 2013
 

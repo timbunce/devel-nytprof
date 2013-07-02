@@ -2945,6 +2945,7 @@ disable_profile(pTHX)
 static void
 finish_profile(pTHX)
 {
+    /* can be called after the perl interp is destroyed, via libcexit */
     int saved_errno = errno;
 #ifdef MULTIPLICITY
     if (orig_my_perl && my_perl != orig_my_perl)
@@ -2972,7 +2973,11 @@ finish_profile(pTHX)
     }
 
     /* reset sub profiler data  */
-    hv_clear(sub_callers_hv);
+    if (HvKEYS(sub_callers_hv)) {
+        /* HvKEYS check avoids hv_clear() if interp has been destroyed RT#86548 */
+        hv_clear(sub_callers_hv);
+    }
+
     /* reset other state */
     cumulative_overhead_ticks = 0;
     cumulative_subr_ticks = 0;
@@ -2984,6 +2989,7 @@ finish_profile(pTHX)
 static void
 finish_profile_nocontext()
 {
+    /* can be called after the perl interp is destroyed, via libcexit */
     dTHX;
     finish_profile(aTHX);
 }
