@@ -2008,7 +2008,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     time_of_day_t sub_end_time;
     long ticks, overflow;
 
-    if (subr_entry->called_subnam_sv == &PL_sv_undef) {
+    /* an undef SV is a special marker used by subr_entry_setup */
+    if (subr_entry->called_subnam_sv && !SvOK(subr_entry->called_subnam_sv)) {
         if (trace_level)
             logwarn("Don't know name of called sub, assuming xsub/builtin exited via an exception (which isn't handled yet)\n");
         subr_entry->already_counted++;
@@ -2352,7 +2353,14 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
             }
         }
         else {
-            subr_entry->called_subnam_sv = newSV(0); /* see incr_sub_inclusive_time */
+            /* resolve_sub_to_cv couldn't work out what's being called,
+             * possibly because it's something that'll cause pp_entersub to croak
+             * anyway.  So we mark the subr_entry in a particular way and hope that
+             * pp_subcall_profiler() can fill in the details.
+             * If there is an exception then we'll wind up in incr_sub_inclusive_time
+             * which will see this mark and ignore the call.
+             */
+            subr_entry->called_subnam_sv = newSV(0);
         }
         subr_entry->called_is_xs = NULL; /* work it out later */
     }

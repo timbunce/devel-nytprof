@@ -227,6 +227,7 @@ t/test80-recurs.rdt
 t/test80-recurs.t
 t/test81-swash.t
 t/test82-version.t
+t/test90-strsubref.t
 t/zzz.t
 typemap
 xt/61-cputime.t
