@@ -13,9 +13,9 @@
 # frame in the stack is semicolon separated, with a space and count at the end
 # of the line.  These can be generated using DTrace with stackcollapse.pl.
 #
-# The output graph shows relative presense of functions in stack samples.  The
+# The output graph shows relative presence of functions in stack samples.  The
 # ordering on the x-axis has no meaning; since the data is samples, time order
-# of events is not known.  The order used sorts function names alphabeticly.
+# of events is not known.  The order used sorts function names alphabetically.
 #
 # HISTORY
 #
@@ -88,7 +88,7 @@ GetOptions(
 # internals
 my $ypad1 = $fontsize * 4;	# pad top, include title
 my $ypad2 = $fontsize * 2 + 10;	# pad bottom, include labels
-my $xpad = 10;			# pad lefm and right
+my $xpad = 10;			# pad left and right
 my $depthmax = 0;
 my %Events;
 my %nameattr;
