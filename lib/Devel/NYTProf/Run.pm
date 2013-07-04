@@ -9,8 +9,6 @@ package Devel::NYTProf::Run;
 # http://search.cpan.org/dist/Devel-NYTProf/
 #
 ###########################################################
-# $Id: Util.pm 809 2009-07-07 13:24:31Z tim.bunce $
-###########################################################
 
 =head1 NAME
 

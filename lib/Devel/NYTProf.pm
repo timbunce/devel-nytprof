@@ -7,8 +7,6 @@
 ## http://search.cpan.org/dist/Devel-NYTProf/
 ##
 ###########################################################
-## $Id$
-###########################################################
 package Devel::NYTProf;
 
 our $VERSION = '5.04'; # also change in Devel::NYTProf::Core

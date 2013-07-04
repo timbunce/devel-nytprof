@@ -12,8 +12,6 @@
  * Steve Peters, steve at fisharerojo.org
  *
  * ************************************************************************
- * $Id$
- * ************************************************************************
  */
 
 /* Arguably this header is naughty, as it's not self contained, because it
