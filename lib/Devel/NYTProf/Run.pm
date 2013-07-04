@@ -61,7 +61,7 @@ sub perl_command_words {
 
 # croaks on failure to execute
 # carps, not croak, if process has non-zero exit status
-# Devel::NYTProf::Data->new may croak, e.g., if data trucated
+# Devel::NYTProf::Data->new may croak, e.g., if data truncated
 sub profile_this {
     my %opt = @_;
 

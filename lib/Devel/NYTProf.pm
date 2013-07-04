@@ -182,7 +182,7 @@ statement executed in foo()>! Here's another example:
   }
 
 After the first time around the loop, any further time spent evaluating the
-condition (waiting for input in this example) would be be recorded as having
+condition (waiting for input in this example) would be recorded as having
 been spent I<on the last statement executed in the loop>! (Until perl bug
 #60954 is fixed this problem still applies to some loops. For more information
 see L<http://rt.perl.org/rt3/Ticket/Display.html?id=60954>)
@@ -802,7 +802,7 @@ If you don't need statement-level profiling then you can disable it via L</stmts
 To further boost statement-level profiling performance try L</leave=0> but note that
 I<will> apportion timings for some kinds of statements less accurate).
 
-If you don't need calls stacks or flamegrph then disable it via L</calls=0>.
+If you don't need call stacks or flamegraph then disable it via L</calls=0>.
 If you don't need subroutine profiling then you can disable it via L</subs=0>.
 If you do need it but don't need timings for perl opcodes then set L</slowops=0>.
 

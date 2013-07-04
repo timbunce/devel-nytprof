@@ -117,7 +117,7 @@ END
 }
 
 
-# handle handle output location
+# handle output location
 if (!-e $opt_out) {
     # will be created
 }

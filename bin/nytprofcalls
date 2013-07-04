@@ -25,7 +25,7 @@ GetOptions(
     'verbose|v' => \my $opt_verbose,
     'calls!'    => \my $opt_calls, # sum calls instead of time
     'debug|d'   => \my $opt_debug,
-    'stable'    => \my $opt_stable, # used for testing (stabilty)
+    'stable'    => \my $opt_stable, # used for testing (stability)
 ) or usage();
 
 $opt_verbose++ if $opt_debug;
@@ -38,7 +38,7 @@ usage() unless @ARGV;
 # (We use these because the subroutine entry events don't have reliable
 # value for the subroutine name, and obviously don't have timings.)
 #
-# Building a call tree from return events is a little ticky because they don't
+# Building a call tree from return events is a little tricky because they don't
 # appear in natural order. The code can return from a call at any depth
 # deeper than the last seen depth.
 #
