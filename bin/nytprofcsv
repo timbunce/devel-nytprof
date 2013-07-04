@@ -50,7 +50,7 @@ if (!-r $opt{file}) {
     die "$0: Unable to access $opt{file}\n";
 }
 
-# handle handle output location
+# handle output location
 if (!-e $opt{out}) {
 
     # will be created

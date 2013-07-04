@@ -313,7 +313,7 @@ sub packages_at_depth_subinfo {
         my @parts = split /::/, $fullpkgname; # drops empty trailing part
 
         # accumulate @$subinfos for the full package name
-        # and also for each succesive truncation of the package name
+        # and also for each successive truncation of the package name
         for (my $depth; $depth = @parts; pop @parts) {
             my $pkgname = join('::', @parts, '');
 
@@ -400,7 +400,7 @@ sub inc {
       separator  => "",
   } );
 
-Writes the profile data in a reasonably human friendly format to the sepcified
+Writes the profile data in a reasonably human friendly format to the specified
 C<filehandle> (default STDOUT).
 
 For non-trivial profiles the output can be very large. As a guide, there'll be
@@ -412,7 +412,7 @@ The types of data present can depend on the options used when profiling.
 
 If C<separator> is true then instead of whitespace, each item of data is
 indented with the I<path> through the structure with C<separator> used to
-separarate the elements of the path.
+separate the elements of the path.
 This format is especially useful for grep'ing and diff'ing.
 
 =cut

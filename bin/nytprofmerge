@@ -308,7 +308,7 @@ foreach $input (@ARGV) {
                     # to the sub are collated.
 
                     # Have to use the mapped fid as the key to this hash, as
-                    # only the mapped fids are are unique
+                    # only the mapped fids are unique
                     my $mapped_fid = $fids{$fid};
                     $map_range{$mapped_fid}[$_] = $folded
                         for $first_line .. $last_line;
