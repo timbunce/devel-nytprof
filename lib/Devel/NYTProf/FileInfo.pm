@@ -172,7 +172,7 @@ hashes with file id integers as keys and FileInfo objects as values.
 sub evals_by_line {
     my ($self) = @_;
 
-    # find all fids that have have this fid as an eval_fid
+    # find all fids that have this fid as an eval_fid
     # { line => { fid_of_eval_at_line => $fi, ... } }
 
     my %evals_by_line;
