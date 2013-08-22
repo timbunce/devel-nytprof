@@ -66,6 +66,7 @@ my $text_extn_info = {
     rdt   => { order => 20, tests => ($opts{mergerdt}) ? 2 : 1, },
     x     => { order => 30, tests => 3, },
     calls => { order => 40, tests => 1, },
+    y     => { order => 50, tests => 3, },
 };
 
 chdir('t') if -d 't';
@@ -82,6 +83,7 @@ my $bindir      = (grep {-d} qw(./blib/script ../blib/script))[0] || do {
 my $nytprofcsv   = File::Spec->catfile($bindir, "nytprofcsv");
 my $nytprofcalls = File::Spec->catfile($bindir, "nytprofcalls");
 my $nytprofhtml  = File::Spec->catfile($bindir, "nytprofhtml");
+my $nytprofpf    = File::Spec->catfile($bindir, "nytprofpf");
 my $nytprofmerge = File::Spec->catfile($bindir, "nytprofmerge");
 
 my $path_sep = $Config{path_sep} || ':';
@@ -361,6 +363,12 @@ sub run_test {
 
         verify_csv_report($test, $tag, $test_datafile, $outdir);
     }
+    elsif ($type eq 'y') {
+        mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
+        unlink <$outdir/*>;
+
+        verify_yourkit_csv_report($test, $tag, $test_datafile, $outdir);
+    }
     elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
         # skip; handy for "test.pl t/test01.*"
     }
@@ -594,6 +602,26 @@ sub verify_csv_report {
     is(join("\n", @accuracy_errors), '', "$test times should be reasonable");
 }
 
+sub verify_yourkit_csv_report {
+    my ($test, $tag, $profile_datafile, $outdir) = @_;
+
+    
+    # determine the name of the generated csv file
+    my $csvfile = $test;
+
+    my $cmd = "$perl $nytprofpf --file=$profile_datafile --out=$outdir";
+    ok run_command($cmd), "nytprofpf runs ok";
+
+    my @got      = slurp_file($csvfile);
+    my @expected = slurp_file($test);
+    
+    chomp @got;
+    chomp @expected;
+    is_deeply(\@got, \@expected, "$test match generated CSV data for $tag") or do {
+        spit_file($test.'_new', join("\n", @got,''), $test.'_newp');
+        diff_files($test, $test.'_new', $test.'_newp');
+    };
+}
 
 sub pop_times {
     my $hash = shift || return;
