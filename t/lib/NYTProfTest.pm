@@ -66,6 +66,7 @@ my $text_extn_info = {
     rdt   => { order => 20, tests => ($opts{mergerdt}) ? 2 : 1, },
     x     => { order => 30, tests => 3, },
     calls => { order => 40, tests => 1, },
+    y     => { order => 50, tests => 2, },
 };
 
 chdir('t') if -d 't';
@@ -82,6 +83,7 @@ my $bindir      = (grep {-d} qw(./blib/script ../blib/script))[0] || do {
 my $nytprofcsv   = File::Spec->catfile($bindir, "nytprofcsv");
 my $nytprofcalls = File::Spec->catfile($bindir, "nytprofcalls");
 my $nytprofhtml  = File::Spec->catfile($bindir, "nytprofhtml");
+my $nytprofpf    = File::Spec->catfile($bindir, "nytprofpf");
 my $nytprofmerge = File::Spec->catfile($bindir, "nytprofmerge");
 
 my $path_sep = $Config{path_sep} || ':';
@@ -361,6 +363,12 @@ sub run_test {
 
         verify_csv_report($test, $tag, $test_datafile, $outdir);
     }
+    elsif ($type eq 'y') {
+		my $outfile = "test91_out.csv";
+        unlink $outfile if -e $outfile;
+
+        verify_platforms_csv_report($test, $tag, $test_datafile, $outfile);
+    }
     elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
         # skip; handy for "test.pl t/test01.*"
     }
@@ -594,6 +602,27 @@ sub verify_csv_report {
     is(join("\n", @accuracy_errors), '', "$test times should be reasonable");
 }
 
+sub verify_platforms_csv_report {
+    my ($test, $tag, $profile_datafile, $outfile) = @_;
+    
+    # determine the name of the generated csv file
+
+    my $cmd = "$perl $nytprofpf --file=$profile_datafile --out=$outfile";
+    ok run_command($cmd), "nytprofpf runs ok";
+
+    my $got      = slurp_file($outfile);
+    #my $expected = slurp_file($test);
+    
+    #test if all lines from .y are contained in resutl file (we can not be sure about the order, so we match each line individually)
+    my $match_result = 1;
+    open (EXPECTED, $test); 
+    while (<EXPECTED>) {
+		$match_result = $match_result && $got =~ m/$_/;
+	}
+	
+	close (EXPECTED);    
+	ok $match_result;
+}
 
 sub pop_times {
     my $hash = shift || return;
