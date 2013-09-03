@@ -11,6 +11,7 @@ Changes - History of significant changes in Devel::NYTProf
   Fixed test for change in perl 5.18.x error message text.
   Removed unused keyword $Id$. PR#9 thanks to dsteinbrunner.
   Corrected assorted typos. PR#8 thanks to dsteinbrunner.
+  Added meta-spec to META_MERGE. PR#12 thanks to dsteinbrunner.
 
 =head2 Changes in Devel::NYTProf 5.05 - 2nd July 2013
 
