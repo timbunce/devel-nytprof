@@ -108,6 +108,7 @@ $mm_opts{CCFLAGS}  = "-pg"  if $opt_pg;
 
 if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
     $mm_opts{META_MERGE} = {
+    	"meta-spec" => { version => 2 },
 	no_index => {
 	    package => [ 'SVG' ], # in bin/flamegraph.pl
 	},
