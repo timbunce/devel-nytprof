@@ -1,6 +1,0 @@
-Name, File location, Time, Avg. Time, Own Time, Invocation Count, Level
-main::func3, /home/hugo/code/git/devel-nytprof/t/test91_platforms.p, 39, 0, 39, 1, 0
-main::func4, /home/hugo/code/git/devel-nytprof/t/test91_platforms.p, 36, 0, 36, 1, 0
-main::func2, /home/hugo/code/git/devel-nytprof/t/test91_platforms.p, 37, 0, 1, 2, 0
-main::func1, /home/hugo/code/git/devel-nytprof/t/test91_platforms.p, 75, 0, 0, 1, 0
-main::CORE:print, /home/hugo/code/git/devel-nytprof/t/test91_platforms.p, 0, 0, 0, 4, 0
