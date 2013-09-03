@@ -364,10 +364,7 @@ sub run_test {
         verify_csv_report($test, $tag, $test_datafile, $outdir);
     }
     elsif ($type eq 'y') {
-		my $outfile = "test91_out.csv";
-        unlink $outfile if -e $outfile;
-
-        verify_platforms_csv_report($test, $tag, $test_datafile, $outfile);
+        verify_platforms_csv_report($test, $tag, $test_datafile);
     }
     elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
         # skip; handy for "test.pl t/test01.*"
@@ -603,17 +600,17 @@ sub verify_csv_report {
 }
 
 sub verify_platforms_csv_report {
-    my ($test, $tag, $profile_datafile, $outfile) = @_;
+    my ($test, $tag, $profile_datafile) = @_;
     
-    # determine the name of the generated csv file
+    my $outfile = "$test.csv";
 
     my $cmd = "$perl $nytprofpf --file=$profile_datafile --out=$outfile";
     ok run_command($cmd), "nytprofpf runs ok";
 
     my $got      = slurp_file($outfile);
-    #my $expected = slurp_file($test);
-    
-    #test if all lines from .y are contained in resutl file (we can not be sure about the order, so we match each line individually)
+        
+    #test if all lines from .y are contained in result file 
+    #(we can not be sure about the order, so we match each line individually)
     my $match_result = 1;
     open (EXPECTED, $test); 
     while (<EXPECTED>) {
@@ -621,7 +618,7 @@ sub verify_platforms_csv_report {
 	}
 	
 	close (EXPECTED);    
-	ok $match_result;
+	ok $match_result, "$outfile file matches $test";
 }
 
 sub pop_times {

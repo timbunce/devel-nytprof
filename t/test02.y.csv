@@ -1,0 +1,5 @@
+Name, File location, Time, Avg. Time, Own Time, Invocation Count, Level
+main::bar, /home/holger/Dokumente/plat_forms/devel-nytprof/t/test02.p, 0.040, 0.000, 0.033, 7, 0
+main::baz, /home/holger/Dokumente/plat_forms/devel-nytprof/t/test02.p, 0.033, 0.000, 0.015, 1, 0
+main::foo, /home/holger/Dokumente/plat_forms/devel-nytprof/t/test02.p, 0.017, 0.000, 0.011, 2, 0
+main::CORE:print, /home/holger/Dokumente/plat_forms/devel-nytprof/t/test02.p, 0.008, 0.000, 0.008, 10, 0

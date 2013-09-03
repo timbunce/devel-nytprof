@@ -150,7 +150,7 @@ sub subroutine_table {
     my $profiler_active = $profile->{attribute}{profiler_active};
 
     for my $sub (@subs) {
-		$output .= sprintf ("%s, %s, %0.f, %.0f, %.0f, %d, %d\n",
+		$output .= sprintf ("%s, %s, %.3f, %.3f, %.3f, %d, %d\n",
                       $sub->subname, 
                       $sub->fileinfo->filename,                  
                       $sub->incl_time * 1000,                   
