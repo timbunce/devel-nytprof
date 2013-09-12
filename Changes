@@ -8,6 +8,7 @@ Changes - History of significant changes in Devel::NYTProf
 
   Fixed for perl 5.19.4. RT#88288 thanks to sprout.
   Fixed test for change in perl 5.18.x error message text.
+  Fixed to no longer open a file when start=no. RT#87404.
 
   Document that Devel::NYTProf needs to be loaded as early as possible
     even when using start=no. PR#10 thanks to moritz.

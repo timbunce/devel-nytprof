@@ -3101,8 +3101,6 @@ init_profiler(pTHX)
     fidhash.table = (Hash_entry**)safemalloc(sizeof(Hash_entry*) * fidhash.size);
     memset(fidhash.table, 0, sizeof(Hash_entry*) * fidhash.size);
 
-    open_output_file(aTHX_ PROF_output_file);
-
     /* redirect opcodes for statement profiling */
     Newxc(PL_ppaddr_orig, OP_max, void *, orig_ppaddr_t);
     Copy(PL_ppaddr, PL_ppaddr_orig, OP_max, void *);
