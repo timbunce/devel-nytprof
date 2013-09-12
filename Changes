@@ -6,9 +6,11 @@ Changes - History of significant changes in Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 5.06
 
+  Fixed for perl 5.19.4. RT#88288 thanks to sprout.
+  Fixed test for change in perl 5.18.x error message text.
+
   Document that Devel::NYTProf needs to be loaded as early as possible
     even when using start=no. PR#10 thanks to moritz.
-  Fixed test for change in perl 5.18.x error message text.
   Removed unused keyword $Id$. PR#9 thanks to dsteinbrunner.
   Corrected assorted typos. PR#8 thanks to dsteinbrunner.
   Added meta-spec to META_MERGE. PR#12 thanks to dsteinbrunner.

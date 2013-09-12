@@ -4002,7 +4002,7 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
                 SvPV_nolen(filename_sv), file_num,
                 fmt_fid_flags(aTHX_ fid_flags, buf, sizeof(buf)), eval_file_num);
             /* so make it look like a real file instead of an eval */
-            av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
+            av_store(av, NYTP_FIDi_EVAL_FI,   NULL);
             eval_file_num = 0;
             eval_line_num = 0;
         }
@@ -4016,7 +4016,7 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
         }
     }
     else {
-        av_store(av, NYTP_FIDi_EVAL_FI,   &PL_sv_undef);
+        av_store(av, NYTP_FIDi_EVAL_FI,   NULL);
     }
     av_store(av, NYTP_FIDi_EVAL_FID,  (eval_file_num) ? newSVuv(eval_file_num) : &PL_sv_no);
     av_store(av, NYTP_FIDi_EVAL_LINE, (eval_file_num) ? newSVuv(eval_line_num) : &PL_sv_no);
@@ -4024,8 +4024,8 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
     av_store(av, NYTP_FIDi_FLAGS,     newSVuv(fid_flags));
     av_store(av, NYTP_FIDi_FILESIZE,  newSVuv(file_size));
     av_store(av, NYTP_FIDi_FILEMTIME, newSVuv(file_mtime));
-    av_store(av, NYTP_FIDi_PROFILE,   &PL_sv_undef);
-    av_store(av, NYTP_FIDi_HAS_EVALS, &PL_sv_undef);
+    av_store(av, NYTP_FIDi_PROFILE,   NULL);
+    av_store(av, NYTP_FIDi_HAS_EVALS, NULL);
     av_store(av, NYTP_FIDi_SUBS_DEFINED, newRV_noinc((SV*)newHV()));
     av_store(av, NYTP_FIDi_SUBS_CALLED,  newRV_noinc((SV*)newHV()));
 }
