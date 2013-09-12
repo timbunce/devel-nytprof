@@ -14,6 +14,7 @@ Changes - History of significant changes in Devel::NYTProf
   Document that Devel::NYTProf needs to be loaded as early as possible
     even when using start=no. PR#10 thanks to moritz.
   Removed unused keyword $Id$. PR#9 thanks to dsteinbrunner.
+  Removed old benchmark.pl files. RT#86704.
   Corrected assorted typos. PR#8 thanks to dsteinbrunner.
   Added meta-spec to META_MERGE. PR#12 thanks to dsteinbrunner.
 

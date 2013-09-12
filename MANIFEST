@@ -13,7 +13,6 @@ MemoryProfiling.pod
 NYTProf.h
 NYTProf.xs
 README.md
-benchmark.pl
 bin/flamegraph.pl
 bin/nytprofcalls
 bin/nytprofcg
@@ -22,7 +21,6 @@ bin/nytprofhtml
 bin/nytprofmerge
 demo/1m_stmts.pl
 demo/README
-demo/benchmark.pl
 demo/closure.pl
 demo/cpucache.pl
 demo/demo-code.pl
