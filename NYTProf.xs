@@ -1966,8 +1966,8 @@ subr_entry_destroy(pTHX_ subr_entry_t *subr_entry)
         /* ignore the typical second (fallback) destroy */
         && !(subr_entry->prev_subr_entry_ix == subr_entry_ix && subr_entry->already_counted==1)
     ) {
-        logwarn("%2d <<     %s::%s done %s\n",
-            subr_entry->subr_prof_depth,
+        logwarn("%2u <<     %s::%s done %s\n",
+            (unsigned int)subr_entry->subr_prof_depth,
             subr_entry->called_subpkg_pv,
             (subr_entry->called_subnam_sv && SvOK(subr_entry->called_subnam_sv))
                 ? SvPV_nolen(subr_entry->called_subnam_sv)
@@ -2135,8 +2135,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     }
 
     if (trace_level >= 5) {
-        logwarn("%2d <-     %s %"NVgf" excl = %"NVgf"t incl - %"NVgf"t (%"NVgf"-%"NVgf"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
-            subr_entry->subr_prof_depth, called_subname_pv,
+        logwarn("%2u <-     %s %"NVgf" excl = %"NVgf"t incl - %"NVgf"t (%"NVgf"-%"NVgf"), oh %"NVff"-%"NVff"=%"NVff"t, d%d @%d:%d #%lu %p\n",
+            (unsigned int)subr_entry->subr_prof_depth, called_subname_pv,
             excl_subr_ticks, incl_subr_ticks,
             called_sub_ticks,
             cumulative_subr_ticks, subr_entry->initial_subr_ticks,
@@ -2507,8 +2507,8 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
     }
 
     if (trace_level >= 4) {
-        logwarn("%2d >> %s at %u:%d from %s::%s %s %s\n",
-            subr_entry->subr_prof_depth,
+        logwarn("%2u >> %s at %u:%d from %s::%s %s %s\n",
+            (unsigned int)subr_entry->subr_prof_depth,
             PL_op_name[op_type],
             subr_entry->caller_fid, subr_entry->caller_line,
             subr_entry->caller_subpkg_pv,
@@ -2685,8 +2685,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
      */
     if (subr_entry->already_counted) {
         if (trace_level >= 9)
-            logwarn("%2d --     %s::%s already counted %s\n",
-                subr_entry->subr_prof_depth,
+            logwarn("%2u --     %s::%s already counted %s\n",
+                (unsigned int)subr_entry->subr_prof_depth,
                 subr_entry->called_subpkg_pv,
                 (subr_entry->called_subnam_sv && SvOK(subr_entry->called_subnam_sv))
                     ? SvPV_nolen(subr_entry->called_subnam_sv)
@@ -2800,8 +2800,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         subr_entry->already_counted++;
 
     if (trace_level >= 4) {
-        logwarn("%2d ->%4s %s::%s from %s::%s @%u:%u (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
-            subr_entry->subr_prof_depth,
+        logwarn("%2u ->%4s %s::%s from %s::%s @%u:%u (d%d, oh %"NVff"t, sub %"NVff"s) #%lu\n",
+            (unsigned int)subr_entry->subr_prof_depth,
             (subr_entry->called_is_xs) ? subr_entry->called_is_xs : "sub",
             subr_entry->called_subpkg_pv,
             subr_entry->called_subnam_sv ? SvPV_nolen(subr_entry->called_subnam_sv) : "(null)",
@@ -3009,8 +3009,8 @@ _init_profiler_clock(pTHX)
     /* downgrade to CLOCK_REALTIME if desired clock not available */
     if (clock_gettime(profile_clock, &start_time) != 0) {
         if (trace_level)
-            logwarn("~ clock_gettime clock %d not available (%s) using CLOCK_REALTIME instead\n",
-                profile_clock, strerror(errno));
+            logwarn("~ clock_gettime clock %ld not available (%s) using CLOCK_REALTIME instead\n",
+                (long)profile_clock, strerror(errno));
         profile_clock = CLOCK_REALTIME;
         /* check CLOCK_REALTIME as well, just in case */
         if (clock_gettime(profile_clock, &start_time) != 0)
@@ -3019,7 +3019,7 @@ _init_profiler_clock(pTHX)
     }
 #else
     if (profile_clock != -1) {  /* user tried to select different clock */
-        logwarn("clock %ld not available (clock_gettime not supported on this system)\n", profile_clock);
+        logwarn("clock %ld not available (clock_gettime not supported on this system)\n", (long)profile_clock);
         profile_clock = -1;
     }
 #endif
@@ -3080,7 +3080,7 @@ init_profiler(pTHX)
 
     if (trace_level)
         logwarn("~ init_profiler for pid %d, clock %ld, tps %d, start %d, perldb 0x%lx, exitf 0x%lx\n",
-            last_pid, profile_clock, ticks_per_sec, profile_start,
+            last_pid, (long)profile_clock, ticks_per_sec, profile_start,
             (long unsigned)PL_perldb, (long unsigned)PL_exit_flags);
 
     if (get_hv("DB::sub", 0) == NULL) {
@@ -3587,7 +3587,7 @@ write_sub_callers(pTHX)
     }
     if (negative_time_calls) {
         logwarn("Warning: %d subroutine calls had negative time! See TROUBLESHOOTING in the documentation. (Clock %ld)\n",
-            negative_time_calls, profile_clock);
+            negative_time_calls, (long)profile_clock);
     }
 }
 
