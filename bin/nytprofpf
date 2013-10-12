@@ -10,7 +10,7 @@
 
 =head1 NAME
 
-nytprofpf - Generate a report for plat_forms (plat-forms.org) from Devel::NYTProf data
+nytprofpf - Generate a report for plat_forms (L<http://www.plat-forms.org/>) from Devel::NYTProf data
 
 =head1 SYNOPSIS
 
@@ -27,7 +27,7 @@ Options synopsis:
  --no-mergeevals           Disable merging of string evals
  --help,        -h         Print this message
 
-This script of part of the Devel::NYTProf distribution.
+This script of part of the Devel::NYTProf distribution. Generate a report for plat_forms (L<http://www.plat-forms.org/>) from Devel::NYTProf data.
 See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
 
 =encoding ISO8859-1
