@@ -66,7 +66,7 @@ my $text_extn_info = {
     rdt   => { order => 20, tests => ($opts{mergerdt}) ? 2 : 1, },
     x     => { order => 30, tests => 3, },
     calls => { order => 40, tests => 1, },
-    pf     => { order => 50, tests => 3, },
+    pf    => { order => 50, tests => 3, },
 };
 
 chdir('t') if -d 't';
@@ -363,7 +363,7 @@ sub run_test {
 
         verify_csv_report($test, $tag, $test_datafile, $outdir);
     }
-    elsif ($type eq 'y') {
+    elsif ($type eq 'pf') {
         verify_platforms_csv_report($test, $tag, $test_datafile);
     }
     elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
