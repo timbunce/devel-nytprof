@@ -66,7 +66,7 @@ my $text_extn_info = {
     rdt   => { order => 20, tests => ($opts{mergerdt}) ? 2 : 1, },
     x     => { order => 30, tests => 3, },
     calls => { order => 40, tests => 1, },
-    y     => { order => 50, tests => 3, },
+    pf     => { order => 50, tests => 3, },
 };
 
 chdir('t') if -d 't';
@@ -364,10 +364,7 @@ sub run_test {
         verify_csv_report($test, $tag, $test_datafile, $outdir);
     }
     elsif ($type eq 'y') {
-        mkdir $outdir or die "mkdir($outdir): $!" unless -d $outdir;
-        unlink <$outdir/*>;
-
-        verify_yourkit_csv_report($test, $tag, $test_datafile, $outdir);
+        verify_platforms_csv_report($test, $tag, $test_datafile);
     }
     elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
         # skip; handy for "test.pl t/test01.*"
@@ -602,25 +599,26 @@ sub verify_csv_report {
     is(join("\n", @accuracy_errors), '', "$test times should be reasonable");
 }
 
-sub verify_yourkit_csv_report {
-    my ($test, $tag, $profile_datafile, $outdir) = @_;
-
+sub verify_platforms_csv_report {
+    my ($test, $tag, $profile_datafile) = @_;
     
-    # determine the name of the generated csv file
-    my $csvfile = $test;
+    my $outfile = "$test.csv";
 
-    my $cmd = "$perl $nytprofpf --file=$profile_datafile --out=$outdir";
+    my $cmd = "$perl $nytprofpf --file=$profile_datafile --out=$outfile";
     ok run_command($cmd), "nytprofpf runs ok";
 
-    my @got      = slurp_file($csvfile);
-    my @expected = slurp_file($test);
-    
-    chomp @got;
-    chomp @expected;
-    is_deeply(\@got, \@expected, "$test match generated CSV data for $tag") or do {
-        spit_file($test.'_new', join("\n", @got,''), $test.'_newp');
-        diff_files($test, $test.'_new', $test.'_newp');
-    };
+    my $got      = slurp_file($outfile);
+        
+    #test if all lines from .pf are contained in result file 
+    #(we can not be sure about the order, so we match each line individually)
+    my $match_result = 1;
+    open (EXPECTED, $test); 
+    while (<EXPECTED>) {
+		$match_result = $match_result && $got =~ m/$_/;
+	}
+	
+	close (EXPECTED);    
+	ok $match_result, "$outfile file matches $test";
 }
 
 sub pop_times {

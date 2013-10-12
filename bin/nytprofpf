@@ -21,7 +21,14 @@ Typical usage:
 
 Options synopsis:
 
- 
+ --file <file>, -f <file>  Read profile data from the specified file [default: nytprof.out]
+ --delete,      -d         Delete any old report files first
+ --lib <lib>,   -l <lib>   Add <lib> to the beginning of \@INC
+ --no-mergeevals           Disable merging of string evals
+ --help,        -h         Print this message
+
+This script of part of the Devel::NYTProf distribution.
+See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
 
 =encoding ISO8859-1
 
@@ -47,7 +54,7 @@ use Devel::NYTProf::Util qw(
 );
 use Devel::NYTProf::Constants qw(NYTP_SCi_CALLING_SUB);
 
-our $VERSION = '5.04';
+our $VERSION = '5.05';
 
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
@@ -58,17 +65,16 @@ GetOptions(
     'lib|l=s'   => \my $opt_lib,
     'out|o=s'   => \(my $opt_out = 'nytprof'),
     'delete|d!' => \my $opt_delete,
-    'open!'     => \my $opt_open,
     'help|h'    => sub { exit usage() },
     'mergeevals!'=> \(my $opt_mergeevals = 1),
 ) or do { exit usage(); };
 
 sub usage {
     print <<END;
-usage: [perl] nytprofhtml [opts]
+
+usage: [perl] nytprofpf [opts]
  --file <file>, -f <file>  Read profile data from the specified file [default: nytprof.out]
- --delete,      -d         Delete any old report files in <dir> first
- --open                    Open the generated report in a web browser
+ --delete,      -d         Delete any old report files first
  --lib <lib>,   -l <lib>   Add <lib> to the beginning of \@INC
  --no-mergeevals           Disable merging of string evals
  --help,        -h         Print this message
@@ -84,18 +90,18 @@ use constant NUMERIC_PRECISION => 7;
 
 # handle output location
 if (!-e $opt_out) {
-    # will be created
+    # everything is fine
 }
-elsif (!-d $opt_out) {
-    die "$0: Specified output directory '$opt_out' already exists as a file!\n";
+elsif (!-f $opt_out) {
+    die "$0: Specified output file '$opt_out' already exists as a directory!\n";
 }
 elsif (!-w $opt_out) {
     die "$0: Unable to write to output directory '$opt_out'\n";
 }
 else {
     if (defined($opt_delete)) {
-        print "Deleting existing $opt_out directory\n";
-        rmtree($opt_out);
+        print "Deleting existing $opt_out file\n";
+        rm($opt_out);
     }
 }
 
@@ -114,82 +120,46 @@ my $reporter = new Devel::NYTProf::Reader($opt_file, {
     skip_collapse_evals => !$opt_mergeevals,
 });
 
+my $profile = $reporter->{profile};
+open my $fh, '>', $opt_out
+	or croak "Unable to open file $opt_out: $!";
+print $fh subroutine_table($profile, undef, 0, 'excl_time');
+close $fh;
+
 sub subroutine_table {
     my ($profile, $fi, $max_subs, $sortby) = @_;
     $sortby ||= 'excl_time';
 
-    my $subs_in_file = $profile->subname_subinfo_map;
+    my $subs_unsorted = $profile->subname_subinfo_map;
 
     my $inc_path_regex = get_abs_paths_alternation_regex([$profile->inc], qr/^|\[/);
 
-    # XXX slow - use Schwartzian transform or via XS or Sort::Key
-    my @subs =
+    my @all_subs =
         sort { $b->$sortby <=> $a->$sortby or $a->subname cmp $b->subname }
-        values %$subs_in_file;
+        values %$subs_unsorted;
 
-    # in the overall summary, don't show subs that were never called
-    @subs = grep { $_->calls > 0 } @subs if !$fi;
+    #don't show subs that were never called
+    my @subs = grep { $_->calls > 0 } @all_subs if !$fi;
 
-    #my @subs_to_show = ($max_subs) ? splice @subs, 0, $max_subs : @subs;
-    #my $qualifier = (@subs > @subs_to_show) ? "Top $max_subs " : "";
     my $max_pkg_name_len = max(map { length($_->package) } @subs);
 
-    my $sub_links;
+    my $output;
 
-    $sub_links .= "Name, Time (ms),Avg. Time (ms),Own Time (ms),Invocation Count, Level\n";
+    $output .= "Name, File location, Time, Avg. Time, Own Time, Invocation Count, Level\n";
 
     my $profiler_active = $profile->{attribute}{profiler_active};
 
-    my @rows;
     for my $sub (@subs) {
-
-		print $sub->incl_time;
-
-		$sub_links .= sprintf ("%s, %0.f, %.0f, %.0f, %d, %d\n",
-                      $sub->subname . " " . $sub->fileinfo->filename,                  
+		$output .= sprintf ("%s, %s, %.3f, %.3f, %.3f, %d, %d\n",
+                      $sub->subname, 
+                      $sub->fileinfo->filename,                  
                       $sub->incl_time * 1000,                   
                       0,
                       $sub->excl_time * 1000,                    
                       $sub->calls,                       
                       0);
-
-        my @hints;
-
-        # package and subname
-        my $subname = $sub->subname;
-        if (my $merged_sub_names = $sub->meta->{merged_sub_names}) {
-            push @hints, sprintf "merge of %d subs", 1+scalar @$merged_sub_names;
-        }
-        my ($pkg, $subr) = ($subname =~ /^(.*::)(.*?)$/) ? ($1, $2) : ('', $subname);
-
-        # remove OWN filename from eg __ANON__[(eval 3)[/long/path/name.pm:99]:53]
-        #                     becomes __ANON__[(eval 3)[:99]:53]
-        # XXX doesn't work right if $filestr isn't full filename
-        #$subr =~ s/\Q$filestr\E:(\d+)/:$1/g if $filestr;
-        # remove @INC prefix from other paths
-        #$subr =~ s/$inc_path_regex//;    # for __ANON__[/very/long/path...]       
     }
 
-    return $sub_links;
+    return $output;
 }
-
-sub _escape_html {
-    local $_ = shift;
-    s/\t/        /g; # XXX incorrect for most non-leading tabs
-    s/&/&amp;/g;
-    s/</&lt;/g;
-    s/>/&gt;/g;
-    s{\n}{<br />}g;  # for xsub pseudo-sub declarations
-    s{"}{&quot;}g;   # for attributes like title="..."
-    return $_;
-}
-
-
-my $profile = $reporter->{profile};
-open my $fh, '>', "$opt_out/report.csv"
-	or croak "Unable to open file $opt_out/report.csv: $!";
-print $fh subroutine_table($profile, undef, 0, 'excl_time');
-close $fh;
-
-
 exit 0;
