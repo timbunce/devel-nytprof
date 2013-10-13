@@ -66,7 +66,7 @@ my $text_extn_info = {
     rdt   => { order => 20, tests => ($opts{mergerdt}) ? 2 : 1, },
     x     => { order => 30, tests => 3, },
     calls => { order => 40, tests => 1, },
-    pf    => { order => 50, tests => 3, },
+    pf    => { order => 50, tests => 2, },
 };
 
 chdir('t') if -d 't';
