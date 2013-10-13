@@ -42,4 +42,4 @@ __DATA__
 use strict;
 # Can't use string ("") as a subroutine ref while "strict refs" in use at - line 4.
 eval { $x::z->() };
-warn $@ if $@ !~ /^Can't use string .* as a subroutine ref/;
+die $@ if $@ !~ /^Can't use .* as a subroutine ref/;
