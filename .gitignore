@@ -12,6 +12,9 @@ NYTProf.o
 blib/
 *.tar.gz
 *.o
+*.obj
+*.pdb
+*.def
 *.c
 *.bs
 *.out
