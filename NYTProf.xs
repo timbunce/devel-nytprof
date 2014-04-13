@@ -295,6 +295,13 @@ and write the options to the stream when profiling starts.
 
 
 /* time tracking */
+#ifdef WIN32
+/* win32_gettimeofday has ~15 ms resolution on Win32, so use
+ * QueryPerformanceCounter which has us or ns resolution depending on
+ * motherboard and OS. Comment this out to use the old clock.
+ */
+#  define HAS_QPC
+#endif
 
 #ifdef HAS_CLOCK_GETTIME
 /* http://www.freebsd.org/cgi/man.cgi?query=clock_gettime
@@ -330,8 +337,19 @@ typedef uint64_t time_of_day_t;
 
 #else                                             /* !HAS_MACH_TIME */
 
-#ifdef HAS_GETTIMEOFDAY
-/* on Win32 gettimeofday is always implemented in Perl, not the MS C lib, so
+#ifdef HAS_QPC
+
+unsigned __int64 time_frequency = 0ui64;
+typedef unsigned __int64 time_of_day_t;
+#  define TICKS_PER_SEC time_frequency
+#  define get_time_of_day(into) QueryPerformanceCounter((LARGE_INTEGER*)&into)
+#  define get_ticks_between(typ, s, e, ticks, overflow) STMT_START { \
+    overflow = 0; /* XXX whats this? */ \
+    ticks = (e-s); \
+} STMT_END
+
+#elif defined(HAS_GETTIMEOFDAY)
+/* on Win32 gettimeofday is always implimented in Perl, not the MS C lib, so
    either we use PerlProc_gettimeofday or win32_gettimeofday, depending on the
    Perl defines about NO_XSLOCKS and PERL_IMPLICIT_SYS, to simplify logic,
    we don't check the defines, just the macro symbol to see if it forwards to
@@ -3045,6 +3063,24 @@ _init_profiler_clock(pTHX)
         logwarn("clock %ld not available (clock_gettime not supported on this system)\n", (long)profile_clock);
         profile_clock = -1;
     }
+#endif
+#ifdef HAS_QPC
+{
+    const char * fnname;
+    if(!QueryPerformanceFrequency(&time_frequency)) {
+        fnname = "QueryPerformanceFrequency";
+        goto win32_failed;
+    }
+    {
+        LARGE_INTEGER tmp; /* do 1 test call, dont check return value for
+        further calls for performance reasons */
+        if(!QueryPerformanceCounter(&tmp)) {
+            fnname = "QueryPerformanceCounter";
+            win32_failed:
+            croak("%s failed with Win32 error %u, no clocks available", fnname, GetLastError());
+        }
+    }
+}
 #endif
     ticks_per_sec = TICKS_PER_SEC;
 }
