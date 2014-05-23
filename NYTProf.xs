@@ -120,6 +120,7 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define NYTP_OPTf_ADDPID         0x0001 /* append .pid to output filename */
 #define NYTP_OPTf_OPTIMIZE       0x0002 /* affect $^P & 0x04 */
 #define NYTP_OPTf_SAVESRC        0x0004 /* copy source code lines into profile data */
+#define NYTP_OPTf_ADDTIMESTAMP   0x0008 /* append timestamp to output filename */
 
 #define NYTP_FIDf_IS_PMC         0x0001 /* .pm probably really loaded as .pmc */
 #define NYTP_FIDf_VIA_STMT       0x0002 /* fid first seen by stmt profiler */
@@ -1683,6 +1684,11 @@ set_option(pTHX_ const char* option, const char* value)
             ? profile_opts |  NYTP_OPTf_ADDPID
             : profile_opts & ~NYTP_OPTf_ADDPID;
     }
+    else if (strEQ(option, "addtimestamp")) {
+        profile_opts = (atoi(value))
+            ? profile_opts |  NYTP_OPTf_ADDTIMESTAMP
+            : profile_opts & ~NYTP_OPTf_ADDTIMESTAMP;
+    }
     else if (strEQ(option, "optimize") || strEQ(option, "optimise")) {
         profile_opts = (atoi(value))
             ? profile_opts |  NYTP_OPTf_OPTIMIZE
@@ -1746,10 +1752,17 @@ open_output_file(pTHX_ char *filename)
 
     if ((profile_opts & NYTP_OPTf_ADDPID)
     || out /* already opened so assume forking */
-    ) {  
+    ) {
         sprintf(filename_buf, "%s.%d", filename, getpid());
         filename = filename_buf;
         /* caller is expected to have purged/closed old out if appropriate */
+    }
+
+    if ((profile_opts & NYTP_OPTf_ADDTIMESTAMP)
+    || out /* already opened so assume forking */
+    ) {
+        sprintf(filename_buf, "%s.%"IVdf"", filename, (IV)gettimeofday_nv());
+        filename = filename_buf;
     }
 
     /* some protection against multiple processes writing to the same file */
@@ -4867,7 +4880,6 @@ load_profile_to_hv(pTHX_ NYTP_file in)
 
     Zero(&state, 1, Loader_state_profiler);
     state.total_stmts_duration = 0.0;
-    state.profiler_start_time = 0.0;
     state.profiler_start_time = 0.0;
     state.profiler_end_time = 0.0;
     state.profiler_duration = 0.0;
