@@ -1750,19 +1750,18 @@ open_output_file(pTHX_ char *filename)
     mode = "wb";
 #endif
 
-    if ((profile_opts & NYTP_OPTf_ADDPID)
-    || out /* already opened so assume forking */
+    if ((profile_opts & (NYTP_OPTf_ADDPID|NYTP_OPTf_ADDTIMESTAMP))
+    || out /* already opened so assume we're forking and add the pid */
     ) {
-        sprintf(filename_buf, "%s.%d", filename, getpid());
+        if (strlen(filename) >= MAXPATHLEN-(20+20)) /* buffer overrun protection */
+            croak("Filename '%s' too long", filename);
+        strcpy(filename_buf, filename);
+        if ((profile_opts & NYTP_OPTf_ADDPID) || out)
+            sprintf(&filename_buf[strlen(filename_buf)], ".%d", getpid());
+        if ( profile_opts & NYTP_OPTf_ADDTIMESTAMP )
+            sprintf(&filename_buf[strlen(filename_buf)], ".%"IVdf"", (IV)gettimeofday_nv());
         filename = filename_buf;
         /* caller is expected to have purged/closed old out if appropriate */
-    }
-
-    if ((profile_opts & NYTP_OPTf_ADDTIMESTAMP)
-    || out /* already opened so assume forking */
-    ) {
-        sprintf(filename_buf, "%s.%"IVdf"", filename, (IV)gettimeofday_nv());
-        filename = filename_buf;
     }
 
     /* some protection against multiple processes writing to the same file */

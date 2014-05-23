@@ -308,6 +308,12 @@ a backslash.
 Append the current process id to the end of the filename.
 
 This avoids concurrent, or consecutive, processes from overwriting the same file.
+If a fork is detected during profiling then the child process will automatically
+add the process id to the filename.
+
+=head2 addtimestamp=1
+
+Append the current time, as integer epoch seconds, to the end of the filename.
 
 =head2 trace=N
 
