@@ -42,7 +42,7 @@ $opts{v}    ||= $opts{d};
 $opts{html} ||= $opts{open};
 
 # note some env vars that might impact the tests
-$ENV{$_} && warn "$_=$ENV{$_}\n" for qw(PERL5DB PERL5OPT PERL_UNICODE PERLIO);
+$ENV{$_} && warn "$_='$ENV{$_}'\n" for qw(PERL5DB PERL5OPT PERL_UNICODE PERLIO);
 
 if ($ENV{NYTPROF}) {                        # avoid external interference
     warn "Existing NYTPROF env var value ($ENV{NYTPROF}) ignored for tests. Use NYTPROF_TEST env var if need be.\n";
