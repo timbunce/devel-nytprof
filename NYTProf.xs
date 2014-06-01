@@ -1759,7 +1759,7 @@ open_output_file(pTHX_ char *filename)
         if ((profile_opts & NYTP_OPTf_ADDPID) || out)
             sprintf(&filename_buf[strlen(filename_buf)], ".%d", getpid());
         if ( profile_opts & NYTP_OPTf_ADDTIMESTAMP )
-            sprintf(&filename_buf[strlen(filename_buf)], ".%"IVdf"", (IV)gettimeofday_nv());
+            sprintf(&filename_buf[strlen(filename_buf)], ".%.0"NVff"", gettimeofday_nv());
         filename = filename_buf;
         /* caller is expected to have purged/closed old out if appropriate */
     }
