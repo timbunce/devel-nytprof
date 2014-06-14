@@ -14,9 +14,7 @@
  *
  * ************************************************************************
  */
-#ifndef WIN32
 #define PERL_NO_GET_CONTEXT                       /* we want efficiency */
-#endif
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -333,6 +331,14 @@ typedef uint64_t time_of_day_t;
 #else                                             /* !HAS_MACH_TIME */
 
 #ifdef HAS_GETTIMEOFDAY
+/* on Win32 gettimeofday is always implimented in Perl, not the MS C lib, so
+   either we use PerlProc_gettimeofday or win32_gettimeofday, depending on the
+   Perl defines about NO_XSLOCKS and PERL_IMPLICIT_SYS, to simplify logic,
+   we don't check the defines, just the macro symbol to see if it forwards to
+   presumably the iperlsys.h vtable call or not */
+#if defined(WIN32) && !defined(gettimeofday)
+#  define gettimeofday win32_gettimeofday
+#endif
 typedef struct timeval time_of_day_t;
 #  define TICKS_PER_SEC 1000000                 /* 1 million */
 #  define get_time_of_day(into) gettimeofday(&into, NULL)
@@ -444,6 +450,7 @@ logwarn(const char *pat, ...)
 {
     /* we avoid using any perl mechanisms here */
     va_list args;
+    NYTP_IO_dTHX;
     va_start(args, pat);
     if (!logfh)
         logfh = stderr;
@@ -466,6 +473,7 @@ gettimeofday_nv(void)
 {
 #ifdef HAS_GETTIMEOFDAY
     struct timeval when;
+    NYTP_IO_dTHX;
     gettimeofday(&when, (struct timezone *) 0);
     return when.tv_sec + (when.tv_usec / 1000000.0);
 #else
@@ -4596,10 +4604,9 @@ static loader_callback processing_callbacks[nytp_tag_max] =
  * data for each line of the string eval.
  */
 static void
-load_profile_data_from_stream(loader_callback *callbacks,
+load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
                               Loader_state_base *state, NYTP_file in)
 {
-    dTHX;
     int file_major, file_minor;
 
     SV *tmp_str1_sv = newSVpvn("",0);
@@ -4898,7 +4905,7 @@ load_profile_to_hv(pTHX_ NYTP_file in)
     av_extend(state.fid_srclines_av, 64);
     av_extend(state.fid_line_time_av, 64);
 
-    load_profile_data_from_stream(processing_callbacks,
+    load_profile_data_from_stream(aTHX_ processing_callbacks,
                                   (Loader_state_base *)&state, in);
 
 
@@ -5039,7 +5046,7 @@ load_profile_to_callback(pTHX_ NYTP_file in, SV *cb)
     for (i = 0; i < C_ARRAY_LENGTH(state.cb_args); i++)
         state.cb_args[i] = sv_newmortal();
 
-    load_profile_data_from_stream(perl_callbacks, (Loader_state_base *)&state,
+    load_profile_data_from_stream(aTHX_ perl_callbacks, (Loader_state_base *)&state,
                                   in);
 }
 

@@ -17,6 +17,14 @@
 /* Arguably this header is naughty, as it's not self contained, because it
    assumes that stdlib.h has already been included (via perl.h)  */
 
+#if defined(PERL_IMPLICIT_SYS) && !defined(NO_XSLOCKS)
+/* on Win32 XSUB.h redirects stdio to PerlIO, interp context is then required */
+#  define NYTP_IO_dTHX dTHX
+#  define NYTP_IO_NEEDS_THX
+#else
+#  define NYTP_IO_dTHX dNOOP
+#endif
+
 typedef struct NYTP_file_t *NYTP_file;
 
 void NYTP_start_deflate(NYTP_file file, int compression_level);

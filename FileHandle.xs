@@ -7,10 +7,11 @@
  * ************************************************************************
  */
 
+#define PERL_NO_GET_CONTEXT                       /* we want efficiency */
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
-#if defined(PERL_IMPLICIT_SYS)
+#if defined(PERL_IMPLICIT_SYS) && !defined(NO_XSLOCKS)
 #  ifndef fgets
 #    define fgets PerlSIO_fgets
 #  endif
@@ -57,6 +58,10 @@
 
 struct NYTP_file_t {
     FILE *file;
+#ifdef PERL_IMPLICIT_CONTEXT
+    tTHX aTHX; /* on 5.8 and older, pTHX contains a "register" which is not
+                  compatible with a struct def, so use something else */
+#endif
 #ifdef HAS_ZLIB
     unsigned char state;
     bool stdio_at_eof;
@@ -68,6 +73,16 @@ struct NYTP_file_t {
     unsigned char large_buffer[NYTP_FILE_LARGE_BUFFER_SIZE];
 #endif
 };
+
+/* unlike dTHX which contains a function call, and therefore can never be
+  optimized away, even if return value isn't used, the below will optimize away
+  if NO_XSLOCKS is defined and PerlIO is not being used (i.e. native C lib
+  IO is being used on Win32 )*/
+#ifdef PERL_IMPLICIT_CONTEXT
+#  define dNFTHX(x) dTHXa((x)->aTHX)
+#else
+#  define dNFTHX(x) dNOOP
+#endif
 
 /* XXX The proper return value would be Off_t */
 long
@@ -82,7 +97,10 @@ NYTP_tell(NYTP_file file) {
             ? file->zs.total_out : file->zs.total_in;
     }
 #endif
-    return (long)ftell(file->file);
+    {
+        dNFTHX(file);
+        return (long)ftell(file->file);
+    }
 }
 
 #ifdef HAS_ZLIB
@@ -189,6 +207,7 @@ NYTP_start_inflate(NYTP_file file) {
 
 NYTP_file
 NYTP_open(const char *name, const char *mode) {
+    dTHX;
     FILE *raw_file = fopen(name, mode);
     NYTP_file file;
     ERRNO_PROBE;
@@ -199,6 +218,9 @@ NYTP_open(const char *name, const char *mode) {
     Newx(file, 1, struct NYTP_file_t);
     file->file = raw_file;
 
+#if PERL_IMPLICIT_CONTEXT
+    file->aTHX = aTHX;
+#endif
 #ifdef HAS_ZLIB
     file->state = NYTP_FILE_STDIO;
     file->count = 0;
@@ -234,7 +256,7 @@ grab_input(NYTP_file ifile) {
 
             if (got == 0) {
                 if (!feof(ifile->file)) {
-                    dTHX;
+                    dNFTHX(ifile);
                     croak("grab_input failed: %d (%s)", errno, strerror(errno));
                 }
                 ifile->stdio_at_eof = TRUE;
@@ -285,6 +307,7 @@ grab_input(NYTP_file ifile) {
 
 size_t
 NYTP_read_unchecked(NYTP_file ifile, void *buffer, size_t len) {
+    dNFTHX(ifile);
 #ifdef HAS_ZLIB
     size_t result = 0;
 #endif
@@ -387,18 +410,21 @@ NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
 #endif
     CROAK_IF_NOT_STDIO(ifile, "NYTP_gets");
 
-    while(fgets(buffer + prev_len, (int)(len - prev_len), ifile->file)) {
-        /* We know that there are no '\0' bytes in the part we've already
-           read, so don't bother running strlen() over that part.  */
-        char *end = buffer + prev_len + strlen(buffer + prev_len);
-        if (end[-1] == '\n') {
-            *buffer_p = buffer;
-            *len_p = len;
-            return end;
+    {
+        dNFTHX(ifile);
+        while(fgets(buffer + prev_len, (int)(len - prev_len), ifile->file)) {
+            /* We know that there are no '\0' bytes in the part we've already
+               read, so don't bother running strlen() over that part.  */
+            char *end = buffer + prev_len + strlen(buffer + prev_len);
+            if (end[-1] == '\n') {
+                *buffer_p = buffer;
+                *len_p = len;
+                return end;
+            }
+            prev_len = len - 1; /* -1 to take off the '\0' at the end */
+            len *= 2;
+            buffer = (char *)saferealloc(buffer, len);
         }
-        prev_len = len - 1; /* -1 to take off the '\0' at the end */
-        len *= 2;
-        buffer = (char *)saferealloc(buffer, len);
     }
     *buffer_p = buffer;
     *len_p = len;
@@ -471,7 +497,7 @@ flush_output(NYTP_file ofile, int flush) {
                         where += count;
                         avail -= count;
                     } else {
-                        dTHX;
+                        dNFTHX(ofile);
                         croak("fwrite in flush error %d: %s", errno,
                               strerror(errno));
                     }
@@ -509,10 +535,12 @@ NYTP_write(NYTP_file ofile, const void *buffer, size_t len) {
         /* http://www.opengroup.org/platform/resolutions/bwg98-007.html */
         if (len == 0)
             return len;
-        if (fwrite(buffer, 1, len, ofile->file) < 1) {
-            dTHX;
-            croak("fwrite error %d writing %ld bytes to fd%d: %s",
-                errno, (long)len, fileno(ofile->file), strerror(errno));
+        {
+            dNFTHX(ofile);
+            if (fwrite(buffer, 1, len, ofile->file) < 1) {
+                croak("fwrite error %d writing %ld bytes to fd%d: %s",
+                    errno, (long)len, fileno(ofile->file), strerror(errno));
+            }
         }
         return len;
     }
@@ -553,7 +581,10 @@ NYTP_printf(NYTP_file ofile, const char *format, ...) {
     CROAK_IF_NOT_STDIO(ofile, "NYTP_printf");
 
     va_start(args, format);
-    retval = vfprintf(ofile->file, format, args);
+    {
+        dNFTHX(ofile);
+        retval = vfprintf(ofile->file, format, args);
+    }
     va_end(args);
 
     return retval;
@@ -567,7 +598,10 @@ NYTP_flush(NYTP_file file) {
         flush_output(file, Z_SYNC_FLUSH);
     }
 #endif
-    return fflush(file->file);
+    {
+        dNFTHX(file);
+        return fflush(file->file);
+    }
 }
 
 int
@@ -578,24 +612,30 @@ NYTP_eof(NYTP_file ifile) {
         return ifile->zlib_at_eof;
     }
 #endif
-    return feof(ifile->file);
+    {
+        dNFTHX(ifile);
+        return feof(ifile->file);
+    }
 }
 
 const char *
 NYTP_fstrerror(NYTP_file file) {
-    dTHX;
 #ifdef HAS_ZLIB
     if (FILE_STATE(file) == NYTP_FILE_DEFLATE || FILE_STATE(file) == NYTP_FILE_INFLATE) {
         return file->zs.msg;
     }
 #endif
-    return strerror(errno);
+    {
+        dNFTHX(file);
+        return strerror(errno);
+    }
 }
 
 int
 NYTP_close(NYTP_file file, int discard) {
     FILE *raw_file = file->file;
     int result;
+    dNFTHX(file);
     ERRNO_PROBE;
 
 #ifdef HAS_ZLIB
@@ -835,7 +875,10 @@ NYTP_write_comment(NYTP_file ofile, const char *format, ...) {
         retval = NYTP_write(ofile, s, len);
     } else {
         CROAK_IF_NOT_STDIO(ofile, "NYTP_printf");
-        retval = vfprintf(ofile->file, format, args);
+        {
+            dNFTHX(ofile);
+            retval = vfprintf(ofile->file, format, args);
+        }
     }
     va_end(args);
 
@@ -1073,6 +1116,7 @@ write_time_common(NYTP_file ofile, unsigned char tag, I32 elapsed, U32 overflow,
     size_t retval;
 
     if (overflow) {
+        dNFTHX(ofile);
         /* XXX needs protocol change to output a new time-overflow tag */
         fprintf(stderr, "profile time overflow of %lu seconds discarded!\n",
             (unsigned long)overflow);
