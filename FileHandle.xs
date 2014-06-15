@@ -218,7 +218,7 @@ NYTP_open(const char *name, const char *mode) {
     Newx(file, 1, struct NYTP_file_t);
     file->file = raw_file;
 
-#if PERL_IMPLICIT_CONTEXT
+#ifdef PERL_IMPLICIT_CONTEXT
     file->aTHX = aTHX;
 #endif
 #ifdef HAS_ZLIB

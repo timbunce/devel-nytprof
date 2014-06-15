@@ -331,11 +331,14 @@ typedef uint64_t time_of_day_t;
 #else                                             /* !HAS_MACH_TIME */
 
 #ifdef HAS_GETTIMEOFDAY
-/* on Win32 gettimeofday is always implimented in Perl, not the MS C lib, so
+/* on Win32 gettimeofday is always implemented in Perl, not the MS C lib, so
    either we use PerlProc_gettimeofday or win32_gettimeofday, depending on the
    Perl defines about NO_XSLOCKS and PERL_IMPLICIT_SYS, to simplify logic,
    we don't check the defines, just the macro symbol to see if it forwards to
-   presumably the iperlsys.h vtable call or not */
+   presumably the iperlsys.h vtable call or not.
+   See https://github.com/timbunce/devel-nytprof/pull/27#issuecomment-46102026
+   for more details.
+*/
 #if defined(WIN32) && !defined(gettimeofday)
 #  define gettimeofday win32_gettimeofday
 #endif
