@@ -2,6 +2,7 @@
 .gitignore
 .indent.pro
 .perltidyrc
+.travis.yml
 Changes
 FileHandle.h
 FileHandle.xs
@@ -19,6 +20,7 @@ bin/nytprofcg
 bin/nytprofcsv
 bin/nytprofhtml
 bin/nytprofmerge
+bin/nytprofpf
 demo/1m_stmts.pl
 demo/README
 demo/closure.pl
@@ -83,6 +85,7 @@ t/test01.t
 t/test01.x
 t/test02.calls
 t/test02.p
+t/test02.pf
 t/test02.rdt
 t/test02.t
 t/test02.x
