@@ -364,7 +364,7 @@ sub run_test {
         verify_csv_report($test, $tag, $test_datafile, $outdir);
     }
     elsif ($type eq 'pf') {
-        verify_platforms_csv_report($test, $tag, $test_datafile);
+        verify_platforms_csv_report($test, $tag, $test_datafile, $outdir);
     }
     elsif ($type =~ /^(?:pl|pm|new|outdir)$/) {
         # skip; handy for "test.pl t/test01.*"
@@ -600,25 +600,25 @@ sub verify_csv_report {
 }
 
 sub verify_platforms_csv_report {
-    my ($test, $tag, $profile_datafile) = @_;
+    my ($test, $tag, $profile_datafile, $outdir) = @_;
     
-    my $outfile = "$test.csv";
+    my $outfile = "$outdir/$test.csv";
 
     my $cmd = "$perl $nytprofpf --file=$profile_datafile --out=$outfile";
     ok run_command($cmd), "nytprofpf runs ok";
 
-    my $got      = slurp_file($outfile);
+    my $got = slurp_file($outfile);
         
     #test if all lines from .pf are contained in result file 
     #(we can not be sure about the order, so we match each line individually)
     my $match_result = 1;
     open (EXPECTED, $test); 
     while (<EXPECTED>) {
-		$match_result = $match_result && $got =~ m/$_/;
-	}
-	
-	close (EXPECTED);    
-	ok $match_result, "$outfile file matches $test";
+        $match_result = $match_result && $got =~ m/$_/;
+    }
+    close (EXPECTED);    
+
+    ok $match_result, "$outfile file matches $test";
 }
 
 sub pop_times {
