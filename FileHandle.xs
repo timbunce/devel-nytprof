@@ -256,8 +256,9 @@ grab_input(NYTP_file ifile) {
 
             if (got == 0) {
                 if (!feof(ifile->file)) {
+                    int eno = errno;
                     dNFTHX(ifile);
-                    croak("grab_input failed: %d (%s)", errno, strerror(errno));
+                    croak("grab_input failed: %d (%s)", eno, strerror(eno));
                 }
                 ifile->stdio_at_eof = TRUE;
             }
@@ -497,9 +498,10 @@ flush_output(NYTP_file ofile, int flush) {
                         where += count;
                         avail -= count;
                     } else {
+                        int eno = errno;
                         dNFTHX(ofile);
-                        croak("fwrite in flush error %d: %s", errno,
-                              strerror(errno));
+                        croak("fwrite in flush error %d: %s", eno,
+                              strerror(eno));
                     }
                 }
                 ofile->zs.next_out = (Bytef *) ofile->small_buffer;
@@ -538,8 +540,9 @@ NYTP_write(NYTP_file ofile, const void *buffer, size_t len) {
         {
             dNFTHX(ofile);
             if (fwrite(buffer, 1, len, ofile->file) < 1) {
+                int eno = errno;
                 croak("fwrite error %d writing %ld bytes to fd%d: %s",
-                    errno, (long)len, fileno(ofile->file), strerror(errno));
+                    eno, (long)len, fileno(ofile->file), strerror(eno));
             }
         }
         return len;
