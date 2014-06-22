@@ -304,11 +304,12 @@ and write the options to the stream when profiling starts.
 #endif
 
 #ifdef HAS_CLOCK_GETTIME
+
 /* http://www.freebsd.org/cgi/man.cgi?query=clock_gettime
  * http://webnews.giga.net.tw/article//mailing.freebsd.performance/710
  * http://sean.chittenden.org/news/2008/06/01/
  * Explanation of why gettimeofday() (and presumably CLOCK_REALTIME) may go backwards:
- * http://groups.google.com/group/comp.os.linux.development.apps/tree/browse_frm/thread/dc29071f2417f75f/ac44671fdb35f6db?rnum=1&_done=%2Fgroup%2Fcomp.os.linux.development.apps%2Fbrowse_frm%2Fthread%2Fdc29071f2417f75f%2Fc46264dba0863463%3Flnk%3Dst%26rnum%3D1%26#doc_776f910824bdbee8
+ * https://groups.google.com/forum/#!topic/comp.os.linux.development.apps/3CkHHyQX918
  */
 typedef struct timespec time_of_day_t;
 #  define CLOCK_GETTIME(ts) clock_gettime(profile_clock, ts)
@@ -347,9 +348,10 @@ typedef unsigned __int64 time_of_day_t;
     overflow = 0; /* XXX whats this? */ \
     ticks = (e-s); \
 } STMT_END
+#define WANT_TIME_HIRES /* for gettimeofday_nv */
 
 #elif defined(HAS_GETTIMEOFDAY)
-/* on Win32 gettimeofday is always implimented in Perl, not the MS C lib, so
+/* on Win32 gettimeofday is always implemented in Perl, not the MS C lib, so
    either we use PerlProc_gettimeofday or win32_gettimeofday, depending on the
    Perl defines about NO_XSLOCKS and PERL_IMPLICIT_SYS, to simplify logic,
    we don't check the defines, just the macro symbol to see if it forwards to
@@ -360,6 +362,7 @@ typedef unsigned __int64 time_of_day_t;
 #if defined(WIN32) && !defined(gettimeofday)
 #  define gettimeofday win32_gettimeofday
 #endif
+
 typedef struct timeval time_of_day_t;
 #  define TICKS_PER_SEC 1000000                 /* 1 million */
 #  define get_time_of_day(into) gettimeofday(&into, NULL)
@@ -368,20 +371,23 @@ typedef struct timeval time_of_day_t;
     ticks = ((e.tv_sec - s.tv_sec) * TICKS_PER_SEC + e.tv_usec - s.tv_usec); \
 } STMT_END
 
-#else
+#else /* !HAS_GETTIMEOFDAY */
 
-static int (*u2time)(pTHX_ UV *) = 0;
+/* worst-case fallback - use Time::HiRes which is expensive to call */
+#define WANT_TIME_HIRES
 typedef UV time_of_day_t[2];
 #  define TICKS_PER_SEC 1000000                 /* 1 million */
-#  define get_time_of_day(into) (*u2time)(aTHX_ into)
+#  define get_time_of_day(into) (*time_hires_u2time_hook)(aTHX_ into)
 #  define get_ticks_between(typ, s, e, ticks, overflow)  STMT_START { \
     overflow = 0; \
     ticks = ((e[0] - s[0]) * (typ)TICKS_PER_SEC + e[1] - s[1]); \
 } STMT_END
 
-#endif
-#endif
-#endif
+#endif /* HAS_GETTIMEOFDAY else */
+#endif /* HAS_MACH_TIME else */
+#endif /* HAS_CLOCK_GETTIME else */
+
+static int (*time_hires_u2time_hook)(pTHX_ UV *) = 0;
 
 static time_of_day_t start_time;
 static time_of_day_t end_time;
@@ -493,19 +499,28 @@ static NV
 gettimeofday_nv(void)
 {
 #ifdef HAS_GETTIMEOFDAY
-    struct timeval when;
+
     NYTP_IO_dTHX;
+    struct timeval when;
     gettimeofday(&when, (struct timezone *) 0);
     return when.tv_sec + (when.tv_usec / 1000000.0);
+
 #else
-    if (u2time) {
-        UV time_of_day[2];
-        (*u2time)(aTHX_ &time_of_day);
-        return time_of_day[0] + (time_of_day[1] / 1000000.0);
-    }
-    return (NV)time();
-#endif
+#ifdef WANT_TIME_HIRES
+
+    NYTP_IO_dTHX;
+    UV time_of_day[2];
+    (*time_hires_u2time_hook)(aTHX_ &time_of_day);
+    return time_of_day[0] + (time_of_day[1] / 1000000.0);
+
+#else
+
+    return (NV)time(); /* practically useless */
+
+#endif /* WANT_TIME_HIRES else */
+#endif /* HAS_GETTIMEOFDAY else */
 }
+
 
 /**
  * output file header
@@ -3147,13 +3162,13 @@ init_profiler(pTHX)
         return 0;
     }
 
-#ifndef HAS_GETTIMEOFDAY
+#ifdef WANT_TIME_HIRES
     require_pv("Time/HiRes.pm");                  /* before opcode redirection */
     svp = hv_fetch(PL_modglobal, "Time::U2time", 12, 0);
     if (!svp || !SvIOK(*svp)) croak("Time::HiRes is required");
-    u2time = INT2PTR(int(*)(pTHX_ UV*), SvIV(*svp));
-    if (trace_level)
-        logwarn("NYTProf using Time::HiRes %p\n", u2time);
+    time_hires_u2time_hook = INT2PTR(int(*)(pTHX_ UV*), SvIV(*svp));
+    if (trace_level || !time_hires_u2time_hook)
+        logwarn("NYTProf using Time::HiRes %p\n", time_hires_u2time_hook);
 #endif
 
     /* create file id mapping hash */
