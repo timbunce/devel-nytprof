@@ -479,12 +479,14 @@ sub dump_profile_to_file {
     return;
 }
 
+
 sub diff_files {
     my ($old_file, $new_file, $newp_file) = @_;
 
     # we don't care if this fails, it's just an aid to debug test failures
-    my @opts = split / /, $ENV{NYTPROF_DIFF_OPTS} || $diff_opts;    # e.g. '-y'
-    system("cmp -s $new_file $newp_file || diff @opts $old_file $new_file 1>&2");
+    # XXX needs to behave better on windows
+    my @opts = split / /, $ENV{NYTPROF_DIFF_OPTS} || $diff_opts; # e.g. '-y'
+    system("diff @opts $old_file $new_file 1>&2");
 }
 
 
@@ -593,7 +595,7 @@ sub verify_csv_report {
     chomp @got;
     chomp @expected;
     is_deeply(\@got, \@expected, "$test match generated CSV data for $tag") or do {
-        spit_file($test.'_new', join("\n", @got,''), $test.'_newp');
+        write_out_file($test.'_new', join("\n", @got,''), $test.'_newp');
         diff_files($test, $test.'_new', $test.'_newp');
     };
     is(join("\n", @accuracy_errors), '', "$test times should be reasonable");
@@ -652,7 +654,7 @@ sub slurp_file {    # individual lines in list context, entire file in scalar co
 }
 
 
-sub spit_file {
+sub write_out_file {
     my ($file, $content, $rename_existing) = @_;
     rename $file, $rename_existing or warn "rename($file, $rename_existing): $!"
         if $rename_existing && -f $file;
