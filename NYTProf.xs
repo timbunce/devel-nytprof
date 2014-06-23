@@ -349,6 +349,7 @@ typedef unsigned __int64 time_of_day_t;
     ticks = (e-s); \
 } STMT_END
 #define WANT_TIME_HIRES /* for gettimeofday_nv */
+#undef HAS_GETTIMEOFDAY /* for gettimeofday_nv */
 
 #elif defined(HAS_GETTIMEOFDAY)
 /* on Win32 gettimeofday is always implemented in Perl, not the MS C lib, so
@@ -508,7 +509,7 @@ gettimeofday_nv(void)
 #else
 #ifdef WANT_TIME_HIRES
 
-    NYTP_IO_dTHX;
+    dTHX;
     UV time_of_day[2];
     (*time_hires_u2time_hook)(aTHX_ &time_of_day);
     return time_of_day[0] + (time_of_day[1] / 1000000.0);
@@ -3106,7 +3107,7 @@ _init_profiler_clock(pTHX)
 static int
 init_profiler(pTHX)
 {
-#ifndef HAS_GETTIMEOFDAY
+#ifdef WANT_TIME_HIRES
     SV **svp;
 #endif
 
