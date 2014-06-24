@@ -6,6 +6,8 @@ Changes - History of significant changes in Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 5.07
 
+  Changed Windows clock to QueryPerformanceCounter
+
   Added 'addtimestamp' option to add a timestamp to the output filename
     (similar to addpid option), PR#17 thanks to Naosuke Yokoe (zentooo)
   Added nytprofpf script to generate reports in the plat_forms format

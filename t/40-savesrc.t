@@ -30,21 +30,29 @@ run_test_group( {
         my $fi_s = $profile->fileinfo_of('-');
         isa_ok $fi_s, 'Devel::NYTProf::FileInfo', 'should have fileinfo for "-"';
 
-        my $fi_e = $profile->fileinfo_of('(eval 1)[-:1]');
-        isa_ok $fi_e, 'Devel::NYTProf::FileInfo', 'should have fileinfo for "(eval 0)[-:1]"';
-
         if ($env->{savesrc}) {
             my $lines_s = $fi_s->srclines_array;
             isa_ok $lines_s, 'ARRAY', 'srclines_array should return an array ref';
-
             is $lines_s->[0], $src_code, 'source code line should match';
+        }
+        else { pass() for 1..2 }
+
+        my $fi_e = $profile->fileinfo_of('(eval 1)[-:1]');
+        isa_ok $fi_e, 'Devel::NYTProf::FileInfo',
+            'should have fileinfo for "(eval 0)[-:1]"'
+            or do {
+                diag "Have fileinfo for: '$_'"
+                    for sort map { $_->filename } $profile->all_fileinfos;
+            };
+
+        if ($env->{savesrc} && $fi_e) {
             my $lines_e = $fi_e->srclines_array;
             # perl adds a newline to eval strings
             is $lines_e->[0], "$src_eval\n", 'source code line should match';
             #warn "@$lines_e";
         }
         else {
-            pass() for 1..3;
+            pass() for 1;
         }
     },
 });

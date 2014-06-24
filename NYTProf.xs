@@ -191,7 +191,7 @@ typedef struct hash_entry Hash_entry;
 struct hash_entry {
     unsigned int id;
     char* key;
-    int key_len;
+    STRLEN key_len;
     Hash_entry* next_entry;
     Hash_entry* next_inserted;  /* linked list in insertion order */
 };
@@ -295,6 +295,13 @@ and write the options to the stream when profiling starts.
 
 
 /* time tracking */
+#ifdef WIN32
+/* win32_gettimeofday has ~15 ms resolution on Win32, so use
+ * QueryPerformanceCounter which has us or ns resolution depending on
+ * motherboard and OS. Comment this out to use the old clock.
+ */
+#  define HAS_QPC
+#endif
 
 #ifdef HAS_CLOCK_GETTIME
 
@@ -305,6 +312,7 @@ and write the options to the stream when profiling starts.
  * https://groups.google.com/forum/#!topic/comp.os.linux.development.apps/3CkHHyQX918
  */
 typedef struct timespec time_of_day_t;
+typedef unsigned long ticks_t;
 #  define CLOCK_GETTIME(ts) clock_gettime(profile_clock, ts)
 #  define TICKS_PER_SEC 10000000                /* 10 million - 100ns */
 #  define get_time_of_day(into) CLOCK_GETTIME(&into)
@@ -321,6 +329,7 @@ typedef struct timespec time_of_day_t;
 #include <mach/mach_time.h>
 mach_timebase_info_data_t  our_timebase;
 typedef uint64_t time_of_day_t;
+typedef uint64_t ticks_t;
 #  define TICKS_PER_SEC 10000000                /* 10 million - 100ns */
 #  define get_time_of_day(into) into = mach_absolute_time()
 #  define get_ticks_between(typ, s, e, ticks, overflow) STMT_START { \
@@ -331,8 +340,21 @@ typedef uint64_t time_of_day_t;
 
 #else                                             /* !HAS_MACH_TIME */
 
-#ifdef HAS_GETTIMEOFDAY
+#ifdef HAS_QPC
 
+unsigned __int64 time_frequency = 0ui64;
+typedef unsigned __int64 time_of_day_t;
+typedef unsigned __int64 ticks_t;
+#  define TICKS_PER_SEC time_frequency
+#  define get_time_of_day(into) QueryPerformanceCounter((LARGE_INTEGER*)&into)
+#  define get_ticks_between(typ, s, e, ticks, overflow) STMT_START { \
+    overflow = 0; /* XXX whats this? */ \
+    ticks = (e-s); \
+} STMT_END
+#define WANT_TIME_HIRES /* for gettimeofday_nv */
+#undef HAS_GETTIMEOFDAY /* for gettimeofday_nv */
+
+#elif defined(HAS_GETTIMEOFDAY)
 /* on Win32 gettimeofday is always implemented in Perl, not the MS C lib, so
    either we use PerlProc_gettimeofday or win32_gettimeofday, depending on the
    Perl defines about NO_XSLOCKS and PERL_IMPLICIT_SYS, to simplify logic,
@@ -346,6 +368,7 @@ typedef uint64_t time_of_day_t;
 #endif
 
 typedef struct timeval time_of_day_t;
+typedef unsigned long ticks_t;
 #  define TICKS_PER_SEC 1000000                 /* 1 million */
 #  define get_time_of_day(into) gettimeofday(&into, NULL)
 #  define get_ticks_between(typ, s, e, ticks, overflow) STMT_START { \
@@ -358,6 +381,7 @@ typedef struct timeval time_of_day_t;
 /* worst-case fallback - use Time::HiRes which is expensive to call */
 #define WANT_TIME_HIRES
 typedef UV time_of_day_t[2];
+typedef UV ticks_t;
 #  define TICKS_PER_SEC 1000000                 /* 1 million */
 #  define get_time_of_day(into) (*time_hires_u2time_hook)(aTHX_ into)
 #  define get_ticks_between(typ, s, e, ticks, overflow)  STMT_START { \
@@ -490,7 +514,7 @@ gettimeofday_nv(void)
 #else
 #ifdef WANT_TIME_HIRES
 
-    NYTP_IO_dTHX;
+    dTHX;
     UV time_of_day[2];
     (*time_hires_u2time_hook)(aTHX_ &time_of_day);
     return time_of_day[0] + (time_of_day[1] / 1000000.0);
@@ -741,7 +765,7 @@ hash_op(Hash_table *hashtable, char *key, int key_len, Hash_entry** retval, bool
 static void
 hash_stats(Hash_table *hashtable, int verbosity)
 {
-    int idx = 0;
+    unsigned int idx = 0;
     int max_chain_len = 0;
     int buckets = 0;
     int items = 0;
@@ -906,7 +930,7 @@ find_autosplit_parent(pTHX_ char* file_name)
         if (e->fid_flags & NYTP_FIDf_IS_AUTOSPLIT)
             continue;
         if (trace_level >= 4)
-            logwarn("find_autosplit_parent: checking '%.*s'\n", e->he.key_len, e->he.key);
+            logwarn("find_autosplit_parent: checking '%.*s'\n", (int)e->he.key_len, e->he.key);
 
         /* skip if key is too small to match */
         if (e->he.key_len < base_len)
@@ -921,7 +945,7 @@ find_autosplit_parent(pTHX_ char* file_name)
 
         if (trace_level >= 3)
             logwarn("matched autosplit '%.*s' to parent fid %d '%.*s' (%c|%c)\n",
-                (int)base_len, base_start, e->he.id, e->he.key_len, e->he.key, *(e_name-1),*sep);
+                (int)base_len, base_start, e->he.id, (int)e->he.key_len, e->he.key, *(e_name-1),*sep);
         match = e;
         /* keep looking, so we'll return the most recently profiled match */
     }
@@ -966,7 +990,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         /* found existing entry or else didn't but didn't create new one either */
         if (trace_level >= 7) {
             if (found)
-                 logwarn("fid %d: %.*s\n", found->he.id, found->he.key_len, found->he.key);
+                 logwarn("fid %d: %.*s\n", found->he.id, (int)found->he.key_len, found->he.key);
             else logwarn("fid -: %.*s not profiled\n", (int)file_name_len, file_name);
         }
         return (found) ? found->he.id : 0;
@@ -1058,7 +1082,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
             logwarn("Use fid %2u (after %2u:%-4u) %x e%u:%u %.*s %s\n",
                 found->he.id, last_executed_fid, last_executed_line,
                 found->fid_flags, found->eval_fid, found->eval_line_num,
-                found->he.key_len, found->he.key, (found->key_abs) ? found->key_abs : "");
+                (int)found->he.key_len, found->he.key, (found->key_abs) ? found->key_abs : "");
         /* bail out without calling emit_fid() */
         return found->he.id;
     }
@@ -1148,7 +1172,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
         logwarn("New fid %2u (after %2u:%-4u) 0x%02x e%u:%u %.*s %s %s\n",
             found->he.id, last_executed_fid, last_executed_line,
             found->fid_flags, found->eval_fid, found->eval_line_num,
-            found->he.key_len, found->he.key, (found->key_abs) ? found->key_abs : "",
+            (int)found->he.key_len, found->he.key, (found->key_abs) ? found->key_abs : "",
             fmt_fid_flags(aTHX_ found->fid_flags, buf, sizeof(buf))
         );
     }
@@ -1506,7 +1530,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
 {
     int saved_errno;
     char *file;
-    long elapsed, overflow;
+    ticks_t elapsed, overflow;
 
     if (!is_profiling || !profile_stmts)
         return;
@@ -1518,7 +1542,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
     saved_errno = errno;
 
     get_time_of_day(end_time);
-    get_ticks_between(long, start_time, end_time, elapsed, overflow);
+    get_ticks_between(ticks_t, start_time, end_time, elapsed, overflow);
 
     reinit_if_forked(aTHX);
 
@@ -1535,9 +1559,9 @@ DB_stmt(pTHX_ COP *cop, OP *op)
                                  last_executed_line);
 
         if (trace_level >= 5) /* previous fid:line and how much time we spent there */
-            logwarn("\t@%d:%-4d %2ld ticks (%u, %u)\n",
+            logwarn("\t@%d:%-4d %2lu ticks (%u, %u)\n",
                 last_executed_fid, last_executed_line,
-                elapsed, last_block_line, last_sub_line);
+                (unsigned long)elapsed, last_block_line, last_sub_line);
     }
 
     if (!cop)
@@ -1600,7 +1624,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
     get_time_of_day(start_time);
 
     /* measure time we've spent measuring so we can discount it */
-    get_ticks_between(long, end_time, start_time, elapsed, overflow);
+    get_ticks_between(ticks_t, end_time, start_time, elapsed, overflow);
     cumulative_overhead_ticks += elapsed;
 
     SETERRNO(saved_errno, 0);
@@ -3061,6 +3085,24 @@ _init_profiler_clock(pTHX)
         profile_clock = -1;
     }
 #endif
+#ifdef HAS_QPC
+{
+    const char * fnname;
+    if(!QueryPerformanceFrequency(&time_frequency)) {
+        fnname = "QueryPerformanceFrequency";
+        goto win32_failed;
+    }
+    {
+        LARGE_INTEGER tmp; /* do 1 test call, dont check return value for
+        further calls for performance reasons */
+        if(!QueryPerformanceCounter(&tmp)) {
+            fnname = "QueryPerformanceCounter";
+            win32_failed:
+            croak("%s failed with Win32 error %u, no clocks available", fnname, GetLastError());
+        }
+    }
+}
+#endif
     ticks_per_sec = TICKS_PER_SEC;
 }
 
@@ -3070,7 +3112,7 @@ _init_profiler_clock(pTHX)
 static int
 init_profiler(pTHX)
 {
-#ifndef HAS_GETTIMEOFDAY
+#ifdef WANT_TIME_HIRES
     SV **svp;
 #endif
 
@@ -3654,13 +3696,13 @@ write_src_of_files(pTHX)
                 hint = " (NYTP_FIDf_HAS_SRC not set but src available!)";
             if (trace_level >= 3 || *hint)
                 logwarn("fid %d has no src saved for %.*s%s\n",
-                    e->he.id, e->he.key_len, e->he.key, hint);
+                    e->he.id, (int)e->he.key_len, e->he.key, hint);
             continue;
         }
         if (!src_av) { /* sanity check */
             ++t_no_src;
             logwarn("fid %d has no src but NYTP_FIDf_HAS_SRC is set! (%.*s)\n",
-                e->he.id, e->he.key_len, e->he.key);
+                e->he.id, (int)e->he.key_len, e->he.key);
             continue;
         }
         ++t_has_src;
@@ -3673,7 +3715,7 @@ write_src_of_files(pTHX)
         lines = av_len(src_av); /* -1 is empty, 1 is 1 line etc, 0 shouldn't happen */
         if (trace_level >= 3)
             logwarn("fid %d has %ld src lines for %.*s\n",
-                e->he.id, (long)lines, e->he.key_len, e->he.key);
+                e->he.id, (long)lines, (int)e->he.key_len, e->he.key);
         for (line = 1; line <= lines; ++line) { /* lines start at 1 */
             SV **svp = av_fetch(src_av, line, 0);
             STRLEN len = 0;
