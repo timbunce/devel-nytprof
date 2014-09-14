@@ -6,8 +6,8 @@ use Test::More;
 use lib qw(t/lib);
 use NYTProfTest;
 
-eval "use Sub::Name 0.04; 1"
-	or plan skip_all => "Sub::Name 0.04 required (0.06+ preferred)";
+eval "use Sub::Name 0.11; 1"
+	or plan skip_all => "Sub::Name 0.11 or later required";
 
 print "Sub::Name $Sub::Name::VERSION $INC{'Sub/Name.pm'}\n";
 
