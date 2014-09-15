@@ -2,6 +2,7 @@
 
 use strict;
 use Test::More;
+use lib '/home/travis/perl5'; # travis workaround https://travis-ci.org/timbunce/devel-nytprof/jobs/35285944
 use Test::Differences;
 
 use lib qw(t/lib);
