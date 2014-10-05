@@ -12,6 +12,7 @@ Changes - History of significant changes in Devel::NYTProf
     http://www.plat-forms.org PR#11 thanks to Holger Schmeisky.
   Fixed use of nytprofcalls and flamegraph scripts to not require PATH #21
   Fixed nytprofhtml --open for KDE4 thanks to HMBRAND RT#99080
+  Fixed printf NV conversion compiler warnings thanks to zefram RT#91986
 
   Optimized output performance on threaded perl, thanks to bulk88. PR#27
 

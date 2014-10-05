@@ -963,7 +963,7 @@ NYTP_write_attribute_nv(NYTP_file ofile, const char *key,
                             size_t key_len, NV value)
 {
     char buffer[NV_DIG+20]; /* see Perl_sv_2pv_flags */
-    const size_t len = my_snprintf(buffer, sizeof(buffer), "%g", value);
+    const size_t len = my_snprintf(buffer, sizeof(buffer), "%"NVgf, value);
 
     return NYTP_write_attribute_string(ofile, key, key_len, buffer, len);
 }

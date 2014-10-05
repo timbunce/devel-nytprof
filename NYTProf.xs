@@ -1804,7 +1804,7 @@ open_output_file(pTHX_ char *filename)
             filename, fopen_errno, strerror(fopen_errno), hint);
     }
     if (trace_level >= 1)
-        logwarn("~ opened %s at %.6f\n", filename, gettimeofday_nv());
+        logwarn("~ opened %s at %.6"NVff"\n", filename, gettimeofday_nv());
 
     output_header(aTHX);
 }
@@ -1834,7 +1834,7 @@ close_output_file(pTHX) {
     out = NULL;
 
     if (trace_level >= 1)
-        logwarn("~ closed file at %.6f\n", timeofday);
+        logwarn("~ closed file at %.6"NVff"\n", timeofday);
 }
 
 
@@ -2994,7 +2994,7 @@ finish_profile(pTHX)
 #endif
 
     if (trace_level >= 1)
-        logwarn("~ finish_profile (overhead %gt, is_profiling %d)\n",
+        logwarn("~ finish_profile (overhead %"NVgf"t, is_profiling %d)\n",
             cumulative_overhead_ticks, is_profiling);
 
     /* write data for final statement, unless DB_leave has already */
