@@ -1315,7 +1315,7 @@ sub open_browser_on {
         $BROWSER = "/usr/bin/open %s";
     }
     else {
-        my @try = qw(xdg-open);
+        my @try;
         if ($ENV{BROWSER}) {
             push(@try, split(/:/, $ENV{BROWSER}));
         }
@@ -1324,9 +1324,10 @@ sub open_browser_on {
         }
         unshift(@try, "kfmclient") if $ENV{KDE_FULL_SESSION};
         unshift(@try, "gnome-open") if $ENV{GNOME_DESKTOP_SESSION_ID};
+        unshift(@try, "xdg-open");
         for (grep { have_prog($_) } @try) {
             if ($_ eq "kfmclient") {
-                $BROWSER .= " openURL %s";
+                $BROWSER = "$_ openURL %s";
             }
             elsif ($_ eq "gnome-open" || $_ eq "opera") {
                 $BROWSER = "$_ %s";

@@ -6,7 +6,8 @@ Devel::NYTProf is a powerful feature-rich perl source code profiler.
 
 For more information see:
 
-    http://www.slideshare.net/Tim.Bunce/develnytprof-v4-at-yapceu-201008-4906467
+    https://www.youtube.com/watch?v=T7EK6RZAnEA
+    http://www.slideshare.net/Tim.Bunce/nyt-prof-201406key
     http://blog.timbunce.org/tag/nytprof/
 
 ## DOWNLOAD AND INSTALLATION
