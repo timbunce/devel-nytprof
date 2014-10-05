@@ -2,8 +2,10 @@ language: perl
 
 perl:
     - "blead"
+    - "blead-thr-mb-shrplib-dbg"
     - "5.20"
     - "5.20-extras"
+    - "5.20-thr-mb-shrplib-dbg"
     - "5.18"
     - "5.18-extras"
     - "5.16"
