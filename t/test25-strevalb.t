@@ -16,7 +16,7 @@ my $pre589 = ($] < 5.008009 or $] eq "5.010000");
 my $src_code = join("", <DATA>);
 
 # perl assert failure https://rt.perl.org/Ticket/Display.html?id=122771
-my $perl_rt70211 = ($] >= 5.020 && %Config{ccflags} =~ /-DDEBUGGING/);
+my $perl_rt70211 = ($] >= 5.020 && $Config{ccflags} =~ /-DDEBUGGING/);
 
 run_test_group( {
     extra_options => {
