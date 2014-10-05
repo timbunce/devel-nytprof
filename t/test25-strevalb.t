@@ -6,6 +6,7 @@ use Test::More;
 use lib qw(t/lib);
 use NYTProfTest;
 use Data::Dumper;
+use Config qw(%Config);
 
 use Devel::NYTProf::Run qw(profile_this);
 use Devel::NYTProf::Constants qw(NYTP_SCi_elements);
@@ -14,8 +15,14 @@ my $pre589 = ($] < 5.008009 or $] eq "5.010000");
 
 my $src_code = join("", <DATA>);
 
+# perl assert failure https://rt.perl.org/Ticket/Display.html?id=122771
+my $perl_rt70211 = ($] >= 5.020 && %Config{ccflags} =~ /-DDEBUGGING/);
+
 run_test_group( {
-    extra_options => { start => 'begin' },
+    extra_options => {
+        start => 'begin',
+        optimize => ($perl_rt70211) ? 0 : 1,
+    },
     extra_test_count => 8,
     extra_test_code  => sub {
         my ($profile, $env) = @_;

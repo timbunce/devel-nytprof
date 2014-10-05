@@ -13,6 +13,8 @@ Changes - History of significant changes in Devel::NYTProf
   Fixed use of nytprofcalls and flamegraph scripts to not require PATH #21
   Fixed nytprofhtml --open for KDE4 thanks to HMBRAND RT#99080
   Fixed printf NV conversion compiler warnings thanks to zefram RT#91986
+  Disabled optimize in t/test25-strevalb.t if -DDEBUGGING and perl >= 5.20
+    as workaround for perl RT#70211, #38
 
   Optimized output performance on threaded perl, thanks to bulk88. PR#27
 
