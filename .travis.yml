@@ -1,34 +1,27 @@
 language: perl
 
 perl:
-   - "blead"
-   - "5.20"
-   - "5.20-extras"
-   - "5.18"
-   - "5.18-extras"
-   - "5.16"
-   - "5.14"
-   - "5.12"
-   - "5.10"
-   - "5.8"
+    - "blead"
+    - "5.20"
+    - "5.20-extras"
+    - "5.18"
+    - "5.18-extras"
+    - "5.16"
+    - "5.14"
+    - "5.12"
+    - "5.10"
+    - "5.8"
 
 before_install:
-   - git clone git://github.com/haarg/perl-travis-helper
-   - source perl-travis-helper/init
-   - build-perl
-   - perl -V
+    - git clone git://github.com/travis-perl/helpers ~/travis-perl-helpers
+    - source ~/travis-perl-helpers/init
+    - build-perl
+    - perl -V
+    - build-dist
+    - cd $BUILD_DIR # $BUILD_DIR is set by the build-dist command
 
 install:
-   - export RELEASE_TESTING=1 AUTOMATED_TESTING=1 AUTHOR_TESTING=1 HARNESS_OPTIONS=c HARNESS_TIMER=1
-   - cpanm --quiet --notest Devel::Cover::Report::Coveralls
-   - cpanm --quiet --notest --installdeps .
-
-script:
-   - PERL5OPT=-MDevel::Cover=-coverage,statement,branch,condition,path,subroutine prove -lrsv t
-   - cover
-
-after_success:
-  - cover -report coveralls
+    - cpan-install --deps       # installs prereqs, including recommends
 
 notifications:
-  irc: "irc.perl.org#nytprof"
+    irc: "irc.perl.org#nytprof"
