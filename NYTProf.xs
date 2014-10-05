@@ -4256,7 +4256,8 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
         sv = *av_fetch(av, NYTP_SCi_REC_DEPTH,  1);
         if (!SvOK(sv) || SvUV(sv) < rec_depth) /* max() */
             sv_setuv(sv, rec_depth);
-        /* XXX temp hack way to store calling subname */
+        /* XXX temp hack way to store calling subname as key with undef value */
+        /* ideally we should assign ids to subs (sid) the way we do with files (fid) */
         sv = *av_fetch(av, NYTP_SCi_CALLING_SUB, 1);
         if (!SvROK(sv))               /* autoviv */
             sv_setsv(sv, newRV_noinc((SV*)newHV()));

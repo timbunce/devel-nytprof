@@ -35,6 +35,7 @@ use Config qw(%Config);
 use Getopt::Long;
 use List::Util qw(sum max);
 use File::Copy;
+use File::Spec;
 use File::Path qw(rmtree);
 
 # Handle --profself before loading Devel::NYTProf::Core
@@ -67,6 +68,10 @@ if ($VERSION != $Devel::NYTProf::Core::VERSION) {
 
 my $json_any = eval { require JSON::Any; JSON::Any->import; JSON::Any->new }
     or warn "Can't load JSON::Any module - HTML visualizations skipped.\n";
+
+my $script_ext   = ($^O eq "MSWin32") ? "" : ".pl";
+my $nytprofcalls = File::Spec->catfile($Config{'bin'}, 'nytprofcalls');
+my $flamegraph   = File::Spec->catfile($Config{'bin'}, 'flamegraph') . $script_ext;
 
 my @treemap_colors = (0,2,4,6,8,10,1,3,5,7,9);
 
@@ -793,7 +798,7 @@ sub output_index_page {
             my $is_big = ($total_sub_calls <= 1_000_000);
             warn sprintf "Extracting subroutine call data%s ...\n",
                 ($is_big) ? "" : " (There were $total_sub_calls of them, so this may take some time, or cancel and use --no-flame to skip this step.)";
-            system("nytprofcalls $opt_file > $opt_out/$call_stacks_file") == 0
+            system("$nytprofcalls $opt_file > $opt_out/$call_stacks_file") == 0
                 or die "Generating $opt_out/$call_stacks_file failed\n";
 
             my %subname_subinfo_map = %{ $profile->subname_subinfo_map };
@@ -814,9 +819,7 @@ sub output_index_page {
             my $factor = 1_000_000 / $profile->{attribute}{ticks_per_sec};
             # total (width) for flamegraph is profiler_active in ticks
             my $run_us = $profile->{attribute}{profiler_active} * $profile->{attribute}{ticks_per_sec};
-            my $extension = $^O eq "MSWin32" ? "" : ".pl";
-            my $fg_cmd = "flamegraph$extension --nametype=sub --countname=microseconds";
-            system("$fg_cmd --factor=$factor --nameattr=$subattr --total=$run_us $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
+            system("$flamegraph --nametype=sub --countname=microseconds --factor=$factor --nameattr=$subattr --total=$run_us $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
                 or die "Generating $opt_out/$call_stacks_svg failed\n";
 
             print $fh qq{<div class="flamegraph">\n};
