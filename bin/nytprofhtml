@@ -789,9 +789,10 @@ sub output_index_page {
     if ($profile->{option}{calls} && $opt_flame) {
         my $mk_flamegraph = sub {
 
+            my $total_sub_calls = $profile->{attribute}{total_sub_calls};
+            my $is_big = ($total_sub_calls <= 1_000_000);
             warn sprintf "Extracting subroutine call data%s ...\n",
-                ($profile->{attribute}{total_sub_calls} <= 1_000_000) ? ""
-                : " (there were $profile->{attribute}{total_sub_calls} of them, so this may take some time)";
+                ($is_big) ? "" : " (There were $total_sub_calls of them, so this may take some time, or cancel and use --no-flame to skip this step.)";
             system("nytprofcalls $opt_file > $opt_out/$call_stacks_file") == 0
                 or die "Generating $opt_out/$call_stacks_file failed\n";
 

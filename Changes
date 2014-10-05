@@ -14,6 +14,7 @@ Changes - History of significant changes in Devel::NYTProf
   Optimized output performance on threaded perl, thanks to bulk88. PR#27
 
   Fixed link to screencast, thanks to Herwin. #19
+  Added hint to use --no-flame for big reports. #28
 
 =head2 Changes in Devel::NYTProf 5.06 - 12th Sept 2013
 
