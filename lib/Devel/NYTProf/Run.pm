@@ -79,12 +79,13 @@ sub profile_this {
             or carp "Exit status $? from @perl $src_file";
     }
     elsif (my $src_code = $opt{src_code}) {
-        open my $fh, "| @perl"
-            or croak "Can't open pipe to @perl";
+        my $cmd = join ' ', map qq{"$_"}, @perl;
+        open my $fh, "| $cmd"
+            or croak "Can't open pipe to $cmd";
         print $fh $src_code;
-        close $fh 
-            or carp $! ? "Error closing @perl pipe: $!"
-                       : "Exit status $? from @perl";
+        close $fh
+            or carp $! ? "Error closing $cmd pipe: $!"
+                       : "Exit status $? from $cmd";
 
     }
     else {
