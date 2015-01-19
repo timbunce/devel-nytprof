@@ -1976,7 +1976,7 @@ Don't generate graphviz .dot files or block/sub-level reports.
 
 =item --no-flame
 
-Disable generation of the framegraph on the index page.
+Disable generation of the flamegraph on the index page.
 Also disables calculation of distinct call stacks that are used to produce the
 flamegraph.
 
