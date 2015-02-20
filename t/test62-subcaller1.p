@@ -23,10 +23,8 @@ sub1 eval { Devel::NYTProf::Test::example_xsub(0, "die") };
 
 # test sub calls (xs and perl) from within a sort block
 sub sub2 { $_[0] }
-my @a = sort {
-    Devel::NYTProf::Test::example_xsub();
-    sub2($a) <=> sub2($b);
-} (1,3,2);
+# sort block on one line due to change to line numbering in perl 5.21
+my @a = sort { Devel::NYTProf::Test::example_xsub(); sub2($a) <=> sub2($b); } (1,3,2);
 
 # test sub call as a sort block
 sub sub3 { $_[0] } # XXX not recorded due to limitation of perl
