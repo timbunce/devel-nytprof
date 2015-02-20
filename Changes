@@ -6,18 +6,22 @@ Changes - History of significant changes in Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 5.07
 
-  Added 'addtimestamp' option to add a timestamp to the output filename
-    (similar to addpid option), PR#17 thanks to Naosuke Yokoe (zentooo)
-  Added nytprofpf script to generate reports in the plat_forms format
-    http://www.plat-forms.org PR#11 thanks to Holger Schmeisky.
   Fixed use of nytprofcalls and flamegraph scripts to not require PATH #21
   Fixed nytprofhtml --open for KDE4 thanks to HMBRAND RT#99080
+  Fixed for installs into directory path with spaces, mohawk2 #40
   Fixed printf NV conversion compiler warnings thanks to zefram RT#91986
   Disabled optimize in t/test25-strevalb.t if -DDEBUGGING and perl >= 5.20
     as workaround for perl RT#70211, #38
 
+  Added 'addtimestamp' option to add a timestamp to the output filename
+    (similar to addpid option), PR#17 thanks to Naosuke Yokoe (zentooo)
+  Added nytprofpf script to generate reports in the plat_forms format
+    http://www.plat-forms.org PR#11 thanks to Holger Schmeisky.
+  Added ability to increase the maximum length of a subroutine name #44
+
   Optimized output performance on threaded perl, thanks to bulk88. PR#27
 
+  Corrected typo in nytprofhtml thanks to wollmers #41
   Fixed link to screencast, thanks to Herwin. #19
   Added hint to use --no-flame for big reports. #28
 
