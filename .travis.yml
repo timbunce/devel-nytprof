@@ -24,7 +24,9 @@ before_install:
 
 install:
     - cpan-install --deps       # installs prereqs, including recommends
-    - cpanm Moose Test::Pod Test::Pod::Coverage Test::Portability::Files
+    - cpanm Moose || true
+    - cpanm Test::Pod Test::Pod::Coverage || true
+    - cpanm Test::Portability::Files || true
 
 notifications:
     irc: "irc.perl.org#nytprof"
