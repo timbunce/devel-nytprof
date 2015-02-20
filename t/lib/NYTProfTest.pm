@@ -92,6 +92,7 @@ my $perl     = $opts{p} || $^X;
 
 # turn ./perl into ../perl, because of chdir(t) above.
 $perl = ".$perl" if $perl =~ m|^\./|;
+$perl = qq{"$perl"}; # in case it has spaces
 
 
 if ($opts{one}) {           # for one quick test
@@ -401,13 +402,16 @@ sub run_command {
     return $ok;
 }
 
+sub _quote_join {
+    join ' ', map qq{"$_"}, @_;
+}
 
 # some tests use profile_this() in Devel::NYTProf::Run
 sub run_perl_command {
     my ($cmd, $show_stdout) = @_;
     local $ENV{PERL5LIB} = $perl5lib;
     my @perl = perl_command_words(skip_sitecustomize => 1);
-    run_command("@perl $cmd", $show_stdout);
+    run_command(_quote_join(@perl) . " $cmd", $show_stdout);
 }
 
 
@@ -415,7 +419,7 @@ sub profile { # TODO refactor to use run_perl_command()?
     my ($test, $profile_datafile) = @_;
 
     my @perl = perl_command_words(skip_sitecustomize => 1);
-    my $cmd = "@perl $opts{profperlopts} $test";
+    my $cmd = _quote_join(@perl) . " $opts{profperlopts} $test";
     return ok run_command($cmd), "$test runs ok under the profiler";
 }
 
