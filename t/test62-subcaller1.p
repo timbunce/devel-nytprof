@@ -1,17 +1,5 @@
 # test determination of subroutine caller in unusual cases
 
-{
-    my $a = time;
-    # calls to TIESCALAR aren't seen by perl < 5.8.9 and 5.10.1
-    sub MyTie::TIESCALAR { bless {}, shift; }
-    sub MyTie::FETCH { }
-    sub MyTie::STORE { }
-}
-
-tie my $tied, 'MyTie', 42;  # TIESCALAR
-$tied = 1;                  # STORE
-if ($tied) { 1 }            # FETCH
-
 # test dying from an xsub
 require Devel::NYTProf::Test;
 eval { Devel::NYTProf::Test::example_xsub(0, "die") };

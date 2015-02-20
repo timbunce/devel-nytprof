@@ -1,7 +1,3 @@
-MyTie::TIESCALAR 1
-main::sub4 2
-MyTie::STORE 1
-MyTie::FETCH 1
 Devel::NYTProf::Test::example_xsub 2
 main::sub1 1
 main::CORE:sort 2
@@ -9,3 +5,4 @@ main::CORE:sort;Devel::NYTProf::Test::example_xsub 3
 main::CORE:sort;main::sub2 6
 main::CORE:subst 1
 main::CORE:substcont 3
+main::sub4 2
