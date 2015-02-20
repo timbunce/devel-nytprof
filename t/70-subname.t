@@ -51,3 +51,9 @@ __DATA__
 #!perl
 use Sub::Name;
 (subname 'named' => sub { print "sub called\n" })->();
+
+my $longname = "sub34567890" x 10 x 4;
+(subname $longname => sub { print "sub called\n" })->();
+
+my $deepname = "sub345678::" x 10 x 4;
+(subname $deepname => sub { print "sub called\n" })->();

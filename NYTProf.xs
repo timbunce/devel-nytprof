@@ -106,6 +106,10 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 #define ZLIB_VERSION "0"
 #endif
 
+#ifndef NYTP_MAX_SUB_NAME_LEN
+#define NYTP_MAX_SUB_NAME_LEN 500
+#endif
+
 #define NYTP_FILE_MAJOR_VERSION 5
 #define NYTP_FILE_MINOR_VERSION 0
 
@@ -234,6 +238,8 @@ static NYTP_file out;
 static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static unsigned int profile_opts = NYTP_OPTf_OPTIMIZE | NYTP_OPTf_SAVESRC;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
+
+static char *nytp_panic_overflow_msg_fmt = "panic: buffer overflow of %s on '%s' (see TROUBLESHOOTING section of the documentation)";
 
 struct NYTP_options_t {
     const char *option_name;
@@ -2032,9 +2038,9 @@ static void
 incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 {
     int saved_errno = errno;
-    char called_subname_pv[500];    /* XXX */
+    char called_subname_pv[NYTP_MAX_SUB_NAME_LEN];
     char *called_subname_pv_end = called_subname_pv;
-    char subr_call_key[500]; /* XXX */
+    char subr_call_key[NYTP_MAX_SUB_NAME_LEN];
     int subr_call_key_len;
     NV  overhead_ticks, called_sub_ticks;
     SV *incl_time_sv, *excl_time_sv;
@@ -2092,7 +2098,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         (subr_entry->caller_subnam_sv) ? SvPV_nolen(subr_entry->caller_subnam_sv) : "(null)",
         subr_entry->caller_fid, subr_entry->caller_line);
     if (subr_call_key_len >= sizeof(subr_call_key))
-        croak("panic: NYTProf buffer overflow on %s\n", subr_call_key);
+        croak(nytp_panic_overflow_msg_fmt, "subr_call_key", subr_call_key);
 
     /* compose called_subname_pv as "${pkg}::${sub}" avoiding sprintf */
     STMT_START {
@@ -2116,7 +2122,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         memcpy(called_subname_pv_end, p, len + 1);
         called_subname_pv_end += len;
         if (called_subname_pv_end >= called_subname_pv+sizeof(called_subname_pv))
-            croak("panic: called_subname_pv buffer overflow on '%s'\n", called_subname_pv);
+            croak(nytp_panic_overflow_msg_fmt, "called_subname_pv", called_subname_pv);
     } STMT_END;
 
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */

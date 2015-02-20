@@ -103,6 +103,10 @@ if ($opt_assert or (not defined $opt_assert and $is_developer)) {
     $mm_opts{DEFINE} .= " -DUSE_HARD_ASSERT";
 }
 
+if ($ENV{NYTP_MAX_SUB_NAME_LEN}) {
+    $mm_opts{DEFINE} .= " -DNYTP_MAX_SUB_NAME_LEN=$ENV{NYTP_MAX_SUB_NAME_LEN}";
+}
+
 $mm_opts{LICENSE}  = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
 $mm_opts{OPTIMIZE} = '-g'   if $opt_g;
 $mm_opts{CCFLAGS}  = "-pg"  if $opt_pg;

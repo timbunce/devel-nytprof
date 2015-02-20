@@ -1212,6 +1212,12 @@ You could also try recompiling perl to use 'long doubles' for the NV floating
 point type (use Configure -Duselongdouble). If you try this please let me know.
 I'd also happily take a patch to use long doubles, if available, by default.
 
+=head2 panic: buffer overflow ...
+
+You have unusually long subroutine names in your code. You'll need to rebuild
+Devel::NYTProf with the NYTP_MAX_SUB_NAME_LEN environment variable set to a
+value longer than the longest subroutine names in your code.
+
 =head1 AUTHORS AND CONTRIBUTORS
 
 B<Tim Bunce> (L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>)
