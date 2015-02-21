@@ -21,6 +21,7 @@ Changes - History of significant changes in Devel::NYTProf
 
   Optimized output performance on threaded perl, thanks to bulk88. PR#27
 
+  Add docs re FCGI::Engine and open('-|') #20
   Corrected typo in nytprofhtml thanks to wollmers #41
   Fixed link to screencast, thanks to Herwin. #19
   Added hint to use --no-flame for big reports. #28

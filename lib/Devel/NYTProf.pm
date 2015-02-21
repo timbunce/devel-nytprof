@@ -869,6 +869,11 @@ The C<Devel::NYTProf> subroutine profiler gets confused by the stack gymnastics
 performed by the L<Coro> module and aborts. When profiling applications that
 use Coro you should disable the subroutine profiler using the L</subs=0> option.
 
+=head2 FCGI::Engine
+
+Using C<open('-|')> in code running under L<FCGI::Engine> causes a panic in nytprofcalls.
+See https://github.com/timbunce/devel-nytprof/issues/20 for more information.
+
 =head2 For perl < 5.8.8 it may change what caller() returns
 
 For example, the L<Readonly> module croaks with "Invalid tie" when profiled with
