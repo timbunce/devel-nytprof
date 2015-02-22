@@ -608,7 +608,9 @@ collecting profile data.
 Using the C<start=no> option lets you leave the profiler disabled initially
 until you call DB::enable_profile() at the right moment. You still need to
 load Devel::NYTProf as early as possible, even if you don't call
-DB::enable_profile() until much later. See also L</use_db_sub=1>.
+DB::enable_profile() until much later. That's because any code that's compiled
+before Devel::NYTProf is loaded will not be profiled by default. See also
+L</use_db_sub=1>.
 
 The profile output file can't be used until it's been properly completed and
 closed.  Calling DB::disable_profile() doesn't do that.  To make a profile file
