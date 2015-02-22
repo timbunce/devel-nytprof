@@ -338,6 +338,7 @@ Specify at which phase of program execution the profiler should be enabled:
 
 The start=no option is handy if you want to explicitly control profiling
 by calling DB::enable_profile() and DB::disable_profile() yourself.
+See L</RUN-TIME CONTROL OF PROFILING>.
 
 =head2 optimize=0
 
@@ -622,7 +623,7 @@ Stops collection of profile data.
 
 Subroutine calls which were made while profiling was enabled and are still on
 the call stack (have not yet exited) will still have their profile data
-collected when they exit.
+collected when they exit. Compare with L</finish_profile> below.
 
 =head2 enable_profile
 
