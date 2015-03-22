@@ -1,9 +1,13 @@
 \B\.git\b
 ^MANIFEST\.
-^Makefile$/
-^Makefile.old$/
+^Makefile$
+^Makefile.old$
 \.DS_Store$
 ~$
 ^blib/
 ^devstuff/
 ^Devel-NYTProf-\d
+^flametests/
+^MYMETA\.\w+$
+^t.pl$
+^TODO$
