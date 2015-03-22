@@ -617,13 +617,9 @@ closed.  Calling DB::disable_profile() doesn't do that.  To make a profile file
 usable before the profiled application has completed you can call
 DB::finish_profile(). Alternatively you could call DB::enable_profile($newfile).
 
-You do not need to explicitly C<use Devel::NYTProf> or C<use DB>
-in your perl code in order to call 
-DB::enable_profile(), DB::disable_profile() or DB::finish_profile().
-Those functions are automatically made available to you
-because NYTProf runs as part of the perl debugger framework.
-(Recall that the C<-d> option in C<perl -d:NYTProf some_perl.pl> is 
-the debugger option.)
+Always call the DB::enable_profile(), DB::disable_profile() or
+DB::finish_profile() function with the C<DB::> prefix as shown because you
+can't import them. They're provided automatically when NYTProf is in use.
 
 =head2 disable_profile
 

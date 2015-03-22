@@ -6,7 +6,8 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf
 
-  Fallback to checking PATH for nytprof scripts, #61 thanks to calid.
+  Fallback to checking PATH for nytprof scripts, #61 thanks to calid
+  Clarified the docs re DB:: functions, #63 thanks to dbooth-boston
 
 =head2 Changes in Devel::NYTProf 5.07 - 21st Feb 2015
 
