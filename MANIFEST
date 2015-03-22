@@ -86,6 +86,7 @@ t/test01.x
 t/test02.calls
 t/test02.p
 t/test02.pf
+t/test02.pf.csv
 t/test02.rdt
 t/test02.t
 t/test02.x
@@ -219,6 +220,14 @@ t/test62-subcaller1.calls
 t/test62-subcaller1.p
 t/test62-subcaller1.rdt
 t/test62-subcaller1.t
+t/test62-tie-a.calls
+t/test62-tie-a.p
+t/test62-tie-a.rdt
+t/test62-tie-a.t
+t/test62-tie-b.calls
+t/test62-tie-b.p
+t/test62-tie-b.rdt
+t/test62-tie-b.t
 t/test70-subexcl.calls
 t/test70-subexcl.p
 t/test70-subexcl.t
