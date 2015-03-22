@@ -2,7 +2,7 @@ use Test::More;
 
 my $nytprof_out;
 BEGIN {
-    $nytprof_out = "nytprof-50-errno.out";
+    $nytprof_out = "t/nytprof-50-errno.out";
     $ENV{NYTPROF} = "start=init:file=$nytprof_out";
     unlink $nytprof_out;
 }
