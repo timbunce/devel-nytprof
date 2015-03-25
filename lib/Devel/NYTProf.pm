@@ -672,7 +672,7 @@ when perl calls or returns from a subroutine.
 The individual statement timings for a subroutine usually add up to slightly
 less than the exclusive time for the subroutine. That's because the handling of
 the subroutine call and return overheads is included in the exclusive time for
-the subroutine. The difference may only be a new microseconds but that may
+the subroutine. The difference may only be a few microseconds but that may
 become noticeable for subroutines that are called hundreds of thousands of times.
 
 The statement profiler keeps track how much time was spent on overheads, like
