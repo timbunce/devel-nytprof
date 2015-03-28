@@ -301,6 +301,13 @@ and write the options to the stream when profiling starts.
 
 
 /* time tracking */
+#ifdef WIN32
+/* win32_gettimeofday has ~15 ms resolution on Win32, so use
+ * QueryPerformanceCounter which has us or ns resolution depending on
+ * motherboard and OS. Comment this out to use the old clock.
+ */
+#  define HAS_QPC
+#endif /* WIN32 */
 
 #ifdef HAS_CLOCK_GETTIME
 
@@ -337,8 +344,39 @@ typedef uint64_t time_of_day_t;
 
 #else                                             /* !HAS_MACH_TIME */
 
-#ifdef HAS_GETTIMEOFDAY
+#ifdef HAS_QPC
 
+#  ifndef U64_CONST
+#    ifdef _MSC_VER
+#      define U64_CONST(x) x##UI64
+#    else
+#      define U64_CONST(x) x##ULL
+#    endif
+#  endif
+
+unsigned __int64 time_frequency = U64_CONST(0);
+typedef unsigned __int64 time_of_day_t;
+#  define TICKS_PER_SEC time_frequency
+#  define get_time_of_day(into) QueryPerformanceCounter((LARGE_INTEGER*)&into)
+#  define get_ticks_between(typ, s, e, ticks, overflow) STMT_START { \
+    overflow = 0; /* XXX whats this? */ \
+    ticks = (typ)(e-s); \
+} STMT_END
+
+/* workaround for "error C2520: conversion from unsigned __int64 to double not
+  implemented, use signed __int64" on VC 6 */
+#  if defined(_MSC_VER) && _MSC_VER < 1300 /* < VC 7/2003*/
+#    define NYTPIuint642NV(x) \
+       ((NV)(__int64)((x) & U64_CONST(0x7FFFFFFFFFFFFFFF)) \
+       + -(NV)(__int64)((x) & U64_CONST(0x8000000000000000)))
+#    define get_NV_ticks_between(s, e, ticks, overflow) STMT_START { \
+    overflow = 0; /* XXX whats this? */ \
+    ticks = NYTPIuint642NV(e-s); \
+} STMT_END
+
+#  endif
+
+#elif defined(HAS_GETTIMEOFDAY)
 /* on Win32 gettimeofday is always implemented in Perl, not the MS C lib, so
    either we use PerlProc_gettimeofday or win32_gettimeofday, depending on the
    Perl defines about NO_XSLOCKS and PERL_IMPLICIT_SYS, to simplify logic,
@@ -374,6 +412,14 @@ typedef UV time_of_day_t[2];
 #endif /* HAS_GETTIMEOFDAY else */
 #endif /* HAS_MACH_TIME else */
 #endif /* HAS_CLOCK_GETTIME else */
+
+#ifndef get_NV_ticks_between
+#  define get_NV_ticks_between(s, e, ticks, overflow) get_ticks_between(NV, s, e, ticks, overflow)
+#endif
+
+#ifndef NYTPIuint642NV
+#  define NYTPIuint642NV(x)  ((NV)(x))
+#endif
 
 static int (*time_hires_u2time_hook)(pTHX_ UV *) = 0;
 
@@ -3067,6 +3113,24 @@ _init_profiler_clock(pTHX)
         profile_clock = -1;
     }
 #endif
+#ifdef HAS_QPC
+{
+    const char * fnname;
+    if(!QueryPerformanceFrequency((LARGE_INTEGER *)&time_frequency)) {
+        fnname = "QueryPerformanceFrequency";
+        goto win32_failed;
+    }
+    {
+        LARGE_INTEGER tmp; /* do 1 test call, dont check return value for
+        further calls for performance reasons */
+        if(!QueryPerformanceCounter(&tmp)) {
+            fnname = "QueryPerformanceCounter";
+            win32_failed:
+            croak("%s failed with Win32 error %u, no clocks available", fnname, GetLastError());
+        }
+    }
+}
+#endif
     ticks_per_sec = TICKS_PER_SEC;
 }
 
@@ -4963,7 +5027,20 @@ load_profile_to_hv(pTHX_ NYTP_file in)
         int show_summary_stats = (trace_level >= 1);
 
         if (state.profiler_end_time
-            && state.total_stmts_duration > state.profiler_duration * 1.1) {
+            && state.total_stmts_duration > state.profiler_duration * 1.1
+/* GetSystemTimeAsFiletime/gettimeofday_nv on Win32 have 15.625 ms resolution
+   by default. 1 ms best case scenario if you use special options which Perl
+   land doesn't use, and MS strongly discourages in
+   "Timers, Timer Resolution, and Development of Efficient Code". So for short
+   programs profiler_duration winds up being 0. If necessery, in the future
+   profiler_duration could be set to 15.625 ms automatically on NYTProf start
+   because of the argument that a process can not execute in 0 ms according to
+   the laws of space and time, or at "the end" if profiler_duration is 0.0, set
+   it to 15.625 ms*/
+#ifdef HAS_QPC
+            && state.profiler_duration != 0.0
+#endif
+            ) {
             logwarn("The sum of the statement timings is %.1"NVff"%% of the total time profiling."
                  " (Values slightly over 100%% can be due simply to cumulative timing errors,"
                  " whereas larger values can indicate a problem with the clock used.)\n",
@@ -5222,7 +5299,7 @@ ticks_for_usleep(long u_seconds)
     get_time_of_day(s_time);
     PerlSock_select(0, 0, 0, 0, &timebuf);
     get_time_of_day(e_time);
-    get_ticks_between(NV, s_time, e_time, elapsed, overflow);
+    get_NV_ticks_between(s_time, e_time, elapsed, overflow);
 #else
     PERL_UNUSED_VAR(u_seconds);
 #endif

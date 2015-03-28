@@ -1101,6 +1101,8 @@ impacted by those more than it otherwise would.
 
 =head3 Windows
 
+B<THIS SECTION DOESN'T MATCH THE CODE>
+
 On Windows NYTProf uses Time::HiRes which uses the windows
 QueryPerformanceCounter() API with some extra logic to adjust for the current
 clock speed and try to resync the raw counter to wallclock time every so often
