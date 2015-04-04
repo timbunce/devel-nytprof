@@ -6,6 +6,8 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf
 
+  Changed the clock use on Windows to the high resolution QueryPerformanceCounter
+    which makes NYTProf useful on windows at last, thanks to bulk88, #68
   Fallback to checking PATH for nytprof scripts, #61 thanks to calid
   Clarified the docs re DB:: functions, #63 thanks to dbooth-boston
 
