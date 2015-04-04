@@ -4,12 +4,21 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
-=head2 Changes in Devel::NYTProf
+=head2 Changes in Devel::NYTProf 6.01 - 4th April 2015
 
-  Changed the clock use on Windows to the high resolution QueryPerformanceCounter
-    which makes NYTProf useful on windows at last, thanks to bulk88, #68
+  Changed the clock used on Windows to high resolution QueryPerformanceCounter
+    which makes NYTProf useful on windows, at last, thanks to bulk88, #68
+
   Fallback to checking PATH for nytprof scripts, #61 thanks to calid
+  Fix unused variable warnings thanks to zefram, RT#103107
+  Fix handling of PERL_DISABLE_PMC, thanks to bulk88, #67
+
+  Use larger buffer size when writing the data file, thanks to bulk88 #69
+
   Clarified the docs re DB:: functions, #63 thanks to dbooth-boston
+  Documentation cleanup thanks to wollmers, #64
+  Clarify reason for loading Devel::NYTProf as early as possible.
+  Clarification of the RUN-TIME CONTROL OF PROFILING docs
 
 =head2 Changes in Devel::NYTProf 5.07 - 21st Feb 2015
 
