@@ -409,6 +409,8 @@ typedef UV time_of_day_t[2];
     ticks = ((e[0] - s[0]) * (typ)TICKS_PER_SEC + e[1] - s[1]); \
 } STMT_END
 
+static int (*time_hires_u2time_hook)(pTHX_ UV *) = 0;
+
 #endif /* HAS_GETTIMEOFDAY else */
 #endif /* HAS_MACH_TIME else */
 #endif /* HAS_CLOCK_GETTIME else */
@@ -420,8 +422,6 @@ typedef UV time_of_day_t[2];
 #ifndef NYTPIuint642NV
 #  define NYTPIuint642NV(x)  ((NV)(x))
 #endif
-
-static int (*time_hires_u2time_hook)(pTHX_ UV *) = 0;
 
 static time_of_day_t start_time;
 static time_of_day_t end_time;
@@ -1211,6 +1211,9 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
 
 /**
  * Return a unique persistent id number for a string.
+ *
+ * XXX Currently not used, so may trigger compiler warnings, but is intended to be
+ * used to assign ids to strings like subroutine names like we do for file ids.
  */
 static unsigned int
 get_str_id(pTHX_ char* str, STRLEN len)
@@ -5251,6 +5254,7 @@ PROTOTYPES: DISABLE
 void
 example_xsub(const char *unused="", SV *action=Nullsv, SV *arg=Nullsv)
     CODE:
+    PERL_UNUSED_VAR(unused);
     if (!action)
         XSRETURN(0);
     if (SvROK(action) && SvTYPE(SvRV(action))==SVt_PVCV) {
