@@ -67,8 +67,8 @@ if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
 }
 
-my $json_any = eval { require JSON::Any; JSON::Any->import; JSON::Any->new }
-    or warn "Can't load JSON::Any module - HTML visualizations skipped.\n";
+my $json = eval { require JSON::MaybeXS; JSON::MaybeXS->new() }
+    or warn "Can't load JSON::MaybeXS module - HTML visualizations skipped.\n";
 
 my $script_ext   = ($^O eq "MSWin32") ? "" : ".pl";
 
@@ -854,13 +854,13 @@ sub output_index_page {
         }, "index-subs-excl.html", $all_subs;
     }
 
-    if ($json_any) {
+    if ($json) {
         output_subs_treemap_page($reporter, "subs-treemap-excl.html",
             "Subroutine Exclusive Time Treemap", sub { shift->excl_time });
         print $fh q{<br/>You can view a <a href="subs-treemap-excl.html">treemap of subroutine exclusive time</a>, grouped by package.<br/>};
     }
     else {
-        print $fh q{<br/>(Can't create visual treemap of subroutine exclusive times without the <a href="http://search.cpan.org/dist/JSON-Any/">JSON::Any</a> module.)<br/>};
+        print $fh q{<br/>(Can't create visual treemap of subroutine exclusive times without the <a href="http://search.cpan.org/dist/JSON-MaybeXS/">JSON::MaybeXS</a> module.)<br/>};
     }
 
     if (not $opt_minimal) {
@@ -893,7 +893,7 @@ sub output_index_page {
 sub js_for_new_treemap {
     my ($name, $new_args, $tree_data) = @_;
 
-    return '' unless $json_any;
+    return '' unless $json;
 
     my $default_new_args = {
         titleHeight => 0, # no titles
@@ -922,8 +922,8 @@ sub js_for_new_treemap {
     exists $new_args->{$_} or $new_args->{$_} = $default_new_args->{$_}
         for keys %$default_new_args;
 
-    my $new_args_json  = $json_any->objToJson($new_args);
-    my $tree_data_json = $json_any->objToJson($tree_data);
+    my $new_args_json  = $json->to_json($new_args);
+    my $tree_data_json = $json->to_json($tree_data);
 
     my $js = qq{
         function init_$name() {
