@@ -163,7 +163,7 @@ WriteMakefile(
         'Test::Differences' => '0.60',
         'XSLoader'     => 0,
         'Getopt::Long' => 0,
-        'JSON::Any'    => 0,
+        'JSON::MaybeXS' => 0,
     },
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,

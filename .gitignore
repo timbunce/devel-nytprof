@@ -29,3 +29,4 @@ nytprof-50-errno.out
 /t/*_outdir
 /t/auto
 pm_to_blib
+/_eumm/
