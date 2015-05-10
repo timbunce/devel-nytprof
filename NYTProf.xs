@@ -4,7 +4,7 @@
  * Copyright 2008 Adam J. Kaplan, The New York Times Company.
  * Copyright 2009-2010 Tim Bunce, Ireland.
  * Released under the same terms as Perl 5.8
- * See http://search.cpan.org/dist/Devel-NYTProf/
+ * See http://metacpan.org/release/Devel-NYTProf/
  *
  * Contributors:
  * Tim Bunce, http://www.tim.bunce.name and http://blog.timbunce.org
@@ -2348,7 +2348,7 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
 {
     /* returning the current cv */
     /* logic based on perl's S_deb_curcv in dump.c */
-    /* see also http://search.cpan.org/dist/Devel-StackBlech/ */
+    /* see also http://metacpan.org/release/Devel-StackBlech/ */
     PERL_CONTEXT *cx;
     if (!si)
         si = PL_curstackinfo;

@@ -1,7 +1,7 @@
 /* vim: ts=8 sw=4 expandtab:
  * ************************************************************************
  * This file is part of the Devel::NYTProf package.
- * See http://search.cpan.org/dist/Devel-NYTProf/
+ * See http://metacpan.org/release/Devel-NYTProf/
  * For Copyright see lib/Devel/NYTProf.pm
  * For contribution history see repository logs.
  * ************************************************************************

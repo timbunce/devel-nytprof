@@ -55,25 +55,25 @@ and makes NYTProf measure memory usage.
 
 Per-process memory information:
 
-    http://search.cpan.org/perldoc?Devel::Mallinfo
+    http://metacpan.org/pod/Devel::Mallinfo
 
 Arena, stash, and pad based memory reporters:
 
-    http://search.cpan.org/perldoc?Devel::Gladiator
-    http://search.cpan.org/dist/Internals-DumpArenas/
-    http://search.cpan.org/dist/Internals-GraphArenas/
-    http://search.cpan.org/perldoc?Devel::DumpSizes
-    http://search.cpan.org/perldoc?Devel::Arena
+    http://metacpan.org/pod/Devel::Gladiator
+    http://metacpan.org/release/Internals-DumpArenas/
+    http://metacpan.org/release/Internals-GraphArenas/
+    http://metacpan.org/pod/Devel::DumpSizes
+    http://metacpan.org/pod/Devel::Arena
 
 Per-object memory size reporters:
 
-    http://search.cpan.org/perldoc?Devel::Size
-    http://search.cpan.org/perldoc?Devel::Size::Report
+    http://metacpan.org/pod/Devel::Size
+    http://metacpan.org/pod/Devel::Size::Report
 
 Others:
 
-    http://search.cpan.org/dist/Devel-Memalyzer/
-    http://search.cpan.org/perldoc?Devel::Memalyzer::Plugin::ProcSmaps
+    http://metacpan.org/release/Devel-Memalyzer/
+    http://metacpan.org/pod/Devel::Memalyzer::Plugin::ProcSmaps
 
 =head1 Other Items of Interest
 

@@ -4,7 +4,7 @@
 ##
 ## Copyright, contact and other information can be found
 ## at the bottom of this file, or by going to:
-## http://search.cpan.org/~akaplan/Devel-NYTProf
+## https://metacpan.org/pod/Devel::NYTProf
 ##
 ###########################################################
 
@@ -28,7 +28,7 @@ Options synopsis:
  --help,        -h         Print this message
 
 This script of part of the Devel::NYTProf distribution. Generate a report for plat_forms (L<http://www.plat-forms.org/>) from Devel::NYTProf data.
-See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
+See http://metacpan.org/release/Devel-NYTProf/ for details and copyright.
 
 =encoding ISO8859-1
 
@@ -80,7 +80,7 @@ usage: [perl] nytprofpf [opts]
  --help,        -h         Print this message
 
 This script of part of the Devel::NYTProf distribution.
-See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
+See http://metacpan.org/release/Devel-NYTProf/ for details and copyright.
 END
     return 0;
 }

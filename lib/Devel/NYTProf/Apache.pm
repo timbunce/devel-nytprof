@@ -4,7 +4,7 @@
 #
 # Copyright, contact and other information can be found
 # at the bottom of this file, or by going to:
-# http://search.cpan.org/dist/Devel-NYTProf/
+# http://metacpan.org/release/Devel-NYTProf/
 #
 ###########################################################
 package Devel::NYTProf::Apache;

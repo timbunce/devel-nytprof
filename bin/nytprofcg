@@ -2,7 +2,7 @@
 ##########################################################
 ## This script is part of the Devel::NYTProf distribution
 ## Released under the same terms as Perl 5.8.0
-## See http://search.cpan.org/dist/Devel-NYTProf/
+## See http://metacpan.org/release/Devel-NYTProf/
 ##
 ##########################################################
 use warnings;
@@ -109,7 +109,7 @@ usage: [perl] nytprofcg [opts]
 
 This script of part of the Devel::NYTProf distribution.
 Released under the same terms as Perl 5.8.0
-See http://search.cpan.org/dist/Devel-NYTProf/
+See http://metacpan.org/release/Devel-NYTProf/
 END
     exit 1;
 }

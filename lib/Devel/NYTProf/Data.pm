@@ -4,7 +4,7 @@
 #
 # Copyright, contact and other information can be found
 # at the bottom of this file, or by going to:
-# http://search.cpan.org/dist/Devel-NYTProf/
+# http://metacpan.org/release/Devel-NYTProf/
 #
 ###########################################################
 package Devel::NYTProf::Data;
@@ -33,7 +33,7 @@ future versions).
 B<NOTE> the documentation is out of date and may not be updated soon.
 It's also likely that the API will change drastically in future.
 It's possible, for example, that the data model will switch to use SQLite
-and the http://search.cpan.org/perldoc?ORLite ORM.
+and the http://metacpan.org/pod/ORLite ORM.
 
 Let me know if you come to depend on a particular API and I'll try to preserve
 it if practical.

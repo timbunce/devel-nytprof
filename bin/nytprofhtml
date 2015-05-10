@@ -4,7 +4,7 @@
 ##
 ## Copyright, contact and other information can be found
 ## at the bottom of this file, or by going to:
-## http://search.cpan.org/~akaplan/Devel-NYTProf
+## https://metacpan.org/pod/Devel::NYTProf
 ##
 ###########################################################
 
@@ -127,7 +127,7 @@ usage: [perl] nytprofhtml [opts]
  --help,        -h         Print this message
 
 This script of part of the Devel::NYTProf distribution.
-See http://search.cpan.org/dist/Devel-NYTProf/ for details and copyright.
+See http://metacpan.org/release/Devel-NYTProf/ for details and copyright.
 END
     return 0;
 }
@@ -255,8 +255,8 @@ NYTProf first noted it when executing <a href="#$line">line $line</a>.
 That was probably the first statement executed by the program after perl
 compiled the code containing the variables.
 If the variables can't be found by studying the source code, try using the
-<a href="http://search.cpan.org/perldoc?Devel::FindAmpersand">Devel::FindAmpersand</a>
-or <a href="http://search.cpan.org/perldoc?B::Lint">B::Lint</a>
+<a href="http://metacpan.org/pod/Devel::FindAmpersand">Devel::FindAmpersand</a>
+or <a href="http://metacpan.org/pod/B::Lint">B::Lint</a>
 modules.</p>
 
 </div>\n}
@@ -860,7 +860,7 @@ sub output_index_page {
         print $fh q{<br/>You can view a <a href="subs-treemap-excl.html">treemap of subroutine exclusive time</a>, grouped by package.<br/>};
     }
     else {
-        print $fh q{<br/>(Can't create visual treemap of subroutine exclusive times without the <a href="http://search.cpan.org/dist/JSON-MaybeXS/">JSON::MaybeXS</a> module.)<br/>};
+        print $fh q{<br/>(Can't create visual treemap of subroutine exclusive times without the <a href="http://metacpan.org/release/JSON-MaybeXS/">JSON::MaybeXS</a> module.)<br/>};
     }
 
     if (not $opt_minimal) {
@@ -1596,7 +1596,7 @@ sub get_footer {
     return qq{
         $js
         <div class="footer">Report produced by the
-        <a href="http://search.cpan.org/dist/Devel-NYTProf/">NYTProf $version</a>
+        <a href="http://metacpan.org/release/Devel-NYTProf/">NYTProf $version</a>
         Perl profiler, developed by
         <a href="http://www.linkedin.com/in/timbunce">Tim Bunce</a> and
         <a href="http://code.nytimes.com">Adam Kaplan</a>.
