@@ -1903,7 +1903,7 @@ reinit_if_forked(pTHX)
 
     /* we're now the child process */
     if (trace_level >= 1)
-        logwarn("~ new pid %d (was %d) forkdepth %ld\n", getpid(), last_pid, profile_forkdepth);
+        logwarn("~ new pid %d (was %d) forkdepth %"IVdf"\n", getpid(), last_pid, profile_forkdepth);
 
     /* reset state */
     last_pid = getpid();
@@ -3029,7 +3029,7 @@ disable_profile(pTHX)
         is_profiling = 0;
     }
     if (trace_level)
-        logwarn("~ disable_profile (previously %s, pid %d, trace %ld)\n",
+        logwarn("~ disable_profile (previously %s, pid %d, trace %"IVdf")\n",
             prev_is_profiling ? "enabled" : "disabled", getpid(), trace_level);
     return prev_is_profiling;
 }
@@ -4400,7 +4400,7 @@ load_pid_start_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ..
     (void)hv_store(state->live_pids_hv, text, len, newSVuv(ppid), 0);
     if (trace_level)
         logwarn("Start of profile data for pid %s (ppid %d, %"IVdf" pids live) at %"NVff"\n",
-                text, ppid, HvKEYS(state->live_pids_hv), start_time);
+                text, ppid, (IV)HvKEYS(state->live_pids_hv), start_time);
 
     store_attrib_sv(aTHX_ state->attr_hv, STR_WITH_LEN("profiler_start_time"),
                     newSVnv(start_time));
@@ -4432,7 +4432,7 @@ load_pid_end_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
                 pid);
     if (trace_level)
         logwarn("End of profile data for pid %s (%"IVdf" remaining) at %"NVff"\n", text,
-                HvKEYS(state->live_pids_hv), state->profiler_end_time);
+                (IV)HvKEYS(state->live_pids_hv), state->profiler_end_time);
 
     store_attrib_sv(aTHX_ state->attr_hv, STR_WITH_LEN("profiler_end_time"),
                     newSVnv(end_time));
@@ -5003,7 +5003,7 @@ load_profile_to_hv(pTHX_ NYTP_file in)
 
     if (HvKEYS(state.live_pids_hv)) {
         logwarn("Profile data incomplete, no terminator for %"IVdf" pids %s\n",
-            HvKEYS(state.live_pids_hv),
+            (IV)HvKEYS(state.live_pids_hv),
             "(refer to TROUBLESHOOTING in the documentation)");
         store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("complete"),
                         &PL_sv_no);

@@ -987,7 +987,7 @@ NYTP_write_option_iv(NYTP_file ofile, const char *key, IV value)
 {
     /* 3: 1 for rounding errors, 1 for the sign, 1 for the '\0'  */
     char buffer[(int)(sizeof (IV) * CHAR_BIT * LOG_2_OVER_LOG_10 + 3)];
-    const size_t len = my_snprintf(buffer, sizeof(buffer), "%ld", value);
+    const size_t len = my_snprintf(buffer, sizeof(buffer), "%"IVdf, value);
 
     return NYTP_write_option_pv(ofile, key, buffer, len);
 }
