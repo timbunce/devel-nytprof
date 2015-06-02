@@ -240,6 +240,7 @@ NYTP_open(const char *name, const char *mode) {
 
 static void
 grab_input(NYTP_file ifile) {
+    dNFTHX(ifile);
     ERRNO_PROBE;
 
     ifile->count = 0;
@@ -260,7 +261,6 @@ grab_input(NYTP_file ifile) {
             if (got == 0) {
                 if (!feof(ifile->file)) {
                     int eno = errno;
-                    dNFTHX(ifile);
                     croak("grab_input failed: %d (%s)", eno, strerror(eno));
                 }
                 ifile->stdio_at_eof = TRUE;
@@ -443,6 +443,7 @@ NYTP_gets(NYTP_file ifile, char **buffer_p, size_t *len_p) {
    (and hopefully the underlying OS block writes).  */
 static void
 sync_avail_out_to_ftell(NYTP_file ofile) {
+    dNFTHX(ofile);
     const long result = ftell(ofile->file);
     const unsigned long where = result < 0 ? 0 : result;
     ERRNO_PROBE;
@@ -457,6 +458,7 @@ sync_avail_out_to_ftell(NYTP_file ofile) {
 /* flush has values as described for "allowed flush values" in zlib.h  */
 static void
 flush_output(NYTP_file ofile, int flush) {
+    dNFTHX(ofile);
     ERRNO_PROBE;
 
     ofile->zs.next_in = (Bytef *) ofile->large_buffer;
@@ -502,7 +504,6 @@ flush_output(NYTP_file ofile, int flush) {
                         avail -= count;
                     } else {
                         int eno = errno;
-                        dNFTHX(ofile);
                         croak("fwrite in flush error %d: %s", eno,
                               strerror(eno));
                     }
@@ -986,7 +987,7 @@ NYTP_write_option_iv(NYTP_file ofile, const char *key, IV value)
 {
     /* 3: 1 for rounding errors, 1 for the sign, 1 for the '\0'  */
     char buffer[(int)(sizeof (IV) * CHAR_BIT * LOG_2_OVER_LOG_10 + 3)];
-    const size_t len = my_snprintf(buffer, sizeof(buffer), "%ld", value);
+    const size_t len = my_snprintf(buffer, sizeof(buffer), "%"IVdf, value);
 
     return NYTP_write_option_pv(ofile, key, buffer, len);
 }
