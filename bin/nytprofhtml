@@ -61,7 +61,7 @@ use Devel::NYTProf::Util qw(
 );
 use Devel::NYTProf::Constants qw(NYTP_SCi_CALLING_SUB);
 
-our $VERSION = '6.01';
+our $VERSION = '6.02';
 
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
@@ -830,7 +830,7 @@ sub output_index_page {
             my $factor = 1_000_000 / $profile->{attribute}{ticks_per_sec};
             # total (width) for flamegraph is profiler_active in ticks
             my $run_us = $profile->{attribute}{profiler_active} * $profile->{attribute}{ticks_per_sec};
-            system("\"$flamegraph\" --nametype=sub --countname=microseconds --factor=$factor --nameattr=$subattr --total=$run_us $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
+            system("\"$flamegraph\" --nametype=sub --countname=microseconds --factor=$factor --nameattr=$subattr --hash --total=$run_us $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
                 or die "Generating $opt_out/$call_stacks_svg failed\n";
 
             print $fh qq{<div class="flamegraph">\n};
