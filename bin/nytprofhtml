@@ -61,7 +61,7 @@ use Devel::NYTProf::Util qw(
 );
 use Devel::NYTProf::Constants qw(NYTP_SCi_CALLING_SUB);
 
-our $VERSION = '6.02';
+our $VERSION = '6.021';
 
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
@@ -158,7 +158,8 @@ if (defined($opt_lib)) {
     lib->import($opt_lib);
 }
 
-$SIG{USR2} = \&Carp::cluck;
+$SIG{USR2} = \&Carp::cluck 
+    if exists $SIG{USR2};
 
 my $reporter = new Devel::NYTProf::Reader($opt_file, {
     quiet => 0,
@@ -1022,10 +1023,10 @@ sub package_subinfo_map_to_tm_data {
         my $total_time = $si->profile->{attribute}{profiler_duration};
         my $incl_time = $si->incl_time;
         push @html, sprintf "Inclusive time: %s, %.2f%%",
-                fmt_time($incl_time), $incl_time/$total_time*100;
+                fmt_time($incl_time), $total_time?$incl_time/$total_time*100:0;
         my $excl_time = $si->excl_time;
         push @html, sprintf "Exclusive time: %s, %.2f%%",
-                fmt_time($excl_time), $excl_time/$total_time*100
+                fmt_time($excl_time), $total_time?$excl_time/$total_time*100:0
             if $excl_time ne $incl_time;
 
         if (my $mrd = $si->recur_max_depth) {
