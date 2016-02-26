@@ -223,12 +223,12 @@ typedef struct {
     /* update autosplit logic in get_file_id if fields are added or changed */
 } fid_hash_entry;
 
-static Hash_table fidhash = { NULL, "fid", MAX_HASH_SIZE, sizeof(fid_hash_entry), NULL, NULL, NULL, 1 };
+static Hash_table fidhash = { NULL, (char*)"fid", MAX_HASH_SIZE, sizeof(fid_hash_entry), NULL, NULL, NULL, 1 };
 
 typedef struct {
     Hash_entry he;
 } str_hash_entry;
-static Hash_table strhash = { NULL, "str", MAX_HASH_SIZE, sizeof(str_hash_entry), NULL, NULL, NULL, 1 };
+static Hash_table strhash = { NULL, (char*)"str", MAX_HASH_SIZE, sizeof(str_hash_entry), NULL, NULL, NULL, 1 };
 /* END Hash table definitions */
 
 
@@ -240,7 +240,7 @@ static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static unsigned int profile_opts = NYTP_OPTf_OPTIMIZE | NYTP_OPTf_SAVESRC;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
 
-static char *nytp_panic_overflow_msg_fmt = "panic: buffer overflow of %s on '%s' (see TROUBLESHOOTING section of the NYTProf documentation)";
+static const char *nytp_panic_overflow_msg_fmt = "panic: buffer overflow of %s on '%s' (see TROUBLESHOOTING section of the NYTProf documentation)";
 
 struct NYTP_options_t {
     const char *option_name;
@@ -1216,6 +1216,7 @@ get_file_id(pTHX_ char* file_name, STRLEN file_name_len, int created_via)
  * XXX Currently not used, so may trigger compiler warnings, but is intended to be
  * used to assign ids to strings like subroutine names like we do for file ids.
  */
+#if 0
 static unsigned int
 get_str_id(pTHX_ char* str, STRLEN len)
 {
@@ -1223,6 +1224,7 @@ get_str_id(pTHX_ char* str, STRLEN len)
     hash_op(&strhash, str, len, (Hash_entry**)&found, 1);
     return found->he.id;
 }
+#endif
 
 static UV
 uv_from_av(pTHX_ AV *av, int idx, UV default_uv)
@@ -2159,7 +2161,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         (subr_entry->caller_subnam_sv) ? SvPV_nolen(subr_entry->caller_subnam_sv) : "(null)",
         subr_entry->caller_fid, subr_entry->caller_line);
     if (subr_call_key_len >= sizeof(subr_call_key))
-        croak(nytp_panic_overflow_msg_fmt, "subr_call_key", subr_call_key);
+      croak((char *)nytp_panic_overflow_msg_fmt, "subr_call_key", subr_call_key);
 
     /* compose called_subname_pv as "${pkg}::${sub}" avoiding sprintf */
     STMT_START {
@@ -2183,7 +2185,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         memcpy(called_subname_pv_end, p, len + 1);
         called_subname_pv_end += len;
         if (called_subname_pv_end >= called_subname_pv+sizeof(called_subname_pv))
-            croak(nytp_panic_overflow_msg_fmt, "called_subname_pv", called_subname_pv);
+          croak((char *)nytp_panic_overflow_msg_fmt, "called_subname_pv", called_subname_pv);
     } STMT_END;
 
     /* { called_subname => { "caller_subname[fid:line]" => [ count, incl_time, ... ] } } */

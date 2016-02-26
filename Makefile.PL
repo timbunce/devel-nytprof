@@ -165,6 +165,8 @@ WriteMakefile(
         'Getopt::Long' => 0,
         'JSON::MaybeXS' => 0,
     },
+    INST_LIB  => ($ENV{PERL_CORE} ? '../../lib' : 'blib/lib'),
+    INST_ARCHLIB => ($ENV{PERL_CORE} ? '../../lib' : 'blib/arch'),
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
     FUNCLIST => ['boot_Devel__NYTProf', 'boot_Devel__NYTProf__FileHandle'],
@@ -217,8 +219,10 @@ sub find_h_files {
 sub search_h_file {
     my ($h_file, $regex) = @_;
     my $dir = $h_files->{$h_file}
-        or return undef;
-    open H, "$cpp $dir/$h_file |";
+              or return undef;
+    # darwin is very noisy preprocessing mach_time.h
+    my $devnull = $^O eq 'MSWin32' ? "2>NUL" : "2>/dev/null";
+    open H, "$cpp $dir/$h_file $devnull |";
     while (<H>) {
         return $1 if m/$regex/;
     }
@@ -279,8 +283,9 @@ ctidy_bcpp:
 
 sub dynamic {
     my $make = shift->SUPER::dynamic(@_);
+    return $make if $Config::Config{usecperl}; # cperl has no broken XSLoader
 
-    my $xsl_dest_dir = '$(INST_LIB)/$(PARENT_NAME)/auto/$(FULLEXT)';
+    my $xsl_dest_dir = '$(INST_LIB)/auto/$(FULLEXT)/$(PARENT_NAME)';
     my $xsl_dest     = '$(XSL_DEST_DIR)/$(DLBASE).$(DLEXT)';
 
     if($^O eq 'VMS'){
