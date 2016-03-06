@@ -1271,6 +1271,12 @@ cx_block_type(PERL_CONTEXT *cx) {
 #ifdef CXt_LOOP_LAZYIV
     case CXt_LOOP_LAZYIV:       return "CXt_LOOP_LAZYIV";
 #endif
+#ifdef CXt_LOOP_ARY
+    case CXt_LOOP_ARY:          return "CXt_LOOP_ARY";
+#endif
+#ifdef CXt_LOOP_LIST
+    case CXt_LOOP_LIST:         return "CXt_LOOP_LIST";
+#endif
     }
     /* short-lived and not thread safe but we only use this for tracing
      * and it should never be reached anyway
@@ -1323,12 +1329,17 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
 #  endif
             break;
 #else
-#  if defined (CXt_LOOP_PLAIN) && defined (CXt_LOOP_FOR) && defined(CXt_LOOP_LAZYIV) && defined (CXt_LOOP_LAZYSV)
+#  if defined (CXt_LOOP_PLAIN) && defined(CXt_LOOP_LAZYIV) && defined (CXt_LOOP_LAZYSV)
             /* This is Perl 5.11.0 or later */
         case CXt_LOOP_LAZYIV:
         case CXt_LOOP_LAZYSV:
         case CXt_LOOP_PLAIN:
+#    if defined (CXt_LOOP_FOR)
         case CXt_LOOP_FOR:
+#    else
+        case CXt_LOOP_ARY:
+        case CXt_LOOP_LIST:
+#    endif
             start_op = cx->blk_loop.my_op->op_redoop;
             break;
 #  else
