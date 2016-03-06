@@ -113,7 +113,8 @@ if (defined($opt_lib)) {
     lib->import($opt_lib);
 }
 
-eval { $SIG{USR2} = \&Carp::cluck }; # some platforms don't have SIGUSR2 (Windows)
+$SIG{USR2} = \&Carp::cluck
+    if exists $SIG{USR2}; # some platforms don't have SIGUSR2 (Windows)
 
 my $reporter = new Devel::NYTProf::Reader($opt_file, {
     quiet => 0,
