@@ -332,13 +332,16 @@ Specify the name of the file that L</trace=N> output should be written to.
 Specify at which phase of program execution the profiler should be enabled:
 
   start=begin - start immediately (the default)
-  start=init  - start at beginning of INIT phase (after compilation)
+  start=init  - start at beginning of INIT phase (after compilation/use/BEGIN)
   start=end   - start at beginning of END phase
   start=no    - don't automatically start
 
 The start=no option is handy if you want to explicitly control profiling
 by calling DB::enable_profile() and DB::disable_profile() yourself.
 See L</RUN-TIME CONTROL OF PROFILING>.
+
+The start=init option is handy if you want to avoid profiling the loading and
+initialization of modules.
 
 =head2 optimize=0
 
