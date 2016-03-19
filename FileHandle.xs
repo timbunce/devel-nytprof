@@ -56,6 +56,10 @@
 #  define FILE_STATE(f)         NYTP_FILE_STDIO
 #endif
 
+#if defined(PERL_IMPLICIT_CONTEXT) && ! defined(tTHX)
+#  define tTHX PerlInterpreter*
+#endif
+
 struct NYTP_file_t {
     FILE *file;
 #ifdef PERL_IMPLICIT_CONTEXT
