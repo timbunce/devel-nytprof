@@ -36,12 +36,18 @@ use Getopt::Long;
 use List::Util qw(sum max);
 use File::Copy;
 use File::Spec;
-use File::Which qw(which);
 use File::Path qw(rmtree);
+use File::Basename qw(dirname);
 
 # Handle --profself before loading Devel::NYTProf::Core
 # (because it parses NYTPROF for options)
 BEGIN {
+    if ($ENV{PERL_CORE}) {
+        sub which { require File::Which; File::Which::which(@_) }
+    } else {
+        require File::Which and File::Which->import('which');
+    }
+
     if (grep { $_ eq '--profself' } @ARGV) {
         # profile nytprofhtml itself
         our $profself = "nytprof-nytprofhtml.out";
@@ -68,18 +74,31 @@ if ($VERSION != $Devel::NYTProf::Core::VERSION) {
 }
 
 my $has_json = eval { require JSON::MaybeXS; JSON::MaybeXS->import(); 1 }
+    or eval { require Cpanel::JSON::XS; Cpanel::JSON::XS->import(); 1 }
     or warn "Can't load JSON::MaybeXS module - HTML visualizations skipped ($@)\n";
 
 my $script_ext   = ($^O eq "MSWin32") ? "" : ".pl";
 
-my $nytprofcalls = File::Spec->catfile($Config{'bin'}, 'nytprofcalls');
-$nytprofcalls    = which 'nytprofcalls' if not -e $nytprofcalls;
-
-die "Unable to find nytprofcalls in $Config{bin} or on the PATH"
+my $nytprofcalls = File::Spec->catfile($Config{scriptdir}, 'nytprofcalls');
+$nytprofcalls    = File::Spec->catfile($Config{bin}, 'nytprofcalls')
+  if not -e $nytprofcalls;
+if (! -e $nytprofcalls) {
+  $nytprofcalls = $ENV{PERL_CORE}
+    ? File::Spec->catfile(dirname $0, 'nytprofcalls')
+    : which 'nytprofcalls';
+}
+die "Unable to find nytprofcalls in $Config{scriptdir}, $Config{bin} or on the PATH"
     unless $nytprofcalls;
 
-my $flamegraph   = File::Spec->catfile($Config{'bin'}, 'flamegraph') . $script_ext;
-$flamegraph      = which "flamegraph$script_ext" if not -e $flamegraph;
+my $flamegraph   = File::Spec->catfile($Config{'scriptdir'}, 'flamegraph') . $script_ext;
+$flamegraph      = File::Spec->catfile($Config{'bin'}, 'flamegraph') . $script_ext
+  if not -e $flamegraph;
+if (! -e $flamegraph) {
+  $flamegraph = $ENV{PERL_CORE}
+    ? File::Spec->catfile(dirname $0, "flamegraph$script_ext")
+    : which "flamegraph$script_ext";
+}
+
 
 die "Unable to find flamegraph$script_ext in $Config{bin} or on the PATH"
     unless $flamegraph;
