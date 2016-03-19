@@ -1599,8 +1599,8 @@ sub get_footer {
         <div class="footer">Report produced by the
         <a href="http://metacpan.org/release/Devel-NYTProf/">NYTProf $version</a>
         Perl profiler, developed by
-        <a href="http://www.linkedin.com/in/timbunce">Tim Bunce</a> and
-        <a href="http://code.nytimes.com">Adam Kaplan</a>.
+        <a href="http://www.linkedin.com/in/timbunce">Tim Bunce</a> based on
+        work by Adam Kaplan and Salvador Fandiño García.
         </div>
         $spacing
     };
@@ -2025,20 +2025,6 @@ You can avoid this by using the default C<start=begin> option, or by ensuring
 you execute some non-autoloaded code in the parent module, while the profiler is
 running, before an autoloaded sub is called.
 
-
-=head1 HISTORY
-
-A bit of history and a shameless plug...
-
-NYTProf stands for 'New York Times Profiler'. Indeed, this module was initially
-developed from Devel::FastProf by The New York Times Co. to help our developers
-quickly identify bottlenecks in large Perl applications.  The NY Times loves
-Perl and we hope the community will benefit from our work as much as we have
-from theirs.
-
-Please visit L<http://open.nytimes.com>, our open source blog to see what we
-are up to, L<http://code.nytimes.com> to see some of our open projects and then
-check out L<http://nytimes.com> for the latest news!
 
 =head2 Background
 

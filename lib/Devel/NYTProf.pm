@@ -1264,25 +1264,11 @@ For more details see L</HISTORY> below.
 =head1 COPYRIGHT AND LICENSE
 
   Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
-  Copyright (C) 2008-2013 by Tim Bunce, Ireland.
+  Copyright (C) 2008-2016 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
 at your option, any later version of Perl 5 you may have available.
-
-=head1 HISTORY
-
-A bit of history (and a shameless plug from Adam)...
-
-NYTProf stands for 'New York Times Profiler'. Indeed, this module was initially
-developed from Devel::FastProf by The New York Times Co. to help our developers
-quickly identify bottlenecks in large Perl applications.  The NY Times loves
-Perl and we hope the community will benefit from our work as much as we have
-from theirs.
-
-Please visit L<http://open.nytimes.com>, our open source blog to see what we
-are up to, L<http://code.nytimes.com> to see some of our open projects and then
-check out L<http://nytimes.com> for the latest news!
 
 =head2 Background
 
