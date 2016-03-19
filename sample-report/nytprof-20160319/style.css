@@ -1,0 +1,158 @@
+/* Stylesheet for Devel::NYTProf::Reader HTML reports */
+
+/* You may modify this file to alter the appearance of your coverage
+ * reports. If you do, you should probably flag it read-only to prevent
+ * future runs from overwriting it.
+ */
+
+/* Note: default values use the color-safe web palette. */
+a:visited { color: #6d00E6; }
+a:hover { color: red; }
+
+body { font-family: sans-serif; margin: 0px; }
+.body_content { margin: 8px; }
+
+.header { font-family: sans-serif; padding-left: 0.5em; padding-right: 0.5em; }
+.headerForeground { color: white; padding: 10px; padding-top: 50px; }
+.siteTitle { font-size: 2em; }
+.siteSubTitle { font-size: 1.2em; }
+
+.header_back { 
+    position: absolute; 
+    padding: 10px;
+}
+.header_back > a:link,
+.header_back > a:visited {
+    color: white; 
+    text-decoration: none;
+    font-size: 0.75em;
+}
+
+.jump_to_file {
+    margin-top: 20px;
+}
+
+.footer,
+.footer > a:link,
+.footer > a:visited {
+    color: #cccccc;
+}
+.footer { margin: 30px; }
+
+table { 
+    border-collapse: collapse; 
+    border-spacing: 0px; 
+    margin-top: 20px;
+}
+tr { 
+    text-align : center;
+    vertical-align: top; 
+}
+th,.h {
+    background-color: #dddddd;
+    border: solid 1px #666666;
+    padding: 0em 0.4em 0em 0.4em;
+    font-size:0.8em;
+}
+td { 
+    border: solid 1px #cccccc; 
+    padding: 0em 0.4em 0em 0.4em;
+}
+caption {
+    background-color: #dddddd;
+    text-align: left;
+    white-space: pre;
+    padding: 0.4em;
+}
+
+.table_footer { color: gray; }
+.table_footer > a:link,
+.table_footer > a:visited { color: gray; }
+.table_footer > a:hover   { color: red; }
+
+.index { text-align: left; }
+
+.mode_btn_selected {
+  font-style: italic;
+}
+
+/* subroutine dispatch table */
+.sub_name {
+  text-align: left;
+  font-family: monospace;
+  white-space: pre;
+  color: gray;
+}
+
+/* source code */
+th.left_indent_header {
+  padding-left: 15px;
+  text-align: left;
+}
+
+pre,.s {
+    text-align: left;
+    font-family: monospace;
+    white-space: pre;
+}
+/* plain number */
+.n { text-align: right }
+
+/* Classes for color-coding profiling information:
+ *   c0  : code not hit
+ *   c1  : coverage >= 75%
+ *   c2  : coverage >= 90%
+ *   c3  : path covered or coverage = 100%
+ */
+.c0, .c1, .c2, .c3 { text-align: right; }
+.c0 { background-color: #ffb3b3; }  /* red */
+.c1 { background-color: #ffd9b4; }  /* orange */
+.c2 { background-color: #ffffB4; }  /* yellow */
+.c3 { background-color: #B4ffB4; }  /* green */
+
+/* warnings */
+.warn {
+    background-color: #FFFFAA;
+    border: 0;
+    width: 96%;
+    text-align: center;
+    padding: 5px 0;
+}
+.warn_title {
+    background-color: #FFFFAA;
+    border: 0;
+    color: red;
+    width: 96%;
+    font-size: 2em;
+    text-align: center;
+    padding: 5px 0;
+}
+
+/* summary of calls into and out of a sub */
+.calls {
+  display: block;
+  color: gray;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  text-decoration: none;
+}
+.calls:hover {
+    background-color: #e8e8e8;
+    color: black;
+}
+.calls       a       { color: gray;  text-decoration: none; }
+.calls:hover a       { color: black; text-decoration: underline; }
+.calls:hover a:hover { color: red; }
+/* give a little headroom to the summary of calls into a sub */
+.calls .calls_in { margin-top: 5px; }
+
+.vis_header {
+    text-align:center;
+    font-style: italic;
+    padding-top: 5px; color: gray;
+}
+
+.flamegraph {
+    margin: 20px 0px;
+}
+
