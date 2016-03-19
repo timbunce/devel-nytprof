@@ -629,7 +629,7 @@ read_str(pTHX_ NYTP_file ifile, SV *sv) {
     NYTP_read(ifile, &tag, sizeof(tag), "string prefix");
 
     if (NYTP_TAG_STRING != tag && NYTP_TAG_STRING_UTF8 != tag)
-        croak("File format error at offset %ld%s, expected string tag but found %d ('%c')",
+        croak("Profile format error at offset %ld%s, expected string tag but found %d ('%c') (see TROUBLESHOOTING in docs)",
               NYTP_tell(ifile)-1, NYTP_type_of_offset(ifile), tag, tag);
 
     len = read_u32(ifile);
@@ -4744,7 +4744,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
         if (NYTP_read_unchecked(in, &c, sizeof(c)) != sizeof(c)) {
           if (NYTP_eof(in))
             break;
-          croak("Profile format error '%s' whilst reading tag at %ld",
+          croak("Profile format error '%s' whilst reading tag at %ld (see TROUBLESHOOTING in docs)",
                 NYTP_fstrerror(in), NYTP_tell(in));
         }
 
@@ -4894,7 +4894,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
                 char *end = NYTP_gets(in, &buffer, &buffer_len);
                 if (NULL == end)
                     /* probably EOF */
-                    croak("Profile format error reading attribute");
+                    croak("Profile format error reading attribute (see TROUBLESHOOTING in docs)");
                 --end; /* End, as returned, points 1 after the \n  */
                 if ((NULL == (value = (char *)memchr(buffer, '=', end - buffer)))) {
                     logwarn("attribute malformed '%s'\n", buffer);
@@ -4925,7 +4925,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
                 char *end = NYTP_gets(in, &buffer, &buffer_len);
                 if (NULL == end)
                     /* probably EOF */
-                    croak("Profile format error reading attribute");
+                    croak("Profile format error reading attribute (see TROUBLESHOOTING in docs)");
                 --end; /* end, as returned, points 1 after the \n  */
                 if ((NULL == (value = (char *)memchr(buffer, '=', end - buffer)))) {
                     logwarn("option malformed '%s'\n", buffer);
@@ -4945,7 +4945,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
                 char *end = NYTP_gets(in, &buffer, &buffer_len);
                 if (!end)
                     /* probably EOF */
-                    croak("Profile format error reading comment");
+                    croak("Profile format error reading comment (see TROUBLESHOOTING in docs)");
 
                 if (callbacks[nytp_comment])
                     callbacks[nytp_comment](state, nytp_comment, buffer,
@@ -4970,7 +4970,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
             }
 
             default:
-                croak("File format error: token %d ('%c'), chunk %lu, pos %ld%s",
+                croak("Profile format error: token %d ('%c'), chunk %lu, pos %ld%s (see TROUBLESHOOTING in docs)",
                       c, c, state->input_chunk_seqn, NYTP_tell(in)-1,
                       NYTP_type_of_offset(in));
         }

@@ -1158,9 +1158,10 @@ DTrace L<https://speakerdeck.com/mrallen1/perl-dtrace-and-you>
 
 =head1 TROUBLESHOOTING
 
-=head2 "Profile data incomplete, ..." or "File format error: ..."
+=head2 "Profile data incomplete, ..." or "Profile format error: ..."
 
-This error message means the file doesn't contain all the expected data.
+This error message means the file doesn't contain all the expected data
+or the data has been corrupted in some way.
 That may be because it was truncated (perhaps the filesystem was full) or,
 more commonly, because the all the expected data hasn't been written.
 
@@ -1171,14 +1172,21 @@ If the process being profiled is still running you'll need to wait until it
 exits cleanly (runs C<END> blocks or L</finish_profile> is called explicitly).
 
 If the process being profiled has exited then it's likely that it met with a
-sudden and unnatural death that didn't give NYTProf a chance to finish the profile.
-If the sudden death was due to a signal then L</sigexit=1> may help.
+sudden and unnatural death that didn't give NYTProf a chance to finish the
+profile.  If the sudden death was due to a signal, like SIGTERM, or a SIGINT
+from pressing Ctrl-C, then the L</sigexit=1> option may help.
+
 If the sudden death was due to calling C<POSIX::_exit($status)> then you'll
 need to call L</finish_profile> before calling C<POSIX::_exit>.
 
 You'll also get this error if the code trying to read the profile is itself
 being profiled. That's most likely to happen if you enable profiling via the
 C<PERL5OPT> environment variable and have forgotten to unset it.
+
+If you've encountered this error message, and you're sure you've understood the
+concerns described above, and you're sure they don't apply in your case, then
+please open an issue.  Be sure to include sufficient information so I can see
+how you've addressed these likely causes.
 
 =head2 Some source files don't have profile information
 
