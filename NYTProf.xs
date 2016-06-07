@@ -1547,7 +1547,7 @@ closest_cop(pTHX_ const COP *cop, const OP *o)
         return cop;
     if (o->op_flags & OPf_KIDS) {
         const OP *kid;
-        for (kid = cUNOPo->op_first; kid; kid = kid->op_sibling) {
+        for (kid = cUNOPo->op_first; kid; kid = OpSIBLING(kid)) {
             const COP *new_cop;
             /* If the OP_NEXTSTATE has been optimised away we can still use it
              * the get the file and line number. */
@@ -1613,7 +1613,7 @@ DB_stmt(pTHX_ COP *cop, OP *op)
          * cop by searching through the optree starting from the sibling of PL_curcop.
          * See Perl_vmess in perl's util.c for how warn("...") finds the line number.
          */
-        cop = (COP*)closest_cop(aTHX_ cop, cop->op_sibling);
+        cop = (COP*)closest_cop(aTHX_ cop, OpSIBLING(cop));
         if (!cop)
             cop = PL_curcop_nytprof;
         last_executed_line = CopLINE(cop);
