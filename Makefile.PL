@@ -167,6 +167,7 @@ WriteMakefile(
     },
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
+    FUNCLIST => ['boot_Devel__NYTProf', 'boot_Devel__NYTProf__FileHandle'],
     EXE_FILES => ['bin/nytprofhtml', 'bin/flamegraph.pl', 'bin/nytprofcsv', 'bin/nytprofcalls', 'bin/nytprofcg', 'bin/nytprofmerge', 'bin/nytprofpf'],
     @man,
     INC   => $INCLUDE,
