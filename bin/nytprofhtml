@@ -1778,10 +1778,11 @@ sub get_css {
  */
 
 /* Note: default values use the color-safe web palette. */
+a { color: blue; }
 a:visited { color: #6d00E6; }
 a:hover { color: red; }
 
-body { font-family: sans-serif; margin: 0px; }
+body { font-family: sans-serif; margin: 0px; background-color: white; color:#222; }
 .body_content { margin: 8px; }
 
 .header { font-family: sans-serif; padding-left: 0.5em; padding-right: 0.5em; }
