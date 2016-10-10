@@ -418,6 +418,12 @@ sub subroutine_table {
             }
         });
         $(".floatHeaders").each( function(){ $(this).floatThead(); } );
+
+        show_fragment_target();
+        $(window).on('hashchange', function(e){
+          show_fragment_target();
+        });
+
     > if @subs_to_show == @subs;
 
     return $sub_links;
@@ -1498,7 +1504,13 @@ sub output_file_table {
                 2: { sorter: false      }
             }
         });
+
         $(".floatHeaders").each( function(){ $(this).floatThead(); } );
+
+        show_fragment_target();
+        $(window).on('hashchange', function(e){
+          show_fragment_target();
+        });
     };
 
     return "";
@@ -1642,7 +1654,8 @@ EOD
     $html .= <<EOD unless $opts->{skip_jquery};
     <script type="text/javascript" src="js/jquery-min.js"></script> 
 
-    <script type="text/javascript" src="js/jquery-tablesorter-min.js"></script> 
+    <script type="text/javascript" src="js/jquery.floatThead.min.js"></script>
+    <script type="text/javascript" src="js/jquery-tablesorter-min.js"></script>
     <link rel="stylesheet" type="text/css" href="js/style-tablesorter.css" />
     <script type="text/javascript">
     // when a column is first clicked on to sort it, use descending order
@@ -1671,8 +1684,22 @@ EOD
         },
         type: 'numeric' // set type, either numeric or text
     });
+
+    function show_fragment_target() {
+      var target = \$(':target');
+      if( target ) {
+        var cury = \$(window).scrollTop();
+        var fhYPos   = \$(':target').closest('table.floatHeaders').prev().offset().top;
+        var thHeight = \$(':target').closest('table.floatHeaders').find('thead').first().height();
+        var tYPos    = parseInt(\$(':target').closest('tr').position().top);
+        if( tYPos < (fhYPos + thHeight) ) {
+          \$(window).scrollTop(
+            tYPos - (thHeight)
+          );
+        }
+      }
+    }
     </script>
-    <script type="text/javascript" src="js/jquery.floatThead.min.js"></script>
 EOD
     $html .= $opts->{head_epilogue} if $opts->{head_epilogue};
 
