@@ -1686,8 +1686,7 @@ EOD
     });
 
     function show_fragment_target() {
-      var target = \$(':target');
-      if( target ) {
+      if("" != location.hash) {
         var cury = \$(window).scrollTop();
         var fhYPos   = \$(':target').closest('table.floatHeaders').prev().offset().top;
         var thHeight = \$(':target').closest('table.floatHeaders').find('thead').first().height();
