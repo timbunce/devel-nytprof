@@ -1693,7 +1693,7 @@ EOD
         if( tgt.is('a') && table.is('table.floatHeaders') )
         {
             var cury     = $(window).scrollTop();
-            var fhYPos   = table.prev().offset().top;
+            var fhYPos   = table.prev('.floatThead-container').offset().top;
             var thHeight = table.find('thead').first().height();
             var tYPos    = parseInt($(':target').closest('tr').position().top);
             if( tYPos < (fhYPos + thHeight) )
