@@ -1601,7 +1601,9 @@ sub get_footer {
         @on_ready_js = reverse @on_ready_js;
 
         $js = sprintf q{
-            <script type="text/javascript"> $(document).ready(function() { %s } ); </script>
+            <script type="text/javascript">
+              $(document).ready(function() { %s } );
+            </script>
         }, join("\n", '', @on_ready_js, '');
         @on_ready_js = ();
     };
@@ -1651,8 +1653,8 @@ EOD
         $html .= qq{    <script language="JavaScript" src="js/jit/jit.js"></script>\n};
     }
 
-    $html .= <<EOD unless $opts->{skip_jquery};
-    <script type="text/javascript" src="js/jquery-min.js"></script> 
+    $html .= <<'EOD' unless $opts->{skip_jquery};
+    <script type="text/javascript" src="js/jquery-min.js"></script>
 
     <script type="text/javascript" src="js/jquery.floatThead.min.js"></script>
     <script type="text/javascript" src="js/jquery-tablesorter-min.js"></script>
@@ -1660,24 +1662,24 @@ EOD
     <script type="text/javascript">
     // when a column is first clicked on to sort it, use descending order
     // XXX doesn't seem to work (and not just because the tablesorter formatSortingOrder() is broken)
-    \$.tablesorter.defaults.sortInitialOrder = "desc";
-    // add parser through the tablesorter addParser method 
-    \$.tablesorter.addParser({
+    $.tablesorter.defaults.sortInitialOrder = "desc";
+    // add parser through the tablesorter addParser method
+    $.tablesorter.addParser({
         id: 'fmt_time',   // name of this parser
-        is: function(s) { 
-            return false; // return false so this parser is not auto detected 
-        }, 
-        format: function(orig) { // format data for normalization 
+        is: function(s) {
+            return false; // return false so this parser is not auto detected
+        },
+        format: function(orig) { // format data for normalization
             // console.log(orig);
             var val = orig.replace(/ns/,'');
-            if (val != orig) { return val / (1000*1000*1000); } 
-            val = orig.replace(/[µ\xB5]s/,''); /* micro */
-            if (val != orig) { return val / (1000*1000); } 
+            if (val != orig) { return val / (1000*1000*1000); }
+            val = orig.replace(/[µ\\xB5]s/,''); /* micro */
+            if (val != orig) { return val / (1000*1000); }
             val = orig.replace(/ms/,'');
             if (val != orig) { return val / (1000); }
-            val = orig.replace(/([0-9])s/,"\$1");
+            val = orig.replace(/([0-9])s/,"$1");
             if (val != orig) { return val; }
-            if (orig == '0') { return orig; } 
+            if (orig == '0') { return orig; }
             var non_number = orig.replace(/^[-+]?[0-9.]+/, '', 'g');
             console.log('no match for fmt_time of '+orig+' (units:'+non_number+' charCodeAt0:'+non_number.charCodeAt(0)+')');
             return orig;
@@ -1686,17 +1688,21 @@ EOD
     });
 
     function show_fragment_target() {
-      if("" != location.hash) {
-        var cury = \$(window).scrollTop();
-        var fhYPos   = \$(':target').closest('table.floatHeaders').prev().offset().top;
-        var thHeight = \$(':target').closest('table.floatHeaders').find('thead').first().height();
-        var tYPos    = parseInt(\$(':target').closest('tr').position().top);
-        if( tYPos < (fhYPos + thHeight) ) {
-          \$(window).scrollTop(
-            tYPos - (thHeight)
-          );
+        var tgt = $(':target');
+        var table = tgt.closest('table.floatHeaders');
+        if( tgt.is('a') && table.is('table.floatHeaders') )
+        {
+            var cury     = $(window).scrollTop();
+            var fhYPos   = table.prev().offset().top;
+            var thHeight = table.find('thead').first().height();
+            var tYPos    = parseInt($(':target').closest('tr').position().top);
+            if( tYPos < (fhYPos + thHeight) )
+            {
+                $(window).scrollTop(
+                    tYPos - (thHeight)
+                );
+            }
         }
-      }
     }
     </script>
 EOD
