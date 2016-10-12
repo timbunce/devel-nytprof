@@ -1673,7 +1673,7 @@ EOD
             // console.log(orig);
             var val = orig.replace(/ns/,'');
             if (val != orig) { return val / (1000*1000*1000); }
-            val = orig.replace(/[µ\\xB5]s/,''); /* micro */
+            val = orig.replace(/[µ\xB5]s/,''); /* micro */
             if (val != orig) { return val / (1000*1000); }
             val = orig.replace(/ms/,'');
             if (val != orig) { return val / (1000); }
