@@ -7,6 +7,7 @@
 0,0,0,use strict;
 0,0,0,
 0,0,0,use feature ":5.10";
+0,0,0,no if "$]" >= 5.018, warnings => "experimental";
 0,0,0,
 0,0,0,sub foo {
 0,2,0,my $whameth = shift;
