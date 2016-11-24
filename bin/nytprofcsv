@@ -191,7 +191,7 @@ Print the help message
  0.00468,3,0.00156,use strict; 
  0,0,0,
  0.00000,1,0,require Exporter; 
- ... thats enough, get the picture? ...
+ ... that's enough, get the picture? ...
 
 Note: The format line indicates what fields the numbers correspond to
 
