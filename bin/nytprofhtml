@@ -1655,9 +1655,9 @@ EOD
         format: function(orig) { // format data for normalization 
             // console.log(orig);
             var val = orig.replace(/ns/,'');
-            if (val != orig) { return val / (1000*1000*1000); } 
-            val = orig.replace(/[µ\xB5]s/,''); /* micro */
-            if (val != orig) { return val / (1000*1000); } 
+            if (val != orig) { return val / (1000*1000*1000); }
+            val = orig.replace(/[µ\\xB5]s/,''); /* micro */
+            if (val != orig) { return val / (1000*1000); }
             val = orig.replace(/ms/,'');
             if (val != orig) { return val / (1000); }
             val = orig.replace(/([0-9])s/,"\$1");
@@ -1778,10 +1778,11 @@ sub get_css {
  */
 
 /* Note: default values use the color-safe web palette. */
+a { color: blue; }
 a:visited { color: #6d00E6; }
 a:hover { color: red; }
 
-body { font-family: sans-serif; margin: 0px; }
+body { font-family: sans-serif; margin: 0px; background-color: white; color:#222; }
 .body_content { margin: 8px; }
 
 .header { font-family: sans-serif; padding-left: 0.5em; padding-right: 0.5em; }
