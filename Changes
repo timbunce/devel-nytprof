@@ -4,6 +4,16 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 6.04 - 24th November 2016
+
+    Fixed build on perl 5.25+ due to OpSIBLING, thanks to Dan Collins #102
+    Fixed nytprofmerge on Windows thanks to andrey-starodubtsev #99
+    Fixed nytprofhtml invalid UTF-8 char and improved CSS #105
+    Fixed spelling mistake in nytprofcsv docs. Closes #95
+
+    Table headers now stay visible, thanks to Sebastian Rose #106
+    Assorted improvments to .travis.yml
+
 =head2 Changes in Devel::NYTProf 6.03 - 25th March 2016
 
   Fix to account for the deep stack optimizations in perl 5.23.8
