@@ -30,3 +30,6 @@ nytprof-50-errno.out
 /t/auto
 pm_to_blib
 /_eumm/
+dll.base
+dll.exp
+NYTProf_def.old
