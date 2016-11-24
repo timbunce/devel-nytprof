@@ -106,6 +106,7 @@ GetOptions(
     'minimal|m!'=> \my $opt_minimal,
     'flame!'    => \(my $opt_flame = 1),
     'mergeevals!'=> \(my $opt_mergeevals = 1),
+    'flamewidth=i' => \(my $opt_flame_width = 1200),
     'profself!'     => sub { }, # handled in BEGIN above
     'debug!'        => \my $opt_debug,
 ) or do { exit usage(); };
@@ -122,6 +123,7 @@ usage: [perl] nytprofhtml [opts]
  --open                    Open the generated report in a web browser
  --lib <lib>,   -l <lib>   Add <lib> to the beginning of \@INC
  --no-flame                Disable flame graph (and call stacks processing)
+ --flamewidth      <width> Width of the flame graph [default: 1200]
  --minimal,     -m         Don't generate graphviz .dot files or block/sub-level reports
  --no-mergeevals           Disable merging of string evals
  --help,        -h         Print this message
@@ -838,11 +840,11 @@ sub output_index_page {
             my $factor = 1_000_000 / $profile->{attribute}{ticks_per_sec};
             # total (width) for flamegraph is profiler_active in ticks
             my $run_us = $profile->{attribute}{profiler_active} * $profile->{attribute}{ticks_per_sec};
-            system("\"$flamegraph\" --nametype=sub --countname=microseconds --factor=$factor --nameattr=$subattr --hash --total=$run_us $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
+            system("\"$flamegraph\" --nametype=sub --countname=microseconds --factor=$factor --width=$opt_flame_width --nameattr=$subattr --hash --total=$run_us $opt_out/$call_stacks_file > $opt_out/$call_stacks_svg") == 0
                 or die "Generating $opt_out/$call_stacks_svg failed\n";
 
             print $fh qq{<div class="flamegraph">\n};
-            print $fh qq{<object data="$call_stacks_svg" width="1200" type="image/svg+xml" >SVG not supported</object>\n};
+            print $fh qq{<object data="$call_stacks_svg" width="$opt_flame_width" type="image/svg+xml" >SVG not supported</object>\n};
             print $fh qq{<p>The <a href="http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/">Flame Graph</a> above is a visualization of the time spent in <em>distinct call stacks</em>. The colors and x-axis position are not meaningful.</p>\n};
             print $fh qq{</div>\n};
             1;
