@@ -3,11 +3,13 @@ language: perl
 perl:
     - "dev"
     - "dev-thr-mb-shrplib-dbg"
+    - "5.24"
+    - "5.24-extras"
+    - "5.24-thr-mb-shrplib-dbg"
     - "5.22"
     - "5.22-extras"
     - "5.20"
     - "5.20-extras"
-    - "5.20-thr-mb-shrplib-dbg"
     - "5.18"
     - "5.18-extras"
     - "5.16"
@@ -33,7 +35,7 @@ install:
 
 matrix:
   allow_failures:
-    - perl: dev
+    - perl: dev dev-thr-mb-shrplib-dbg
 
 notifications:
     irc: "irc.perl.org#nytprof"
