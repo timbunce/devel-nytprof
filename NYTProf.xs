@@ -3924,7 +3924,7 @@ typedef struct loader_state_base {
     unsigned long input_chunk_seqn;
 } Loader_state_base;
 
-typedef void (*loader_callback)(Loader_state_base *cb_data, const nytp_tax_index tag, ...);
+typedef void (*loader_callback)(Loader_state_base *cb_data, const int tag, ...);
 
 typedef struct loader_state_callback {
     Loader_state_base base_state;
@@ -3966,7 +3966,7 @@ typedef struct loader_state_profiler {
 } Loader_state_profiler;
 
 static void
-load_discount_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_discount_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     PERL_UNUSED_ARG(tag);
@@ -3982,7 +3982,7 @@ load_discount_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...
 }
 
 static void
-load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_time_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4057,7 +4057,7 @@ load_time_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 }
 
 static void
-load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_new_fid_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4153,7 +4153,7 @@ load_new_fid_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 }
 
 static void
-load_src_line_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_src_line_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4188,7 +4188,7 @@ load_src_line_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...
 }
 
 static void
-load_sub_info_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_sub_info_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4253,7 +4253,7 @@ load_sub_info_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...
 }
 
 static void
-load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_sub_callers_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4388,7 +4388,7 @@ load_sub_callers_callback(Loader_state_base *cb_data, const nytp_tax_index tag, 
 }
 
 static void
-load_pid_start_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_pid_start_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4420,7 +4420,7 @@ load_pid_start_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ..
 }
 
 static void
-load_pid_end_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_pid_end_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4456,7 +4456,7 @@ load_pid_end_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
 }
 
 static void
-load_attribute_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_attribute_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4487,7 +4487,7 @@ load_attribute_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ..
 }
 
 static void
-load_option_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_option_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_profiler *state = (Loader_state_profiler *)cb_data;
     dTHXa(state->interp);
@@ -4548,7 +4548,7 @@ static struct perl_callback_info_t callback_info[nytp_tag_max] =
 };
 
 static void
-load_perl_callback(Loader_state_base *cb_data, const nytp_tax_index tag, ...)
+load_perl_callback(Loader_state_base *cb_data, const int tag, ...)
 {
     Loader_state_callback *state = (Loader_state_callback *)cb_data;
     dTHXa(state->interp);
