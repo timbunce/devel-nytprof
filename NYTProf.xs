@@ -187,6 +187,13 @@ Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, cons
 static PerlInterpreter *orig_my_perl;
 #endif
 
+/* op->op_sibling is deprecated on new perls, but the OpSIBLING macro doesn't
+   exist on older perls. We don't need to check for PERL_OP_PARENT here
+   because if PERL_OP_PARENT was set, and we needed to check op_moresib,
+   we would already have this macro. */
+#ifndef OpSIBLING
+#define OpSIBLING(o) (0 + (o)->op_sibling)
+#endif
 
 #define MAX_HASH_SIZE 512
 
