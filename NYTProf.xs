@@ -3150,7 +3150,7 @@ _init_profiler_clock(pTHX)
         if(!QueryPerformanceCounter(&tmp)) {
             fnname = "QueryPerformanceCounter";
             win32_failed:
-            croak("%s failed with Win32 error %u, no clocks available", fnname, GetLastError());
+            croak("%s failed with Win32 error %u, no clocks available", fnname, (unsigned)GetLastError());
         }
     }
 }
