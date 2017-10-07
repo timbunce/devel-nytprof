@@ -69,6 +69,10 @@ my $text_extn_info = {
     pf    => { order => 50, tests => 2, },
 };
 
+# having t/* in @INC is necessary for prefix-stripping
+# to reduce test-file names down to the single tokens
+# that are used in the comparison-output files.
+unshift @INC, File::Spec->rel2abs('./t') if -d 't';
 chdir('t') if -d 't';
 
 if (-d '../blib') {
