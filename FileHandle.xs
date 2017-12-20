@@ -1249,9 +1249,6 @@ NYTP_write_sub_info(NYTP_file ofile, U32 fid,
     if (retval < 1)
         return retval;
 
-    if (retval < 1)
-        return retval;
-
     return total;
 }
 
