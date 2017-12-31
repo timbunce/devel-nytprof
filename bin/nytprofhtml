@@ -1321,7 +1321,8 @@ sub _copy_dir {
 sub open_browser_on {
     my $index = shift;
 
-    return if eval { require Browser::Open; Browser::Open::open_browser($index, 1); };
+    my $exit_code = eval { require Browser::Open; Browser::Open::open_browser($index, 1); };
+    return if defined($exit_code) && $exit_code == 0;
     warn "$@\n" if $@ && $opt_debug;
 
     return if eval { require ActiveState::Browser; ActiveState::Browser::open($index); 1 };
