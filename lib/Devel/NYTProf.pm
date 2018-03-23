@@ -1144,7 +1144,7 @@ Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev
 
 Blog posts L<http://blog.timbunce.org/tag/nytprof/>
 
-Public SVN Repository and hacking instructions at L<http://code.google.com/p/perl-devel-nytprof/>
+Public Github Repository and hacking instructions at L<https://github.com/timbunce/devel-nytprof/>
 
 L<nytprofhtml> is a script included that produces html reports.
 L<nytprofcsv> is another script included that produces plain text CSV reports.
