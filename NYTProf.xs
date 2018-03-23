@@ -24,11 +24,12 @@
 #include "NYTProf.h"
 
 #ifndef NO_PPPORT_H
+#define NEED_my_snprintf_GLOBAL
+#define NEED_newRV_noinc_GLOBAL
 #define NEED_eval_pv
 #define NEED_grok_number
 #define NEED_grok_numeric_radix
 #define NEED_newCONSTSUB
-#define NEED_newRV_noinc
 #define NEED_sv_2pv_flags
 #define NEED_newSVpvn_flags
 #define NEED_my_strlcat
