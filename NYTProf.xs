@@ -2153,7 +2153,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
     /* exclusive = inclusive - time spent in subroutines called by this subroutine */
     excl_subr_ticks = incl_subr_ticks - called_sub_ticks;
 
-    subr_call_key_len = snprintf(subr_call_key, sizeof(subr_call_key), "%s::%s[%u:%d]",
+    subr_call_key_len = my_snprintf(subr_call_key, sizeof(subr_call_key), "%s::%s[%u:%d]",
         subr_entry->caller_subpkg_pv,
         (subr_entry->caller_subnam_sv) ? SvPV_nolen(subr_entry->caller_subnam_sv) : "(null)",
         subr_entry->caller_fid, subr_entry->caller_line);
