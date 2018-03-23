@@ -36,7 +36,8 @@ if ($use_db_sub) {                     # install DB::DB sub
 # DB::sub shouldn't be called, but needs to exist for perl <5.8.7 (<perl@24265)
 # Could be called in obscure cases, e.g. if "perl -d" (not -d:NYTProf)
 # was used with Devel::NYTProf loaded some other way
-sub sub { die "DB::sub called unexpectedly" }
+*sub = sub { warn "DB::sub called unexpectedly (@{[ caller(0) ]})" }
+  if $] < 5.008008;
 
 sub CLONE { DB::disable_profiler }
 
