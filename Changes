@@ -4,6 +4,19 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 6.05 - 23rd March 2018
+
+  Fix test failures on Perl 5.27.6+ #113
+
+  Fix to prevent memory corruption in incr_sub_inclusive_time
+    thanks to lucrocha #115
+
+  Fix test failures on Perl 5.26 w/ PERL_USE_UNSAFE_INC=0,
+    thanks to Kent Fredric #112
+
+  Fix for the double opening of the web browser with --open,
+    thanks to trizen #107
+
 =head2 Changes in Devel::NYTProf 6.04 - 24th November 2016
 
     Fixed build on perl 5.25+ due to OpSIBLING, thanks to Dan Collins #102
