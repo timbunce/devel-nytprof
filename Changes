@@ -17,6 +17,9 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
   Fix for the double opening of the web browser with --open,
     thanks to trizen #107
 
+  Updated links in docs from old svn repository to Github
+    thanks to smpeters #114
+
 =head2 Changes in Devel::NYTProf 6.04 - 24th November 2016
 
     Fixed build on perl 5.25+ due to OpSIBLING, thanks to Dan Collins #102
