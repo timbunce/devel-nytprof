@@ -16,6 +16,7 @@ install:
 
 
 build_script:
+  - perl Makefile.PL
   - gmake
   - gmake test
 
