@@ -1,0 +1,21 @@
+branches:
+  except:
+    - /travis/
+skip_tags: true
+
+cache:
+  - C:\strawberry
+
+install:
+  - if not exist "C:\strawberry" choco install strawberryperl --version 5.26.1.1
+  - set ST=C:\strawberry
+  - set PATH=%ST%\perl\bin;%ST%\perl\site\bin;%ST%\c\bin;%PATH%
+  - cd C:\projects\%APPVEYOR_PROJECT_NAME%
+  
+  - cpanm --installdeps --notest --with-all-features .
+
+
+build_script:
+  - gmake
+  - gmake test
+
