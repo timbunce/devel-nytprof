@@ -240,7 +240,7 @@ static char PROF_output_file[MAXPATHLEN+1] = "nytprof.out";
 static unsigned int profile_opts = NYTP_OPTf_OPTIMIZE | NYTP_OPTf_SAVESRC;
 static int profile_start = NYTP_START_BEGIN;      /* when to start profiling */
 
-static char *nytp_panic_overflow_msg_fmt = "panic: buffer overflow of %s on '%s' (see TROUBLESHOOTING section of the documentation)";
+static char *nytp_panic_overflow_msg_fmt = "panic: buffer overflow of %s on '%s' (see TROUBLESHOOTING section of the NYTProf documentation)";
 
 struct NYTP_options_t {
     const char *option_name;
@@ -630,7 +630,7 @@ read_str(pTHX_ NYTP_file ifile, SV *sv) {
     NYTP_read(ifile, &tag, sizeof(tag), "string prefix");
 
     if (NYTP_TAG_STRING != tag && NYTP_TAG_STRING_UTF8 != tag)
-        croak("Profile format error at offset %ld%s, expected string tag but found %d ('%c') (see TROUBLESHOOTING in docs)",
+        croak("Profile format error at offset %ld%s, expected string tag but found %d ('%c') (see TROUBLESHOOTING in NYTProf docs)",
               NYTP_tell(ifile)-1, NYTP_type_of_offset(ifile), tag, tag);
 
     len = read_u32(ifile);
@@ -3710,7 +3710,7 @@ write_sub_callers(pTHX)
         }
     }
     if (negative_time_calls) {
-        logwarn("Warning: %d subroutine calls had negative time! See TROUBLESHOOTING in the documentation. (Clock %ld)\n",
+        logwarn("Warning: %d subroutine calls had negative time! See TROUBLESHOOTING in the NYTProf documentation. (Clock %ld)\n",
             negative_time_calls, (long)profile_clock);
     }
 }
@@ -4745,7 +4745,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
         if (NYTP_read_unchecked(in, &c, sizeof(c)) != sizeof(c)) {
           if (NYTP_eof(in))
             break;
-          croak("Profile format error '%s' whilst reading tag at %ld (see TROUBLESHOOTING in docs)",
+          croak("Profile format error '%s' whilst reading tag at %ld (see TROUBLESHOOTING in NYTProf docs)",
                 NYTP_fstrerror(in), NYTP_tell(in));
         }
 
@@ -4895,7 +4895,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
                 char *end = NYTP_gets(in, &buffer, &buffer_len);
                 if (NULL == end)
                     /* probably EOF */
-                    croak("Profile format error reading attribute (see TROUBLESHOOTING in docs)");
+                    croak("Profile format error reading attribute (see TROUBLESHOOTING in NYTProf docs)");
                 --end; /* End, as returned, points 1 after the \n  */
                 if ((NULL == (value = (char *)memchr(buffer, '=', end - buffer)))) {
                     logwarn("attribute malformed '%s'\n", buffer);
@@ -4926,7 +4926,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
                 char *end = NYTP_gets(in, &buffer, &buffer_len);
                 if (NULL == end)
                     /* probably EOF */
-                    croak("Profile format error reading attribute (see TROUBLESHOOTING in docs)");
+                    croak("Profile format error reading attribute (see TROUBLESHOOTING in NYTProf docs)");
                 --end; /* end, as returned, points 1 after the \n  */
                 if ((NULL == (value = (char *)memchr(buffer, '=', end - buffer)))) {
                     logwarn("option malformed '%s'\n", buffer);
@@ -4946,7 +4946,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
                 char *end = NYTP_gets(in, &buffer, &buffer_len);
                 if (!end)
                     /* probably EOF */
-                    croak("Profile format error reading comment (see TROUBLESHOOTING in docs)");
+                    croak("Profile format error reading comment (see TROUBLESHOOTING in NYTProf docs)");
 
                 if (callbacks[nytp_comment])
                     callbacks[nytp_comment](state, nytp_comment, buffer,
@@ -4971,7 +4971,7 @@ load_profile_data_from_stream(pTHX_ loader_callback *callbacks,
             }
 
             default:
-                croak("Profile format error: token %d ('%c'), chunk %lu, pos %ld%s (see TROUBLESHOOTING in docs)",
+                croak("Profile format error: token %d ('%c'), chunk %lu, pos %ld%s (see TROUBLESHOOTING in NYTProf docs)",
                       c, c, state->input_chunk_seqn, NYTP_tell(in)-1,
                       NYTP_type_of_offset(in));
         }
@@ -5017,7 +5017,7 @@ load_profile_to_hv(pTHX_ NYTP_file in)
     if (HvKEYS(state.live_pids_hv)) {
         logwarn("Profile data incomplete, no terminator for %"IVdf" pids %s\n",
             (IV)HvKEYS(state.live_pids_hv),
-            "(refer to TROUBLESHOOTING in the documentation)");
+            "(refer to TROUBLESHOOTING in the NYTProf documentation)");
         store_attrib_sv(aTHX_ state.attr_hv, STR_WITH_LEN("complete"),
                         &PL_sv_no);
     }
