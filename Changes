@@ -4,6 +4,23 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 6.06 - 4th June 2018
+
+  Fix sorting of numbers ending ...5s as microsec
+    thanks to pichi. #120
+
+  Fix tests for Strawberry Perl portable
+    thanks to shawnlaffan. #123
+
+  Fixed broken link in the pod to YAPC::NA 2014 talk video
+    thanks to manwar. #116
+
+  Add "NYTProf" to buffer overflow error message for easier triage
+    thanks to atomicstack. #119.
+
+  Add appveyor config file for CI on Windows
+    thanks to shawnlaffan. #117
+
 =head2 Changes in Devel::NYTProf 6.05 - 23rd March 2018
 
   Fix test failures on Perl 5.27.6+ #113
