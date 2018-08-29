@@ -20,7 +20,9 @@
 #include "FileHandle.h"
 #include "NYTProf.h"
 
+#define NEED_newRV_noinc
 #define NEED_sv_2pvbyte
+#define NEED_my_snprintf
 #include "ppport.h"
 
 #ifdef HAS_ZLIB
@@ -880,7 +882,7 @@ NYTP_write_comment(NYTP_file ofile, const char *format, ...) {
 
     va_start(args, format);
 
-    if(strEQ(format, "%s")) {
+    if(strEQc(format, "%s")) {
         const char * const s = va_arg(args, char*);
         STRLEN len = strlen(s);
         retval = NYTP_write(ofile, s, len);

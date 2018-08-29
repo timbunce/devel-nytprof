@@ -14,3 +14,9 @@
  * ************************************************************************
  */
 
+/* cperl optims */
+#ifndef strEQc
+#define strEQc(s,c) memEQ(s, ("" c ""), sizeof(c))
+#define strNEc(s,c) memNE(s, ("" c ""), sizeof(c))
+#endif
+
