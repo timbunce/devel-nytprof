@@ -33,6 +33,7 @@
 #define NEED_sv_2pv_flags
 #define NEED_newSVpvn_flags
 #define NEED_my_strlcat
+#define NEED_OpSIBLING
 #   include "ppport.h"
 #endif
 
