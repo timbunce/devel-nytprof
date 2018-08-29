@@ -9,7 +9,7 @@ eval "use autodie; 1"
 
 print "autodie $autodie::VERSION $INC{'autodie.pm'}\n";
 
-plan skip_all => "Currently a developer-only test" unless -d '.svn';
+plan skip_all => "Currently a developer-only test" unless -d '../.git';
 
 warn "This test script needs more work\n";
 
