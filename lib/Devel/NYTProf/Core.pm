@@ -13,8 +13,10 @@ package Devel::NYTProf::Core;
 use XSLoader;
 
 our $VERSION = '6.06';    # increment with XS changes too
+our $XS_VERSION = $VERSION;
+#$VERSION = eval $VERSION;
 
-XSLoader::load('Devel::NYTProf', $VERSION);
+XSLoader::load('Devel::NYTProf', $XS_VERSION);
 
 # Fudging for https://rt.cpan.org/Ticket/Display.html?id=82256
 $Devel::NYTProf::StrEvalTestPad = ($] <= 5.017004) ? ";\n" : "";
