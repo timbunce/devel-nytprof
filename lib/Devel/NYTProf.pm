@@ -9,7 +9,7 @@
 ###########################################################
 package Devel::NYTProf;
 
-our $VERSION = '6.06'; # also change in Devel::NYTProf::Core
+our $VERSION = '6.06_01'; # also change in Devel::NYTProf::Core
 
 package    # hide the package from the PAUSE indexer
     DB;
@@ -1259,6 +1259,7 @@ B<Jan Dubois> contributed the Windows port.
 B<Gisle Aas> contributed the Devel::NYTProf::ReadStream module.
 B<Steve Peters> contributed greater perl version portability and use of POSIX
 high-resolution clocks.
+B<Reini Urban> maintains the cperl fork, where it is in CORE.
 Other contributors are noted in the Changes file.
 
 Many thanks to B<Adam Kaplan> who created C<NYTProf> initially by forking

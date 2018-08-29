@@ -2475,17 +2475,21 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
      * mainly for xsubs because otherwise they're transparent
      * because xsub calls don't get a new context
      */
-    if (op_type == OP_ENTERSUB || op_type == OP_GOTO) {
+    if (op_type == OP_ENTERSUB ||
+#ifdef USE_CPERL
+        op_type == OP_ENTERXSSUB ||
+#endif
+        op_type == OP_GOTO) {
         GV *called_gv = Nullgv;
         subr_entry->called_cv = resolve_sub_to_cv(aTHX_ subr_sv, &called_gv);
         if (called_gv) {
             char *p = HvNAME(GvSTASH(called_gv));
+            char *s = GvNAME(called_gv);
             subr_entry->called_subpkg_pv = p;
-            subr_entry->called_subnam_sv = newSVpv(GvNAME(called_gv), 0);
+            subr_entry->called_subnam_sv = newSVpv(s, 0);
 
             /* detect calls to POSIX::_exit */
             if ('P'==*p++ && 'O'==*p++ && 'S'==*p++ && 'I'==*p++ && 'X'==*p++ && 0==*p) {
-                char *s = GvNAME(called_gv);
                 if ('_'==*s++ && 'e'==*s++ && 'x'==*s++ && 'i'==*s++ && 't'==*s++ && 0==*s) {
                     finish_profile(aTHX);
                 }
@@ -2696,7 +2700,10 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     COP *prev_cop = PL_curcop;                    /* not PL_curcop_nytprof here */
     OP *next_op = PL_op->op_next;                 /* op to execute after sub returns */
     /* pp_entersub can be called with PL_op->op_type==0 */
-    OPCODE op_type = (is_slowop || (opcode) PL_op->op_type == OP_GOTO) ? (opcode) PL_op->op_type : OP_ENTERSUB;
+    OPCODE op_type = (is_slowop || (opcode) PL_op->op_type == OP_GOTO)
+      ? (opcode) PL_op->op_type
+      : PL_op->op_type
+        ? PL_op->op_type : OP_ENTERSUB;
 
     CV *called_cv;
     dSP;
@@ -2711,12 +2718,17 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     ||  !is_profiling
         /* don't profile calls to non-existant import() methods */
         /* or our DB::_INIT as that makes tests perl version sensitive */
-    || (op_type == OP_ENTERSUB && (
+    || (
+        (op_type == OP_ENTERSUB
+#ifdef USE_CPERL
+         || op_type == OP_ENTERXSSUB
+#endif
+         ) && (
 #ifdef ALLOW_SV_YES_AS_SUB
          sub_sv == &PL_sv_yes ||
 #endif
          sub_sv == DB_CHECK_cv || sub_sv == DB_INIT_cv ||
-         sub_sv == DB_END_cv || sub_sv == DB_fin_cv))
+         sub_sv == DB_END_cv   || sub_sv == DB_fin_cv))
         /* don't profile other kinds of goto */
     || (op_type == OP_GOTO &&
         (  !(SvROK(sub_sv) && SvTYPE(SvRV(sub_sv)) == SVt_PVCV)
@@ -2815,7 +2827,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         /* now we're in goto'd sub, mortalize the REFCNT_inc's done above */
         sv_2mortal(goto_subr_entry.caller_subnam_sv);
         sv_2mortal(goto_subr_entry.called_subnam_sv);
-        this_subr_entry_ix = subr_entry_setup(aTHX_ &prev_cop_copy, &goto_subr_entry, op_type, sub_sv);
+        this_subr_entry_ix = subr_entry_setup(aTHX_ &prev_cop_copy, &goto_subr_entry,
+                                              op_type, sub_sv);
         SvREFCNT_dec(sub_sv);
     }
 
@@ -2888,7 +2901,8 @@ pp_subcall_profiler(pTHX_ int is_slowop)
             }
             else if (trace_level >= 1) {
                 logwarn("NYTProf is confused about CV %p called as %s at %s line %d (please report as a bug)\n",
-                    (void*)called_cv, SvPV_nolen(sub_sv), OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
+                        (void*)called_cv, SvPV_nolen(sub_sv), OutCopFILE(prev_cop),
+                        (int)CopLINE(prev_cop));
                 /* looks like Class::MOP doesn't give the CV GV stash a name */
                 if (trace_level >= 2) {
                     sv_dump((SV*)called_cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP wierdo sub */
@@ -2902,13 +2916,16 @@ pp_subcall_profiler(pTHX_ int is_slowop)
             const char *what = (is_xs) ? is_xs : "sub";
 
             if (!called_cv) { /* should never get here as pp_entersub would have croaked */
-                logwarn("unknown entersub %s '%s' (please report this as a bug)\n", what, SvPV_nolen(sub_sv));
+                logwarn("unknown entersub %s '%s' (please report this as a bug)\n", what,
+                        SvPV_nolen(sub_sv));
                 stash_name = CopSTASHPV(PL_curcop);
-                sv_setpvf(subr_entry->called_subnam_sv, "__UNKNOWN__[%s,%s])", what, SvPV_nolen(sub_sv));
+                sv_setpvf(subr_entry->called_subnam_sv, "__UNKNOWN__[%s,%s])", what,
+                          SvPV_nolen(sub_sv));
             }
             else { /* unnamed CV, e.g. seen in mod_perl/Class::MOP. XXX do better? */
                 stash_name = HvNAME(CvSTASH(called_cv));
-                sv_setpvf(subr_entry->called_subnam_sv, "__UNKNOWN__[%s,0x%p]", what, (void*)called_cv);
+                sv_setpvf(subr_entry->called_subnam_sv, "__UNKNOWN__[%s,0x%p]", what,
+                          (void*)called_cv);
                 if (trace_level)
                     logwarn("unknown entersub %s assumed to be anon called_cv '%s'\n",
                         what, SvPV_nolen(sub_sv));
@@ -2936,7 +2953,11 @@ pp_subcall_profiler(pTHX_ int is_slowop)
         STRLEN len;
         char *p = SvPV(subr_entry->called_subnam_sv, len);
 
-        if(*p == '_' && (memEQs(p, len, "_CHECK") || memEQs(p, len, "_INIT") || memEQs(p, len, "_END"))) {
+        if (*p == '_' &&
+            (memEQs(p, len, "_CHECK")
+             || memEQs(p, len, "_INIT")
+             || memEQs(p, len, "_END")))
+        {
             subr_entry->already_counted++;
             goto skip_sub_profile;
         }
@@ -2979,7 +3000,6 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     return op;
 }
-
 
 static OP *
 pp_stmt_profiler(pTHX)                            /* handles OP_DBSTATE, OP_NEXTSTATE */
@@ -3306,6 +3326,12 @@ init_profiler(pTHX)
     if (!pkg_fids_hv)
         pkg_fids_hv = newHV();
     PL_ppaddr[OP_ENTERSUB] = pp_entersub_profiler;
+#ifdef USE_CPERL /* since cperl-5.22.1 */
+    PL_ppaddr[OP_ENTERXSSUB] = pp_entersub_profiler;
+    /* TODO: cperl-5.29?
+    PL_ppaddr[OP_ENTERFFI] = pp_entersub_profiler;
+    */
+#endif
     PL_ppaddr[OP_GOTO]     = pp_entersub_profiler;
 
     if (!PL_checkav) PL_checkav = newAV();
