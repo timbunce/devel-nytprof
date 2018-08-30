@@ -18,8 +18,8 @@ use List::Util qw(min sum);
 
 our $VERSION = '6.06_01';
     
-if ($VERSION != $Devel::NYTProf::Core::VERSION) {
-    die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
+if ($VERSION ne $Devel::NYTProf::Core::XS_VERSION) {
+    die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::XS_VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
 }
 
 use Getopt::Long;
@@ -219,15 +219,15 @@ my %dispatcher =
         $out->write_call_return($retn_depth, $subname, $incl_time, $excl_time);
     },
 
-     SRC_LINE => sub {
-         my (undef, $fid, $line, $text) = @_;
-         confess("No mapping for $fid") unless defined $fids{$fid};
-         $fid = $fids{$fid};
-         # Is this a subroutine (re)defined in an eval?
-         my $mapped_fid = $map_range{$fid}[$line];
-         $fid = $mapped_fid if defined $mapped_fid;
-         $out->write_src_line($fid, $line, $text);
-     },
+    SRC_LINE => sub {
+        my (undef, $fid, $line, $text) = @_;
+        confess("No mapping for $fid") unless defined $fids{$fid};
+        $fid = $fids{$fid};
+        # Is this a subroutine (re)defined in an eval?
+        my $mapped_fid = $map_range{$fid}[$line];
+        $fid = $mapped_fid if defined $mapped_fid;
+        $out->write_src_line($fid, $line, $text);
+    },
 );
 
 foreach $input (@ARGV) {

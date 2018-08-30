@@ -75,7 +75,7 @@ my %attr = map { $_->[0] => $_->[1] } @{ $prof{ATTRIBUTE} };
 cmp_ok $attr{ticks_per_sec}, '>=', 1_000_000, 'ticks_per_sec';
 is $attr{application}, '-e', 'application';
 is $attr{nv_size}, $Config{nvsize}, 'nv_size';
-cmp_ok $attr{xs_version}, '>=', 2.1, 'xs_version';
+cmp_ok eval $attr{xs_version}, '>=', 2.1, 'xs_version';
 cmp_ok $attr{basetime}, '>=', $^T, 'basetime';
 
 my @sub_info_sorted = sort { $a->[3] cmp $b->[3] } @{$prof{SUB_INFO}};
