@@ -1,6 +1,8 @@
 use strict;
 use Test::More;
 use lib qw(t/lib);
+plan skip_all => "only >5.12 testdata" if $] < 5.014;
+
 use NYTProfTest;
 
 # hack to disable sawampersand test, just to simplify the testing across versions
