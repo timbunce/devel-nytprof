@@ -129,6 +129,7 @@ my $help = 0;
 
 sub usage {
 	die <<USAGE_END;
+flame stack grapher
 USAGE: $0 [options] infile > outfile.svg\n
 	--title TEXT     # change title text
 	--subtitle TEXT  # second level title (optional)

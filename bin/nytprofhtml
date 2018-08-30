@@ -10,7 +10,7 @@
 
 =head1 NAME
 
-nytprofhtml - Generate reports from Devel::NYTProf data
+nytprofhtml - Generate HTML reports from Devel::NYTProf data
 
 =head1 SYNOPSIS
 
@@ -67,7 +67,7 @@ use Devel::NYTProf::Util qw(
 );
 use Devel::NYTProf::Constants qw(NYTP_SCi_CALLING_SUB);
 
-our $VERSION = '6.06';
+our $VERSION = '6.06_01';
 
 if ($VERSION != $Devel::NYTProf::Core::VERSION) {
     die "$0 version '$VERSION' doesn't match version '$Devel::NYTProf::Core::VERSION' of $INC{'Devel/NYTProf/Core.pm'}\n";
@@ -135,7 +135,8 @@ DB::set_option('blocks', 0) if $opt_minimal;
 
 sub usage {
     print <<END;
-usage: [perl] nytprofhtml [opts]
+Generate HTML reports from Devel::NYTProf data
+Usage: [perl] nytprofhtml [opts]
  --file <file>, -f <file>  Read profile data from the specified file [default: nytprof.out]
  --out <dir>,   -o <dir>   Write report files to this directory [default: nytprof]
  --delete,      -d         Delete any old report files in <dir> first

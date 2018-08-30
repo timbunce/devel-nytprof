@@ -16,7 +16,7 @@ use Getopt::Long;
 
 use Devel::NYTProf::Reader;
 
-our $VERSION = '6.06';
+our $VERSION = '6.06_01';
 
 use constant NUMERIC_PRECISION => 5;
 
@@ -112,7 +112,8 @@ sub _delete {
 
 sub usage {
     print <<END
-usage: [perl] nytprofcsv [opts]
+Generate CSV reports from Devel::NYTProf data (deprecated)
+Usage: [perl] nytprofcsv [opts]
  --file <file>, -f <file>  Use the specified file as Devel::NYTProf database
                             file. [default: ./nytprof.out]
  --out <dir>,   -o <dir>   Place generated files here [default: ./nytprof]
