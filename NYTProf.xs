@@ -2200,7 +2200,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
         *called_subname_pv_end++ = ':';
         *called_subname_pv_end++ = ':';
         if (subr_entry->called_subnam_sv) {
-            /* We create this SV, so we know that it is well-formed, and has a
+            /* We created this SV, so we know that it is well-formed, and has a
                trailing '\0'  */
             p = SvPV(subr_entry->called_subnam_sv, len);
         }
@@ -2231,11 +2231,11 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
                 || (subr_entry->called_cv && SvTYPE(subr_entry->called_cv) == SVt_PVCV)
             ) {
                 /* We just use an empty string as the filename for xsubs
-                    * because CvFILE() isn't reliable on perl 5.8.[78]
-                    * and the name of the .c file isn't very useful anyway.
-                    * The reader can try to associate the xsubs with the
-                    * corresonding .pm file using the package part of the subname.
-                    */
+                 * because CvFILE() isn't reliable on perl 5.8.[78]
+                 * and the name of the .c file isn't very useful anyway.
+                 * The reader can try to associate the xsubs with the
+                 * corresonding .pm file using the package part of the subname.
+                 */
                 SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, (I32)(called_subname_pv_end - called_subname_pv), 1);
                 if (!SvOK(sv))
                     sv_setpvs(sv, ":0-0"); /* empty file name */
@@ -2389,7 +2389,7 @@ static CV*
 current_cv(pTHX_ I32 ix, PERL_SI *si)
 {
     /* returning the current cv */
-    /* logic based on perl's S_deb_curcv in dump.c */
+    /* logic based on perl's S_deb_curcv in dump.c just take eval's block context */
     /* see also http://metacpan.org/release/Devel-StackBlech/ */
     PERL_CONTEXT *cx;
     if (!si)
@@ -2415,9 +2415,20 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
     if (CxTYPE(cx) == CXt_SUB || CxTYPE(cx) == CXt_FORMAT)
         return cx->blk_sub.cv;
     else if (CxTYPE(cx) == CXt_EVAL && !CxTRYBLOCK(cx))
+#if 0
+        return cx->blk_eval.cv;
+#else
         return current_cv(aTHX_ ix - 1, si); /* recurse up stack */
+#endif
     else if (ix == 0 && si->si_type == PERLSI_MAIN)
         return PL_main_cv;
+    else if (ix == 0 && CxTYPE(cx) == CXt_NULL
+             && si->si_type == PERLSI_SORT)
+    {
+        /* fake sort sub; use CV of caller */
+        si = si->si_prev;
+        ix = si->si_cxix + 1;
+    }
     else if (ix > 0)                         /* more on this stack? */
         return current_cv(aTHX_ ix - 1, si); /* recurse up stack */
 
@@ -2574,7 +2585,7 @@ subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_
         CV *caller_cv = current_cv(aTHX_ cxstack_ix, NULL);
         subr_entry->caller_subnam_sv = newSV(0); /* XXX add cache/stack thing for these SVs */
 
-        if (0) {
+        if (trace_level >= 9) {
             logwarn(" .. caller_subr_entry %p(%s::%s) cxstack_ix=%d: caller_cv=%p\n",
                 (void*)caller_subr_entry,
                 caller_subr_entry ? caller_subr_entry->called_subpkg_pv : "(null)",
@@ -2710,7 +2721,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     if (!profile_subs   /* not profiling subs */
         /* don't profile if currently disabled */
     ||  !is_profiling
-        /* don't profile calls to non-existant import() methods */
+        /* don't profile calls to non-existent import() methods */
         /* or our DB::_INIT as that makes tests perl version sensitive */
     || (
         (op_type == OP_ENTERSUB
