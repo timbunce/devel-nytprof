@@ -7,7 +7,7 @@ use Carp;
 use Config;
 use ExtUtils::testlib;
 use Getopt::Long;
-use Test::More;
+use Test::More 0.82; #note
 use Data::Dumper;
 use File::Spec;
 use File::Temp qw(tempfile);
