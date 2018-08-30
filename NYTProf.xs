@@ -1394,6 +1394,12 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
     /* find next cop from OP */
     o = start_op;
     while ( o && (type = (o->op_type) ? o->op_type : (int)o->op_targ) ) {
+#ifdef USE_CPERL
+        if (type == OP_SIGNATURE) {
+            o = o->op_next;
+            continue;
+        }
+#endif
         if (type == OP_NEXTSTATE ||
 #if PERL_VERSION < 11
             type == OP_SETSTATE ||
@@ -1410,18 +1416,6 @@ start_cop_of_context(pTHX_ PERL_CONTEXT *cx)
             logwarn("\tstart_cop_of_context %s op '%s' isn't a cop, giving up\n",
                 cx_block_type(cx), OP_NAME(o));
         return NULL;
-#if 0   /* old code that never worked very well anyway */
-        if (CxTYPE(cx) == CXt_LOOP) /* e.g. "eval $_ for @ary" */
-            return NULL;
-        /* should never get here but we do */
-        if (trace_level >= trace) {
-            logwarn("\tstart_cop_of_context %s op '%s' isn't a cop\n",
-                cx_block_type(cx), OP_NAME(o));
-            if (trace_level >  trace)
-                do_op_dump(1, PerlIO_stderr(), o);
-        }
-        o = o->op_next;
-#endif
     }
     if (trace_level >= 3) {
         logwarn("\tstart_cop_of_context: can't find next cop for %s line %ld\n",
