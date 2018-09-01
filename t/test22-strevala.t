@@ -5,7 +5,7 @@ use lib qw(t/lib);
 use NYTProfTest;
 
 # don't normalize eval seqn because doing so would create duplicates
-$ENV{NYTPROF_TEST_SKIP_EVAL_NORM} = 1;
+#$ENV{NYTPROF_TEST_SKIP_EVAL_NORM} = 1;
 
 use Devel::NYTProf::Constants qw(NYTP_SCi_elements);
 
