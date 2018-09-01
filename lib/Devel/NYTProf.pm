@@ -603,6 +603,11 @@ application code is sensitive to the name given to a anonymous subroutines.
 The downside is that the NYTProf reporting tools are less useful and may get
 confused if this option is used.
 
+With cperl since 5.28 and its B<usenamedanoncv> option most anon subs
+keep their old name, just with an C<@> appended. This is mostly used for
+import methods, which are skipped with perl5. The C<nameanonsubs=0> option
+is in these cases ignored.
+
 =head1 RUN-TIME CONTROL OF PROFILING
 
 You can profile only parts of an application by calling DB::disable_profile()
