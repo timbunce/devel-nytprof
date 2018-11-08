@@ -111,7 +111,7 @@ $mm_opts{LICENSE}  = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
 $mm_opts{OPTIMIZE} = '-g'   if $opt_g;
 $mm_opts{CCFLAGS}  = "-pg"  if $opt_pg;
 
-if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
+if( $ExtUtils::MakeMaker::VERSION >= 6.46 ) {
     $mm_opts{META_MERGE} = {
     	"meta-spec" => { version => 2 },
 	no_index => {
@@ -126,7 +126,7 @@ if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
                 mailto => 'bug-devel-nytprof@rt.cpan.org',
             },
             repository  => {
-                url  => 'git://github.com/timbunce/devel-nytprof.git',
+                url  => 'https://github.com/timbunce/devel-nytprof.git',
                 web  => 'https://github.com/timbunce/devel-nytprof',
                 type => 'git',
             },
@@ -183,11 +183,6 @@ WriteMakefile(
         PREOP        => '$(MAKE) -f Makefile.old distdir',
         COMPRESS     => 'gzip -v9',
         SUFFIX       => 'gz',
-    },
-    META_MERGE => {
-      resources => {
-        repository => 'https://github.com/timbunce/devel-nytprof',
-      },
     },
     %mm_opts,
 );
