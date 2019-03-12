@@ -14,8 +14,6 @@ package Devel::NYTProf::Run;
 
 Devel::NYTProf::Run - Invoke NYTProf on a piece of code and return the profile
 
-=head1 SYNOPSIS
-
 =head1 DESCRIPTION
 
 This module is experimental and subject to change.

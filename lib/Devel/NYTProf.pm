@@ -824,9 +824,9 @@ If you don't need statement-level profiling then you can disable it via L</stmts
 To further boost statement-level profiling performance try L</leave=0> but note that
 I<will> apportion timings for some kinds of statements less accurate).
 
-If you don't need call stacks or flamegraph then disable it via L</calls=0>.
+If you don't need call stacks or flamegraph then disable it via L<calls=0|/calls=N>.
 If you don't need subroutine profiling then you can disable it via L</subs=0>.
-If you do need it but don't need timings for perl opcodes then set L</slowops=0>.
+If you do need it but don't need timings for perl opcodes then set L<slowops=0|/slowops=N>.
 
 Generally speaking, setting calls=0 and slowops=0 will give you a useful boost
 with the least loss of detail.
@@ -1207,7 +1207,7 @@ You could also try using the L</use_db_sub=1> option.
 When using the statement profiler you may see a warning message like this:
 
   Eval '(eval 2)' (fid 9, flags:viastmt,savesrc) has unknown invoking fid 10
- 
+
 Notice that the eval file id (fid 9 in this case) is lower than the file id
 that invoked the eval (fid 10 in this case). This is a known problem caused by
 the way perl works and how the profiler assigns and outputs the file ids.
@@ -1263,7 +1263,6 @@ Other contributors are noted in the Changes file.
 
 Many thanks to B<Adam Kaplan> who created C<NYTProf> initially by forking
 C<Devel::FastProf> adding reporting from C<Devel::Cover> and a test suite.
-For more details see L</HISTORY> below.
 
 =head1 COPYRIGHT AND LICENSE
 
