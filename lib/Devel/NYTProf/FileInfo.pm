@@ -1,5 +1,13 @@
 package Devel::NYTProf::FileInfo;    # fid_fileinfo
 
+=head1 NAME
+
+Devel::NYTProf::FileInfo
+
+=head1 METHODS
+
+=cut
+
 use strict;
 
 use Carp;
