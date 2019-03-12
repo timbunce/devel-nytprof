@@ -278,7 +278,7 @@ Usually you'd load Devel::NYTProf on the command line using the perl -d option:
 
   perl -d:NYTProf some_perl.pl
 
-To save typing the ':NYTProf' you could set the PERL5DB env var 
+To save typing the ':NYTProf' you could set the L<C<PERL5DB> environment variable|perlrun/PERL5DB>:
 
   PERL5DB='use Devel::NYTProf'
 
@@ -286,7 +286,7 @@ and then just perl -d would work:
 
   perl -d some_perl.pl
 
-Or you can avoid the need to add the -d option at all by using the C<PERL5OPT> env var:
+Or you can avoid the need to add the -d option at all by using the L<C<PERL5OPT>> environment variable|perlrun/PERL5OPT>:
 
   PERL5OPT=-d:NYTProf
 
