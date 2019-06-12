@@ -4,6 +4,32 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 6.06_03 - 18th June 2019
+
+  in cperl-5.30.0
+
+  Fixes #399
+  CVE-2019-11358 and CVE-2015-9251 jquery-1.12.4.js update to latest
+
+  Also update the two plugins to latest,
+  and adjust the tablesorter css.
+
+=head2 Changes in Devel::NYTProf 6.06_02 - 14th Apr 2019
+
+  in cperl-5.29.2
+
+  merge cperl patches with master:
+  simplify pp_subcall_profiler op_type, -Wformat
+
+=head2 Changes in Devel::NYTProf 6.06_01 - 29th Aug 2018
+
+  in cperl-5.28.0
+
+  rebased our cperl-core branch to 6.06
+  Support more cperl features:
+    signatures, enterxssub, builtin strict, anon named subs
+    See https://github.com/rurban/devel-nytprof/tree/cperl-core
+
 =head2 Changes in Devel::NYTProf 6.06 - 4th June 2018
 
   Fix sorting of numbers ending ...5s as microsec
