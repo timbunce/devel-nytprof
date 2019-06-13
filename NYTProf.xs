@@ -1748,7 +1748,7 @@ DB_leave(pTHX_ OP *op, OP *prev_op)
 static void
 set_option(pTHX_ const char* option, const char* value)
 {
-    if (!value || !*value)
+    if (!option || !*option)
         croak("%s: invalid option", "NYTProf set_option");
     if (!value || !*value)
         croak("%s: '%s' has no value", "NYTProf set_option", option);
