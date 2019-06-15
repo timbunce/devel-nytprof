@@ -3,6 +3,9 @@ language: perl
 perl:
     - "dev"
     - "dev-thr-mb-shrplib-dbg"
+    - "5.30"
+    - "5.28"
+    - "5.26"
     - "5.24"
     - "5.24-extras"
     - "5.24-thr-mb-shrplib-dbg"
@@ -21,20 +24,27 @@ perl:
 sudo: false             # faster builds as long as you don't need sudo access
 
 before_install:
-    - git clone git://github.com/travis-perl/helpers ~/travis-perl-helpers
-    - source ~/travis-perl-helpers/init
-    - build-perl
-    - perl -V
-    - build-dist
-    - cd $BUILD_DIR             # $BUILD_DIR is set by the build-dist command
+  - eval $(curl https://travis-perl.github.io/init) --auto
+  - if [ X$cperl != X ]; then
+      perlbrew --notest install $cperl ;
+      perlbrew use $cperl ;
+    fi
 
 install:
-    - cpan-install --deps       # installs prereqs, including recommends
-    - cpanm Test::Pod Test::Pod::Coverage || true
-    - cpanm Test::Portability::Files || true
+  - if [ X$cperl != X ]; then
+      alias perl=~/perl5/perlbrew/perls/$cperl/bin/cperl ;
+      alias cpan=~/perl5/perlbrew/perls/$cperl/bin/cpan ;
+      cpan App::cpanminus ;
+    fi
+  - cpan-install --deps       # installs prereqs, including recommends
+  - cpanm Test::Pod Test::Pod::Coverage || true
+  - cpanm Test::Portability::Files || true
 
 matrix:
   fast_finish: true
+  include:
+    - perl: "5.28"
+      env: cperl=cperl-5.28.2
   allow_failures:
     - perl: dev
     - perl: dev-thr-mb-shrplib-dbg
