@@ -1,5 +1,11 @@
 package Devel::NYTProf::FileInfo;    # fid_fileinfo
 
+=head1 NAME
+
+Devel::NYTProf::FileInfo
+
+=cut
+
 use strict;
 
 use Carp;
@@ -122,6 +128,7 @@ sub _add_new_sub_defined {
     $subs_defined->{$subname} = $subinfo;
 }
 
+=head1 METHODS
 
 =head2 sub_call_lines
 
@@ -430,6 +437,10 @@ sub filename_without_inc {
     strip_prefix_from_paths([$self->profile->inc], $f,
         qr/(?: ^ | \[ | \sdefined\sat\s )/x
     );
+    #if ($f->[0] =~ /^\//) {
+    #  warn "filename_without_inc: $f->[0], " .
+    #       "INC=", join(":", $self->profile->inc);
+    #}
     return $f->[0];
 }
 

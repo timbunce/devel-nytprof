@@ -15,6 +15,7 @@ use strict;
 use ExtUtils::MakeMaker;
 use Getopt::Long;
 use Config;
+use File::Spec;
 
 my $is_developer = (-d '.git');
 
@@ -51,10 +52,16 @@ if (not defined $opt_assert) {
     $opt_assert = 1 if $ENV{AUTOMATED_TESTING}; # enable assert()s for cpan-testers
 }
 
-# --- make sure t/test40pmc.pmc is newer than t/test40pmc.pmc
+# The -m32 cross-compiler traditionally gets this wrong
+if ($ENV{PERL_CORE} and ($Config{ccflags} =~ /-m32/ or $Config{cc} =~ / -m32/)) {
+  $opt_zlib = 0;
+}
 
-utime time(), time(), "t/test40pmc.pmc"
+# --- make sure t/test40pmc.pmc is newer than t/test40pmc.pmc (??)
+if (-f "t/test40pmc.pmc") {
+  utime time(), time(), "t/test40pmc.pmc"
     or die "Can't update mod time of t/test40pmc.pmc";
+}
 
 
 # --- Discover how much of stdio is implemented
@@ -139,7 +146,8 @@ if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
 if (my $gccversion = $Config{gccversion}) {    # ask gcc to be more pedantic
     print "Your perl was compiled with gcc (version $Config{gccversion}), okay.\n";
     $gccversion =~ s/[^\d\.]//g;               # just a number please
-    $mm_opts{DEFINE} .= ' -W -Wall -Wpointer-arith -Wbad-function-cast';
+    $mm_opts{DEFINE} .= ' -W -Wall -Wpointer-arith';
+    $mm_opts{DEFINE} .= ' -Wbad-function-cast' unless $Config{d_cplusplus};
     $mm_opts{DEFINE} .= ' -Wno-comment -Wno-sign-compare -Wno-cast-qual';
     $mm_opts{DEFINE} .= ' -Wmissing-noreturn -Wno-unused-parameter' if $gccversion ge "3.0";
     if ($is_developer && $opt_g) {
@@ -163,8 +171,12 @@ WriteMakefile(
         'Test::Differences' => '0.60',
         'XSLoader'     => 0,
         'Getopt::Long' => 0,
-        'JSON::MaybeXS' => 0,
+        ($ENV{PERL_CORE} && $Config{usecperl}
+         ? ('Cpanel::JSON::XS' => 0)
+         : ('JSON::MaybeXS' => 0)),
     },
+    INST_LIB  => ($ENV{PERL_CORE} ? File::Spec->catfile(qw(.. .. lib)) : 'blib/lib'),
+    INST_ARCHLIB => ($ENV{PERL_CORE} ? File::Spec->catfile(qw(.. .. lib)) : 'blib/arch'),
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
     FUNCLIST => ['boot_Devel__NYTProf', 'boot_Devel__NYTProf__FileHandle'],
@@ -192,7 +204,7 @@ WriteMakefile(
     %mm_opts,
 );
 
-exit 0;
+# exit 0;
 
 # --- Utility functions ---
 
@@ -217,8 +229,10 @@ sub find_h_files {
 sub search_h_file {
     my ($h_file, $regex) = @_;
     my $dir = $h_files->{$h_file}
-        or return undef;
-    open H, "$cpp $dir/$h_file |";
+              or return undef;
+    # darwin is very noisy preprocessing mach_time.h
+    my $devnull = $^O eq 'MSWin32' ? "2>NUL" : "2>/dev/null";
+    open H, "$cpp $dir/$h_file $devnull |";
     while (<H>) {
         return $1 if m/$regex/;
     }
@@ -279,9 +293,10 @@ ctidy_bcpp:
 
 sub dynamic {
     my $make = shift->SUPER::dynamic(@_);
+    return $make if $Config::Config{usecperl}; # cperl has no broken XSLoader
 
-    my $xsl_dest_dir = '$(INST_LIB)/$(PARENT_NAME)/auto/$(FULLEXT)';
-    my $xsl_dest     = '$(XSL_DEST_DIR)/$(DLBASE).$(DLEXT)';
+    my $xsl_dest_dir = File::Spec->catdir('$(INST_LIB)','auto','$(FULLEXT)'.'$(PARENT_NAME)');
+    my $xsl_dest     = File::Spec->catdir('$(XSL_DEST_DIR)','$(DLBASE).$(DLEXT)');
 
     if($^O eq 'VMS'){
         $xsl_dest_dir = File::Spec->catdir('blib','lib','Devel','auto','Devel','NYTProf');

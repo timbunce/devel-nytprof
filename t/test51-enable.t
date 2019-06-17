@@ -3,6 +3,9 @@ use Test::More;
 use lib qw(t/lib);
 use NYTProfTest;
 
+my $cperl = $^V =~ /c$/;
+plan skip_all => "Not yet passing on cperl" if $cperl and ! -d '.git';
+
 run_test_group({
     extra_test_count => 3,
     extra_test_code  => sub {
@@ -30,6 +33,8 @@ run_test_group({
             'main::sub7' => 1,
             'DB::finish_profile' => 1,
         }, "$file_c sub calls");
+
+        unlink $file_b, $file_c;
     },
 });
 

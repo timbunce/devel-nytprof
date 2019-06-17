@@ -9,7 +9,7 @@
 ###########################################################
 package Devel::NYTProf;
 
-our $VERSION = '6.06'; # also change in Devel::NYTProf::Core
+our $VERSION = '6.06_03'; # also change in Devel::NYTProf::Core
 
 package    # hide the package from the PAUSE indexer
     DB;
@@ -602,6 +602,11 @@ application code is sensitive to the name given to a anonymous subroutines.
 
 The downside is that the NYTProf reporting tools are less useful and may get
 confused if this option is used.
+
+With cperl since 5.28 and its B<usenamedanoncv> option most anon subs
+keep their old name, just with an C<@> appended. This is mostly used for
+import methods, which are skipped with perl5. The C<nameanonsubs=0> option
+is in these cases ignored.
 
 =head1 RUN-TIME CONTROL OF PROFILING
 
@@ -1259,6 +1264,7 @@ B<Jan Dubois> contributed the Windows port.
 B<Gisle Aas> contributed the Devel::NYTProf::ReadStream module.
 B<Steve Peters> contributed greater perl version portability and use of POSIX
 high-resolution clocks.
+B<Reini Urban> maintains the cperl fork, where it is in CORE.
 Other contributors are noted in the Changes file.
 
 Many thanks to B<Adam Kaplan> who created C<NYTProf> initially by forking

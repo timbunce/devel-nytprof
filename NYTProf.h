@@ -10,7 +10,14 @@
  * Adam Kaplan, akaplan at nytimes.com
  * Tim Bunce, http://www.tim.bunce.name and http://blog.timbunce.org
  * Steve Peters, steve at fisharerojo.org
+ * Forked version by Reini Urban for cperl core
  *
  * ************************************************************************
  */
 
+/* cperl optims */
+#ifndef strEQc
+#define strEQc(s,c) memEQ(s, ("" c ""), sizeof(c))
+#define strNEc(s,c) memNE(s, ("" c ""), sizeof(c))
+#define memNEc(s,c) memNE(s, ("" c ""), sizeof(c)-1)
+#endif
