@@ -11,3 +11,5 @@
 ^MYMETA\.\w+$
 ^t.pl$
 ^TODO$
+^change-version\.sh$
+^appveyor\.yml$
