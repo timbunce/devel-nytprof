@@ -176,7 +176,7 @@ sub do_foreach_opt_combination {
         my $context_msg = "NYTPROF=$ENV{NYTPROF}\n";
         ($opts{v}) ? warn $context_msg : print $context_msg;
 
-        ok eval { $code->(\%env) };
+        ok eval { $code->(\%env) }, "combination eval-ed okay";
         if ($@) {
             diag "Test group aborted: $@";
             last COMBINATION;
