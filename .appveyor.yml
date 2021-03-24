@@ -1,0 +1,29 @@
+version: 1.0.{build}
+
+branches:
+  except:
+    - /travis/
+skip_tags: true
+
+cache:
+  - C:\strawberry -> appveyor.yml
+
+install:
+  - if not exist "C:\strawberry" cinst strawberryperl
+  - set PATH=C:\strawberry\perl\bin;C:\strawberry\perl\site\bin;C:\strawberry\c\bin;%PATH%
+  - cd C:\projects\%APPVEYOR_PROJECT_NAME%
+  - cpanm --installdeps --notest --with-all-features .
+
+build_script:
+  - perl Makefile.PL
+  - gmake
+
+test_script:
+  - gmake test TEST_VERBOSE=1
+
+notifications:
+  - provider: Email
+    to:
+    - jkeenan@cpan.org
+    on_build_status_changed: true
+
