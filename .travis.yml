@@ -27,11 +27,10 @@ matrix:
   allow_failures:
     #    - perl: blead
 
-      #notifications:
-      #irc: "irc.perl.org#nytprof"
 notifications:
   email:
     recipients:
       - jkeenan@cpan.org
     on_success: never
     on_failure: always
+  irc: "irc.perl.org#nytprof"
