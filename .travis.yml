@@ -1,22 +1,8 @@
 language: perl
 
 perl:
-    - "dev"
-    - "dev-thr-mb-shrplib-dbg"
-    - "5.24"
-    - "5.24-extras"
-    - "5.24-thr-mb-shrplib-dbg"
-    - "5.22"
-    - "5.22-extras"
-    - "5.20"
-    - "5.20-extras"
-    - "5.18"
-    - "5.18-extras"
-    - "5.16"
-    - "5.14"
-    - "5.12"
-    - "5.10"
-    - "5.8"
+  - "5.32"
+  - "blead"
 
 sudo: false             # faster builds as long as you don't need sudo access
 
@@ -35,9 +21,17 @@ install:
 
 matrix:
   fast_finish: true
+#  allow_failures:
+#    - perl: dev
+#    - perl: dev-thr-mb-shrplib-dbg
   allow_failures:
-    - perl: dev
-    - perl: dev-thr-mb-shrplib-dbg
+    - perl: blead
 
+      #notifications:
+      #irc: "irc.perl.org#nytprof"
 notifications:
-    irc: "irc.perl.org#nytprof"
+  email:
+    recipients:
+      - jkeenan@cpan.org
+    on_success: never
+    on_failure: always
