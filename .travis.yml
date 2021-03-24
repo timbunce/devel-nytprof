@@ -25,7 +25,7 @@ matrix:
 #    - perl: dev
 #    - perl: dev-thr-mb-shrplib-dbg
   allow_failures:
-    - perl: blead
+    #    - perl: blead
 
       #notifications:
       #irc: "irc.perl.org#nytprof"
