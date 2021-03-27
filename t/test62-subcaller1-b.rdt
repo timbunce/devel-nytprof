@@ -55,10 +55,6 @@ fid_fileinfo	2	[ Devel/NYTProf/Test.pm   2 2 0 0 ]
 fid_fileinfo	2	sub	Devel::NYTProf::Test::example_sub	13-13
 fid_fileinfo	3	[ Exporter.pm   3 4 0 0 ]
 fid_fileinfo	4	[ strict.pm   4 4 0 0 ]
-fid_fileinfo	4	sub	strict::BEGIN	7-38
-fid_fileinfo	4	sub	strict::bits	40-58
-fid_fileinfo	4	sub	strict::import	60-63
-fid_fileinfo	4	sub	strict::unimport	65-75
 fid_line_time	1	4	[ 0 1 ]
 fid_line_time	1	5	[ 0 2 ]
 fid_line_time	1	9	[ 0 1 ]
@@ -115,9 +111,3 @@ sub_subinfo	main::sub2	called_by	1:15	[ 6 0 0 0 0 0 0 main::CORE:sort ]
 sub_subinfo	main::sub3	[ 1:18-18 calls 0 times 0 0 0 0 ]
 sub_subinfo	main::sub4	[ 1:22-22 calls 2 times 0 0 0 0 ]
 sub_subinfo	main::sub4	called_by	1:24	[ 2 0 0 0 0 0 0 main::RUNTIME ]
-sub_subinfo	strict::BEGIN	[ 4:7-38 calls 0 times 0 0 0 0 ]
-sub_subinfo	strict::bits	[ 4:40-58 calls 0 times 0 0 0 0 ]
-sub_subinfo	strict::import	[ 4:60-63 calls 1 times 0 0 0 0 ]
-sub_subinfo	strict::import	called_by	3:1	[ 1 0 0 0 0 0 0 Exporter::BEGIN@3 ]
-sub_subinfo	strict::unimport	[ 4:65-75 calls 1 times 0 0 0 0 ]
-sub_subinfo	strict::unimport	called_by	3:1	[ 1 0 0 0 0 0 0 Exporter::BEGIN@4 ]

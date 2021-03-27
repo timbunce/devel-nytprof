@@ -541,7 +541,7 @@ sub dump_profile_to_file {
             separator  => "\t",
             skip_fileinfo_hook => sub {
                 my $fi = shift;
-                return 1 if $fi->filename =~ /(AutoLoader|Exporter)\.pm$/ or $fi->filename =~ m!^/\.\.\./!;
+                return 1 if $fi->filename =~ /(AutoLoader|Exporter|strict)\.pm$/ or $fi->filename =~ m!^/\.\.\./!;
                 return 0;
             },
         }
