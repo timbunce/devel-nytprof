@@ -1,9 +1,11 @@
-use Test::More tests => 28;
+use Test::More tests => 34;
 
 use Devel::NYTProf::Util qw(
     fmt_time fmt_incl_excl_time
     html_safe_filename
     trace_level
+    get_abs_paths_alternation_regex
+    get_alternation_regex
 );
 
 my $us = "µs";
@@ -41,3 +43,39 @@ is html_safe_filename('no.dots.please'), 'no-dots-please';
 
 my $trace_level = (($ENV{NYTPROF}||'') =~ m/\b trace=(\d+) /x) ? $1 : 0;
 is trace_level(), $trace_level, "trace_level $trace_level";
+
+my $inc = [
+          '../blib/arch',
+          '../blib/lib',
+          '/usr/home/username//devel-nytprof/t',
+          '/usr/home/username//devel-nytprof/blib/arch',
+          '/usr/home/username//devel-nytprof/blib/lib',
+          't/lib',
+          '/usr/local/lib/perl5/site_perl/mach/5.32',
+          '/usr/local/lib/perl5/site_perl',
+          '/usr/local/lib/perl5/5.32/mach',
+          '/usr/local/lib/perl5/5.32',
+          '/usr/local/lib/perl5/site_perl/mach/5.32',
+          '/usr/local/lib/perl5/site_perl',
+          '/usr/local/lib/perl5/5.32/mach',
+          '/usr/local/lib/perl5/5.32'
+        ];
+
+my $x1 = get_abs_paths_alternation_regex($inc, qr/^|\[/);
+is(ref($x1), 'Regexp', "compiled regex");
+
+my $x2 = get_abs_paths_alternation_regex($inc);
+is(ref($x2), 'Regexp', "compiled regex");
+isnt($x1, $x2, "different regexes");
+
+my $x3 = get_alternation_regex($inc);
+is(ref($x3), 'Regexp', "compiled regex");
+isnt($x1, $x3, "different regexes");
+
+{
+    local $@;
+    my $x4;
+    eval{ $x4 = get_abs_paths_alternation_regex([], qr/^|\[/); };
+    like($@, qr/No paths/, "get_abs_paths_alternation_regex(): got expected exception: first argument is empty");
+}
+
