@@ -8,6 +8,7 @@ use Devel::NYTProf::Util qw(
     get_alternation_regex
     strip_prefix_from_paths
     fmt_float
+    calculate_median_absolute_deviation
 );
 use Cwd;
 use File::Spec;
@@ -125,3 +126,28 @@ for my $k (sort {$b <=> $a} keys %floats) {
 
 my $val = '0.00004';
 is(fmt_float($val), '4.0e-5', "fmt_float, applied to $val");
+
+my ($median_ref, @values);
+@values = ( 1, 2, 3, 4, 5 );
+{
+    local $@;
+    eval { $median_ref = calculate_median_absolute_deviation(@values); };
+    like($@, qr/No array ref given/, "calculate_median_absolute_deviation() must take array ref");
+}
+$median_ref = calculate_median_absolute_deviation(\@values);
+is($median_ref->[0], 1, "median distance to median value");
+is($median_ref->[1], 3, "median value");
+
+@values = ( 0, 0, 0, 1, 2, 3, 4, 5 );
+my $ign = 'ignore zeroes';
+$median_ref = calculate_median_absolute_deviation(\@values, $ign);
+is($median_ref->[0], 1, "median distance to median value; $ign");
+is($median_ref->[1], 3, "median value; $ign");
+
+$median_ref = calculate_median_absolute_deviation(\@values);
+is($median_ref->[0], 2, "median distance to median value");
+is($median_ref->[1], 2, "median value");
+
+$median_ref = calculate_median_absolute_deviation([]);
+is_deeply($median_ref, [0,0],
+    "No values in arrayref passed to calculate_median_absolute_deviation()");
