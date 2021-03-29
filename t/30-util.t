@@ -1,4 +1,4 @@
-use Test::More tests => 34;
+use Test::More qw(no_plan); # tests => 34;
 
 use Devel::NYTProf::Util qw(
     fmt_time fmt_incl_excl_time
@@ -6,7 +6,10 @@ use Devel::NYTProf::Util qw(
     trace_level
     get_abs_paths_alternation_regex
     get_alternation_regex
+    strip_prefix_from_paths
 );
+use Cwd;
+use File::Spec;
 
 my $us = "µs";
 
@@ -79,3 +82,25 @@ isnt($x1, $x3, "different regexes");
     like($@, qr/No paths/, "get_abs_paths_alternation_regex(): got expected exception: first argument is empty");
 }
 
+my $rv;
+my $p = File::Spec->catfile(cwd(), 't', 'test02.p');
+{
+    local $@;
+    eval { strip_prefix_from_paths({}, $p, '^'); };
+    like($@, qr/first argument must be array ref/,
+        "strip_prefix_from_paths(): exception with non-arrayref 1st argument");
+}
+$rv = strip_prefix_from_paths($inc);
+ok(! defined $rv, "strip_prefix_from_paths() returned undefined value with no defined paths");
+{
+    local $@;
+    eval { strip_prefix_from_paths($inc, $p, '^'); };
+    like($@, qr/second argument must be array ref/,
+        "strip_prefix_from_paths(): exception with non-arrayref 2nd argument");
+}
+$rv = strip_prefix_from_paths($inc, [$p], '^');
+ok(! defined $rv, "strip_prefix_from_paths(): anchor specified");
+$rv = strip_prefix_from_paths($inc, [$p], undef, undef);
+ok(! defined $rv, "strip_prefix_from_paths(): anchor and replacement unspecified");
+$rv = strip_prefix_from_paths([], [$p], undef, undef);
+ok(! defined $rv, "strip_prefix_from_paths(): empty first argument");
