@@ -7,6 +7,7 @@ use Devel::NYTProf::Util qw(
     get_abs_paths_alternation_regex
     get_alternation_regex
     strip_prefix_from_paths
+    fmt_float
 );
 use Cwd;
 use File::Spec;
@@ -104,3 +105,23 @@ $rv = strip_prefix_from_paths($inc, [$p], undef, undef);
 ok(! defined $rv, "strip_prefix_from_paths(): anchor and replacement unspecified");
 $rv = strip_prefix_from_paths([], [$p], undef, undef);
 ok(! defined $rv, "strip_prefix_from_paths(): empty first argument");
+
+my %floats = (
+    444444  => { default => '444444', prec3 => '444444' },
+    44444.4 => { default => '44444.40000', prec3 => '44444.400' },
+    4444.44 => { default => '4444.44000', prec3 => '4444.440' },
+    444.444 => { default => '444.44400', prec3 => '444.444' },
+    44.4444 => { default => '44.44440', prec3 => '44.444' },
+    4.44444 => { default => '4.44444', prec3 => '4.444' },
+    .444444 => { default => '0.44444', prec3 => '0.444' },
+    .044444 => { default => '0.04444', prec3 => '0.044' },
+);
+for my $k (sort {$b <=> $a} keys %floats) {
+    my $l = fmt_float($k);
+    is($l, $floats{$k}{default}, "fmt_float applied to $k");
+    my $m = fmt_float($k, 3);
+    is($m, $floats{$k}{prec3}, "fmt_float, precision 3, applied to $k");
+}
+
+my $val = '0.00004';
+is(fmt_float($val), '4.0e-5', "fmt_float, applied to $val");
