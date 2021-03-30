@@ -66,6 +66,20 @@ my $ffile = "./t/foobar.nytprof_11-reader.out.txt";
 ok(!defined($reporter->file_has_been_modified($ffile)),
     "file_has_been_modified(): nonexistent file");
 
+# current_level()
+
+is($reporter->get_param('current_level'), '',
+    "param current_level starts as empty string");
+my $expected_level = 'line';
+is($reporter->current_level(), $expected_level,
+    "current_level(): without argument, defaults to $expected_level");
+$expected_level = 'block';
+is($reporter->current_level($expected_level), $expected_level,
+    "current_level(): with argument, set to $expected_level");
+$expected_level = 'line';
+is($reporter->current_level($expected_level), $expected_level,
+    "current_level(): with argument, set to $expected_level");
+
 # report
 
 {
