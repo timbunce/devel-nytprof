@@ -14,7 +14,8 @@ isa_ok($reporter, 'Devel::NYTProf::Reader');
 
 #my $tdir = tempdir( CLEANUP => 1 );
 my $tdir = tempdir( );
-ok($reporter->output_dir($tdir), "output_dir succeeded");
+ok($reporter->output_dir($tdir), "output_dir set");
+is($reporter->output_dir(), $tdir, "output_dir() returned value already set");
 is($reporter->get_param('output_dir'), $tdir, "get_param() returned expected value");
 is($reporter->set_param('output_dir'), $tdir, "set_param() returned expected value; value already defined");
 
@@ -47,6 +48,10 @@ is(ref($reporter->{mk_report_source_line}), 'CODE', "mk_report_source_line set")
 $reporter->set_param(mk_report_xsub_line => sub { "" });
 is(ref($reporter->{mk_report_xsub_line}), 'CODE', "mk_report_xsub_line set");
 is($reporter->get_param('mk_report_xsub_line'), "", "get_param() returned expected value");
+
+my $ffile = "./t/foobar.nytprof_11-reader.out.txt";
+ok(!defined($reporter->file_has_been_modified($ffile)),
+    "file_has_been_modified(): nonexistent file");
 
 # generate the files
 {
