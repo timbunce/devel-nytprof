@@ -62,6 +62,7 @@ README.md
 slowops.h
 t/00-load.t
 t/10-run.t
+t/11-reader.t
 t/22-readstream.t
 t/30-util.t
 t/31-env.t

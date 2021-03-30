@@ -1,0 +1,60 @@
+use strict;
+use warnings;
+use Carp;
+use Devel::NYTProf::Reader;
+use Test::More qw( no_plan );
+use File::Temp qw( tempdir );
+use Data::Dumper;
+
+my $file = "./t/nytprof_11-reader.out.txt";
+croak "No $file" unless -f $file;
+my $reporter = Devel::NYTProf::Reader->new($file);
+ok(defined $reporter, "Devel::NYTProf::Reader->new returned defined entity");
+isa_ok($reporter, 'Devel::NYTProf::Reader');
+
+#my $tdir = tempdir( CLEANUP => 1 );
+my $tdir = tempdir( );
+ok($reporter->output_dir($tdir), "output_dir succeeded");
+
+$reporter->set_param(mk_report_source_line => sub {
+    my ($linenum, $line, $stats_for_line, $statistics, $profile, $filestr) = @_;
+    $line =~ s/^\s*//; # trim leading spaces
+    my $delim = ',';
+
+	my $time  = $stats_for_line->{'time'} || 0;
+	my $calls = $stats_for_line->{'calls'} || 0;
+	$time  += $stats_for_line->{evalcall_stmts_time_nested} || 0;
+	#$calls ||= 1 if exists $stats_for_line->{evalcall_stmts_time_nested};
+
+    my $text = sprintf("%f%s%g%s%f%s%s\n",
+        $time, $delim,
+        $calls, $delim,
+		($calls) ? $time/$calls : 0, $delim,
+        $line,
+    );
+    return $text;
+
+#    # srcline
+#    $text = "srcline$delim$text";
+#
+#    return $text;
+});
+is(ref($reporter->{mk_report_source_line}), 'CODE', "mk_report_source_line set");
+
+$reporter->set_param(mk_report_xsub_line => sub { "" });
+is(ref($reporter->{mk_report_xsub_line}), 'CODE', "mk_report_xsub_line set");
+
+# generate the files
+{
+    local $@;
+    eval { $reporter->report({ quiet => 1 } ); };
+    ok(! $@, "report() ran without exception");
+}
+my $csvcount = 0;
+opendir my $DIRH, $tdir or croak "Unable to open $tdir for reading";
+while (my $f = readdir $DIRH) {
+    chomp $f;
+    $csvcount++ if $f =~ m/\.csv$/;
+}
+closedir $DIRH or croak "Unable to close $tdir after reading";
+is($csvcount, 3, "3 csv reports created");
