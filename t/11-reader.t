@@ -3,6 +3,7 @@ use warnings;
 use Carp;
 use Devel::NYTProf::Reader;
 use Test::More;
+use File::Spec;
 use File::Temp qw( tempdir );
 use Data::Dumper;
 
@@ -13,16 +14,21 @@ plan skip_all => "doesn't work without HAS_ZLIB" if (($^O eq "MSWin32") || ($^O 
 my $file = "./t/nytprof_11-reader.out.txt";
 croak "No $file" unless -f $file;
 
+# new()
+
 my $reporter = Devel::NYTProf::Reader->new($file, { quiet => 1 });
 ok(defined $reporter, "Devel::NYTProf::Reader->new returned defined entity");
 isa_ok($reporter, 'Devel::NYTProf::Reader');
+
+# output_dir() / get_param() / set_param()
 
 #my $tdir = tempdir( CLEANUP => 1 );
 my $tdir = tempdir( );
 ok($reporter->output_dir($tdir), "output_dir set");
 is($reporter->output_dir(), $tdir, "output_dir() returned value already set");
 is($reporter->get_param('output_dir'), $tdir, "get_param() returned expected value");
-is($reporter->set_param('output_dir'), $tdir, "set_param() returned expected value; value already defined");
+is($reporter->set_param('output_dir'), $tdir,
+       "set_param() returned expected value; value already defined");
 
 {
     local $@;
@@ -54,11 +60,14 @@ $reporter->set_param(mk_report_xsub_line => sub { "" });
 is(ref($reporter->{mk_report_xsub_line}), 'CODE', "mk_report_xsub_line set");
 is($reporter->get_param('mk_report_xsub_line'), "", "get_param() returned expected value");
 
+# file_has_been_modified()
+
 my $ffile = "./t/foobar.nytprof_11-reader.out.txt";
 ok(!defined($reporter->file_has_been_modified($ffile)),
     "file_has_been_modified(): nonexistent file");
 
-# generate the files
+# report
+
 {
     local $@;
     eval { $reporter->report({ quiet => 1 } ); };
@@ -72,5 +81,20 @@ while (my $f = readdir $DIRH) {
 }
 closedir $DIRH or croak "Unable to close $tdir after reading";
 is($csvcount, 3, "3 csv reports created");
+
+# _output_additional()
+
+my $fname = 'hello.txt';
+my $content = "hello world\n";
+my $expected_file = File::Spec->catfile($tdir, $fname);
+$reporter->_output_additional($fname, $content);
+ok(-f $expected_file, "_output_additional() created file");
+{
+    local $/ = undef;
+    open my $fh, "<", $expected_file or croak "Can't open $expected_file: $!";
+    my $seen_content = <$fh>;
+    close $fh or croak "Can't close $expected_file: $!";
+    is($seen_content, $content, "additional file has expected content");
+}
 
 done_testing();
