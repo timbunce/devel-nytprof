@@ -111,4 +111,38 @@ ok(-f $expected_file, "_output_additional() created file");
     is($seen_content, $content, "additional file has expected content");
 }
 
+=pod
+
+    my $profile              = $self->{profile};
+
+    my @all_fileinfos = $profile->all_fileinfos
+    my @fis = @all_fileinfos;
+    if ($LEVEL ne 'line') {
+        # we only generate line-level reports for evals
+        # for efficiency and because some data model editing only
+        # is only implemented for line-level data
+        @fis = grep { not $_->is_eval } @fis;
+    }
+    foreach my $fi (@fis) {
+        my $fname = $self->fname_for_fileinfo($fi) . $self->{suffix};
+
+=cut
+
+# fname_for_fileinfo
+
+{
+    my $profile = $reporter->{profile};
+    my @all_fileinfos = $profile->all_fileinfos;
+    my @fis = @all_fileinfos;
+    if ($reporter->current_level() ne 'line') {
+        @fis = grep { not $_->is_eval } @fis;
+    }
+    my $fname = $reporter->fname_for_fileinfo($fis[0]);
+    like($fname, qr/test01-p-1-line/,
+        "fname_for_fileinfo() returned expected value");
+    $fname = $reporter->fname_for_fileinfo($fis[0], 'block');
+    like($fname, qr/test01-p-1-block/,
+        "fname_for_fileinfo() returned expected value, argument supplied");
+}
+
 done_testing();
