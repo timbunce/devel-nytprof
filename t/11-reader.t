@@ -15,16 +15,23 @@ isa_ok($reporter, 'Devel::NYTProf::Reader');
 #my $tdir = tempdir( CLEANUP => 1 );
 my $tdir = tempdir( );
 ok($reporter->output_dir($tdir), "output_dir succeeded");
+is($reporter->get_param('output_dir'), $tdir, "get_param() returned expected value");
 
+{
+    local $@;
+    my $param = 'foobar';
+    eval { $reporter->set_param($param => sub {}); };
+    like($@, qr/Attempt to set $param to.*?failed: $param is not a valid parameter/,
+        "set_param(): caught exception for invalid parameter");
+}
 $reporter->set_param(mk_report_source_line => sub {
     my ($linenum, $line, $stats_for_line, $statistics, $profile, $filestr) = @_;
-    $line =~ s/^\s*//; # trim leading spaces
+    $line =~ s/^\s*//;
     my $delim = ',';
 
 	my $time  = $stats_for_line->{'time'} || 0;
 	my $calls = $stats_for_line->{'calls'} || 0;
 	$time  += $stats_for_line->{evalcall_stmts_time_nested} || 0;
-	#$calls ||= 1 if exists $stats_for_line->{evalcall_stmts_time_nested};
 
     my $text = sprintf("%f%s%g%s%f%s%s\n",
         $time, $delim,
@@ -33,11 +40,6 @@ $reporter->set_param(mk_report_source_line => sub {
         $line,
     );
     return $text;
-
-#    # srcline
-#    $text = "srcline$delim$text";
-#
-#    return $text;
 });
 is(ref($reporter->{mk_report_source_line}), 'CODE', "mk_report_source_line set");
 
