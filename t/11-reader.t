@@ -137,7 +137,14 @@ ok(-f $expected_file, "_output_additional() created file");
     if ($reporter->current_level() ne 'line') {
         @fis = grep { not $_->is_eval } @fis;
     }
-    my $fname = $reporter->fname_for_fileinfo($fis[0]);
+    my $fname;
+    {
+        local $@;
+        eval { $reporter->fname_for_fileinfo(); };
+        like($@, qr/No fileinfo/,
+            "fname_for_fileinfo(): caught exception for lack of first argument");
+    }
+    $fname = $reporter->fname_for_fileinfo($fis[0]);
     like($fname, qr/test01-p-1-line/,
         "fname_for_fileinfo() returned expected value");
     $fname = $reporter->fname_for_fileinfo($fis[0], 'block');
