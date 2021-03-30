@@ -2,13 +2,18 @@ use strict;
 use warnings;
 use Carp;
 use Devel::NYTProf::Reader;
-use Test::More qw( no_plan );
+use Test::More;
 use File::Temp qw( tempdir );
 use Data::Dumper;
 
+# Relax this restriction once we figure out how to make test $file work for
+# Appveyor.
+plan skip_all => "doesn't work without HAS_ZLIB" if (($^O eq "MSWin32") || ($^O eq 'VMS'));
+
 my $file = "./t/nytprof_11-reader.out.txt";
 croak "No $file" unless -f $file;
-my $reporter = Devel::NYTProf::Reader->new($file);
+
+my $reporter = Devel::NYTProf::Reader->new($file, { quiet => 1 });
 ok(defined $reporter, "Devel::NYTProf::Reader->new returned defined entity");
 isa_ok($reporter, 'Devel::NYTProf::Reader');
 
@@ -67,3 +72,5 @@ while (my $f = readdir $DIRH) {
 }
 closedir $DIRH or croak "Unable to close $tdir after reading";
 is($csvcount, 3, "3 csv reports created");
+
+done_testing();
