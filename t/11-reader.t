@@ -5,6 +5,7 @@ use Devel::NYTProf::Reader;
 use Test::More;
 use File::Spec;
 use File::Temp qw( tempdir );
+use Data::Dumper; $Data::Dumper::Indent=1;
 
 # Relax this restriction once we figure out how to make test $file work for
 # Appveyor.
@@ -109,23 +110,6 @@ ok(-f $expected_file, "_output_additional() created file");
     is($seen_content, $content, "additional file has expected content");
 }
 
-=pod
-
-    my $profile              = $self->{profile};
-
-    my @all_fileinfos = $profile->all_fileinfos
-    my @fis = @all_fileinfos;
-    if ($LEVEL ne 'line') {
-        # we only generate line-level reports for evals
-        # for efficiency and because some data model editing only
-        # is only implemented for line-level data
-        @fis = grep { not $_->is_eval } @fis;
-    }
-    foreach my $fi (@fis) {
-        my $fname = $self->fname_for_fileinfo($fi) . $self->{suffix};
-
-=cut
-
 # fname_for_fileinfo
 
 {
@@ -149,5 +133,35 @@ ok(-f $expected_file, "_output_additional() created file");
     like($fname, qr/test01-p-1-block/,
         "fname_for_fileinfo() returned expected value, argument supplied");
 }
+
+# url_for_sub
+
+{
+    my $profile = $reporter->{profile};
+    my %subname_subinfo_map = %{ $profile->subname_subinfo_map };
+    my %expect = (
+        'main::bar'         => qr/test01-p-1-line\.html#6/,
+        'main::baz'         => qr/test01-p-1-line\.html#10/,
+        'main::foo'         => qr/test01-p-1-line\.html#1/,
+        'main::CORE:print'  => qr/test01-p-1-line\.html#main__CORE_print/,
+    );
+    while ( my ($subname, $si) = each %subname_subinfo_map ) {
+        next unless $si->incl_time;
+        like($reporter->url_for_sub($subname), $expect{$subname},
+            "url_for_sub() returned expected value for $subname");
+    }
+}
+
+#sub url_for_file {
+#    my ($self, $file, $anchor, $level) = @_;
+#    confess "No file specified" unless $file;
+
+#{
+#    my $url;
+#
+#    $url = $reporter->url_for_file($file);
+#    print STDERR "AAA: <$url>\n";
+#
+#}
 
 done_testing();
