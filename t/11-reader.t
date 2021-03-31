@@ -5,7 +5,6 @@ use Devel::NYTProf::Reader;
 use Test::More;
 use File::Spec;
 use File::Temp qw( tempdir );
-use Data::Dumper;
 
 # Relax this restriction once we figure out how to make test $file work for
 # Appveyor.
@@ -22,8 +21,7 @@ isa_ok($reporter, 'Devel::NYTProf::Reader');
 
 # output_dir() / get_param() / set_param()
 
-#my $tdir = tempdir( CLEANUP => 1 );
-my $tdir = tempdir( );
+my $tdir = tempdir( CLEANUP => 1 );
 ok($reporter->output_dir($tdir), "output_dir set");
 is($reporter->output_dir(), $tdir, "output_dir() returned value already set");
 is($reporter->get_param('output_dir'), $tdir, "get_param() returned expected value");
