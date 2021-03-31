@@ -5,7 +5,6 @@ use Devel::NYTProf::Reader;
 use Test::More;
 use File::Spec;
 use File::Temp qw( tempdir );
-use Data::Dumper; $Data::Dumper::Indent=1;
 
 # Relax this restriction once we figure out how to make test $file work for
 # Appveyor.
@@ -79,7 +78,7 @@ $expected_level = 'line';
 is($reporter->current_level($expected_level), $expected_level,
     "current_level(): with argument, set to $expected_level");
 
-# report
+# report()
 
 {
     local $@;
@@ -110,7 +109,7 @@ ok(-f $expected_file, "_output_additional() created file");
     is($seen_content, $content, "additional file has expected content");
 }
 
-# fname_for_fileinfo
+# fname_for_fileinfo()
 
 {
     my $profile = $reporter->{profile};
@@ -134,7 +133,7 @@ ok(-f $expected_file, "_output_additional() created file");
         "fname_for_fileinfo() returned expected value, argument supplied");
 }
 
-# url_for_sub / href_for_sub
+# url_for_sub() / href_for_sub()
 
 {
     my $profile = $reporter->{profile};
@@ -157,22 +156,28 @@ ok(-f $expected_file, "_output_additional() created file");
         next unless $si->incl_time;
         like($reporter->url_for_sub($subname), $expect{$subname}{subregex},
             "url_for_sub() returned expected value for $subname");
-        #print STDERR "DDD: ", $reporter->href_for_sub($subname), "\n";
         like($reporter->href_for_sub($subname), $expect{$subname}{hrfregex},
             "href_for_sub() returned expected value for $subname");
     }
 }
 
-#sub url_for_file {
-#    my ($self, $file, $anchor, $level) = @_;
-#    confess "No file specified" unless $file;
+# href_for_file()
 
-#{
-#    my $url;
-#
-#    $url = $reporter->url_for_file($file);
-#    print STDERR "AAA: <$url>\n";
-#
-#}
+{
+    my $profile = $reporter->{profile};
+    my @fis = sort { $b->meta->{'time'} <=> $a->meta->{'time'} }
+        $profile->noneval_fileinfos;
+    my %levels = reverse %{$profile->get_profile_levels};
+    my %expect = (
+        line    => qr/href="(?:t-)?test01-p-1-line.html"/,
+        block   => qr/href="(?:t-)?test01-p-1-block.html"/,
+        sub     => qr/href="(?:t-)?test01-p-1-sub.html"/,
+    );
+    my %hrefs = map { $_ => $reporter->href_for_file($fis[0], undef, $_) }
+                grep { $levels{$_} } qw(line block sub);
+    for my $h (keys %hrefs) {
+        like($hrefs{$h}, qr/$expect{$h}/, "Got expected href for $h");
+    }
+}
 
 done_testing();
