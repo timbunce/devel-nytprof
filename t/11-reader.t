@@ -134,21 +134,32 @@ ok(-f $expected_file, "_output_additional() created file");
         "fname_for_fileinfo() returned expected value, argument supplied");
 }
 
-# url_for_sub
+# url_for_sub / href_for_sub
 
 {
     my $profile = $reporter->{profile};
     my %subname_subinfo_map = %{ $profile->subname_subinfo_map };
     my %expect = (
-        'main::bar'         => qr/test01-p-1-line\.html#6/,
-        'main::baz'         => qr/test01-p-1-line\.html#10/,
-        'main::foo'         => qr/test01-p-1-line\.html#1/,
-        'main::CORE:print'  => qr/test01-p-1-line\.html#main__CORE_print/,
+        'main::bar'         =>  { subregex => qr/(?:t-)?test01-p-1-line\.html#6/,
+                                  hrfregex => qr/href="(?:t-)?test01-p-1-line\.html#6"/,
+                                },
+        'main::baz'         =>  { subregex => qr/(?:t-)?test01-p-1-line\.html#10/,
+                                  hrfregex => qr/href="(?:t-)?test01-p-1-line\.html#10"/,
+                                },
+        'main::foo'         =>  { subregex => qr/(?:t-)?test01-p-1-line\.html#1/,
+                                  hrfregex => qr/href="(?:t-)?test01-p-1-line\.html#1"/,
+                                },
+        'main::CORE:print'  =>  { subregex => qr/(?:t-)?test01-p-1-line\.html#main__CORE_print/,
+                                  hrfregex => qr/href="(?:t-)?test01-p-1-line\.html#main__CORE_print"/,
+                                },
     );
     while ( my ($subname, $si) = each %subname_subinfo_map ) {
         next unless $si->incl_time;
-        like($reporter->url_for_sub($subname), $expect{$subname},
+        like($reporter->url_for_sub($subname), $expect{$subname}{subregex},
             "url_for_sub() returned expected value for $subname");
+        #print STDERR "DDD: ", $reporter->href_for_sub($subname), "\n";
+        like($reporter->href_for_sub($subname), $expect{$subname}{hrfregex},
+            "href_for_sub() returned expected value for $subname");
     }
 }
 
