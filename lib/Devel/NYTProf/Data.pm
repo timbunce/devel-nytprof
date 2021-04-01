@@ -131,6 +131,10 @@ sub new {
     $profile->_clear_caches;
 
     # a hack for testing/debugging
+    # $ENV{NYTPROF_ONLOAD} must be a colon-delimited string of
+    # equal-sign-delimited substrings, e.g.,
+    # 'alpha=beta:gamma=delta:dump=1:exit=1';
+
     if (my $env = $ENV{NYTPROF_ONLOAD}) {
         my %onload = map { split /=/, $_, 2 } split /:/, $env, -1;
         warn _dumper($profile) if $onload{dump};

@@ -4,8 +4,9 @@ use Carp;
 use Devel::NYTProf::Reader;
 use Test::More;
 use File::Spec;
-use File::Temp qw( tempdir );
+use File::Temp qw( tempdir tempfile );
 use Data::Dumper;$Data::Dumper::Indent=1;
+use Capture::Tiny ();
 
 # Relax this restriction once we figure out how to make test $file work for
 # Appveyor.
@@ -32,23 +33,33 @@ is(scalar(@eval_fileinfos), 0, "got 0 eval_fineinfo");
 my @noneval_fileinfos = $profile->noneval_fileinfos();
 is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 
-=pod
+{
+    my $stdout = Capture::Tiny::capture_stdout {
+        $profile = Devel::NYTProf::Data->new( { filename => $file } );
+    };
+    like($stdout, qr/^Reading $file\nProcessing $file data\n$/s,
+        "new(): captured non-quiet output");
 
-sub all_fileinfos {
-    my @all = @{shift->{fid_fileinfo}};
-    shift @all;    # drop fid 0
-    # return all non-nullified fileinfos
-    return grep { $_->fid } @all;
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
-sub eval_fileinfos {
-    return grep {  $_->eval_line } shift->all_fileinfos;
+{
+    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
-sub noneval_fileinfos {
-    return grep { !$_->eval_line } shift->all_fileinfos;
+{
+    local $ENV{NYTPROF_ONLOAD} = 'alpha=beta:gamma=delta:dump=1';
+    my $stderr = Capture::Tiny::capture_stderr {
+        $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    };
+    like($stderr, qr/^\$VAR1.*'Devel::NYTProf::Data'/s,
+        "captured dump when NYTPROF_ONLOAD set");
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
-=cut
 
 done_testing();

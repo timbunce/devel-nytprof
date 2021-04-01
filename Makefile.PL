@@ -177,6 +177,16 @@ WriteMakefile(
     ABSTRACT_FROM => 'lib/Devel/NYTProf.pm',         # retrieve abstract from module
     AUTHOR    => 'Tim Bunce <timb@cpan.org>',
     LICENSE => 'perl',
+    PREREQ_PM => {
+        'List::Util'   => 0,
+        'Test::More'   => '0.84',
+        'File::Which'  => '1.09',
+        'Test::Differences' => '0.60',
+        'XSLoader'     => 0,
+        'Getopt::Long' => 0,
+        'JSON::MaybeXS' => 0,
+        'Capture::Tiny' => 0,
+    },
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
     FUNCLIST => ['boot_Devel__NYTProf', 'boot_Devel__NYTProf__FileHandle'],
