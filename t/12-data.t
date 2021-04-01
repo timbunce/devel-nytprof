@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use Carp;
 use Devel::NYTProf::Reader;
+use Devel::NYTProf::Util qw( trace_level );
 use Test::More;
 use File::Spec;
 use File::Temp qw( tempdir tempfile );
@@ -83,53 +84,42 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     my $stderr = Capture::Tiny::capture_stderr {
         $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
     };
-    ok(! $stderr, "Nothing dump, as requested");
+    ok(! $stderr, "Nothing dumped, as requested");
     ok(defined $profile, "Direct call of constructor returned defined value");
     isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
-{
-    local $ENV{NYTPROF_TEST} = 'trace=2';
-    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-    ok(defined $profile, "Direct call of constructor returned defined value");
-    isa_ok($profile, 'Devel::NYTProf::Data');
-}
-
-{
-    local $ENV{NYTPROF_TEST} = 'trace=3';
-    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-    ok(defined $profile, "Direct call of constructor returned defined value");
-    isa_ok($profile, 'Devel::NYTProf::Data');
-}
-
-{
-    local $ENV{NYTPROF_TEST} = 'trace=4';
-    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-    ok(defined $profile, "Direct call of constructor returned defined value");
-    isa_ok($profile, 'Devel::NYTProf::Data');
-}
-
-{
-    local $ENV{NYTPROF_TEST} = 'trace=5';
-    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-    ok(defined $profile, "Direct call of constructor returned defined value");
-    isa_ok($profile, 'Devel::NYTProf::Data');
-}
-
-{
-    local $ENV{NYTPROF_TEST} = 'trace=2';
-    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-    ok(defined $profile, "Direct call of constructor returned defined value");
-    isa_ok($profile, 'Devel::NYTProf::Data');
-}
-
-{
-    local $ENV{NYTPROF_TEST} = 'trace=2';
-    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-    ok(defined $profile, "Direct call of constructor returned defined value");
-    isa_ok($profile, 'Devel::NYTProf::Data');
-}
-
-
+# Blocks below need to exercise collapse_evals_in() method.
+#{
+#    print STDERR "AAA: $ENV{NYTPROF}\n";
+#    local $ENV{NYTPROF} = 'trace=2';
+#    print STDERR "AAA: $ENV{NYTPROF}\n";
+#    print STDERR "BBB: ", trace_level(), "\n";
+#
+#    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1, trace => 2 } );
+#    ok(defined $profile, "Direct call of constructor returned defined value");
+#    isa_ok($profile, 'Devel::NYTProf::Data');
+#}
+#
+#{
+#    local $ENV{NYTPROF} = 'trace=3';
+#    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+#    ok(defined $profile, "Direct call of constructor returned defined value");
+#    isa_ok($profile, 'Devel::NYTProf::Data');
+#}
+#
+#{
+#    local $ENV{NYTPROF} = 'trace=4';
+#    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+#    ok(defined $profile, "Direct call of constructor returned defined value");
+#    isa_ok($profile, 'Devel::NYTProf::Data');
+#}
+#
+#{
+#    local $ENV{NYTPROF} = 'trace=5';
+#    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+#    ok(defined $profile, "Direct call of constructor returned defined value");
+#    isa_ok($profile, 'Devel::NYTProf::Data');
+#}
 
 done_testing();
