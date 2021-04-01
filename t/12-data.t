@@ -73,8 +73,11 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     my $stderr = Capture::Tiny::capture_stderr {
         $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
     };
-    like($stderr, qr/^\$VAR1.*'Devel::NYTProf::Data'/s,
-        "captured dump when NYTPROF_ONLOAD set");
+    SKIP: {
+        skip "Not working if invoked with 'perl -d'", 1 if $^P;
+        like($stderr, qr/^\$VAR1.*'Devel::NYTProf::Data'/s,
+            "captured dump when NYTPROF_ONLOAD set");
+    }
     ok(defined $profile, "Direct call of constructor returned defined value");
     isa_ok($profile, 'Devel::NYTProf::Data');
 }
