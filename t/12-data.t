@@ -88,5 +88,48 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
+{
+    local $ENV{NYTPROF_TEST} = 'trace=2';
+    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+}
+
+{
+    local $ENV{NYTPROF_TEST} = 'trace=3';
+    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+}
+
+{
+    local $ENV{NYTPROF_TEST} = 'trace=4';
+    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+}
+
+{
+    local $ENV{NYTPROF_TEST} = 'trace=5';
+    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+}
+
+{
+    local $ENV{NYTPROF_TEST} = 'trace=2';
+    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+}
+
+{
+    local $ENV{NYTPROF_TEST} = 'trace=2';
+    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+}
+
+
 
 done_testing();
