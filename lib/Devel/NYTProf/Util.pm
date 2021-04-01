@@ -53,6 +53,7 @@ our @EXPORT_OK = qw(
     get_abs_paths_alternation_regex
     html_safe_filename
     trace_level
+    _dumper
 );
 
 
@@ -249,6 +250,13 @@ sub html_safe_filename {
         $fname = substr($fname,-33);
     }
     return $fname;
+}
+
+sub _dumper {
+    require Data::Dumper;
+    local $Data::Dumper::Sortkeys = 1;
+    local $Data::Dumper::Indent = 1;
+    return Data::Dumper::Dumper(@_);
 }
 
 1;

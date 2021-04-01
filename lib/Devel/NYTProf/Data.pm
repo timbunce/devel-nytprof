@@ -53,7 +53,7 @@ use Scalar::Util qw(blessed);
 use Devel::NYTProf::Core;
 use Devel::NYTProf::FileInfo;
 use Devel::NYTProf::SubInfo;
-use Devel::NYTProf::Util qw( trace_level );
+use Devel::NYTProf::Util qw( trace_level _dumper );
 
 our $VERSION = '6.07';
 
@@ -801,24 +801,16 @@ sub resolve_fid {
     return undef;
 }
 
-
-sub package_fids {
-    my ($self, $package) = @_;
-    my @fids;
-    #warn "package_fids '$package'";
-    return @fids if wantarray;
-    warn "Package 'package' has items defined in multiple fids: @fids\n"
-        if @fids > 1;
-    return $fids[0];
-}
-
-
-sub _dumper {
-    require Data::Dumper;
-    local $Data::Dumper::Sortkeys = 1;
-    local $Data::Dumper::Indent = 1;
-    return Data::Dumper::Dumper(@_);
-}
+# 2021-03-31: package_fids() not exercised anywhere in distro
+#sub package_fids {
+#    my ($self, $package) = @_;
+#    my @fids;
+#    #warn "package_fids '$package'";
+#    return @fids if wantarray;
+#    warn "Package 'package' has items defined in multiple fids: @fids\n"
+#        if @fids > 1;
+#    return $fids[0];
+#}
 
 1;
 
