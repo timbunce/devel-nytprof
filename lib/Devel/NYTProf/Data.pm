@@ -215,6 +215,7 @@ sub collapse_evals_in {
             }
         }
     }
+    return 1;
 }
 
 sub _caches       { return shift->{caches} ||= {} }
