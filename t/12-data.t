@@ -51,6 +51,14 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 }
 
 {
+    $profile = Devel::NYTProf::Data->new(
+        { filename => $file, quiet => 1, skip_collapse_evals => 1 }
+    );
+    ok(defined $profile, "Direct call of constructor returned defined value; skip_collapse_evals set");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+}
+
+{
     croak "Devel::NYTProf::new() could not locate file for processing"
         unless -f $file;
     local $@;
@@ -66,6 +74,16 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     };
     like($stderr, qr/^\$VAR1.*'Devel::NYTProf::Data'/s,
         "captured dump when NYTPROF_ONLOAD set");
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+}
+
+{
+    local $ENV{NYTPROF_ONLOAD} = 'alpha=beta:gamma=delta:dump=0';
+    my $stderr = Capture::Tiny::capture_stderr {
+        $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    };
+    ok(! $stderr, "Nothing dump, as requested");
     ok(defined $profile, "Direct call of constructor returned defined value");
     isa_ok($profile, 'Devel::NYTProf::Data');
 }
