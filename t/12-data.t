@@ -51,6 +51,15 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 }
 
 {
+    croak "Devel::NYTProf::new() could not locate file for processing"
+        unless -f $file;
+    local $@;
+    eval { $profile = Devel::NYTProf::Data->new(); };
+    like($@, qr/Devel::NYTProf::new\(\) could not locate file for processing/,
+        "captured exception for file not found");
+}
+
+{
     local $ENV{NYTPROF_ONLOAD} = 'alpha=beta:gamma=delta:dump=1';
     my $stderr = Capture::Tiny::capture_stderr {
         $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
