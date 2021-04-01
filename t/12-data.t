@@ -35,6 +35,7 @@ my @noneval_fileinfos = $profile->noneval_fileinfos();
 is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 
 {
+    my $profile;
     my $stdout = Capture::Tiny::capture_stdout {
         $profile = Devel::NYTProf::Data->new( { filename => $file } );
     };
@@ -46,13 +47,13 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 }
 
 {
-    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    my $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
     ok(defined $profile, "Direct call of constructor returned defined value");
     isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
 {
-    $profile = Devel::NYTProf::Data->new(
+    my $profile = Devel::NYTProf::Data->new(
         { filename => $file, quiet => 1, skip_collapse_evals => 1 }
     );
     ok(defined $profile, "Direct call of constructor returned defined value; skip_collapse_evals set");
@@ -60,6 +61,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 }
 
 {
+    my $profile;
     croak "Devel::NYTProf::new() could not locate file for processing"
         unless -f $file;
     local $@;
@@ -69,6 +71,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 }
 
 {
+    my $profile;
     local $ENV{NYTPROF_ONLOAD} = 'alpha=beta:gamma=delta:dump=1';
     my $stderr = Capture::Tiny::capture_stderr {
         $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
@@ -83,6 +86,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 }
 
 {
+    my $profile;
     local $ENV{NYTPROF_ONLOAD} = 'alpha=beta:gamma=delta:dump=0';
     my $stderr = Capture::Tiny::capture_stderr {
         $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
@@ -92,37 +96,21 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
-# Blocks below need to exercise collapse_evals_in() method.
-#{
-#    print STDERR "AAA: $ENV{NYTPROF}\n";
-#    local $ENV{NYTPROF} = 'trace=2';
-#    print STDERR "AAA: $ENV{NYTPROF}\n";
-#    print STDERR "BBB: ", trace_level(), "\n";
-#
-#    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1, trace => 2 } );
-#    ok(defined $profile, "Direct call of constructor returned defined value");
-#    isa_ok($profile, 'Devel::NYTProf::Data');
-#}
-#
-#{
-#    local $ENV{NYTPROF} = 'trace=3';
-#    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-#    ok(defined $profile, "Direct call of constructor returned defined value");
-#    isa_ok($profile, 'Devel::NYTProf::Data');
-#}
-#
-#{
-#    local $ENV{NYTPROF} = 'trace=4';
-#    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-#    ok(defined $profile, "Direct call of constructor returned defined value");
-#    isa_ok($profile, 'Devel::NYTProf::Data');
-#}
-#
-#{
-#    local $ENV{NYTPROF} = 'trace=5';
-#    $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-#    ok(defined $profile, "Direct call of constructor returned defined value");
-#    isa_ok($profile, 'Devel::NYTProf::Data');
-#}
+for my $tl (2 .. 5) {
+    test_trace_levels($file, $tl);
+}
+
+sub test_trace_levels {
+    my ($file, $tl) = @_;
+    local $ENV{NYTPROF} = "trace=$tl";
+
+    my $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    ok(defined $profile, "Direct call of constructor returned defined value");
+    isa_ok($profile, 'Devel::NYTProf::Data');
+    my @noneval_fileinfos = $profile->noneval_fileinfos();
+    is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
+    ok($profile->collapse_evals_in($noneval_fileinfos[0]),
+        "collapse_evals_in() returned true value; trace_level $tl"); 
+}
 
 done_testing();
