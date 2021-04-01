@@ -78,6 +78,8 @@ sub new {
     my $args = shift || { };
 
     my $file = $args->{filename} ||= 'nytprof.out';
+    croak "Devel::NYTProf::new() could not locate file for processing"
+        unless -f $file;
 
     print "Reading $file\n" unless $args->{quiet};
 
