@@ -24,6 +24,9 @@ my $profile = $reporter->{profile};
 isa_ok($profile, 'Devel::NYTProf::Data');
 my $pkgref = $profile->package_subinfo_map(0,1);
 is(ref($pkgref), 'HASH', "package_subinfo_map() returned hashref");
+isa_ok($pkgref->{"main"}{""}[0], 'Devel::NYTProf::SubInfo');
+my $subinfo_obj = $pkgref->{"main"}{""}[0];
+isa_ok($subinfo_obj, 'Devel::NYTProf::SubInfo');
 
 my @all_fileinfos = $profile->all_fileinfos();
 is(scalar(@all_fileinfos), 1, "got 1 all_fineinfo");
@@ -66,6 +69,28 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     };
     like($stderr, qr/^Can't resolve fid of '$arg'/,
         "fileinfo_of: called without unknown argument");
+    ok(! defined($fi), "fileinfo_of returned undef");
+
+    $arg = {};
+    $stderr = Capture::Tiny::capture_stderr {
+        $fi = $profile->fileinfo_of($arg);
+    };
+    like($stderr, qr/^Can't resolve fid of/,
+        "fileinfo_of: called with inappropriate reference");
+    ok(! defined($fi), "fileinfo_of returned undef");
+
+    $stderr = Capture::Tiny::capture_stderr {
+        $fi = $profile->fileinfo_of($profile);
+    };
+    like($stderr, qr/^Can't resolve fid of/,
+        "fileinfo_of: called with object of class which has no 'fid' method");
+    ok(! defined($fi), "fileinfo_of returned undef");
+
+    $stderr = Capture::Tiny::capture_stderr {
+        $fi = $profile->fileinfo_of($subinfo_obj);
+    };
+    like($stderr, qr/^Can't resolve fid of/,
+        "fileinfo_of: called with object other than Devel::NYTProf::FileInfo");
     ok(! defined($fi), "fileinfo_of returned undef");
 }
 
