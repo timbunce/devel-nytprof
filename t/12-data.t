@@ -20,6 +20,8 @@ my $reporter = Devel::NYTProf::Reader->new($file, { quiet => 1 });
 ok(defined $reporter, "Devel::NYTProf::Reader->new returned defined entity");
 isa_ok($reporter, 'Devel::NYTProf::Reader');
 
+# package_subinfo_map()
+
 my $profile = $reporter->{profile};
 isa_ok($profile, 'Devel::NYTProf::Data');
 my $pkgref = $profile->package_subinfo_map(0,1);
@@ -27,6 +29,8 @@ is(ref($pkgref), 'HASH', "package_subinfo_map() returned hashref");
 isa_ok($pkgref->{"main"}{""}[0], 'Devel::NYTProf::SubInfo');
 my $subinfo_obj = $pkgref->{"main"}{""}[0];
 isa_ok($subinfo_obj, 'Devel::NYTProf::SubInfo');
+
+# all_fileinfos() / eval_fileinfos() / noneval_fileinfos()
 
 my @all_fileinfos = $profile->all_fileinfos();
 is(scalar(@all_fileinfos), 1, "got 1 all_fineinfo");
@@ -36,6 +40,8 @@ is(scalar(@eval_fileinfos), 0, "got 0 eval_fineinfo");
 
 my @noneval_fileinfos = $profile->noneval_fileinfos();
 is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
+
+# fileinfo_of()
 
 {
     my $profile;
@@ -94,17 +100,50 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     ok(! defined($fi), "fileinfo_of returned undef");
 }
 
+# subinfo_of()
+
 {
-    my $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
+    my $profile = Devel::NYTProf::Data->new(
+        { filename => $file, quiet => 1 }
+    );
     ok(defined $profile, "Direct call of constructor returned defined value");
-    isa_ok($profile, 'Devel::NYTProf::Data');
+    my %subname_subinfo_map = %{ $profile->subname_subinfo_map };
+    my %expect = map { $_ => 1 }
+        ( 'main::BEGIN', 'main::CORE:print', 'main::RUNTIME',
+          'main::bar',   'main::baz',        'main::foo' );
+    my %seen = ();
+    for my $sub (keys %subname_subinfo_map) {
+        $seen{$sub} = $profile->subinfo_of($sub);
+    }
+    is_deeply([ sort keys %seen], [ sort keys %expect],
+        "subinfo_of: got expected fully qualified subroutine names");
+
+    {
+        my ($rv, $stderr);
+        $stderr = Capture::Tiny::capture_stderr { $rv = $profile->subinfo_of(undef); };
+        ok(!defined $rv, "subinfo_of returned undef");
+        like($stderr, qr/Can't resolve subinfo of undef value/s,
+            "subinfo_of: got expected warning for undef argument");
+    }
+
+    {
+        my ($rv, $stderr);
+        my $arg = 'main::kalamazoo';
+        $stderr = Capture::Tiny::capture_stderr { $rv = $profile->subinfo_of($arg); };
+        ok(!defined $rv, "subinfo_of returned undef");
+        like($stderr, qr/Can't resolve subinfo of '$arg'/s,
+            "subinfo_of: got expected warning for unknown argument");
+    }
 }
+
+# new()
 
 {
     my $profile = Devel::NYTProf::Data->new(
         { filename => $file, quiet => 1, skip_collapse_evals => 1 }
     );
-    ok(defined $profile, "Direct call of constructor returned defined value; skip_collapse_evals set");
+    ok(defined $profile,
+        "Direct call of constructor returned defined value; skip_collapse_evals set");
     isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
