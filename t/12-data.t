@@ -191,6 +191,45 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     }
 }
 
+# dump_profile_data()
+
+{
+    my $profile = Devel::NYTProf::Data->new(
+        { filename => $file, quiet => 1 }
+    );
+    my ($rv, $stdout, @lines, $linecount);
+    $stdout = Capture::Tiny::capture_stdout { $rv = $profile->dump_profile_data(); };
+    ok($rv, "dump_profile_data() returned true value");
+    ok($stdout, "retrieved dumped profile data");
+    @lines = split(/\n+/, $stdout);
+    $linecount = scalar(@lines);
+    my $indented_linecount = 0;
+    for my $l (@lines) {
+        $indented_linecount++ if $l =~ m/^\s+/;
+    }
+    cmp_ok($indented_linecount, '>', $linecount / 2,
+        "with no argument for separator, most lines in dumped profile data ($indented_linecount / $linecount) are indented");
+
+    $stdout = Capture::Tiny::capture_stdout {
+        $rv = $profile->dump_profile_data( { separator => ':::' } );
+    };
+    ok($rv, "dump_profile_data() returned true value");
+    ok($stdout, "retrieved dumped profile data");
+    @lines = split(/\n+/, $stdout);
+    $linecount = scalar(@lines);
+    my $three_colon_linecount = 0;
+    for my $l (@lines) {
+        $three_colon_linecount++ if $l =~ m/^[^:]+:::/;
+    }
+    cmp_ok($three_colon_linecount, '==', $linecount,
+        "with ':::' separator, all lines in dumped profile data are appropriately delimited");
+}
+
+
+
+
+
+
 #print "XXX: $ENV{NYTPROF_ONLOAD}\n";
 
 #for my $tl (2 .. 5) {
