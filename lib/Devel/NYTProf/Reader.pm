@@ -201,8 +201,6 @@ sub _generate_report {
     my @all_fileinfos = $profile->all_fileinfos
         or carp "Profile report data contains no files";
 
-    #$profile->dump_profile_data({ filehandle => \*STDERR, separator=>"\t", });
-
     my @fis = @all_fileinfos;
     if ($LEVEL ne 'line') {
         # we only generate line-level reports for evals

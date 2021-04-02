@@ -423,7 +423,7 @@ This format is especially useful for grep'ing and diff'ing.
 
 sub dump_profile_data {
     my $self       = shift;
-    my $args       = shift;
+    my $args       = shift || {};
     my $separator  = $args->{separator} || '';
     my $filehandle = $args->{filehandle} || \*STDOUT;
 
@@ -540,7 +540,9 @@ sub _dump_elements {
             }
         }
     }
+    no warnings 'numeric'; # @$path can be non-positive
     printf $fh "%s$end\n", ($pad x (@$path - 1)) if $end;
+    return 1;
 }
 
 
