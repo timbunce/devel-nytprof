@@ -44,6 +44,29 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 
     ok(defined $profile, "Direct call of constructor returned defined value");
     isa_ok($profile, 'Devel::NYTProf::Data');
+
+    my ($fi, $stderr);
+    $stderr = Capture::Tiny::capture_stderr {
+        $fi = $profile->fileinfo_of();
+    };
+    like($stderr, qr/^Can't resolve fid of undef value/,
+        "fileinfo_of: called without argument, caught warning,");
+    ok(! defined($fi), "fileinfo_of returned undef");
+
+    my $silent_if_undef = 1;
+    $stderr = Capture::Tiny::capture_stderr {
+        $fi = $profile->fileinfo_of(undef, $silent_if_undef);
+    };
+    ok(! $stderr, "fileinfo_of: called without argument, declined warning");
+    ok(! defined($fi), "fileinfo_of returned undef");
+
+    my $arg = 'foobar';
+    $stderr = Capture::Tiny::capture_stderr {
+        $fi = $profile->fileinfo_of($arg);
+    };
+    like($stderr, qr/^Can't resolve fid of '$arg'/,
+        "fileinfo_of: called without unknown argument");
+    ok(! defined($fi), "fileinfo_of returned undef");
 }
 
 {
