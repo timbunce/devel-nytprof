@@ -211,6 +211,17 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
         ok(defined $profile, "Direct call of constructor returned defined value");
         isa_ok($profile, 'Devel::NYTProf::Data');
     }
+    
+}
+
+{
+    # This test block will probably not exercise its intended condition unless
+    # we're testing with a higher trace level.
+    local $ENV{NYTPROF_MAX_EVAL_SIBLINGS} = 2;
+    my $profile = Devel::NYTProf::Data->new( {filename => $file, quiet => 1 });
+    ok(defined $profile,
+        "Direct call of constructor returned defined value; reduced NYTPROF_MAX_EVAL_SIBLINGS");
+    isa_ok($profile, 'Devel::NYTProf::Data');
 }
 
 # dump_profile_data()
