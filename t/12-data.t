@@ -59,7 +59,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
         $fi = $profile->fileinfo_of();
     };
     like($stderr, qr/^Can't resolve fid of undef value/,
-        "fileinfo_of: called without argument, caught warning,");
+        "fileinfo_of: called with argument, caught warning,");
     ok(! defined($fi), "fileinfo_of returned undef");
 
     my $silent_if_undef = 1;
@@ -133,6 +133,30 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
             "subinfo_of: got expected warning for unknown argument");
     }
 }
+
+# resolve_fid()
+
+{
+    my $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
+    ok(defined $profile, "Direct call of constructor returned defined value");
+
+    {
+        local $@;
+        my ($rv);
+        eval { $rv = $profile->resolve_fid(); };
+        like($@, qr/^No file specified/,
+            "resolve_fid: captured exception for no file specified");
+    }
+
+    {
+        my ($rv, $file);
+        $file = '/foobar_extra_delicious';
+        ok(! -f $file, "absolute file does not exist");
+        $rv = $profile->resolve_fid($file);
+        ok(! defined $rv, "resolve_fid returned undefined value for unknown absolute path");
+    }
+}
+
 
 # new()
 
