@@ -259,27 +259,19 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     is($dumps{no_arg}, $dumps{line}, "get_fid_line_data() defaults to 'line'");
 }
 
+# normalize_variables()
 
+{
+    my ($profile, $rv);
+    $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
+    $rv = $profile->normalize_variables(1);
+    ok($rv, "normalize_variables() returned true value with true argument");
 
-#print "XXX: $ENV{NYTPROF_ONLOAD}\n";
+    $rv = $profile->normalize_variables(0);
+    ok($rv, "normalize_variables() returned true value with false argument");
 
-#for my $tl (2 .. 5) {
-#    test_trace_levels($file, $tl);
-#}
-#
-#sub test_trace_levels {
-#    my ($file, $tl) = @_;
-#    #local $ENV{NYTPROF} = "trace=$tl:start=init";
-#    #system(qq|export NYTPROF="trace=$tl:start=init"|) and croak;
-#    print "AAA: reported trace level: ", trace_level(), "\n";
-#
-#    my $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
-#    ok(defined $profile, "Direct call of constructor returned defined value");
-#    isa_ok($profile, 'Devel::NYTProf::Data');
-#    my @noneval_fileinfos = $profile->noneval_fileinfos();
-#    is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
-#    ok($profile->collapse_evals_in($noneval_fileinfos[0]),
-#        "collapse_evals_in() returned true value; requested trace_level $tl"); 
-#}
+    $rv = $profile->normalize_variables();
+    ok($rv, "normalize_variables() returned true value with no argument");
+}
 
 done_testing();
