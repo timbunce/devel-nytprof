@@ -642,7 +642,7 @@ sub normalize_variables {
 
     $_->normalize_for_test for $self->all_fileinfos;
 
-    return;
+    return 1;
 }
 
 
