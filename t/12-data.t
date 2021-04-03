@@ -7,7 +7,7 @@ use Test::More;
 use File::Spec;
 use File::Temp qw( tempdir tempfile );
 use Data::Dumper;$Data::Dumper::Indent=1;
-use Capture::Tiny ();
+use Capture::Tiny qw(capture_stdout capture_stderr );
 
 # Relax this restriction once we figure out how to make test $file work for
 # Appveyor.
@@ -45,7 +45,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 
 {
     my $profile;
-    my $stdout = Capture::Tiny::capture_stdout {
+    my $stdout = capture_stdout {
         $profile = Devel::NYTProf::Data->new( { filename => $file } );
     };
     like($stdout, qr/^Reading $file\nProcessing $file data\n$/s,
@@ -55,7 +55,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     isa_ok($profile, 'Devel::NYTProf::Data');
 
     my ($fi, $stderr);
-    $stderr = Capture::Tiny::capture_stderr {
+    $stderr = capture_stderr {
         $fi = $profile->fileinfo_of();
     };
     like($stderr, qr/^Can't resolve fid of undef value/,
@@ -63,14 +63,14 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     ok(! defined($fi), "fileinfo_of returned undef");
 
     my $silent_if_undef = 1;
-    $stderr = Capture::Tiny::capture_stderr {
+    $stderr = capture_stderr {
         $fi = $profile->fileinfo_of(undef, $silent_if_undef);
     };
     ok(! $stderr, "fileinfo_of: called without argument, declined warning");
     ok(! defined($fi), "fileinfo_of returned undef");
 
     my $arg = 'foobar';
-    $stderr = Capture::Tiny::capture_stderr {
+    $stderr = capture_stderr {
         $fi = $profile->fileinfo_of($arg);
     };
     like($stderr, qr/^Can't resolve fid of '$arg'/,
@@ -78,21 +78,21 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     ok(! defined($fi), "fileinfo_of returned undef");
 
     $arg = {};
-    $stderr = Capture::Tiny::capture_stderr {
+    $stderr = capture_stderr {
         $fi = $profile->fileinfo_of($arg);
     };
     like($stderr, qr/^Can't resolve fid of/,
         "fileinfo_of: called with inappropriate reference");
     ok(! defined($fi), "fileinfo_of returned undef");
 
-    $stderr = Capture::Tiny::capture_stderr {
+    $stderr = capture_stderr {
         $fi = $profile->fileinfo_of($profile);
     };
     like($stderr, qr/^Can't resolve fid of/,
         "fileinfo_of: called with object of class which has no 'fid' method");
     ok(! defined($fi), "fileinfo_of returned undef");
 
-    $stderr = Capture::Tiny::capture_stderr {
+    $stderr = capture_stderr {
         $fi = $profile->fileinfo_of($subinfo_obj);
     };
     like($stderr, qr/^Can't resolve fid of/,
@@ -103,9 +103,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 # subinfo_of()
 
 {
-    my $profile = Devel::NYTProf::Data->new(
-        { filename => $file, quiet => 1 }
-    );
+    my $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
     ok(defined $profile, "Direct call of constructor returned defined value");
     my %subname_subinfo_map = %{ $profile->subname_subinfo_map };
     my %expect = map { $_ => 1 }
@@ -120,7 +118,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 
     {
         my ($rv, $stderr);
-        $stderr = Capture::Tiny::capture_stderr { $rv = $profile->subinfo_of(undef); };
+        $stderr = capture_stderr { $rv = $profile->subinfo_of(undef); };
         ok(!defined $rv, "subinfo_of returned undef");
         like($stderr, qr/Can't resolve subinfo of undef value/s,
             "subinfo_of: got expected warning for undef argument");
@@ -129,7 +127,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     {
         my ($rv, $stderr);
         my $arg = 'main::kalamazoo';
-        $stderr = Capture::Tiny::capture_stderr { $rv = $profile->subinfo_of($arg); };
+        $stderr = capture_stderr { $rv = $profile->subinfo_of($arg); };
         ok(!defined $rv, "subinfo_of returned undef");
         like($stderr, qr/Can't resolve subinfo of '$arg'/s,
             "subinfo_of: got expected warning for unknown argument");
@@ -163,7 +161,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
             if trace_level();
         my $profile;
         local $ENV{NYTPROF_ONLOAD} = 'alpha=beta:gamma=delta:dump=1';
-        my $stderr = Capture::Tiny::capture_stderr {
+        my $stderr = capture_stderr {
             $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
         };
         SKIP: {
@@ -182,7 +180,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
             if trace_level();
         my $profile;
         local $ENV{NYTPROF_ONLOAD} = 'alpha=beta:gamma=delta:dump=0';
-        my $stderr = Capture::Tiny::capture_stderr {
+        my $stderr = capture_stderr {
             $profile = Devel::NYTProf::Data->new( { filename => $file, quiet => 1 } );
         };
         ok(! $stderr, "Nothing dumped, as requested");
@@ -194,11 +192,9 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
 # dump_profile_data()
 
 {
-    my $profile = Devel::NYTProf::Data->new(
-        { filename => $file, quiet => 1 }
-    );
+    my $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
     my ($rv, $stdout, @lines, $linecount);
-    $stdout = Capture::Tiny::capture_stdout { $rv = $profile->dump_profile_data(); };
+    $stdout = capture_stdout { $rv = $profile->dump_profile_data(); };
     ok($rv, "dump_profile_data() returned true value");
     ok($stdout, "retrieved dumped profile data");
     @lines = split(/\n+/, $stdout);
@@ -210,7 +206,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     cmp_ok($indented_linecount, '>', $linecount / 2,
         "with no argument for separator, most lines in dumped profile data ($indented_linecount / $linecount) are indented");
 
-    $stdout = Capture::Tiny::capture_stdout {
+    $stdout = capture_stdout {
         $rv = $profile->dump_profile_data( { separator => ':::' } );
     };
     ok($rv, "dump_profile_data() returned true value");
@@ -225,8 +221,19 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
         "with ':::' separator, all lines in dumped profile data are appropriately delimited");
 }
 
+# get_fid_line_data()
 
-
+{
+    my $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
+    my %dumps = ();
+    for my $level (qw| line block sub |) {
+        my $fid_ary;
+        $dumps{$level} = capture_stdout { $fid_ary = $profile->get_fid_line_data($level); };
+        is(ref($fid_ary), 'ARRAY', "get_fid_line_data() returned array ref for '$level'");
+    }
+    $dumps{no_arg} = capture_stdout { $profile->get_fid_line_data(); };
+    is($dumps{no_arg}, $dumps{line}, "get_fid_line_data() defaults to 'line'");
+}
 
 
 
