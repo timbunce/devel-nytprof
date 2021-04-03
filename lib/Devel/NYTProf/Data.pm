@@ -660,7 +660,6 @@ sub _zero_array_elem {
     }
 }
 
-
 sub _filename_to_fid {
     my $self = shift;
     my $caches = $self->_caches;
@@ -802,6 +801,7 @@ sub resolve_fid {
     # prepend '/' and grep for trailing matches - if just one then use that
     my $match = qr{/\Q$file\E$};
     my @matches = grep {m/$match/} keys %$resolve_fid_cache;
+    # XXX: Not clear how to exercise either of the following conditions
     return $self->resolve_fid($matches[0])
         if @matches == 1;
     carp "Can't resolve '$file' to a unique file id (matches @matches)"
