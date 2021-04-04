@@ -100,7 +100,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     ok(! defined($fi), "fileinfo_of returned undef");
 }
 
-# subinfo_of()
+# subinfo_of() / file_line_range_of_sub()
 
 {
     my $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
@@ -131,6 +131,26 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
         ok(!defined $rv, "subinfo_of returned undef");
         like($stderr, qr/Can't resolve subinfo of '$arg'/s,
             "subinfo_of: got expected warning for unknown argument");
+    }
+
+    {
+        my ($rv, $stderr);
+        my $arg = 'main::kalamazoo';
+        $stderr = capture_stderr { $rv = $profile->file_line_range_of_sub($arg); };
+        ok(!defined $rv,
+            "file_line_range_of_sub() returned undef with non-existent subroutine");
+        like($stderr, qr/Can't resolve subinfo of '$arg'/s,
+            "file_line_range_of_sub(): got expected warning for unknown argument");
+    }
+
+    {
+        my ($rv, $stderr);
+        my $arg = 'main::BEGIN';
+        $rv = $profile->file_line_range_of_sub($arg);
+        ok(defined $rv,
+            "file_line_range_of_sub() returned defined value with known sub as argument");
+        like($rv->[0], qr/t\/test01\.p$/,
+            "file_line_range_of_sub() identified file used in testing");
     }
 }
 
@@ -292,6 +312,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     my (%expected, %seen);
     $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
     # Expected attributes will change as NYTProf changes
+    # This list only reflects what's in $file
     %expected = map { $_ => 1 } ( qw|
         application
         basetime
@@ -318,6 +339,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
         or diag( [ sort keys %expected], [ sort keys %seen ]);
 
     # Expected options will change as NYTProf changes
+    # This list only reflects what's in $file
     %expected = map { $_ => 1 } ( qw|
         blocks
         calls
