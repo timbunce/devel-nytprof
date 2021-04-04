@@ -265,6 +265,9 @@ sub package_subinfo_map {
         if ($nested_pkgs) {
             my @parts = split /::/, $name;
             my $node = $pkg{ shift @parts } ||= {};
+            # TODO: Need to figure out how to provide a multi-part name, e.g., 'alpha::beta'
+            # Otherwise @parts is now empty and so next line is not exercised
+            # during testing.
             $node = $node->{ shift @parts } ||= {} while @parts;
             $subinfos = $node->{''} ||= [];
         }
