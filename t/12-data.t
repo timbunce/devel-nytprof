@@ -285,4 +285,63 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
     ok($rv, "normalize_variables() returned true value with no argument");
 }
 
+# attributes() / options()
+
+{
+    my ($profile, $rv);
+    my (%expected, %seen);
+    $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
+    # Expected attributes will change as NYTProf changes
+    %expected = map { $_ => 1 } ( qw|
+        application
+        basetime
+        clock_id
+        complete
+        cumulative_overhead_ticks
+        nv_size
+        perl_version
+        PL_perldb
+        profiler_active
+        profiler_duration
+        profiler_end_time
+        profiler_start_time
+        ticks_per_sec
+        total_stmts_discounted
+        total_stmts_duration
+        total_stmts_measured
+        total_sub_calls
+        xs_version
+    | );
+    $rv = $profile->attributes;
+    %seen = map { $_ => 1 } keys %{$rv};
+    is_deeply(\%seen, \%expected, "got expected attributes for this version of NYTProf")
+        or diag( [ sort keys %expected], [ sort keys %seen ]);
+
+    # Expected options will change as NYTProf changes
+    %expected = map { $_ => 1 } ( qw|
+        blocks
+        calls
+        clock
+        compress
+        evals
+        expand
+        findcaller
+        forkdepth
+        leave
+        nameanonsubs
+        nameevals
+        perldb
+        slowops
+        stmts
+        subs
+        trace
+        usecputime
+        use_db_sub
+    | );
+    $rv = $profile->options;
+    %seen = map { $_ => 1 } keys %{$rv};
+    is_deeply(\%seen, \%expected, "got expected options for this version of NYTProf")
+        or diag( [ sort keys %expected], [ sort keys %seen ]);
+}
+
 done_testing();
