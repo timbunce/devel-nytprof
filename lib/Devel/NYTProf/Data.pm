@@ -286,6 +286,7 @@ sub package_subinfo_map {
     return \%pkg;
 }
 
+# 2021-03-31: packages_at_depth_subinfo() not found in distro
 # [
 #   undef,  # depth 0
 #   {       # depth 1
@@ -297,7 +298,7 @@ sub package_subinfo_map {
 #       "Foo::Baz::" => [ [ subinfo4 ] ]           # 1 sub in 1 pkg
 #   }
 # ]
-# 2021-03-31: not found in t/ lib/ bin/
+#
 #sub packages_at_depth_subinfo {
 #    my $self = shift;
 #    my ($opts) = @_;
