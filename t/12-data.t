@@ -28,22 +28,46 @@ isa_ok($profile, 'Devel::NYTProf::Data');
 # package_subinfo_map()
 
 {
-    my ($pkgref, $subinfo_obj, @elements);
+    my ($pkgref, $subinfo_obj, @keys, @elements, $expect);
 
     $pkgref = $profile->package_subinfo_map(0,1);
-    is(ref($pkgref), 'HASH', "package_subinfo_map() returned hashref");
-    isa_ok($pkgref->{"main"}{""}[0], 'Devel::NYTProf::SubInfo');
-    $subinfo_obj = $pkgref->{"main"}{""}[0];
+    is(ref($pkgref), 'HASH', "package_subinfo_map(0,1) returned hashref");
+    @keys = keys %{$pkgref};
+    is(@keys, 1, "1-element hash");
+    $expect = 'main';
+    is($keys[0], $expect, "Sole element is '$expect'");
+    isa_ok($pkgref->{$expect}{""}[0], 'Devel::NYTProf::SubInfo');
+    $subinfo_obj = $pkgref->{$expect}{""}[0];
     isa_ok($subinfo_obj, 'Devel::NYTProf::SubInfo');
     $elements[0] = scalar(@{$subinfo_obj});
 
     $pkgref = $profile->package_subinfo_map(1,1);
-    is(ref($pkgref), 'HASH', "package_subinfo_map() returned hashref");
-    $subinfo_obj = $pkgref->{"main"}{""}[0];
+    is(ref($pkgref), 'HASH', "package_subinfo_map(1,1) returned hashref");
+    @keys = keys %{$pkgref};
+    is(@keys, 1, "1-element hash");
+    $expect = 'main';
+    is($keys[0], $expect, "Sole element is '$expect'");
+    $subinfo_obj = $pkgref->{$expect}{""}[0];
     isa_ok($subinfo_obj, 'Devel::NYTProf::SubInfo');
     $elements[1] = scalar(@{$subinfo_obj});
     cmp_ok($elements[0], '!=', $elements[1],
         "Calling package_subinfo_map() with different arguments results in different count of elements in SubInfo object");
+
+    $pkgref = $profile->package_subinfo_map(0,0);
+    is(ref($pkgref), 'HASH', "package_subinfo_map(0,0) returned hashref");
+    @keys = keys %{$pkgref};
+    is(@keys, 1, "1-element hash");
+    $expect = 'main::';
+    is($keys[0], $expect, "Sole element is '$expect'");
+    is(ref($pkgref->{$expect}), 'ARRAY', "That element is array ref");
+
+    $pkgref = $profile->package_subinfo_map(1,0);
+    is(ref($pkgref), 'HASH', "package_subinfo_map(1,0) returned hashref");
+    @keys = keys %{$pkgref};
+    is(@keys, 1, "1-element hash");
+    $expect = 'main::';
+    is($keys[0], $expect, "Sole element is '$expect'");
+    is(ref($pkgref->{$expect}), 'ARRAY', "That element is array ref");
 }
 
 # all_fileinfos() / eval_fileinfos() / noneval_fileinfos()
