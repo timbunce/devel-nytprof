@@ -1,4 +1,4 @@
-use Test::More qw(no_plan); # tests => 34;
+use Test::More tests => 65;
 
 use Devel::NYTProf::Util qw(
     fmt_time fmt_incl_excl_time
