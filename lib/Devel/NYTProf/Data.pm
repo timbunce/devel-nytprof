@@ -749,7 +749,7 @@ sub file_line_range_of_sub {
     my ($self, $sub) = @_;
 
     my $sub_subinfo = $self->subinfo_of($sub)
-        or return;    # no such sub
+        or return;    # no such sub; warning supplied by subinfo_of()
     my ($fid, $first, $last) = @$sub_subinfo;
 
     return if not $fid; # sub has no known file
