@@ -13,6 +13,8 @@ use Capture::Tiny qw(capture_stdout capture_stderr );
 # Appveyor.
 plan skip_all => "doesn't work without HAS_ZLIB" if (($^O eq "MSWin32") || ($^O eq 'VMS'));
 
+# General setup
+
 my $file = "./t/nytprof_12-data.out.txt";
 croak "No $file" unless -f $file;
 
@@ -20,15 +22,29 @@ my $reporter = Devel::NYTProf::Reader->new($file, { quiet => 1 });
 ok(defined $reporter, "Devel::NYTProf::Reader->new returned defined entity");
 isa_ok($reporter, 'Devel::NYTProf::Reader');
 
-# package_subinfo_map()
-
 my $profile = $reporter->{profile};
 isa_ok($profile, 'Devel::NYTProf::Data');
-my $pkgref = $profile->package_subinfo_map(0,1);
-is(ref($pkgref), 'HASH', "package_subinfo_map() returned hashref");
-isa_ok($pkgref->{"main"}{""}[0], 'Devel::NYTProf::SubInfo');
-my $subinfo_obj = $pkgref->{"main"}{""}[0];
-isa_ok($subinfo_obj, 'Devel::NYTProf::SubInfo');
+
+# package_subinfo_map()
+
+{
+    my ($pkgref, $subinfo_obj, @elements);
+
+    $pkgref = $profile->package_subinfo_map(0,1);
+    is(ref($pkgref), 'HASH', "package_subinfo_map() returned hashref");
+    isa_ok($pkgref->{"main"}{""}[0], 'Devel::NYTProf::SubInfo');
+    $subinfo_obj = $pkgref->{"main"}{""}[0];
+    isa_ok($subinfo_obj, 'Devel::NYTProf::SubInfo');
+    $elements[0] = scalar(@{$subinfo_obj});
+
+    $pkgref = $profile->package_subinfo_map(1,1);
+    is(ref($pkgref), 'HASH', "package_subinfo_map() returned hashref");
+    $subinfo_obj = $pkgref->{"main"}{""}[0];
+    isa_ok($subinfo_obj, 'Devel::NYTProf::SubInfo');
+    $elements[1] = scalar(@{$subinfo_obj});
+    cmp_ok($elements[0], '!=', $elements[1],
+        "Calling package_subinfo_map() with different arguments results in different count of elements in SubInfo object");
+}
 
 # all_fileinfos() / eval_fileinfos() / noneval_fileinfos()
 
@@ -92,6 +108,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
         "fileinfo_of: called with object of class which has no 'fid' method");
     ok(! defined($fi), "fileinfo_of returned undef");
 
+    my $subinfo_obj = $profile->package_subinfo_map(0,1)->{"main"}{""}[0];
     $stderr = capture_stderr {
         $fi = $profile->fileinfo_of($subinfo_obj);
     };
