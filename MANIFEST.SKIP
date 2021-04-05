@@ -11,3 +11,11 @@
 ^MYMETA\.\w+$
 ^t.pl$
 ^TODO$
+^change-version\.sh$
+^appveyor\.yml$
+^FileHandle.c$
+^FileHandle.o$
+^NYTProf.bs$
+^NYTProf.c$
+^NYTProf.o$
+^pm_to_blib$
