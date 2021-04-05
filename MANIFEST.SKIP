@@ -13,6 +13,7 @@
 ^TODO$
 ^change-version\.sh$
 ^appveyor\.yml$
+^.appveyor\.yml$
 ^FileHandle.c$
 ^FileHandle.o$
 ^NYTProf.bs$
