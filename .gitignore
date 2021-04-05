@@ -23,6 +23,9 @@ nytprof-50-errno.out
 /t/*.new
 /t/*.newp
 /t/*.out
+/t/*.calls_new
+/t/*.rdt_new
+/t/*.rdt_newp
 /t/nytprof_t.out
 /t/nytprof-test51-*.out
 /t/nytprof_test30-fork-*.out.*
