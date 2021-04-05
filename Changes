@@ -4,6 +4,29 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
+=head2 Changes in Devel::NYTProf 6.07 - 5th April 2020
+
+  Focus is to enable test suite to pass with perl-5.33.3 and higher.  (Changes
+    in blead required changes in expectations set in test data files.)
+
+  Correction to MANIFEST
+    thanks to mattlaw. #142
+
+  POD improvements
+    thanks to tomhukins. #129
+
+  Makefile.PL modernizations
+    thanks to karenetheridge. #126
+
+  .gitignore corrections
+    thanks to jkeenan. #146
+
+  Adapt tests to work with 5.33 and higher
+    thanks to jkeenan. #147 
+
+  Update flamegraph.pl
+    thanks to versable. #130
+
 =head2 Changes in Devel::NYTProf 6.06 - 4th June 2018
 
   Fix sorting of numbers ending ...5s as microsec
