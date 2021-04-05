@@ -24,6 +24,7 @@ test_script:
 notifications:
   - provider: Email
     to:
+    - timb@cpan.org
     - jkeenan@cpan.org
     on_build_status_changed: true
 
