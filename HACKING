@@ -12,18 +12,19 @@ http://metacpan.org/release/Devel-NYTProf/
 
 OBTAINING THE LATEST DEVELOPMENT CODE
 -------------------------------------
-You can grab the head of the latest trunk code from the Google Code repository, see
-http://code.google.com/p/perl-devel-nytprof/source/checkout
+You can grab the head of the latest trunk code from the GitHub repository.  See:
+https://github.com/timbunce/devel-nytprof
 
 CONTRIBUTING
 ------------
 Please work with the latest code from the repository - see above.
 
-Small patches can be uploaded via the issue tracker at
-http://code.google.com/p/perl-devel-nytprof/issues/list
+To report bugs or to discuss Devel-NYTProf's ongoing development,
+please file an issue at:
+https://github.com/timbunce/devel-nytprof/issues
 
-For larger changes please talk to us first via the mailing list at
-http://code.google.com/p/perl-devel-nytprof/source/checkout
+Please submit patches via pull requests at:
+https://github.com/timbunce/devel-nytprof/pulls
 
 When developing, please ensure that no new compiler warnings are output.
 
@@ -34,6 +35,10 @@ Please try to add tests covering any changes you make.
 You can run individual tests like this:
 
   perl -Mblib t/30-util.t
+
+... or:
+
+  prove -vb t/30-util.t
 
 Most tests include some underlying perl code that's being profiled.
 Either as a .p file, which can be profiled like this:
@@ -48,14 +53,8 @@ The output will be in the ./nytprof.out file.
 
 RESOURCES
 ---------
-Google Code:
-http://code.google.com/p/perl-devel-nytprof/
-
 Google Devel Group (must subscribe here):
 http://groups.google.com/group/develnytprof-dev
-
-NYTimes Open Code Blog:
-http://open.nytimes.com/
 
 TODO (unsorted, unprioritized, unconsidered, even unreasonable and daft :)
 ----
