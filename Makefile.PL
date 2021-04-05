@@ -111,7 +111,7 @@ $mm_opts{LICENSE}  = 'perl' if $ExtUtils::MakeMaker::VERSION >= 6.3002;
 $mm_opts{OPTIMIZE} = '-g'   if $opt_g;
 $mm_opts{CCFLAGS}  = "-pg"  if $opt_pg;
 
-if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
+if( $ExtUtils::MakeMaker::VERSION >= 6.46 ) {
     $mm_opts{META_MERGE} = {
     	"meta-spec" => { version => 2 },
 	no_index => {
@@ -126,7 +126,7 @@ if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
                 mailto => 'bug-devel-nytprof@rt.cpan.org',
             },
             repository  => {
-                url  => 'git://github.com/timbunce/devel-nytprof.git',
+                url  => 'https://github.com/timbunce/devel-nytprof.git',
                 web  => 'https://github.com/timbunce/devel-nytprof',
                 type => 'git',
             },
@@ -135,6 +135,29 @@ if( $ExtUtils::MakeMaker::VERSION >= 6.45 ) {
         }
     }
 }
+
+$mm_opts{PREREQ_PM} = {
+    'List::Util'   => 0,
+    'File::Which'  => '1.09',
+    'XSLoader'     => 0,
+    'Getopt::Long' => 0,
+    'JSON::MaybeXS' => 0,
+};
+$mm_opts{TEST_REQUIRES} = {
+    'Test::More'   => '0.84',
+    'Test::Differences' => '0.60',
+};
+
+$mm_opts{BUILD_REQUIRES} = {
+    %{$mm_opts{BUILD_REQUIRES} || {}},
+    %{delete $mm_opts{TEST_REQUIRES}}
+} if $ExtUtils::MakeMaker::VERSION < 6.63_03;
+
+$mm_opts{PREREQ_PM} = {
+    %{$mm_opts{PREREQ_PM}},
+    %{delete $mm_opts{BUILD_REQUIRES}}
+} if $ExtUtils::MakeMaker::VERSION < 6.55_01;
+
 
 if (my $gccversion = $Config{gccversion}) {    # ask gcc to be more pedantic
     print "Your perl was compiled with gcc (version $Config{gccversion}), okay.\n";
@@ -156,15 +179,6 @@ WriteMakefile(
     ABSTRACT_FROM => 'lib/Devel/NYTProf.pm',         # retrieve abstract from module
     AUTHOR    => 'Tim Bunce <timb@cpan.org>',
     LICENSE => 'perl',
-    PREREQ_PM => {
-        'List::Util'   => 0,
-        'Test::More'   => '0.84',
-        'File::Which'  => '1.09',
-        'Test::Differences' => '0.60',
-        'XSLoader'     => 0,
-        'Getopt::Long' => 0,
-        'JSON::MaybeXS' => 0,
-    },
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
     FUNCLIST => ['boot_Devel__NYTProf', 'boot_Devel__NYTProf__FileHandle'],
@@ -183,11 +197,6 @@ WriteMakefile(
         PREOP        => '$(MAKE) -f Makefile.old distdir',
         COMPRESS     => 'gzip -v9',
         SUFFIX       => 'gz',
-    },
-    META_MERGE => {
-      resources => {
-        repository => 'https://github.com/timbunce/devel-nytprof',
-      },
     },
     %mm_opts,
 );
