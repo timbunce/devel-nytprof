@@ -73,6 +73,7 @@ sub new {
             . "# This file uses special regexp match variables that impact the performance\n"
             . "# of all regular expression in the program!\n"
             . "# See WARNING in http://perldoc.perl.org/perlre.html#Capture-buffers\n",
+        current_level => '',
     };
 
     bless($self, $class);

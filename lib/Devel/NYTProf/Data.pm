@@ -97,7 +97,7 @@ sub new {
 
     # add profile ref so fidinfo & subinfo objects
     # XXX circular ref, add weaken
-    $_ and $_->[7] = $profile for @$fid_fileinfo;
+    for (@$fid_fileinfo) { $_ and $_->[7] = $profile; }
     $_->[7] = $profile for values %$sub_subinfo;
 
     # bless sub_subinfo data

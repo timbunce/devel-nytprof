@@ -39,8 +39,7 @@ install:
 matrix:
   fast_finish: true
   allow_failures:
-    - perl: dev
-    - perl: dev-thr-mb-shrplib-dbg
+    - perl: blead
 
 notifications:
   email:
