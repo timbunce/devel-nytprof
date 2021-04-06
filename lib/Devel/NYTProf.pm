@@ -63,10 +63,9 @@ Devel::NYTProf - Powerful fast feature-rich Perl source code profiler
   # or into comma separated files, e.g., ./nytprof/*.csv
   nytprofcsv
 
-I give talks on profiling perl code, including a detailed look at how to use
-NYTProf and how to optimize your code, every year. A video of my YAPC::NA 2014
-talk can be found at L<https://youtu.be/T7EK6RZAnEA>
-
+Tim Bunce has often given talks on profiling perl code, including a detailed
+look at how to use NYTProf and how to optimize your code. A video of his
+YAPC::NA 2014 talk can be found at L<https://youtu.be/T7EK6RZAnEA>
 
 =head1 DESCRIPTION
 
