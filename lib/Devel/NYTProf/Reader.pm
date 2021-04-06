@@ -21,8 +21,6 @@ use Data::Dumper;
 
 use Devel::NYTProf::Data;
 use Devel::NYTProf::Util qw(
-    fmt_float
-    fmt_time
     html_safe_filename
     calculate_median_absolute_deviation
     trace_level

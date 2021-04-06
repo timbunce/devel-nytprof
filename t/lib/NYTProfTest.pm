@@ -22,7 +22,7 @@ our @EXPORT = qw(
 
 use Devel::NYTProf::Data;
 use Devel::NYTProf::Reader;
-use Devel::NYTProf::Util qw(strip_prefix_from_paths html_safe_filename);
+use Devel::NYTProf::Util qw(html_safe_filename);
 use Devel::NYTProf::Run qw(perl_command_words);
 
 my $diff_opts = ($Config{osname} eq 'MSWin32') ? '-c' : '-u';

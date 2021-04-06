@@ -93,8 +93,7 @@ sub make_path_strip_editor {
     $anchor      = '^' if not defined $anchor;
     $replacement = ''  if not defined $replacement;
 
-    my @inc = @$inc_ref
-        or return;
+    my @inc = @$inc_ref;
 
     our %make_path_strip_editor_cache;
     my $key = join "\t", $anchor, $replacement, @inc;
@@ -115,7 +114,13 @@ sub make_path_strip_editor {
 sub strip_prefix_from_paths {
     my ($inc_ref, $paths, $anchor, $replacement) = @_;
 
+    croak "strip_prefix_from_paths() first argument must be array ref"
+        unless ref($inc_ref) eq 'ARRAY';
+    return unless @{$inc_ref};
+
     return if not defined $paths;
+    croak "strip_prefix_from_paths() second argument must be array ref"
+        unless ref($paths) eq 'ARRAY';
 
     my $editor = make_path_strip_editor($inc_ref, $anchor, $replacement)
         or return;
@@ -131,16 +136,17 @@ sub strip_prefix_from_paths {
             }
         }
     }
-    elsif (UNIVERSAL::isa($paths, 'HASH')) {
-        for my $orig (keys %$paths) {
-            $editor->(my $new = $orig)
-                or next;
-            my $value = delete $paths->{$orig};
-            warn "Stripping prefix from $orig overwrites existing $new"
-                if defined $paths->{$new};
-            $paths->{$new} = $value;
-        }
-    }
+    # There are no instances in test suite where $paths is a hash ref
+#    elsif (UNIVERSAL::isa($paths, 'HASH')) {
+#        for my $orig (keys %$paths) {
+#            $editor->(my $new = $orig)
+#                or next;
+#            my $value = delete $paths->{$orig};
+#            warn "Stripping prefix from $orig overwrites existing $new"
+#                if defined $paths->{$new};
+#            $paths->{$new} = $value;
+#        }
+#    }
     else {
         croak "Can't strip_prefix_from_paths of $paths";
     }
@@ -154,13 +160,13 @@ sub fmt_float {
     my ($val, $precision) = @_;
     $precision ||= 5;
     if ($val < 10 ** -($precision - 1) and $val > 0) {
-	# Give the same width as a larger value formatted with the %f below.
-	# This gives us 2 digits of precision for $precision == 5
+        # Give the same width as a larger value formatted with the %f below.
+        # This gives us 2 digits of precision for $precision == 5
         $val = sprintf("%." . ($precision - 4) . "e", $val);
-	# But our exponents will always be e-05 to e-09, never e-10 or smaller
-	# so remove the leading zero to make these small numbers stand out less
-	# on the table.
-	$val =~ s/e-0/e-/;
+        # But our exponents will always be e-05 to e-09, never e-10 or smaller
+        # so remove the leading zero to make these small numbers stand out less
+        # on the table.
+        $val =~ s/e-0/e-/;
     }
     elsif ($val != int($val)) {
         $val = sprintf("%.${precision}f", $val);
