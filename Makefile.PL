@@ -122,8 +122,6 @@ if( $ExtUtils::MakeMaker::VERSION >= 6.46 ) {
             homepage    => 'https://code.google.com/p/perl-devel-nytprof/',
             bugtracker  => {
                 web    => 'https://github.com/timbunce/devel-nytprof/issues',
-                # old => 'http://rt.cpan.org/Public/Dist/Display.html?Name=Devel-NYTProf',
-                mailto => 'bug-devel-nytprof@rt.cpan.org',
             },
             repository  => {
                 url  => 'https://github.com/timbunce/devel-nytprof.git',
