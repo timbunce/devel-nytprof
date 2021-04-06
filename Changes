@@ -4,7 +4,7 @@ Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
 
 =cut
 
-=head2 Changes in Devel::NYTProf 6.07 - 6th April 2020
+=head2 Changes in Devel::NYTProf 6.07 - 6th April 2021
 
   Focus is to enable test suite to pass with perl-5.33.3 and higher.  (Changes
     in blead required changes in expectations set in test data files.)
