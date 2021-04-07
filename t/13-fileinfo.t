@@ -27,28 +27,26 @@ my $fi = $all_fileinfos[0];
 print STDERR Dumper($fi);
 isa_ok($fi, 'Devel::NYTProf::FileInfo');
 
-=pod
-
-sub filename  { shift->[NYTP_FIDi_FILENAME()] }
-sub eval_fid  { shift->[NYTP_FIDi_EVAL_FID()] }
-sub eval_line { shift->[NYTP_FIDi_EVAL_LINE()] }
-sub fid       { shift->[NYTP_FIDi_FID()] }
-sub size      { shift->[NYTP_FIDi_FILESIZE()] }
-sub mtime     { shift->[NYTP_FIDi_FILEMTIME()] }
-sub profile   { shift->[NYTP_FIDi_PROFILE()] }
-sub flags     { shift->[NYTP_FIDi_FLAGS()] }
-
-=cut
-
 is($fi->filename, 
   '/home/jkeenan/gitwork/zzzothers/devel-nytprof/t/test01.p',
   "Got expected filename");
-ok(! $fi->eval_fid, "Not an eval fid");
-ok(! $fi->eval_line, "Hence, no eval line");
 is($fi->fid, 1, "Got expected fid");
 is($fi->size, 0, "Got expected file size");
 is($fi->mtime, 0, "Got expected file mtime");
 isa_ok($fi->profile, 'Devel::NYTProf::Data');
 is($fi->flags, 18, "Got expected flags");
+ok($fi->is_file, "We're dealing with a file");
+
+my $et = $fi->excl_time();
+cmp_ok($et, '>', 0, "Got positive excl time: $et");
+
+# TODO XXX: Test an eval fid
+ok(! $fi->eval_fid, "Not an eval fid");
+ok(! $fi->eval_line, "Hence, no eval line");
+ok(!$fi->is_eval, "We're not dealing with a simple eval");
+my $rv = $fi->outer();
+ok(! defined $rv, "outer() returns undefined value because no eval fid");
+$rv = $fi->sibling_evals;
+ok(! defined $rv, "sibling_evals() returns undefined value because no eval fid");
 
 done_testing();
