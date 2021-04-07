@@ -144,6 +144,7 @@ $mm_opts{PREREQ_PM} = {
 $mm_opts{TEST_REQUIRES} = {
     'Test::More'   => '0.84',
     'Test::Differences' => '0.60',
+    'Capture::Tiny' => 0,
 };
 
 $mm_opts{BUILD_REQUIRES} = {

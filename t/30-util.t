@@ -1,4 +1,4 @@
-use Test::More tests => 65;
+use Test::More tests => 67;
 
 use Devel::NYTProf::Util qw(
     fmt_time fmt_incl_excl_time
@@ -9,6 +9,7 @@ use Devel::NYTProf::Util qw(
     strip_prefix_from_paths
     fmt_float
     calculate_median_absolute_deviation
+    _dumper
 );
 use Cwd;
 use File::Spec;
@@ -151,3 +152,20 @@ is($median_ref->[1], 2, "median value");
 $median_ref = calculate_median_absolute_deviation([]);
 is_deeply($median_ref, [0,0],
     "No values in arrayref passed to calculate_median_absolute_deviation()");
+
+my $arr = [ 1 .. 3 ];
+my $hsh = { gamma => 'delta', alpha => 'beta' };
+my @rvs = _dumper($arr, $hsh);
+like($rvs[0], qr/
+    \$VAR1\s+=\s+\[\s+1,\n
+    \s+2,\n
+    \s+3\n
+    \];\n
+    /sx, "array ref dumped as expected");
+like($rvs[1], qr/
+    \$VAR2\s+=\s+\{\n
+    \s+?'alpha'\s+=>\s+'beta',\n
+    \s+?'gamma'\s+=>\s+'delta'\n
+    \};\n
+/sx, "hash ref dumped as expected");
+
