@@ -24,7 +24,7 @@ ok(defined $profile, "Devel::NYTProf::Data->new() returned defined value");
 my @all_fileinfos = $profile->all_fileinfos();
 is(scalar(@all_fileinfos), 1, "got 1 all_fileinfo");
 my $fi = $all_fileinfos[0]; 
-print STDERR Dumper($fi);
+#print STDERR Dumper($fi);
 isa_ok($fi, 'Devel::NYTProf::FileInfo');
 
 my $expected_f = '/home/jkeenan/gitwork/zzzothers/devel-nytprof/t/test01.p';
@@ -49,6 +49,12 @@ ok(! $fi->eval_line, "Hence, no eval line");
 ok(!$fi->is_eval, "We're not dealing with a simple eval");
 ok(! defined $fi->outer(), "outer() returns undefined value because no eval fid");
 ok(! defined $fi->sibling_evals, "sibling_evals() returns undefined value because no eval fid");
+
+my @subs_defined = $fi->subs_defined();
+isa_ok($subs_defined[0], 'Devel::NYTProf::SubInfo');
+
+my @subs_defined_sorted = $fi->subs_defined_sorted();
+isa_ok($subs_defined_sorted[0], 'Devel::NYTProf::SubInfo');
 
 # TODO XXX: Test an eval fid
 
