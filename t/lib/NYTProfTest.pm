@@ -162,8 +162,11 @@ sub do_foreach_opt_combination {
 
     my $rusage_start = get_rusage();
 
+    my @combos = $ENV{NYTPROF_TEST_SHORT}
+        ? $opt_combinations->[0]
+        : @$opt_combinations;
     COMBINATION:
-    for my $env (@$opt_combinations) {
+    for my $env (@combos) {
 
         my $prev_failures = count_of_failed_tests();
 
@@ -274,7 +277,9 @@ sub run_test_group {
     my $opts = mk_opt_combinations($extra_options);
     my $tests_per_env = number_of_tests(@tests) + $extra_test_count + 1;
 
-    plan tests => 1 + $tests_per_env * @$opts;
+    my $optscount = $ENV{NYTPROF_TEST_SHORT} ? 1 : @$opts;
+    #plan tests => 1 + $tests_per_env * @$opts;
+    plan tests => 1 + $tests_per_env * $optscount;
 
     # Windows emulates the executable bit based on file extension only
     ok($^O eq "MSWin32" ? -f $nytprofcsv : -x $nytprofcsv, "Found nytprofcsv as $nytprofcsv");
