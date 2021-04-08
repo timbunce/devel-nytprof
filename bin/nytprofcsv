@@ -145,7 +145,7 @@ B<nytprofcsv is deprecated and will be removed in a future release.>
 =head1 DESCRIPTION
 
 C<nytprofcsv> is a script that implements L<Devel::NYTProf::Reader> to
-create comma-seperated value formatted reports from L<Devel::NYTProf>
+create comma-separated value formatted reports from L<Devel::NYTProf>
 databases.
 
 See the L<Devel::NYTProf> Perl code profiler for more information.
