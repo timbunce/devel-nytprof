@@ -278,7 +278,6 @@ sub run_test_group {
     my $tests_per_env = number_of_tests(@tests) + $extra_test_count + 1;
 
     my $optscount = $ENV{NYTPROF_TEST_SHORT} ? 1 : @$opts;
-    #plan tests => 1 + $tests_per_env * @$opts;
     plan tests => 1 + $tests_per_env * $optscount;
 
     # Windows emulates the executable bit based on file extension only
