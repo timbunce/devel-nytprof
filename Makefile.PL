@@ -15,6 +15,7 @@ use strict;
 use ExtUtils::MakeMaker;
 use Getopt::Long;
 use Config;
+use File::Spec;
 
 my $is_developer = (-d '.git');
 
@@ -292,8 +293,8 @@ test_short:
 sub dynamic {
     my $make = shift->SUPER::dynamic(@_);
 
-    my $xsl_dest_dir = '$(INST_LIB)/$(PARENT_NAME)/auto/$(FULLEXT)';
-    my $xsl_dest     = '$(XSL_DEST_DIR)/$(DLBASE).$(DLEXT)';
+    my $xsl_dest_dir = File::Spec->catdir('$(INST_LIB)', '$(PARENT_NAME)', 'auto', '$(FULLEXT)');
+    my $xsl_dest     = File::Spec->catdir('$(XSL_DEST_DIR)', '$(DLBASE).$(DLEXT)');
 
     if($^O eq 'VMS'){
         $xsl_dest_dir = File::Spec->catdir('blib','lib','Devel','auto','Devel','NYTProf');
