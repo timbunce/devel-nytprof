@@ -60,7 +60,7 @@ utime time(), time(), "t/test40pmc.pmc"
 
 # --- Discover how much of stdio is implemented
 
-my $cpp = $Config{cpp} || do {
+my $cpp = $Config{cpprun} || do {
     warn "Warning: cpp not found in your perl config.  Falling back to 'cat'\n";
     'cat';
 };
