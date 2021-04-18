@@ -72,14 +72,8 @@ t/42-global.t
 t/44-model.t
 t/50-errno.t
 t/60-forkdepth.t
-t/68-hashline.t
 t/70-subname.t
-t/71-moose.t
-t/72-autodie.t
 t/80-version.t
-t/90-pod.t
-t/91-pod_coverage.t
-t/92-file_port.t
 t/lib/NYTProfTest.pm
 t/nytprof_11-reader.out.txt
 t/nytprof_12-data.out.txt
@@ -250,6 +244,12 @@ t/test90-strsubref.t
 t/zzz.t
 typemap
 xt/61-cputime.t
+xt/68-hashline.t
+xt/71-moose.t
+xt/72-autodie.t
+xt/90-pod.t
+xt/91-pod_coverage.t
+xt/92-file_port.t
 xt/test23-strevalxs.p
 xt/test23-strevalxs.rdt
 xt/test23-strevalxs.t
