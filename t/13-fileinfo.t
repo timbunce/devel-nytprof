@@ -2,12 +2,8 @@ use strict;
 use warnings;
 use Carp;
 use Devel::NYTProf::Data;
-#use Devel::NYTProf::Util qw( trace_level );
 use Test::More;
-#use File::Spec;
-#use File::Temp qw( tempdir tempfile );
 use Data::Dumper;$Data::Dumper::Indent=1;
-#use Capture::Tiny qw(capture_stdout capture_stderr );
 
 # Relax this restriction once we figure out how to make test $file work for
 # Appveyor.
@@ -23,7 +19,7 @@ ok(defined $profile, "Devel::NYTProf::Data->new() returned defined value");
 
 my @all_fileinfos = $profile->all_fileinfos();
 is(scalar(@all_fileinfos), 1, "got 1 all_fileinfo");
-my $fi = $all_fileinfos[0]; 
+my $fi = $all_fileinfos[0];
 isa_ok($fi, 'Devel::NYTProf::FileInfo');
 
 # For filename(), filename_without_inc() and summary(), return value will
