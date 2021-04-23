@@ -73,13 +73,13 @@ isa_ok($profile, 'Devel::NYTProf::Data');
 # all_fileinfos() / eval_fileinfos() / noneval_fileinfos()
 
 my @all_fileinfos = $profile->all_fileinfos();
-is(scalar(@all_fileinfos), 1, "got 1 all_fineinfo");
+is(scalar(@all_fileinfos), 1, "got 1 all_fileinfo");
 
 my @eval_fileinfos = $profile->eval_fileinfos();
-is(scalar(@eval_fileinfos), 0, "got 0 eval_fineinfo");
+is(scalar(@eval_fileinfos), 0, "got 0 eval_fileinfo");
 
 my @noneval_fileinfos = $profile->noneval_fileinfos();
-is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fineinfo");
+is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fileinfo");
 
 # fileinfo_of()
 
