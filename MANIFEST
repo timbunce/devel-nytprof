@@ -64,6 +64,8 @@ t/00-load.t
 t/10-run.t
 t/11-reader.t
 t/12-data.t
+t/13-fileinfo.t
+t/14-subinfo.t
 t/22-readstream.t
 t/30-util.t
 t/31-env.t
@@ -77,6 +79,8 @@ t/80-version.t
 t/lib/NYTProfTest.pm
 t/nytprof_11-reader.out.txt
 t/nytprof_12-data.out.txt
+t/nytprof_13-data.out.txt
+t/nytprof_14-subinfo.out.txt
 t/test01.calls
 t/test01.p
 t/test01.rdt

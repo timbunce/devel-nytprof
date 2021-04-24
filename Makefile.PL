@@ -189,7 +189,7 @@ WriteMakefile(
         FILES => join(" ",
             "nytprof demo-out",
             map { ("t/$_", "xt/$_") } qw(
-                nytprof nytprof*.out nytprof*.out.* *_outdir test*.*_new auto *.rdt_newp
+                nytprof nytprof*.out *_outdir test*.*_new auto *.rdt_newp
             ))
     },
     dist  => {
