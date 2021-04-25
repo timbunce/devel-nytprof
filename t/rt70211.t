@@ -4,6 +4,7 @@ use File::Temp qw( tempfile );
 use Capture::Tiny qw( capture_stderr );
 use Test::More;
 
+warn "\nXXXXXX: t/rt70211.t\n";
 my ($fh, $tfile) = tempfile();
 print $fh <<EOF;
 BEGIN { }
