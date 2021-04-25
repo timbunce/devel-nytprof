@@ -3710,6 +3710,7 @@ write_sub_callers(pTHX)
 static void
 write_src_of_files(pTHX)
 {
+logwarn("ABC: entering 'write_src_of_files'\n");
     fid_hash_entry *e;
     int t_has_src  = 0;
     int t_save_src = 0;
@@ -3724,11 +3725,21 @@ write_src_of_files(pTHX)
         int line;
         AV *src_av = GvAV(gv_fetchfile_flags(e->he.key, e->he.key_len, 0));
 
+logwarn("DEF: %d; if 1, enter 'if' block\n", (!(e->fid_flags & NYTP_FIDf_HAS_SRC)));
         if ( !(e->fid_flags & NYTP_FIDf_HAS_SRC) ) {
             const char *hint = "";
             ++t_no_src;
+logwarn("GHI: %d; if 1, set hint\n", (src_av && av_len(src_av) > -1));
             if (src_av && av_len(src_av) > -1) /* sanity check */
                 hint = " (NYTP_FIDf_HAS_SRC not set but src available!)";
+/*
+logwarn("JKL: trace level:                    %ld\n", trace_level);
+logwarn("MNO: <%s>\n", hint);
+logwarn("PQR: e->he.id (fid):                 %d\n", e->he.id);
+logwarn("STU: e->he.key_len (length of path): %d\n", e->he.key_len);
+logwarn("VWX: e->he.key (path):               %s\n", e->he.key);
+*/
+logwarn("JKL: %d; if 1, conditions met for logwarn\n", (trace_level >= 3 || *hint));
             if (trace_level >= 3 || *hint)
                 logwarn("fid %d has no src saved for %.*s%s\n",
                     e->he.id, e->he.key_len, e->he.key, hint);
