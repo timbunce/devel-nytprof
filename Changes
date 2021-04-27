@@ -1,8 +1,91 @@
-=head1 NAME
+=head1 Devel::NYTProf Changes
 
-Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
+History of significant changes in Devel::NYTProf
 
-=cut
+=head2 Changes in Devel::NYTProf 6.08 - DATE TO COME
+
+B<There should be no observable differences in the performance of Devel-NYTProf
+from that of the previous release.>  This release is maintenance-focused and
+changes mainly concern improvements in test coverage, elimination of
+build-time warnings and correction of small errors detected by end-users.
+
+=head3 Substantive
+
+Corrected 1 error in F<Makefile.PL>
+(L<https://github.com/timbunce/devel-nytprof/pull/158>; thanks to Kent Fredric).
+
+Corrected other errors in F<NYTProf.xs> and F<ppport.h> at suggestion of Reini Urban
+in earlier pull request.
+
+Two subroutines in F<Devel::NYTProf::Data> -- C<packages_at_depth_subinfo()>
+and C<package_fids()> -- which were not used anywhere in the codebase or test
+suite were removed and placed in F<devstuff/superseded.pm>.  One function --
+C<get_str_id()> defined in F<NYTProf.xs> but never used in the codebase was
+similarly removed and placed in F<devstuff/superseded.xs>.  Anyone who was
+using these functions may file a pull request to have them restored to the
+codebase.
+
+In C<Devel::NYTProf::Data::strip_prefix_from_paths()>, a branch concerned with
+the possibility that an argument was a hash was not exercised anywhere in the
+codebase or the test suite and was simply commented out.  Anyone who was using
+this functionality may file a pull request to have it restored to the
+codebase.
+
+Eliminated all build-time warnings being generated during F<make> on testing
+platforms Linux, FreeBSD, OpenBSD, Windows.
+
+=head3 Test Suite
+
+Improved coverage provided by test suite to each of the following files:
+
+    lib/Devel/NYTProf/Data.pm
+    lib/Devel/NYTProf/FileInfo.pm
+    lib/Devel/NYTProf/Reader.pm
+    lib/Devel/NYTProf/SubInfo.pm
+    lib/Devel/NYTProf/Util.pm
+
+This was accomplished mainly by adding 4 new test files:
+
+    t/11-reader.t
+    t/12-data.t
+    t/13-fileinfo.t
+    t/14-subinfo.t
+
+... and their corresponding data files.  In addition, there were substantial
+additions to F<t/30-util.t>.
+
+Coverage was evaluated with C<trace_level> unset and C<trace_level> 5.
+
+=head3 Housekeeping
+
+Updated Travis and AppVeyor configuration files.
+
+Updated F<MANIFEST> and F<MANIFEST.SKIP> so that F<make manifest> works as intended.
+
+Moved the following 6 test files from F<t/> to F<xt/>:
+
+    t/68-hashline.t
+    t/71-moose.t
+    t/72-autodie.t
+    t/90-pod.t
+    t/91-pod_coverage.t
+    t/92-file_port.t
+
+Reason:  They either (a) had been previously described as insufficiently
+developed and were being skipped; or (b) are of concern only to NYTProf
+developers.  Hence, a failure in any of them should not preclude installation
+and use of Devel::NYTProf.
+
+Added a F<make test_short> target to F<Makefile.PL> and environmental variable
+C<NYTPROF_TEST_SHORT>.  These will enable NYTProf developers to cut testing
+time without significant loss in accuracy
+(L<https://github.com/timbunce/devel-nytprof/pull/155>).
+
+Corrected one date error in 6.07 release
+(L<https://github.com/timbunce/devel-nytprof/issues/152>; thanks to @shawnlaffan).
+
+Applied several commits either cherry-picked from, or initiated by Reini Urban
+in an older pull request.
 
 =head2 Changes in Devel::NYTProf 6.07 - 6th April 2021
 
