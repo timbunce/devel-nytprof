@@ -1,8 +1,6 @@
-=head1 NAME
+=head1 Devel::NYTProf Changes
 
-Devel::NYTProf::Changes - History of significant changes in Devel::NYTProf
-
-=cut
+History of significant changes in Devel::NYTProf
 
 =head2 Changes in Devel::NYTProf 6.08 - DATE TO COME
 
