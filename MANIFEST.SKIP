@@ -20,3 +20,9 @@
 ^NYTProf.c$
 ^NYTProf.o$
 ^pm_to_blib$
+^\.swp$
+^cover_db/
+^t/auto/
+^t/.*\.out$
+t/nytprof_test30-fork-0\.out\.\d+$
+t/test.*outdir/

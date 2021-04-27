@@ -12,7 +12,7 @@ use strict;
 
 use Carp;
 use Config;
-use List::Util qw(sum max);
+use List::Util qw(sum);
 
 use Devel::NYTProf::Util qw(strip_prefix_from_paths trace_level);
 

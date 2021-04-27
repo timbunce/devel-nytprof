@@ -114,7 +114,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fileinfo");
         $fi = $profile->fileinfo_of($arg);
     };
     like($stderr, qr/^Can't resolve fid of '$arg'/,
-        "fileinfo_of: called without unknown argument");
+        "fileinfo_of: called with unknown argument");
     ok(! defined($fi), "fileinfo_of returned undef");
 
     $arg = {};

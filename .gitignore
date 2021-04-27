@@ -38,3 +38,4 @@ dll.exp
 NYTProf_def.old
 /cover_db/
 MYMETA.json.lock
+Devel-NYTProf-*/

@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Carp;
 
-use List::Util qw(sum min max);
+use List::Util qw(min max);
 use Data::Dumper;
 
 use Devel::NYTProf::Util qw(
