@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Carp;
+use Config qw(%Config);
 use Devel::NYTProf::Reader;
 use Test::More;
 use File::Spec;
@@ -9,6 +10,9 @@ use Devel::NYTProf::Constants qw(
     NYTP_DEFAULT_COMPRESSION
     NYTP_ZLIB_VERSION
 );
+
+plan skip_all => "needs different profile data for testing on longdouble builds"
+    if $Config{uselongdouble} eq 'define';
 
 my $file = "./t/nytprof_11-reader.out.txt";
 croak "No $file" unless -f $file;
