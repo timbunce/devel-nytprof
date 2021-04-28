@@ -5,13 +5,15 @@ use Devel::NYTProf::Reader;
 use Test::More;
 use File::Spec;
 use File::Temp qw( tempdir );
-
-# Relax this restriction once we figure out how to make test $file work for
-# Appveyor.
-plan skip_all => "doesn't work without HAS_ZLIB" if (($^O eq "MSWin32") || ($^O eq 'VMS'));
+use Devel::NYTProf::Constants qw(
+    NYTP_DEFAULT_COMPRESSION
+    NYTP_ZLIB_VERSION
+);
 
 my $file = "./t/nytprof_11-reader.out.txt";
 croak "No $file" unless -f $file;
+
+plan skip_all => "$file doesn't work unless NYTP_ZLIB_VERSION is set" unless NYTP_ZLIB_VERSION();
 
 # new()
 

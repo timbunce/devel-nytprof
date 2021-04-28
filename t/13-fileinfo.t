@@ -3,16 +3,17 @@ use warnings;
 use Carp;
 use Devel::NYTProf::Data;
 use Test::More;
-use Data::Dumper;$Data::Dumper::Indent=1;
-
-# Relax this restriction once we figure out how to make test $file work for
-# Appveyor.
-plan skip_all => "doesn't work without HAS_ZLIB" if (($^O eq "MSWin32") || ($^O eq 'VMS'));
-
-# General setup
+use Devel::NYTProf::Constants qw(
+    NYTP_DEFAULT_COMPRESSION
+    NYTP_ZLIB_VERSION
+);
 
 my $file = "./t/nytprof_13-data.out.txt";
 croak "No $file" unless -f $file;
+
+plan skip_all => "$file doesn't work unless NYTP_ZLIB_VERSION is set" unless NYTP_ZLIB_VERSION();
+
+# General setup
 
 my $profile = Devel::NYTProf::Data->new({ filename => $file, quiet => 1 });
 ok(defined $profile, "Devel::NYTProf::Data->new() returned defined value");

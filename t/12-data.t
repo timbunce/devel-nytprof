@@ -8,15 +8,17 @@ use File::Spec;
 use File::Temp qw( tempdir tempfile );
 use Data::Dumper;$Data::Dumper::Indent=1;
 use Capture::Tiny qw(capture_stdout capture_stderr );
-
-# Relax this restriction once we figure out how to make test $file work for
-# Appveyor.
-plan skip_all => "doesn't work without HAS_ZLIB" if (($^O eq "MSWin32") || ($^O eq 'VMS'));
-
-# General setup
+use Devel::NYTProf::Constants qw(
+    NYTP_DEFAULT_COMPRESSION
+    NYTP_ZLIB_VERSION
+);
 
 my $file = "./t/nytprof_12-data.out.txt";
 croak "No $file" unless -f $file;
+
+plan skip_all => "$file doesn't work unless NYTP_ZLIB_VERSION is set" unless NYTP_ZLIB_VERSION();
+
+# General setup
 
 my $reporter = Devel::NYTProf::Reader->new($file, { quiet => 1 });
 ok(defined $reporter, "Devel::NYTProf::Reader->new returned defined entity");
