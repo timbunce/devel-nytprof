@@ -125,8 +125,11 @@ for my $k (sort {$b <=> $a} keys %floats) {
     is($m, $floats{$k}{prec3}, "fmt_float, precision 3, applied to $k");
 }
 
-my $val = '0.00004';
-is(fmt_float($val), '4.0e-5', "fmt_float, applied to $val");
+TODO: {
+    local $TODO = 'GH issue 170: CPANtesters anomaly on Strawberry Perl';
+    my $val = '0.00004';
+    is(fmt_float($val), '4.0e-5', "fmt_float, applied to $val");
+}
 
 my ($median_ref, @values);
 @values = ( 1, 2, 3, 4, 5 );
