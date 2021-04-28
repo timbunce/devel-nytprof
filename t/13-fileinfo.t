@@ -10,7 +10,7 @@ use Devel::NYTProf::Constants qw(
 );
 
 plan skip_all => "needs different profile data for testing on longdouble builds"
-    if $Config{uselongdouble} eq 'define';
+    if (defined $Config{uselongdouble} and $Config{uselongdouble} eq 'define');
 
 my $file = "./t/nytprof_13-data.out.txt";
 croak "No $file" unless -f $file;
