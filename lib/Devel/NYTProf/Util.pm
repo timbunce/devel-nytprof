@@ -167,7 +167,7 @@ sub fmt_float {
         # But our exponents will always be e-05 to e-09, never e-10 or smaller
         # so remove the leading zero to make these small numbers stand out less
         # on the table.
-        $val =~ s/e-0/e-/;
+        $val =~ s/e-0+/e-/;
     }
     elsif ($val != int($val)) {
         $val = sprintf("%.${precision}f", $val);
