@@ -76,6 +76,7 @@ t/50-errno.t
 t/60-forkdepth.t
 t/70-subname.t
 t/80-version.t
+t/90-pod.t
 t/lib/NYTProfTest.pm
 t/nytprof_11-reader.out.txt
 t/nytprof_12-data.out.txt
@@ -251,7 +252,6 @@ xt/61-cputime.t
 xt/68-hashline.t
 xt/71-moose.t
 xt/72-autodie.t
-xt/90-pod.t
 xt/91-pod_coverage.t
 xt/92-file_port.t
 xt/test23-strevalxs.p

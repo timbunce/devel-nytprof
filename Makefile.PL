@@ -283,9 +283,15 @@ perltidy:
 ctidy_bcpp:
 	bcpp -f 2 -i 4 -bcl -qb 10 -ylcnc -yb NYTProf.xs
 
+NYTPROF_AUTHOR_TESTING=""
 NYTPROF_TEST_SHORT=""
 test_short:
-	NYTPROF_TEST_SHORT=1 make test
+	NYTPROF_TEST_SHORT=1 NYTPROF_AUTHOR_TESTING=1 make test
+
+test_author:
+	NYTPROF_AUTHOR_TESTING=1 make test
+
+atest: test_author
 
 }
 }
