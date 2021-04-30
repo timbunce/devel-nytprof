@@ -283,7 +283,6 @@ perltidy:
 ctidy_bcpp:
 	bcpp -f 2 -i 4 -bcl -qb 10 -ylcnc -yb NYTProf.xs
 
-NYTPROF_TEST_SHORT=""
 test_short:
 	NYTPROF_TEST_SHORT=1 make test
 
