@@ -1,13 +1,13 @@
+use strict;
+use warnings;
 # Tests CORE::GLOBAL::foo plus assorted data model methods
 
-use strict;
 use Test::More;
 use lib '/home/travis/perl5'; # travis workaround https://travis-ci.org/timbunce/devel-nytprof/jobs/35285944
 use Test::Differences;
 
 use lib qw(t/lib);
 use NYTProfTest;
-use Data::Dumper;
 
 use Devel::NYTProf::Run qw(profile_this);
 

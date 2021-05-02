@@ -1,6 +1,7 @@
+use strict;
+use warnings;
 # Tests CORE::GLOBAL::foo plus assorted data model methods
 
-use strict;
 use Test::More;
 
 use lib qw(t/lib);

@@ -1,13 +1,13 @@
+use strict;
+use warnings;
 # Tests dieing on Can't use string ... as a subroutine ref while "strict refs" in use
 # that used to core dump (RT#86638)
 # https://rt.cpan.org/Ticket/Display.html?id=86638
 
-use strict;
 use Test::More;
 
 use lib qw(t/lib);
 use NYTProfTest;
-use Data::Dumper;
 
 use Devel::NYTProf::Run qw(profile_this);
 

@@ -1,3 +1,5 @@
+use strict;
+use warnings;
 use Test::More tests => 67;
 
 use Devel::NYTProf::Util qw(

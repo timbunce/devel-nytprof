@@ -1,11 +1,11 @@
+use strict;
+use warnings;
 # Tests interaction with UNIVERSAL::VERSION (RT#54600)
 
-use strict;
 use Test::More;
 
 use lib qw(t/lib);
 use NYTProfTest;
-use Data::Dumper;
 
 use Devel::NYTProf::Run qw(profile_this);
 
