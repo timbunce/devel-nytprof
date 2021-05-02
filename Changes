@@ -2,6 +2,19 @@
 
 History of significant changes in Devel::NYTProf
 
+=head2 Changes in Devel::NYTProf 6.09 - 2nd May 2021
+
+B<There should be no observable differences in the performance of Devel-NYTProf
+from that of the previous release.>  This release is primarily focused on
+correcting problems in the test suite introduced in version 6.08 6 days
+earlier.
+
+=head3 Substantive
+
+=head3 Test Suite
+
+=head3 Housekeeping
+
 =head2 Changes in Devel::NYTProf 6.08 - 27th April 2021
 
 B<There should be no observable differences in the performance of Devel-NYTProf
