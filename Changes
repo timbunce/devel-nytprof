@@ -2,7 +2,7 @@
 
 History of significant changes in Devel::NYTProf
 
-=head2 Changes in Devel::NYTProf 6.08 - DATE TO COME
+=head2 Changes in Devel::NYTProf 6.08 - 27th April 2021
 
 B<There should be no observable differences in the performance of Devel-NYTProf
 from that of the previous release.>  This release is maintenance-focused and
