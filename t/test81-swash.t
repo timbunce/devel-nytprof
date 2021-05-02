@@ -1,14 +1,14 @@
+use strict;
+use warnings;
 # Tests implicit calling of utf8::SWASHNEW from unicode regex.
 #
 # Actually a stress test of all sorts of nasty cases including opcodes calling
 # back to perl and stack switching (PUSHSTACKi(PERLSI_MAGIC)).
 
-use strict;
 use Test::More;
 
 use lib qw(t/lib);
 use NYTProfTest;
-use Data::Dumper;
 
 use Devel::NYTProf::Run qw(profile_this);
 

@@ -7,7 +7,6 @@ use Devel::NYTProf::Util qw( trace_level );
 use Test::More;
 use File::Spec;
 use File::Temp qw( tempdir tempfile );
-use Data::Dumper;$Data::Dumper::Indent=1;
 use Capture::Tiny qw(capture_stdout capture_stderr );
 use Devel::NYTProf::Constants qw(
     NYTP_DEFAULT_COMPRESSION
