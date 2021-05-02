@@ -2,7 +2,6 @@
 .gitignore
 .indent.pro
 .perltidyrc
-.travis.yml
 bin/flamegraph.pl
 bin/nytprofcalls
 bin/nytprofcg
