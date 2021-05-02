@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 use Test::More;
 use List::Util qw(sum);
 use lib qw(t/lib);

@@ -1,11 +1,11 @@
+use strict;
+use warnings;
 # Tests CORE::GLOBAL::foo plus assorted data model methods
 
-use strict;
 use Test::More;
 
 use lib qw(t/lib);
 use NYTProfTest;
-use Data::Dumper;
 use Config qw(%Config);
 
 use Devel::NYTProf::Run qw(profile_this);
@@ -42,7 +42,6 @@ run_test_group( {
         is $add_si->subname, 'main::add';
 
         my $callers = $add_si->caller_fid_line_places;
-        print Dumper($callers);
 
         is keys %$callers, 1, 'called from 1 fid';
         my $caller_fid  = (keys %$callers)[0];

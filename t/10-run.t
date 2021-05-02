@@ -1,6 +1,7 @@
+use strict;
+use warnings;
 use Test::More;
 
-use strict;
 use lib qw(t/lib);
 use NYTProfTest;
 

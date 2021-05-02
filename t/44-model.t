@@ -1,11 +1,11 @@
+use strict;
+use warnings;
 # Tests assorted data model methods
 
-use strict;
 use Test::More;
 
 use lib qw(t/lib);
 use NYTProfTest;
-use Data::Dumper;
 
 use Devel::NYTProf::Run qw(profile_this);
 
