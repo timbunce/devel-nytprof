@@ -1,12 +1,16 @@
 use strict;
 use warnings;
 use Carp;
+use Config qw(%Config);
 use Devel::NYTProf::Data;
 use Test::More;
 use Devel::NYTProf::Constants qw(
     NYTP_DEFAULT_COMPRESSION
     NYTP_ZLIB_VERSION
 );
+
+plan skip_all => "needs different profile data for testing on longdouble builds"
+    if (defined $Config{uselongdouble} and $Config{uselongdouble} eq 'define');
 
 my $file = "./t/nytprof_13-data.out.txt";
 croak "No $file" unless -f $file;
