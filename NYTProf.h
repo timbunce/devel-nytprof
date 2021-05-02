@@ -8,7 +8,7 @@
  *
  * Contributors:
  * Adam Kaplan, akaplan at nytimes.com
- * Tim Bunce, http://www.tim.bunce.name and http://blog.timbunce.org
+ * Tim Bunce, http://blog.timbunce.org
  * Steve Peters, steve at fisharerojo.org
  *
  * ************************************************************************

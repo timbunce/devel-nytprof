@@ -270,7 +270,7 @@ L<Devel::NYTProf> and L<Devel::NYTProf::Data>
 =head1 AUTHOR
 
 B<Adam Kaplan>, C<< <akaplan at nytimes.com> >>
-B<Tim Bunce>, L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>
+B<Tim Bunce>, L<http://blog.timbunce.org>
 B<Steve Peters>, C<< <steve at fisharerojo.org> >>
 
 =head1 COPYRIGHT AND LICENSE

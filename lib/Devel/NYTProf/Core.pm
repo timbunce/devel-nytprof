@@ -153,7 +153,7 @@ Finally, it adds the exclusive time to the cumulative exclusive time:
 
 =head1 AUTHOR
 
-B<Tim Bunce>, L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>
+B<Tim Bunce>, L<http://blog.timbunce.org>
 
 =head1 COPYRIGHT AND LICENSE
 

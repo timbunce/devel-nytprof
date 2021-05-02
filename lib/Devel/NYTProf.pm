@@ -1248,7 +1248,7 @@ value longer than the longest subroutine names in your code.
 
 =head1 AUTHORS AND CONTRIBUTORS
 
-B<Tim Bunce> (L<http://www.tim.bunce.name> and L<http://blog.timbunce.org>)
+B<Tim Bunce> (L<http://blog.timbunce.org>)
 leads the project and has done most of the development work thus far.
 
 B<Nicholas Clark> contributed zip compression and C<nytprofmerge>.
