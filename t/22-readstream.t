@@ -37,16 +37,12 @@ for_chunks {
 
 my %option    = map { @$_ } @{$prof{OPTION}};
 cmp_ok scalar keys %option, '>=', 17, 'enough options';
-#diag Dumper(\%option);
 
 my %attribute = map { @$_ } @{$prof{ATTRIBUTE}};
 cmp_ok scalar keys %attribute, '>=', 9, 'enough attribute';
-#diag Dumper(\%attribute);
 
 ok scalar @seqn, 'should have read chunks';
 is_deeply(\@seqn, [0..@seqn-1], "chunk seq");
-
-#use Data::Dumper; warn Dumper \%prof;
 
 is_deeply $prof{VERSION}, [ [ 5, 0 ] ];
 
@@ -75,7 +71,10 @@ my %attr = map { $_->[0] => $_->[1] } @{ $prof{ATTRIBUTE} };
 cmp_ok $attr{ticks_per_sec}, '>=', 1_000_000, 'ticks_per_sec';
 is $attr{application}, '-e', 'application';
 is $attr{nv_size}, $Config{nvsize}, 'nv_size';
-cmp_ok $attr{xs_version}, '>=', 2.1, 'xs_version';
+{
+    no warnings 'numeric';
+    cmp_ok $attr{xs_version}, '>=', 2.1, 'xs_version';
+}
 cmp_ok $attr{basetime}, '>=', $^T, 'basetime';
 
 my @sub_info_sorted = sort { $a->[3] cmp $b->[3] } @{$prof{SUB_INFO}};
