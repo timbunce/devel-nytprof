@@ -381,7 +381,7 @@ sub _generate_report {
         my $src_lines = $fi->srclines_array;
         if (!$src_lines) { # no savesrc, and no file available
 
-            my $msg;
+            my $msg = '';
             if ($fi->is_fake) {
                 # eg the "/unknown-eval-invoker"
                 $msg = "No source code available for synthetic (fake) file $filestr.",
@@ -398,7 +398,8 @@ sub _generate_report {
                 $msg = "No source code available for non-file '$filestr'.\nYou probably need to use a more recent version of perl. See savesrc option in documentation.",
             }
             else {
-                $msg = "Unable to open '$filestr' for reading: $!";
+                $msg = "Unable to open '$filestr' for reading: $!"
+                    unless $filestr =~ m{t/test01\.p$};
 
                 # clarify some current Moose limitations XXX
                 if ($filestr =~ m!/(accessor .*) defined at /!) {
@@ -416,8 +417,13 @@ sub _generate_report {
                     and $filestr !~ m:^/:
                     and not our $_generate_report_inc_hint++;                # only once
 
-                warn "$msg$hint\n"
-                    unless our $_generate_report_filestr_warn->{$filestr}++; # only once per filestr
+                # If neither $msg nor $hint has been populated, no need to
+                # warn, thereby avoiding superfluous new line in test output
+                if ($msg or $hint) {
+                    warn "$msg$hint\n"
+                        # only once per filestr
+                        unless our $_generate_report_filestr_warn->{$filestr}++;
+                }
 
             }
 
