@@ -267,6 +267,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fileinfo");
 
 {
     SKIP: {
+        skip "NYTPROF_AUTHOR_TESTING only", 3 unless $ENV{NYTPROF_AUTHOR_TESTING};
         skip "Bad interaction when trace_level is set", 3
             if trace_level();
         my $profile;
