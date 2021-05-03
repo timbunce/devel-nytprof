@@ -7,7 +7,7 @@
  * See http://metacpan.org/release/Devel-NYTProf/
  *
  * Contributors:
- * Tim Bunce, http://www.tim.bunce.name and http://blog.timbunce.org
+ * Tim Bunce, http://blog.timbunce.org
  * Nicholas Clark,
  * Adam Kaplan, akaplan at nytimes.com
  * Steve Peters, steve at fisharerojo.org
