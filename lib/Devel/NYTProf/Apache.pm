@@ -105,6 +105,38 @@ Devel::NYTProf::Apache - Profile mod_perl applications with Devel::NYTProf
 If you're using virtual hosts with C<PerlOptions> that include either
 C<+Parent> or C<+Clone> then see L</VIRTUAL HOSTS> below.
 
+=head1 CAUTION
+
+Use of C<Devel::NYTProf::Apache> is officially B<discouraged>.
+
+The C<Apache> module is not exercised anywhere in Devel-NYTProf's test suite.
+To do so would require an Apache/mod_perl environment, which in turn
+would require a major redirection of developer efforts.  The code may be
+perfectly sound -- so we're not officially deprecating it -- but it was last
+modified in 2010.
+
+If ...
+
+=over 4
+
+=item 1
+
+You are an experienced user of F<Devel-NYTProf>;
+
+=item 2
+
+you can set up a development/testing environment with Apache/mod_perl;
+
+=item 3
+
+can devise some tests that would demonstrate that F<Devel::NYTProf::Apache> works as intended; and
+
+=item 4
+
+would be willing to support it as an independent CPAN distribution, then please let us know!
+
+=back
+
 =head1 DESCRIPTION
 
 This module allows mod_perl applications to be profiled using
