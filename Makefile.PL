@@ -193,7 +193,7 @@ WriteMakefile(
             ))
     },
     dist  => {
-        DIST_DEFAULT => 'clean distcheck disttest tardist',
+        DIST_DEFAULT => 'clean distcheck disttest_author tardist',
         PREOP        => '$(MAKE) -f Makefile.old distdir',
         COMPRESS     => 'gzip -v9',
         SUFFIX       => 'gz',
@@ -290,6 +290,11 @@ test_author:
 	NYTPROF_AUTHOR_TESTING=1 make test
 
 atest: test_author
+
+disttest_author :: distdir
+	cd $(DISTVNAME) && $(ABSPERLRUN) Makefile.PL
+	cd $(DISTVNAME) && $(MAKE) $(PASTHRU)
+	cd $(DISTVNAME) && $(MAKE) test_author $(PASTHRU)
 
 }
 }
