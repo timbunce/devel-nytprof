@@ -41,8 +41,8 @@ lib/Devel/NYTProf/js/jit/jit-yc.js
 lib/Devel/NYTProf/js/jit/jit.js
 lib/Devel/NYTProf/js/jit/Treemap.css
 lib/Devel/NYTProf/js/jquery-min.js
-lib/Devel/NYTProf/js/jquery-tablesorter-min.js
 lib/Devel/NYTProf/js/jquery.floatThead.min.js
+lib/Devel/NYTProf/js/jquery.tablesorter.min.js
 lib/Devel/NYTProf/js/style-tablesorter.css
 lib/Devel/NYTProf/Reader.pm
 lib/Devel/NYTProf/ReadStream.pm
