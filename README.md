@@ -2,6 +2,7 @@
 
 Devel::NYTProf is a powerful feature-rich source code profiler for Perl 5.
 
+[![CPAN version](https://badge.fury.io/pl/Devel-NYTProf.svg)](http://badge.fury.io/pl/Devel-NYTProf)
 [![Build Status](https://secure.travis-ci.org/timbunce/devel-nytprof.png)](http://travis-ci.org/timbunce/devel-nytprof)
 
 For more information see:
