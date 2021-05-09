@@ -1,6 +1,42 @@
+=encoding utf8
+
 =head1 Devel::NYTProf Changes
 
 History of significant changes in Devel::NYTProf
+
+=head2 Changes in Devel::NYTProf 6.10 - 9th May 2021
+
+B<There should be no significant differences in the performance of Devel-NYTProf
+from that of the previous release.>  This release is primarily focused on
+upgrading the jquery used and improvements to F<Makefile.PL> and the test
+suite.
+
+=head3 Substantive
+
+L<GH 186: Updated jquery components to version
+3.4.1|https://github.com/timbunce/devel-nytprof/pull/186>, based on bug report
+L<GH 132|https://github.com/timbunce/devel-nytprof/issues/132> filed by
+Matthew Musgrove and original patch submitted by Reini Urban.
+
+Eliminated some C++ build-time warnings through patches submitted by Reini
+Urban.
+
+Officially discouraged use of F<Devel::NYTProf::Apache>.  While it remains in
+the CPAN distribution, it is not exercised by the test suite and has not been
+updated for many years.  We are open to offers to spin it out to its own CPAN
+distribution.
+
+=head3 Test Suite
+
+Skip 4 test files on (Linux) quadmath builds; profile data used in these tests
+not (yet) appropriate.  Thanks to Slaven Rezić and H. Merijn Brand for
+discussion in L<GH 168|https://github.com/timbunce/devel-nytprof/issues/168>
+and L<GH 188|https://github.com/timbunce/devel-nytprof/issues/188>.
+
+=head3 Housekeeping
+
+L<GH 185|https://github.com/timbunce/devel-nytprof/pull/185>: Added F<make>
+target C<disttest_author> for more thorough testing of release tarball.
 
 =head2 Changes in Devel::NYTProf 6.09 - 2nd May 2021
 
@@ -11,19 +47,27 @@ earlier.
 
 =head3 Substantive
 
-C<Devel::NYTProf::Util::fmt_float()> modified to strip off more than one leading C<0>.  Thanks to Shawn Laffan in GH 170.
+C<Devel::NYTProf::Util::fmt_float()> modified to strip off more than one
+leading C<0>.  Thanks to Shawn Laffan in GH 170.
 
 =head3 Test Suite
 
 All test files now run with C<use strict; use warnings;>.
 
-F<t/11-reader.t, t/12-data.t, t/13-fileinfo.t, t/14-subinfo.t> are now skipped on longdouble builds and when C<NYTP_ZLIB_VERSION> is not set.  The profile data files these tests use do not work in those contexts.  This should reduce the number of false negatives reported by CPANtesters.  Thanks to Tinita for feedback in GH 169.
+F<t/11-reader.t, t/12-data.t, t/13-fileinfo.t, t/14-subinfo.t> are now skipped
+on longdouble builds and when C<NYTP_ZLIB_VERSION> is not set.  The profile
+data files these tests use do not work in those contexts.  This should reduce
+the number of false negatives reported by CPANtesters.  Thanks to Tinita for
+feedback in GH 169.
 
-F<xt/90-pod.t> transferred back to F<t/> but will only run when environmental variable C<NYTPROF_AUTHOR_TESTING> is set.
+F<xt/90-pod.t> transferred back to F<t/> but will only run when environmental
+variable C<NYTPROF_AUTHOR_TESTING> is set.
 
 =head3 Housekeeping
 
-Created environmental variable C<NYTPROF_AUTHOR_TESTING> to regulate when certain unit tests and test files are run.  Created `make` targets C<test_author> and C<atest> (an alias) to take advantage of this envvar.
+Created environmental variable C<NYTPROF_AUTHOR_TESTING> to regulate when
+certain unit tests and test files are run.  Created `make` targets
+C<test_author> and C<atest> (an alias) to take advantage of this envvar.
 
 =head2 Changes in Devel::NYTProf 6.08 - 27th April 2021
 
