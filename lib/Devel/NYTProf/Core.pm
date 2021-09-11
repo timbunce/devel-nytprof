@@ -12,7 +12,7 @@ package Devel::NYTProf::Core;
 
 use XSLoader;
 
-our $VERSION = '6.10_001';
+our $VERSION = '6.11';
 
 XSLoader::load('Devel::NYTProf', $VERSION);
 
