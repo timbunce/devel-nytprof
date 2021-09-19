@@ -146,6 +146,7 @@ $mm_opts{TEST_REQUIRES} = {
     'Test::More'   => '0.84',
     'Test::Differences' => '0.60',
     'Capture::Tiny' => 0,
+    'Sub::Name' => '0.11',
 };
 
 $mm_opts{BUILD_REQUIRES} = {
