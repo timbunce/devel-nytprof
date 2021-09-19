@@ -4,6 +4,16 @@
 
 History of significant changes in Devel::NYTProf
 
+=head2 Changes in Devel::NYTProf 6.11 - 19th Sep 2021
+
+Removed F<lib/Devel/NYTProf/js/jquery.floatThead.min.js> in L<GH 194: Remove
+jquery.floatThead.min.js|https://github.com/timbunce/devel-nytprof/pull/194>.
+In L<GH 192: nytprofhtml - internal anchor links in html pages go to wrong
+locations|https://github.com/timbunce/devel-nytprof/issues/192> Shawn Laffan
+reported that internal links to anchors in the generated HTML pages were not
+correctly positioned in the vertical dimension.   Discontinuing use of this
+Javascript file appears to correct the problem.
+
 =head2 Changes in Devel::NYTProf 6.10 - 9th May 2021
 
 B<There should be no significant differences in the performance of Devel-NYTProf
