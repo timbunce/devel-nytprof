@@ -114,10 +114,10 @@ $mm_opts{CCFLAGS}  = "-pg"  if $opt_pg;
 
 if( $ExtUtils::MakeMaker::VERSION >= 6.46 ) {
     $mm_opts{META_MERGE} = {
-    	"meta-spec" => { version => 2 },
-	no_index => {
-	    package => [ 'SVG' ], # in bin/flamegraph.pl
-	},
+        "meta-spec" => { version => 2 },
+        no_index => {
+            package => [ 'SVG' ], # in bin/flamegraph.pl
+        },
         resources => {
             license     => 'http://dev.perl.org/licenses/',
             homepage    => 'https://code.google.com/p/perl-devel-nytprof/',
