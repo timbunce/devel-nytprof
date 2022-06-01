@@ -128,7 +128,7 @@ usage: [perl] nytprofhtml [opts]
  --no-mergeevals           Disable merging of string evals
  --help,        -h         Print this message
 
-This script of part of the Devel::NYTProf distribution.
+This script is part of the Devel::NYTProf distribution.
 See http://metacpan.org/release/Devel-NYTProf/ for details and copyright.
 END
     return 0;

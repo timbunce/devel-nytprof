@@ -27,7 +27,7 @@ Options synopsis:
  --no-mergeevals           Disable merging of string evals
  --help,        -h         Print this message
 
-This script of part of the Devel::NYTProf distribution. Generate a report for plat_forms (L<http://www.plat-forms.org/>) from Devel::NYTProf data.
+This script is part of the Devel::NYTProf distribution. Generate a report for plat_forms (L<http://www.plat-forms.org/>) from Devel::NYTProf data.
 See http://metacpan.org/release/Devel-NYTProf/ for details and copyright.
 
 =encoding ISO8859-1
@@ -79,7 +79,7 @@ usage: [perl] nytprofpf [opts]
  --no-mergeevals           Disable merging of string evals
  --help,        -h         Print this message
 
-This script of part of the Devel::NYTProf distribution.
+This script is part of the Devel::NYTProf distribution.
 See http://metacpan.org/release/Devel-NYTProf/ for details and copyright.
 END
     return 0;
