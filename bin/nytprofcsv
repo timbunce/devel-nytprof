@@ -119,7 +119,7 @@ usage: [perl] nytprofcsv [opts]
  --delete,      -d         Delete the old fprofhtml output [uses --out]
  --help,        -h         Print this message
 
-This script of part of the Devel::NYTProf package
+This script is part of the Devel::NYTProf package
 See https://metacpan.org/pod/Devel::NYTProf
 END
 }

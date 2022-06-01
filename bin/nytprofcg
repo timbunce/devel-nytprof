@@ -107,7 +107,7 @@ usage: [perl] nytprofcg [opts]
  --out <file>,  -o <file>  Specify output file [default: nytprof.callgrind]
  --help,        -h         Print this message
 
-This script of part of the Devel::NYTProf distribution.
+This script is part of the Devel::NYTProf distribution.
 Released under the same terms as Perl 5.8.0
 See http://metacpan.org/release/Devel-NYTProf/
 END
