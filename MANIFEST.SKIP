@@ -26,3 +26,5 @@
 ^t/.*\.out$
 t/nytprof_test30-fork-0\.out\.\d+$
 t/test.*outdir/
+^travis\.yml$
+^.travis\.yml$
