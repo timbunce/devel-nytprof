@@ -4,6 +4,21 @@
 
 History of significant changes in Devel::NYTProf
 
+=head2 Changes in Devel::NYTProf 6.12 - 16th Nov 2022
+
+B<There should be no significant differences in the performance of Devel-NYTProf
+from that of the previous release.>  This release is primarily focused on
+adapting the library to a change in Perl 5 as of release 5.37.6 in November
+2022; code contributed by Tony Cook in L<GH 200: support SSNEW*() macros
+returning SSize_t instead of
+I32|https://github.com/timbunce/devel-nytprof/pull/200>.  Corrections to
+errors in documentation contributed by joshnaitis in L<GH 198: Fix typos in
+/bin report generators|https://github.com/timbunce/devel-nytprof/pull/198>.
+'make' targets dependent on Subversion (former version control system) removed
+in L<GH 196|https://github.com/timbunce/devel-nytprof/pull/196>.  CPAN module
+Sub::Name added as test-time prerequisite.
+
+
 =head2 Changes in Devel::NYTProf 6.11 - 19th Sep 2021
 
 Removed F<lib/Devel/NYTProf/js/jquery.floatThead.min.js> in L<GH 194: Remove
