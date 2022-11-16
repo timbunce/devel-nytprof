@@ -1968,7 +1968,7 @@ struct subr_entry_st {
     unsigned int  already_counted;
     U32  subr_prof_depth;
     long unsigned subr_call_seqn;
-    I32 prev_subr_entry_ix; /* ix to callers subr_entry */
+    SSize_t prev_subr_entry_ix; /* ix to callers subr_entry */
 
     time_of_day_t initial_call_timeofday;
     struct tms    initial_call_cputimes;
@@ -1990,7 +1990,7 @@ struct subr_entry_st {
 };
 
 /* save stack index to the current subroutine entry structure */
-static I32 subr_entry_ix = -1;
+static SSize_t subr_entry_ix = -1;
 
 #define subr_entry_ix_ptr(ix) ((ix != -1) ? SSPTR(ix, subr_entry_t *) : NULL)
 
@@ -2272,8 +2272,8 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
 static void         /* wrapper called at scope exit due to save_destructor below */
 incr_sub_inclusive_time_ix(pTHX_ void *subr_entry_ix_void)
 {
-    /* recover the I32 ix that was stored as a void pointer */
-    I32 save_ix = (I32)PTR2IV(subr_entry_ix_void);
+    /* recover the SSize_t ix that was stored as a void pointer */
+    SSize_t save_ix = (SSize_t)PTR2IV(subr_entry_ix_void);
     incr_sub_inclusive_time(aTHX_ subr_entry_ix_ptr(save_ix));
 }
 
@@ -2390,12 +2390,12 @@ current_cv(pTHX_ I32 ix, PERL_SI *si)
 }
 
 
-static I32
+static SSize_t
 subr_entry_setup(pTHX_ COP *prev_cop, subr_entry_t *clone_subr_entry, OPCODE op_type, SV *subr_sv)
 {
     int saved_errno = errno;
     subr_entry_t *subr_entry;
-    I32 prev_subr_entry_ix;
+    SSize_t prev_subr_entry_ix;
     subr_entry_t *caller_subr_entry;
     const char *found_caller_by;
     char *file;
@@ -2656,7 +2656,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     CV *called_cv;
     dSP;
     SV *sub_sv = *SP;
-    I32 this_subr_entry_ix; /* local copy (needed for goto) */
+    SSize_t this_subr_entry_ix; /* local copy (needed for goto) */
 
     subr_entry_t *subr_entry;
 
