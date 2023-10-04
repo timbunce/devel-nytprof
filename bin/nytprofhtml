@@ -474,7 +474,7 @@ $reporter->set_param(
       <thead>
       <tr><th>Line</th>
       <th><span title="Number of statements executed">State<br />ments</span></th>
-      <th><span title="Time spend executing statements on the line,
+      <th><span title="Time spent executing statements on the line,
         excluding time spent executing statements in any called subroutines">Time<br />on line</span></th>
       <th><span title="Number of subroutines calls">Calls</span></th>
       <th><span title="Time spent in subroutines called (inclusive)">Time<br />in subs</span></th>
