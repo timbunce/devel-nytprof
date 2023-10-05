@@ -14,8 +14,6 @@
 ^change-version\.sh$
 ^appveyor\.yml$
 ^.appveyor\.yml$
-^travis\.yml$
-^.travis\.yml$
 ^FileHandle.c$
 ^FileHandle.o$
 ^NYTProf.bs$
