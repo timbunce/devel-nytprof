@@ -33,7 +33,6 @@ if ($ENV{PERL_CORE}) {
         'bin/nytprofcsv'  => '$(INST_MAN1DIR)/nytprofcsv.1',
         'bin/nytprofcalls'=> '$(INST_MAN1DIR)/nytprofcalls.1',
         'bin/nytprofcg'   => '$(INST_MAN1DIR)/nytprofcg.1',
-        'bin/nytprofpf'   => '$(INST_MAN1DIR)/nytprofpf.1'
     } );
 }
 
@@ -183,7 +182,7 @@ WriteMakefile(
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
     FUNCLIST => ['boot_Devel__NYTProf', 'boot_Devel__NYTProf__FileHandle'],
-    EXE_FILES => ['bin/nytprofhtml', 'bin/flamegraph.pl', 'bin/nytprofcsv', 'bin/nytprofcalls', 'bin/nytprofcg', 'bin/nytprofmerge', 'bin/nytprofpf'],
+    EXE_FILES => ['bin/nytprofhtml', 'bin/flamegraph.pl', 'bin/nytprofcsv', 'bin/nytprofcalls', 'bin/nytprofcg', 'bin/nytprofmerge'],
     @man,
     INC   => $INCLUDE,
     clean => {

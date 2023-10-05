@@ -8,7 +8,6 @@ bin/nytprofcg
 bin/nytprofcsv
 bin/nytprofhtml
 bin/nytprofmerge
-bin/nytprofpf
 Changes
 demo/1m_stmts.pl
 demo/closure.pl
