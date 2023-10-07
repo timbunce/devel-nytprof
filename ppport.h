@@ -6819,7 +6819,7 @@ DPPP_dopoptosub_at(const PERL_CONTEXT *cxstk, I32 startingblock)
     I32 i;
 
     for (i = startingblock; i >= 0; i--) {
-	register const PERL_CONTEXT * const cx = &cxstk[i];
+	const PERL_CONTEXT * const cx = &cxstk[i];
 	switch (CxTYPE(cx)) {
 	default:
 	    continue;
@@ -6851,9 +6851,9 @@ extern const PERL_CONTEXT * DPPP_(my_caller_cx)(pTHX_ I32 count, const PERL_CONT
 const PERL_CONTEXT *
 DPPP_(my_caller_cx)(pTHX_ I32 count, const PERL_CONTEXT **dbcxp)
 {
-    register I32 cxix = DPPP_dopoptosub_at(cxstack, cxstack_ix);
-    register const PERL_CONTEXT *cx;
-    register const PERL_CONTEXT *ccstack = cxstack;
+    I32 cxix = DPPP_dopoptosub_at(cxstack, cxstack_ix);
+    const PERL_CONTEXT *cx;
+    const PERL_CONTEXT *ccstack = cxstack;
     const PERL_SI *top_si = PL_curstackinfo;
 
     for (;;) {
