@@ -40,7 +40,7 @@ use Cwd qw(getcwd);
 use List::Util qw(sum);
 use Devel::NYTProf::Core;
 
-our $VERSION = '6.12';
+our $VERSION = '6.12_001';
 
 our @EXPORT_OK = qw(
     fmt_float
