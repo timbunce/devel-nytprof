@@ -10,4 +10,6 @@ plan skip_all => "needs perl >= 5.8.9 or >= 5.10.1"
 plan skip_all => "needs perl < 5.33.3 (see t/test62-subcaller1-b.t)" # XXX
     if $] >= 5.033003;
 
+plan skip_all => "NYTPROF_AUTHOR_TESTING only" unless $ENV{NYTPROF_AUTHOR_TESTING};
+
 run_test_group;
