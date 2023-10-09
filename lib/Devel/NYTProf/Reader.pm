@@ -9,7 +9,7 @@
 ###########################################################
 package Devel::NYTProf::Reader;
 
-our $VERSION = '6.12_004';
+our $VERSION = '6.12_005';
 
 use warnings;
 use strict;
