@@ -4388,7 +4388,7 @@ typedef NVTYPE NV;
 
 #undef STMT_START
 #undef STMT_END
-#ifdef PERL_USE_GCC_BRACE_GROUPS
+#if defined(VOIDFLAGS) && defined(PERL_USE_GCC_BRACE_GROUPS)
 #  define STMT_START    (void)( /* gcc supports ``({ STATEMENTS; })'' */
 #  define STMT_END      )
 #else
