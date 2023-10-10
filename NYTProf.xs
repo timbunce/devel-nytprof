@@ -26,10 +26,6 @@
 #ifndef NO_PPPORT_H
 #define NEED_my_snprintf_GLOBAL
 #define NEED_newRV_noinc_GLOBAL
-#define NEED_eval_pv
-#define NEED_grok_number
-#define NEED_grok_numeric_radix
-#define NEED_newCONSTSUB
 #define NEED_sv_2pv_flags
 #define NEED_newSVpvn_flags
 #define NEED_my_strlcat
@@ -54,9 +50,9 @@
 #ifndef gv_fetchfile_flags  /* added in perl 5.009005 */
 /* we know our uses don't contain embedded nulls, so we just need to copy to a
  * buffer so we can add a trailing null byte */
-#define gv_fetchfile_flags(a,b,c)   Perl_gv_fetchfile_flags(aTHX_ a,b,c)
+#define gv_fetchfile_flags(a,b,c)   gv_fetchfile_flags(a,b,c)
 static GV *
-Perl_gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, const U32 flags) {
+gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, const U32 flags) {
     char buf[2000];
     if (namelen >= sizeof(buf)-1)
         croak("panic: gv_fetchfile_flags overflow");

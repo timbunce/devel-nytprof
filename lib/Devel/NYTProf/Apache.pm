@@ -9,7 +9,7 @@
 ###########################################################
 package Devel::NYTProf::Apache;
 
-our $VERSION = '6.13';
+our $VERSION = '6.13_003';
 
 BEGIN {
 

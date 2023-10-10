@@ -55,7 +55,7 @@ use Devel::NYTProf::FileInfo;
 use Devel::NYTProf::SubInfo;
 use Devel::NYTProf::Util qw( trace_level _dumper );
 
-our $VERSION = '6.13';
+our $VERSION = '6.13_003';
 
 
 =head2 new
