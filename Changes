@@ -4,6 +4,17 @@
 
 History of significant changes in Devel::NYTProf
 
+=head2 Changes in Devel::NYTProf 6.14 - 18th Oct 2023
+
+B<There should be no significant differences in the performance of Devel-NYTProf
+from that of the previous release.>  This release is primarily maintenance-
+focused.
+
+More build-time warnings using recent versions of C compilers have been
+eliminated, particularly with recent production releases of Perl.  Thanks to
+Karl Williamson for guidance on updating F<ppport.h> and using it to update
+F<NYTProf.xs>.
+
 =head2 Changes in Devel::NYTProf 6.13 - 10th Oct 2023
 
 B<There should be no significant differences in the performance of Devel-NYTProf
@@ -21,17 +32,17 @@ Removal of remaining reference to Travis CI
 (L<GH 202|https://github.com/timbunce/devel-nytprof/pull/202>).
 
 Elimination of 'bad-function-cast' warnings during 'make'
-(L<GH 205|https://github.com/timbunce/devel-nytprof/pull/205).
+(L<GH 205|https://github.com/timbunce/devel-nytprof/pull/205>).
 
 Correction of typographic error in F<nytprofhtml> thanks to Amory Meltzer
 (L<GH 210|https://github.com/timbunce/devel-nytprof/pull/210>).
 
 Depending on Per version, skip one test file that was exercising 'given' and
 'when' keywords (now deprecated)
-(L<GH 211|https://github.com/timbunce/devel-nytprof/pull/211).
+(L<GH 211|https://github.com/timbunce/devel-nytprof/pull/211>).
 
 Elimination of the 'register' keyword from NYTProf.xs (partial resolution of
-L<GH 191|https://github.com/timbunce/devel-nytprof/issues/191) which is
+L<GH 191|https://github.com/timbunce/devel-nytprof/issues/191>) which is
 forbidden as of ISO C++17.
 
 =head2 Changes in Devel::NYTProf 6.12 - 16th Nov 2022
