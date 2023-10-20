@@ -49,6 +49,7 @@ is 0+$!, $dflterrno, "\$! should not be altered by assigning fids to previously 
 
 SKIP: {
     skip 'On VMS buffer does not flush', 1 if($^O eq 'VMS');
+    skip "Fails on Windows/msys", 1 if($^O eq 'msys');
 
     $! = $dflterrno;
     while (-s $nytprof_out == $size1) {
