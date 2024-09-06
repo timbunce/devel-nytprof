@@ -845,7 +845,7 @@ sub output_index_page {
 
             print $fh qq{<div class="flamegraph">\n};
             print $fh qq{<object data="$call_stacks_svg" width="$opt_flame_width" type="image/svg+xml" >SVG not supported</object>\n};
-            print $fh qq{<p>The <a href="http://dtrace.org/blogs/brendan/2011/12/16/flame-graphs/">Flame Graph</a> above is a visualization of the time spent in <em>distinct call stacks</em>. The colors and x-axis position are not meaningful.</p>\n};
+            print $fh qq{<p>The <a href="https://www.brendangregg.com/flamegraphs.html">Flame Graph</a> above is a visualization of the time spent in <em>distinct call stacks</em>. The colors and x-axis position are not meaningful.</p>\n};
             print $fh qq{</div>\n};
             1;
         };
