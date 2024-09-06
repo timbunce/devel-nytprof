@@ -4,6 +4,12 @@
 
 History of significant changes in Devel::NYTProf
 
+=head2 Changes in Devel::NYTProf 6.15 - TO COME
+
+Updated URL linking to Brendan Gregg's Flame Graph page; thanks to Paul
+Cochrane.
+(L<GH 220|https://github.com/timbunce/devel-nytprof/pull/220>).
+
 =head2 Changes in Devel::NYTProf 6.14 - 18th Oct 2023
 
 B<There should be no significant differences in the performance of Devel-NYTProf
