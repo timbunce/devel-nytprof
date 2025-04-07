@@ -11,7 +11,7 @@ make test
 make install
 
 The module library tried to speed thing up when running in forkmode by using
-fpruge() to delete potential duplicated buffers.  Unfortunately, although
+fpurge() to delete potential duplicated buffers.  Unfortunately, although
 fpurge() *is* in the GNU manual, operating systems largely implement it very
 differently.  The Makefile.PL does some magic to find out where your particular
 version of fpurge is.  Usually it can be found in stdio.h or stdio_ext.h, so
