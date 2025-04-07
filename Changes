@@ -286,7 +286,7 @@ in an older pull request.
     Fixed spelling mistake in nytprofcsv docs. Closes #95
 
     Table headers now stay visible, thanks to Sebastian Rose #106
-    Assorted improvments to .travis.yml
+    Assorted improvements to .travis.yml
 
 =head2 Changes in Devel::NYTProf 6.03 - 25th March 2016
 
