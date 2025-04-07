@@ -17906,7 +17906,7 @@ DPPP_(my_utf8_to_uvchr_buf)(pTHX_ const U8 *s, const U8 *send, STRLEN *retlen)
          * part of the above conditional where we know we don't have overflow.
          *
          * The modern versions allow anything that evaluates to a legal UV, but
-         * not overlongs nor an empty input */
+         * neither overlongs nor an empty input */
         ret = D_PPP_utf8_to_uvchr_buf_callee(
               (U8 *) /* Early perls: no const */
                     s, curlen, retlen,   (UTF8_ALLOW_ANYUV
