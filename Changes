@@ -547,7 +547,7 @@ in an older pull request.
 Major changes:
 
   Added profile reporting of code executed in string evals.
-    Each string eval executed gets it's own report page.
+    Each string eval executed gets its own report page.
     You can 'see' the code that was executed, with profile info.
     String evals may be collapsed/merged in some cases.
 
