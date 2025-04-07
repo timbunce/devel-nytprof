@@ -3784,7 +3784,7 @@ normalize_eval_seqn(pTHX_ SV *sv) {
          )                    # [capture that]
          [0-9]+               # digits
          (?=\))               # look ahead for literal )
-         /$1 0/xg             # and rebuild, replacing the digts with 0
+         /$1 0/xg             # and rebuild, replacing the digits with 0
     */
 
     /* Assumption is that space is the least common character in a filename.  */
