@@ -202,7 +202,7 @@ the source might be misaligned
 
 Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
 
-Public Github Repository and hacking instructions at L<https://github.com/timbunce/devel-nytprof/>
+Public GitHub Repository and hacking instructions at L<https://github.com/timbunce/devel-nytprof/>
 
 L<Devel::NYTProf>
 L<Devel::NYTProf::Reader>

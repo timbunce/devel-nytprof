@@ -2112,7 +2112,7 @@ Tim's work was partly sponsored by Shopzilla. L<http://www.shopzilla.com>.
 
 Mailing list and discussion at L<http://groups.google.com/group/develnytprof-dev>
 
-Public Github Repository and hacking instructions at L<https://github.com/timbunce/devel-nytprof/>
+Public GitHub Repository and hacking instructions at L<https://github.com/timbunce/devel-nytprof/>
 
 L<Devel::NYTProf>,
 L<Devel::NYTProf::Reader>,
