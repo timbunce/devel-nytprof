@@ -120,7 +120,7 @@ Add @INC to data file so reports can be made more readable by removing
 (possibly very long) library paths where appropriate.
 Tricky thing is that @INC can change during the life of the program.
 One approach might be to output it whenever we assign a new fid
-but only if different to the last @INC that was ouput.
+but only if different to the last @INC that was output.
 
 Add marker with timestamp for phases BEGIN, CHECK, INIT, END
 (could combine with pid marker)
