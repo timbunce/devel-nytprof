@@ -2768,7 +2768,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
 
-    /* detect wierdness/corruption */
+    /* detect weirdness/corruption */
     assert(subr_entry);
     assert(subr_entry->caller_fid < fidhash.next_id);
 
