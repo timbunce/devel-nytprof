@@ -818,7 +818,7 @@ hash_stats(Hash_table *hashtable, int verbosity)
         if (chain_len > max_chain_len)
             max_chain_len = chain_len;
     }
-    /* XXX would be nice to show a histogram of chain lenths */
+    /* XXX would be nice to show a histogram of chain lengths */
     warn("%s hash: %d of %d buckets used, %d items, max chain %d\n",
         hashtable->name, buckets, hashtable->size, items, max_chain_len);
 }
