@@ -187,7 +187,7 @@ is(scalar(@noneval_fileinfos), 1, "got 1 noneval_fileinfo");
         my $arg = 'main::kalamazoo';
         $stderr = capture_stderr { $rv = $profile->file_line_range_of_sub($arg); };
         ok(!defined $rv,
-            "file_line_range_of_sub() returned undef with non-existent subroutine");
+            "file_line_range_of_sub() returned undef with nonexistent subroutine");
         like($stderr, qr/Can't resolve subinfo of '$arg'/s,
             "file_line_range_of_sub(): got expected warning for unknown argument");
     }
