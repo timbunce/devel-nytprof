@@ -2684,7 +2684,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     if (trace_level >= 99) {
         logwarn("profiling a call [op %ld, %s, seix %d]\n",
             (long)op_type, PL_op_name[op_type], (int)subr_entry_ix);
-        /* crude, but the only way to deal with the miriad logic at the
+        /* crude, but the only way to deal with the myriad logic at the
          * start of pp_entersub (which ought to be available as separate sub)
          */
         sv_dump(sub_sv);
