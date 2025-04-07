@@ -494,7 +494,7 @@ static U8 last_sawampersand;
 #define CHECK_SAWAMPERSAND(fid,line) (void)0
 #endif
 
-/* macros for outputing profile data */
+/* macros for outputting profile data */
 #ifndef HAS_GETPPID
 #define getppid() 0
 #endif
