@@ -981,7 +981,7 @@ Other:
 
   0.03  Thu Mar 6 09:12:00 2008
     - Fixed a VERY tricky bug some people had encountered. Scalar references to 
-        code that is evaled at runtime will cause divide-by-zero error IF the
+        code that is evaluated at runtime will cause divide-by-zero error IF the
         reference was declared in a BEGIN {...} and used outside of a BEGIN. 
         (The debugger/profiler can't see what happens in a BEGIN)
     - Added test case for above issue as test11
