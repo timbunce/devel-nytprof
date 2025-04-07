@@ -2050,7 +2050,7 @@ using perl v5.18.2.
 =head2 "Unable to open '... (autosplit into ...)'"
 
 The profiled application executed code in a module that used L<AutoLoader> to
-load the code from a separate .al file.  NYTProf automatically recognises this
+load the code from a separate .al file.  NYTProf automatically recognizes this
 situation and tries to determine the 'parent' module file so it can associate
 the profile data with it.  In order to do that the parent module file must
 already be 'known' to NYTProf, typically by already having some code profiled.
