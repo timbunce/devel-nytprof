@@ -166,7 +166,7 @@ gv_fetchfile_flags(pTHX_ const char *const name, const STRLEN namelen, const U32
  * during profiling but we should really output ticks so the reporting side
  * can also be more accurate when merging subs, for example.
  * That'll probably need a file format bump and thus also a major version bump.
- * Will need coresponding changes to NYTP_SIi_* as well.
+ * Will need corresponding changes to NYTP_SIi_* as well.
  */
 #define NYTP_SCi_CALL_COUNT      0   /* count of calls to sub */    
 #define NYTP_SCi_INCL_RTIME      1   /* inclusive real time in sub (set from NYTP_SCi_INCL_TICKS) */
@@ -494,7 +494,7 @@ static U8 last_sawampersand;
 #define CHECK_SAWAMPERSAND(fid,line) (void)0
 #endif
 
-/* macros for outputing profile data */
+/* macros for outputting profile data */
 #ifndef HAS_GETPPID
 #define getppid() 0
 #endif
@@ -818,7 +818,7 @@ hash_stats(Hash_table *hashtable, int verbosity)
         if (chain_len > max_chain_len)
             max_chain_len = chain_len;
     }
-    /* XXX would be nice to show a histogram of chain lenths */
+    /* XXX would be nice to show a histogram of chain lengths */
     warn("%s hash: %d of %d buckets used, %d items, max chain %d\n",
         hashtable->name, buckets, hashtable->size, items, max_chain_len);
 }
@@ -890,7 +890,7 @@ fid_is_pmc(pTHX_ fid_hash_entry *fid_info)
                '\0', so it is safe to pass file_name to a system call.  */
             if (PerlLIO_lstat(file_name, &pmstat) < 0 ||
             pmstat.st_mtime < pmcstat.st_mtime) {
-                is_pmc = 1; /* hey, maybe it's Larry working on the perl6 comiler */
+                is_pmc = 1; /* hey, maybe it's Larry working on the perl6 compiler */
             }
         }
         SvREFCNT_dec(pmcsv);
@@ -2193,7 +2193,7 @@ incr_sub_inclusive_time(pTHX_ subr_entry_t *subr_entry)
                     * because CvFILE() isn't reliable on perl 5.8.[78]
                     * and the name of the .c file isn't very useful anyway.
                     * The reader can try to associate the xsubs with the
-                    * corresonding .pm file using the package part of the subname.
+                    * corresponding .pm file using the package part of the subname.
                     */
                 SV *sv = *hv_fetch(GvHV(PL_DBsub), called_subname_pv, (I32)(called_subname_pv_end - called_subname_pv), 1);
                 if (!SvOK(sv))
@@ -2684,7 +2684,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
     if (trace_level >= 99) {
         logwarn("profiling a call [op %ld, %s, seix %d]\n",
             (long)op_type, PL_op_name[op_type], (int)subr_entry_ix);
-        /* crude, but the only way to deal with the miriad logic at the
+        /* crude, but the only way to deal with the myriad logic at the
          * start of pp_entersub (which ought to be available as separate sub)
          */
         sv_dump(sub_sv);
@@ -2768,7 +2768,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
 
     subr_entry = subr_entry_ix_ptr(this_subr_entry_ix);
 
-    /* detect wierdness/corruption */
+    /* detect weirdness/corruption */
     assert(subr_entry);
     assert(subr_entry->caller_fid < fidhash.next_id);
 
@@ -2838,7 +2838,7 @@ pp_subcall_profiler(pTHX_ int is_slowop)
                     (void*)called_cv, SvPV_nolen(sub_sv), OutCopFILE(prev_cop), (int)CopLINE(prev_cop));
                 /* looks like Class::MOP doesn't give the CV GV stash a name */
                 if (trace_level >= 2) {
-                    sv_dump((SV*)called_cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP wierdo sub */
+                    sv_dump((SV*)called_cv); /* coredumps in Perl_do_gvgv_dump, looks line GvXPVGV is false, presumably on a Class::MOP weirdo sub */
                     sv_dump((SV*)gv);
                 }
             }
@@ -3357,7 +3357,7 @@ pkg_name_len(pTHX_ char *sub_name, I32 len)
 
 /* Given a fully-qualified sub_name lookup the package name portion in
  * the pkg_fids_hv hash.  Return Nullsv if there's no package name or no
- * correponding entry, else returns the SV.
+ * corresponding entry, else returns the SV.
  *
  * About pkg_fids_hv:
  * pp_subcall_profiler() creates undef entries for a package
@@ -3784,7 +3784,7 @@ normalize_eval_seqn(pTHX_ SV *sv) {
          )                    # [capture that]
          [0-9]+               # digits
          (?=\))               # look ahead for literal )
-         /$1 0/xg             # and rebuild, replacing the digts with 0
+         /$1 0/xg             # and rebuild, replacing the digits with 0
     */
 
     /* Assumption is that space is the least common character in a filename.  */
@@ -5035,7 +5035,7 @@ load_profile_to_hv(pTHX_ NYTP_file in)
    by default. 1 ms best case scenario if you use special options which Perl
    land doesn't use, and MS strongly discourages in
    "Timers, Timer Resolution, and Development of Efficient Code". So for short
-   programs profiler_duration winds up being 0. If necessery, in the future
+   programs profiler_duration winds up being 0. If necessary, in the future
    profiler_duration could be set to 15.625 ms automatically on NYTProf start
    because of the argument that a process can not execute in 0 ms according to
    the laws of space and time, or at "the end" if profiler_duration is 0.0, set

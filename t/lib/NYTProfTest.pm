@@ -643,7 +643,7 @@ sub verify_csv_report {
             my $expected = $1;
             my $percent  = int(($t0 / $expected) * 100);    # <100 if faster, >100 if slower
 
-            # Test aproximate times
+            # Test approximate times
             push @accuracy_errors,
                   "$test line $index: got $t0 expected approx $expected for time ($percent%)"
                 if ($percent < $max_time_underrun_percentage)

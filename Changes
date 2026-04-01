@@ -4,6 +4,12 @@
 
 History of significant changes in Devel::NYTProf
 
+=head2 Changes in Devel::NYTProf 6.16 - IN PROGRESS
+
+Spelling corrections excerpted from a pull request by Josh Soref.
+(L<GH 228|https://github.com/timbunce/devel-nytprof/pull/228>, reworked as
+L<GH 235|https://github.com/timbunce/devel-nytprof/pull/235>.)
+
 =head2 Changes in Devel::NYTProf 6.15 - 31st Mar 2026
 
 Updated URL linking to Brendan Gregg's Flame Graph page; thanks to Paul
@@ -15,7 +21,7 @@ originally suggeted by Gabor Szabo.
 
 Eliminated "Possible precedence problem ..." warning being emitted during
 tests; thanks to Masahiro Iuchi.
-(L<GH 230|https://github.com/timbunce/devel-nytprof/pull/230).
+(L<GH 230|https://github.com/timbunce/devel-nytprof/pull/230>).
 
 =head2 Changes in Devel::NYTProf 6.14 - 18th Oct 2023
 
