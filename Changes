@@ -10,6 +10,9 @@ Corrected POD formatting error noted by Gregor Herrmann; added 'Changes' to
 list of files examined by Test::Pod.
 (L<GH 236|https://github.com/timbunce/devel-nytprof/pull/236>).
 
+Spelling corrections excerpted from a pull request by Josh Soref.
+(L<GH 228|https://github.com/timbunce/devel-nytprof/pull/228>).
+
 =head2 Changes in Devel::NYTProf 6.15 - 31st Mar 2026
 
 Updated URL linking to Brendan Gregg's Flame Graph page; thanks to Paul
