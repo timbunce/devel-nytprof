@@ -15,7 +15,7 @@ originally suggeted by Gabor Szabo.
 
 Eliminated "Possible precedence problem ..." warning being emitted during
 tests; thanks to Masahiro Iuchi.
-(L<GH 230|https://github.com/timbunce/devel-nytprof/pull/230).
+(L<GH 230|https://github.com/timbunce/devel-nytprof/pull/230>).
 
 =head2 Changes in Devel::NYTProf 6.14 - 18th Oct 2023
 
