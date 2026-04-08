@@ -636,6 +636,7 @@ NYTP_fstrerror(NYTP_file file) {
 #endif
     {
         dNFTHX(file);
+        PERL_UNUSED_ARG(file);
         return strerror(errno);
     }
 }
