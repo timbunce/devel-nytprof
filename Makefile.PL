@@ -115,7 +115,7 @@ if( $ExtUtils::MakeMaker::VERSION >= 6.46 ) {
     $mm_opts{META_MERGE} = {
         "meta-spec" => { version => 2 },
         no_index => {
-            package => [ 'SVG' ], # in bin/flamegraph.pl
+            package => [ 'SVG' ], # in bin/nytflamegraph.pl
         },
         resources => {
             license     => 'http://dev.perl.org/licenses/',
@@ -182,7 +182,7 @@ WriteMakefile(
     LIBS      => [join ' ', @libs],
     OBJECT    => q/$(O_FILES)/,
     FUNCLIST => ['boot_Devel__NYTProf', 'boot_Devel__NYTProf__FileHandle'],
-    EXE_FILES => ['bin/nytprofhtml', 'bin/flamegraph.pl', 'bin/nytprofcsv', 'bin/nytprofcalls', 'bin/nytprofcg', 'bin/nytprofmerge'],
+    EXE_FILES => ['bin/nytprofhtml', 'bin/nytflamegraph.pl', 'bin/nytprofcsv', 'bin/nytprofcalls', 'bin/nytprofcg', 'bin/nytprofmerge'],
     @man,
     INC   => $INCLUDE,
     clean => {

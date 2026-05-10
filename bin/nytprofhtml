@@ -78,10 +78,10 @@ $nytprofcalls    = which 'nytprofcalls' if not -e $nytprofcalls;
 die "Unable to find nytprofcalls in $Config{bin} or on the PATH"
     unless $nytprofcalls;
 
-my $flamegraph   = File::Spec->catfile($Config{'bin'}, 'flamegraph') . $script_ext;
-$flamegraph      = which "flamegraph$script_ext" if not -e $flamegraph;
+my $flamegraph   = File::Spec->catfile($Config{'bin'}, 'nytflamegraph') . $script_ext;
+$flamegraph      = which "nytflamegraph$script_ext" if not -e $flamegraph;
 
-die "Unable to find flamegraph$script_ext in $Config{bin} or on the PATH"
+die "Unable to find nytflamegraph$script_ext in $Config{bin} or on the PATH"
     unless $flamegraph;
 
 my @treemap_colors = (0,2,4,6,8,10,1,3,5,7,9);
