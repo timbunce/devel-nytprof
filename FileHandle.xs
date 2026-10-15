@@ -834,7 +834,7 @@ output_str(NYTP_file file, const char *str, I32 len) {    /* negative len signif
 
 /**
  * Output a double precision float via a simple binary write of the memory.
- * (Minor portbility issues are seen as less important than speed and space.)
+ * (Minor portability issues are seen as less important than speed and space.)
  */
 size_t
 output_nv(NYTP_file file, NV nv)
