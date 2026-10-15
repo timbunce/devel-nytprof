@@ -419,12 +419,8 @@ sub subroutine_table {
                 4: { sorter: 'fmt_time' }
             }
         });
-        $(".floatHeaders").each( function(){ $(this).floatThead(); } );
 
-        show_fragment_target();
-        $(window).on('hashchange', function(e){
-          show_fragment_target();
-        });
+     
 
     > if @subs_to_show == @subs;
 
@@ -1507,13 +1503,6 @@ sub output_file_table {
                 2: { sorter: false      }
             }
         });
-
-        $(".floatHeaders").each( function(){ $(this).floatThead(); } );
-
-        show_fragment_target();
-        $(window).on('hashchange', function(e){
-          show_fragment_target();
-        });
     };
 
     return "";
@@ -1659,7 +1648,6 @@ EOD
     $html .= <<'EOD' unless $opts->{skip_jquery};
     <script type="text/javascript" src="js/jquery-min.js"></script>
 
-    <script type="text/javascript" src="js/jquery.floatThead.min.js"></script>
     <script type="text/javascript" src="js/jquery.tablesorter.min.js"></script>
     <link rel="stylesheet" type="text/css" href="js/style-tablesorter.css" />
     <script type="text/javascript">
@@ -1690,23 +1678,6 @@ EOD
         type: 'numeric' // set type, either numeric or text
     });
 
-    function show_fragment_target() {
-        var tgt = $(':target');
-        var table = tgt.closest('table.floatHeaders');
-        if( tgt.is('a') && table.is('table.floatHeaders') )
-        {
-            var cury     = $(window).scrollTop();
-            var fhYPos   = table.prev('.floatThead-container').offset().top;
-            var thHeight = table.find('thead').first().height();
-            var tYPos    = parseInt($(':target').closest('tr').position().top);
-            if( tYPos < (fhYPos + thHeight) )
-            {
-                $(window).scrollTop(
-                    tYPos - (thHeight)
-                );
-            }
-        }
-    }
     </script>
 EOD
     $html .= $opts->{head_epilogue} if $opts->{head_epilogue};
