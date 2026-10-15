@@ -18,7 +18,8 @@ jobs:
           - '5.30'
           - '5.38'
           - '5.42'
-          - 'latest'
+          - '5.44'
+          #- 'latest'
     container:
       image: perldocker/perl-tester:${{ matrix.perl-version }}     # https://hub.docker.com/r/perldocker/perl-tester
     name: Perl ${{ matrix.perl-version }}
@@ -45,9 +46,10 @@ jobs:
         perl:
           - '5.30'
           - '5.42'
-        #exclude:
-        #  - runner: windows-latest
-        #    perl: '5.40'
+          - '5.44'
+        exclude:
+          - runner: windows-latest
+            perl: '5.44'
 
     runs-on: ${{matrix.runner}}
     name: OS ${{matrix.runner}} Perl ${{matrix.perl}}
