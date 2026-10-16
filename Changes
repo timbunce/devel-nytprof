@@ -69,7 +69,7 @@ Elimination of 'bad-function-cast' warnings during 'make'
 Correction of typographic error in F<nytprofhtml> thanks to Amory Meltzer
 (L<GH 210|https://github.com/timbunce/devel-nytprof/pull/210>).
 
-Depending on Per version, skip one test file that was exercising 'given' and
+Depending on Perl version, skip one test file that was exercising 'given' and
 'when' keywords (now deprecated)
 (L<GH 211|https://github.com/timbunce/devel-nytprof/pull/211>).
 
