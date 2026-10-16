@@ -9,7 +9,7 @@
 ###########################################################
 package Devel::NYTProf;
 
-our $VERSION = '6.15'; # also change in Devel::NYTProf::Core
+our $VERSION = '6.16'; # also change in Devel::NYTProf::Core
 
 package    # hide the package from the PAUSE indexer
     DB;
@@ -1266,7 +1266,7 @@ C<Devel::FastProf> adding reporting from C<Devel::Cover> and a test suite.
 =head1 COPYRIGHT AND LICENSE
 
   Copyright (C) 2008 by Adam Kaplan and The New York Times Company.
-  Copyright (C) 2008-2016 by Tim Bunce, Ireland.
+  Copyright (C) 2008-2026 by Tim Bunce, Ireland.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

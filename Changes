@@ -4,7 +4,7 @@
 
 History of significant changes in Devel::NYTProf
 
-=head2 Changes in Devel::NYTProf 6.16 - TO COME
+=head2 Changes in Devel::NYTProf 6.16 - 15th Oct 2026
 
 Corrected POD formatting error noted by Gregor Herrmann; added 'Changes' to
 list of files examined by Test::Pod.
@@ -13,6 +13,15 @@ list of files examined by Test::Pod.
 Spelling corrections excerpted from a pull request by Josh Soref.
 (L<GH 228|https://github.com/timbunce/devel-nytprof/pull/228>, reworked as
 L<GH 235|https://github.com/timbunce/devel-nytprof/pull/235>.)
+
+Revise some tests following blead line number tracking update, as reported in
+(L<Perl 24903|https://github.com/Perl/perl5/issues/24903>) and corrected by
+Richard Leach.
+(L<GH 236|https://github.com/timbunce/devel-nytprof/pull/236>).
+
+Fix unused parameter warning in NYTP_fstrerror; noted and corrected by
+Masahiro Iuchi.
+(L<GH 231|https://github.com/timbunce/devel-nytprof/pull/231>).
 
 =head2 Changes in Devel::NYTProf 6.15 - 31st Mar 2026
 
